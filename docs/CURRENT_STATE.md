@@ -2,7 +2,7 @@
 
 ## Last Updated
 
-Pre-Codex baseline.
+2026-10-13.
 
 This document describes only what is currently implemented and working.
 
@@ -14,11 +14,11 @@ Do not place future plans or speculative features here.
 
 Current phase:
 
-PRE-PRODUCTION COMPLETE / READY FOR FIRST IMPLEMENTATION TASK
+FIRST PLAYABLE IMPLEMENTATION / GAME-001 COMPLETE
 
-The project has a working browser application and development toolchain.
+The project has a working browser application, development toolchain and placeholder gameplay scene.
 
-Gameplay has not started yet.
+Interactive gameplay mechanics have not been implemented yet.
 
 ---
 
@@ -91,13 +91,13 @@ PASS
 
 ## Current Runtime
 
-The project currently boots Phaser successfully in the browser.
+The project boots Phaser in the browser and transitions from BootScene into GameplayScene.
 
 Current screen:
 
-- dark background
-- NEBULA title
-- "Phaser 4 bootstrap ready" text
+- dark-space placeholder arena with static stars and a rectangular boundary
+- "NEBULA — GAMEPLAY SCENE" label
+- "Placeholder space arena" text
 
 Rendering:
 
@@ -121,6 +121,7 @@ src/
     config.ts
     scenes/
       BootScene.ts
+      GameplayScene.ts
 
 docs/
   GAME_DESIGN.md
@@ -231,13 +232,11 @@ These should only be introduced when real project requirements justify them.
 
 ## Next Step
 
-Project preparation is complete.
+The placeholder gameplay scene is implemented and browser-verified.
 
 The next implementation task is:
 
-GAME-001 — Gameplay Scene
-
-Codex gameplay implementation has not started yet.
+GAME-002 — Player Placeholder
 
 ---
 

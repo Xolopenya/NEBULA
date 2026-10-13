@@ -182,7 +182,7 @@ FIRST PLAYABLE
 
 ## GAME-001 � Gameplay Scene
 
-STATUS: READY
+STATUS: DONE
 
 DEPENDENCIES:
 
@@ -218,7 +218,7 @@ The application boots directly into or can enter a minimal gameplay scene withou
 
 ## GAME-002 � Player Placeholder
 
-STATUS: BLOCKED
+STATUS: READY
 
 DEPENDENCIES:
 
