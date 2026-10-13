@@ -14,7 +14,7 @@ Do not place future plans or speculative features here.
 
 Current phase:
 
-FIRST PLAYABLE IMPLEMENTATION / GAME-001 COMPLETE
+FIRST PLAYABLE IMPLEMENTATION / GAME-002 COMPLETE
 
 The project has a working browser application, development toolchain and placeholder gameplay scene.
 
@@ -96,6 +96,7 @@ The project boots Phaser in the browser and transitions from BootScene into Game
 Current screen:
 
 - dark-space placeholder arena with static stars and a rectangular boundary
+- stationary cyan player ship placeholder at the arena center, drawn with Phaser geometry
 - "NEBULA — GAMEPLAY SCENE" label
 - "Placeholder space arena" text
 
@@ -142,11 +143,11 @@ Other root files include:
 
 ## Implemented Gameplay
 
-None yet.
+A stationary player ship placeholder is rendered in GameplayScene.
+No input or movement logic is implemented.
 
 There is currently no:
 
-- player
 - movement
 - arena gameplay
 - enemies
@@ -232,11 +233,11 @@ These should only be introduced when real project requirements justify them.
 
 ## Next Step
 
-The placeholder gameplay scene is implemented and browser-verified.
+The placeholder gameplay scene and stationary player ship are implemented and browser-verified.
 
 The next implementation task is:
 
-GAME-002 — Player Placeholder
+GAME-003 — Desktop Player Movement
 
 ---
 

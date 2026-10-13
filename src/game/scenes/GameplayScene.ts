@@ -23,6 +23,10 @@ export class GameplayScene extends Phaser.Scene {
     arena.strokeRect(40, 40, width - 80, height - 80);
 
     this.add
+      .polygon(width / 2, height / 2, [20, 0, 40, 48, 20, 36, 0, 48], 0x38bdf8)
+      .setStrokeStyle(2, 0xe0f2fe);
+
+    this.add
       .text(width / 2, 80, 'NEBULA — GAMEPLAY SCENE', {
         fontFamily: 'Arial, sans-serif',
         fontSize: '28px',

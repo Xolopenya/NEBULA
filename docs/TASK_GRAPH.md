@@ -218,7 +218,7 @@ The application boots directly into or can enter a minimal gameplay scene withou
 
 ## GAME-002 � Player Placeholder
 
-STATUS: READY
+STATUS: DONE
 
 DEPENDENCIES:
 
@@ -248,7 +248,7 @@ A placeholder ship appears at the expected starting position.
 
 ## GAME-003 � Desktop Player Movement
 
-STATUS: BLOCKED
+STATUS: READY
 
 DEPENDENCIES:
 
