@@ -398,7 +398,7 @@ Enemies spawn repeatedly at valid locations without spawning directly on top of 
 
 ## GAME-008 — Automatic Target Selection
 
-STATUS: READY
+STATUS: DONE
 
 DEPENDENCIES:
 
@@ -426,7 +426,7 @@ A valid nearby enemy can be selected reliably for weapon fire.
 
 ## GAME-009 — Basic Laser Weapon
 
-STATUS: BLOCKED
+STATUS: READY
 
 DEPENDENCIES:
 

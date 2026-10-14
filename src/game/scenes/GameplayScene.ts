@@ -3,6 +3,7 @@ import * as Phaser from 'phaser';
 export class GameplayScene extends Phaser.Scene {
   private player?: Phaser.GameObjects.Polygon;
   private enemies: Phaser.GameObjects.Polygon[] = [];
+  private currentTarget?: Phaser.GameObjects.Polygon;
   private cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
   private wasd?: Record<'up' | 'left' | 'down' | 'right', Phaser.Input.Keyboard.Key>;
   private readonly movementDirection = new Phaser.Math.Vector2();
@@ -22,6 +23,7 @@ export class GameplayScene extends Phaser.Scene {
 
   create(): void {
     this.enemies = [];
+    this.currentTarget = undefined;
     const { width, height } = this.scale;
     this.cameras.main.setBackgroundColor('#050816');
 
@@ -115,6 +117,30 @@ export class GameplayScene extends Phaser.Scene {
       enemy.x = Phaser.Math.Clamp(enemy.x, this.enemyMargin, this.arenaWidth - this.enemyMargin);
       enemy.y = Phaser.Math.Clamp(enemy.y, this.enemyMargin, this.arenaHeight - this.enemyMargin);
     }
+
+    const target = this.selectNearestEnemy();
+    if (target !== this.currentTarget) {
+      this.currentTarget?.setStrokeStyle(2, 0xffcdd2);
+      this.currentTarget = target;
+      this.currentTarget?.setStrokeStyle(4, 0xfde047);
+    }
+  }
+
+  private selectNearestEnemy(): Phaser.GameObjects.Polygon | undefined {
+    if (!this.player) return undefined;
+
+    let nearest: Phaser.GameObjects.Polygon | undefined;
+    let nearestDistanceSquared = Infinity;
+    for (const enemy of this.enemies) {
+      const dx = enemy.x - this.player.x;
+      const dy = enemy.y - this.player.y;
+      const distanceSquared = dx * dx + dy * dy;
+      if (distanceSquared < nearestDistanceSquared) {
+        nearest = enemy;
+        nearestDistanceSquared = distanceSquared;
+      }
+    }
+    return nearest;
   }
 
   private createEnemy(x: number, y: number): void {
