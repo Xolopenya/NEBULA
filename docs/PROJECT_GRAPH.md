@@ -4,8 +4,8 @@
 
 - Project: NEBULA.
 - Milestone: First Playable / GAME-015 complete.
-- Source baseline HEAD: `adf7b9eac85069f2aa77d659c6f365583e562cf1`.
-- This map reflects that source baseline plus the GAME-020 choice/resume ownership changes.
+- Source baseline HEAD: `16358a5245b412c8e94dccd4f59b2c986062502f`.
+- This map reflects that source baseline plus the GAME-021 Laser upgrade ownership changes.
 - Active task request defines task-specific requirements.
 - AGENTS.md defines repository policy.
 - TASK_GRAPH.md defines task scope, dependencies and status.
@@ -88,8 +88,8 @@ All private names below are navigation anchors, not exported symbol nodes.
 | Movement/bounds/camera | update; movementDirection; create camera setup | Normalized delta movement, arena clamp/follow |
 | Player health | playerHealth, playerMaxHealth; damagePlayer | Current/max HP and clamping |
 | Damage protection | playerDamageProtectionRemaining; updatePlayerProtection | Global 500 ms protection, temporary alpha |
-| Level-up pause | isLevelUpPaused; enterLevelUpPause; isSimulationPaused | Distinct from death; level increase freezes update/callbacks; fixed title and three placeholders; one selection resumes |
-| Choice UI/resume | levelUpPresentation; enterLevelUpPause; acceptLevelUpChoice | Current text identity guard; destroys title/options then resumes; no stat effects |
+| Level-up pause | isLevelUpPaused; enterLevelUpPause; isSimulationPaused | Distinct from death; level increase freezes update/callbacks; fixed title and three Laser upgrades; one selection resumes |
+| Choice UI/resume | levelUpPresentation; enterLevelUpPause; acceptLevelUpChoice | Current text identity guard; applies Laser effect, destroys title/options then resumes |
 | Death/retry | isPlayerDead; enterPlayerDeath | Idempotent freeze; death-only clickable retry |
 | Enemy runtime | enemies; EnemyRuntime; createEnemy | One collection of visual + health records |
 | Spawning | spawnEnemy; spawnInterval, maximumEnemies | Global timer, placement, active-count cap |
@@ -102,7 +102,8 @@ All private names below are navigation anchors, not exported symbol nodes.
 | Shared projectiles | projectiles; ProjectileRuntime | source, damage, visual, velocity, remainingLifetime |
 | Projectile stepping | updateProjectiles | Lifetime-clipped motion; swept impact; reverse removal |
 | Projectile cleanup | updateProjectiles | Impact, lifetime and world-exit destruction |
-| Player Laser | fireLaser; laserFireInterval | 600 ms automatic fire at currentTarget; fixed launch aim |
+| Player Laser | laser; laserTimer; fireLaser | Mutable Laser-only damage/interval/speed, baseline 600 ms; existing timer reset for cadence upgrades |
+| Laser upgrades | LaserUpgrade; acceptLevelUpChoice | Cumulative power/rate/speed effects before resume; create restores baseline |
 | Hostile fire | fireHostileProjectile; hostileFireInterval | 1500 ms global timer; nearest active firing enemy |
 | Collision inputs | updateProjectiles; player/enemy/projectile radii | Scene supplies positions and combined radii |
 | Collision calculation | collision.ts; segmentCircleHitTime | Pure numeric math, no Phaser/runtime records |
@@ -123,7 +124,7 @@ Lethal player damage → damagePlayer → enterPlayerDeath → frozen simulation
 - create resets health/protection/death, arrays and target; constructs fresh visuals.
 - Spawn, Laser and hostile callbacks return while dead or level-up paused; timer events remain scheduled.
 - Level-increasing collection removes its pickup then pauses; subsequent pickups remain frozen.
-- One current placeholder choice destroys levelUpPresentation and clears pause; stale choices cannot close a new pause.
+- One current choice applies its Laser upgrade then destroys levelUpPresentation and clears pause; stale choices cannot close a new pause.
 - Projectile iteration stops after cleaning the lethal hostile impact; remaining objects freeze.
 - Native Phaser restart shuts down old display objects/UI and timer events before create.
 - Retry exists only in death presentation; no manual per-object reset service.
@@ -152,7 +153,8 @@ GameplayScene.updateXpPickups IMPLEMENTS_TASK GAME-017 — XP Magnet Collection.
 GameplayScene.playerExperience / progression/experience.ts IMPLEMENTS_TASK GAME-018 — Player XP and Level Rules.
 GameplayScene.isLevelUpPaused / enterLevelUpPause / isSimulationPaused IMPLEMENTS_TASK GAME-019.
 GameplayScene.levelUpPresentation / acceptLevelUpChoice IMPLEMENTS_TASK GAME-020.
-No HUD or actual upgrade effects are implemented.
+GameplayScene.laser / laserTimer / acceptLevelUpChoice IMPLEMENTS_TASK GAME-021.
+No HUD or generalized weapon stats framework is implemented.
 Statuses and dependencies remain in TASK_GRAPH.md, not duplicated here.
 
 ## Common navigation queries
@@ -170,7 +172,7 @@ Statuses and dependencies remain in TASK_GRAPH.md, not duplicated here.
 | Where are enemy spawn callbacks? | GameplayScene.ts → create timer / spawnEnemy |
 | Where are player/hostile fire callbacks? | GameplayScene.ts → create timers / fireLaser / fireHostileProjectile |
 | What guards callbacks while dead or level-up paused? | GameplayScene.ts → isSimulationPaused checks in spawn/fire helpers |
-| Who owns Laser firing configuration? | GameplayScene.ts → laserFireInterval, projectileSpeed/Lifetime, laserDamage |
+| Who owns Laser firing configuration? | GameplayScene.ts → laser, laserTimer, fireLaser; create/acceptLevelUpChoice |
 | Where does restart cleanup occur? | GameplayScene.ts → enterPlayerDeath → Phaser scene.restart lifecycle |
 | Where are repository/task rules? | AGENTS.md; docs/TASK_GRAPH.md; active user task |
 

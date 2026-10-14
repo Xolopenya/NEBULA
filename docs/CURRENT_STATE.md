@@ -14,7 +14,7 @@ Do not place future plans or speculative features here.
 
 Current phase:
 
-FIRST PLAYABLE CORE LOOP COMPLETE / GAME-020 COMPLETE
+FIRST PLAYABLE CORE LOOP COMPLETE / GAME-021 COMPLETE
 
 The project has a working browser application, development toolchain and placeholder gameplay scene.
 
@@ -163,13 +163,13 @@ Enemies use local runtime records containing their polygon visual and health, st
 The nearest active enemy is automatically selected each frame after movement using squared world-space distance.
 Equal-distance ties select the first enemy in array order; an empty enemy array clears the target.
 The selected enemy has a temporary 4-pixel yellow outline; the former target returns to its normal 2-pixel pale outline when selection changes.
-A Phaser timer automatically fires the basic Laser every 600 ms when a current target exists.
-Each shot starts at the player's world position and stores a normalized firing-time direction toward the current target. It travels straight at 1200 pixels per second using frame delta and does not home or depend on the target after launch.
+A Phaser timer automatically fires the Laser initially every 600 ms when a current target exists.
+Each shot starts at the player's world position and stores a normalized firing-time direction toward the current target. At baseline it travels straight at 1200 pixels per second using frame delta and does not home or depend on the target after launch.
 Scene-owned projectile records contain the cyan circle visual, fixed velocity components and remaining lifetime. Multiple shots can coexist.
 Projectiles expire after 2000 ms or are removed early once their whole 6-pixel-radius circle leaves the arena. Cleanup destroys the visual and removes the runtime entry.
 No manual fire input is required. Exact or near-zero-distance shots are suppressed safely.
 Without a current target no shot is created; the timer stays ready for a future target.
-Each Laser projectile deals 1 damage to the first enemy intersected along its movement segment and is immediately destroyed and removed. Hit detection sweeps against an approximate 24-pixel enemy radius expanded by the 6-pixel projectile radius, avoiding projectile tunneling across larger frame steps. Shots do not pierce.
+Each Laser projectile initially deals 1 damage to the first enemy intersected along its movement segment and is immediately destroyed and removed. Hit detection sweeps against an approximate 24-pixel enemy radius expanded by the 6-pixel projectile radius, avoiding projectile tunneling across larger frame steps. Shots do not pierce.
 Enemies with remaining HP stay active. At zero HP their visual is destroyed and their runtime entry is removed, so they no longer chase, count toward the cap or participate in targeting. Death clears currentTarget immediately when applicable; normal targeting selects and highlights the next nearest enemy on the following update.
 Player health resets to 5 HP on scene creation. Enemy contact deals 1 damage using squared world-center distance with player radius 20 and enemy radius 24 (combined radius 44).
 Contact runs after projectile impacts/removals and starts 500 ms of global, delta-based protection. Multiple overlaps cause at most one hit per update. Successful damage reduces the ship alpha to 0.5 during protection, then restores it to 1. Continued overlap can damage again when protection expires.
@@ -178,12 +178,11 @@ Creation resets the player to alive. Death freezes movement, enemy chase, target
 Only after death, a screen-fixed clickable RETRY control appears. Clicking it once uses Phaser scene.restart() without reloading the page. Phaser shutdown destroys old scene objects/UI and timer events; create() restores an alive player at 5 HP and normal alpha at (2400, 1350), one initial enemy, no projectiles, a fresh target selection and exactly three spawn/Laser/hostile timers. Repeated death/retry cycles resume the same gameplay.
 One global timer fires an orange hostile projectile from the nearest active enemy every 1500 ms. Shots use fixed firing-time aim, speed 600 px/s, lifetime 3000 ms and damage 1. Missing enemies and near-zero firing distance create no shot.
 Player and enemy shots share a local source/damage runtime record and movement/lifetime/world-exit cleanup. Hostile shots use swept segment-circle collision against the player and disappear even when protection prevents damage before death. Both contact and hostile hits use the same global 500 ms player damage protection; its timer ticks before projectile/contact processing.
-Every killed enemy creates one lime-green world-space XP pickup worth 1 at its death position. Scene-owned pickup records preserve visual, value and magnet speed; create resets the array and restart destroys old visuals. Pickups stay stationary outside a 180-pixel player-center magnet radius. Within range they accelerate toward the current player position at 900 px/s² up to 600 px/s, using frame delta; leaving range resets speed. Reaching a 20-pixel player-center collection radius credits pickup.value to player XP before destroying/removing the pickup. Motion is capped by collection to avoid overshoot. Magnet processing stops on player death. Scene-owned playerExperience starts at level 1 with 0 XP toward the next level. The pure experience module requires 5 × current level XP, subtracts each reached threshold, carries excess forward and allows multiple levels per award. Restart resets this state and clears the separate isLevelUpPaused flag. Collection that increases level credits/removes the triggering pickup, then enters level-up pause immediately; subsequent pickups remain untouched. Screen-fixed LEVEL UP — CHOOSE ONE text and exactly three selectable placeholder options appear: Laser Power, Laser Fire Rate and Laser Projectile Speed, each labeled no effect yet. isSimulationPaused combines death and level-up pause to freeze movement, chase/targeting, projectiles, damage/protection, XP movement/collection and all spawn/fire callbacks. This pause is not death and offers no retry. Clicking one current choice destroys the level-up title/options and resumes simulation; duplicate/stale choice callbacks are rejected. No damage, cooldown or projectile stats change. Restart clears presentation references and native scene shutdown destroys the texts. Actual upgrade effects and HUD are not implemented.
+Every killed enemy creates one lime-green world-space XP pickup worth 1 at its death position. Scene-owned pickup records preserve visual, value and magnet speed; create resets the array and restart destroys old visuals. Pickups stay stationary outside a 180-pixel player-center magnet radius. Within range they accelerate toward the current player position at 900 px/s² up to 600 px/s, using frame delta; leaving range resets speed. Reaching a 20-pixel player-center collection radius credits pickup.value to player XP before destroying/removing the pickup. Motion is capped by collection to avoid overshoot. Magnet processing stops on player death. Scene-owned playerExperience starts at level 1 with 0 XP toward the next level. The pure experience module requires 5 × current level XP, subtracts each reached threshold, carries excess forward and allows multiple levels per award. Restart resets this state and clears the separate isLevelUpPaused flag. Collection that increases level credits/removes the triggering pickup, then enters level-up pause immediately; subsequent pickups remain untouched. Screen-fixed LEVEL UP — CHOOSE ONE text and exactly three selectable Laser upgrades appear: Power (+1 damage), Fire Rate (-50 ms interval, minimum 100 ms) and Projectile Speed (+200 px/s). isSimulationPaused combines death and level-up pause to freeze movement, chase/targeting, projectiles, damage/protection, XP movement/collection and all spawn/fire callbacks. This pause is not death and offers no retry. Clicking one current choice destroys the level-up title/options and resumes simulation; duplicate/stale choice callbacks are rejected. Selected effects apply before resume and accumulate across level-ups. Scene-owned laser data starts at damage 1, fireInterval 600 ms and projectileSpeed 1200 px/s and resets on each create. Fire Rate resets the existing laserTimer in place to the new interval with elapsed time zero, preserving one Laser event rather than adding another. New shots snapshot current damage/speed; already-fired shots keep their launch values. Hostile shots are unchanged. Restart clears presentation references and native scene shutdown destroys the texts. HUD is not implemented.
 
 There is currently no:
 
 - health HUD
-- upgrades
 - boss
 - save system
 - advertisements
@@ -261,7 +260,7 @@ The placeholder arena, bounded desktop movement, camera follow, repeated enemy s
 
 The next implementation task is:
 
-GAME-021 — Laser Upgrade Levels
+GAME-022 — Basic HUD
 
 ---
 
@@ -269,6 +268,6 @@ GAME-021 — Laser Upgrade Levels
 
 The application boots successfully.
 
-The player can move the ship, outrun multiple chasing enemies and automatically launch moving Laser projectiles toward the current nearest target. Shots disappear on impact and kill enemies after three hits. Spawning continues after kills. Enemy contact reduces player HP with temporary protection and damage feedback; gameplay freezes at zero HP with SHIP DESTROYED displayed. Orange hostile projectiles can be dodged and damage the player. Clicking RETRY after death begins a clean new run. The First Playable start/play/die/restart loop is complete. Killed enemies leave XP pickups that move toward the player within magnet range and are consumed on arrival. Collected values advance player XP/level state; reaching a new level freezes gameplay with three placeholder choices. Selecting one resumes the run without changing stats. HUD and actual upgrades are not implemented.
+The player can move the ship, outrun multiple chasing enemies and automatically launch moving Laser projectiles toward the current nearest target. Shots disappear on impact; baseline enemies require three hits, fewer after damage upgrades. Spawning continues after kills. Enemy contact reduces player HP with temporary protection and damage feedback; gameplay freezes at zero HP with SHIP DESTROYED displayed. Orange hostile projectiles can be dodged and damage the player. Clicking RETRY after death begins a clean new run. The First Playable start/play/die/restart loop is complete. Killed enemies leave XP pickups that move toward the player within magnet range and are consumed on arrival. Collected values advance player XP/level state; reaching a new level freezes gameplay with three Laser upgrade choices. Selecting one applies a cumulative Laser upgrade before resuming the run. HUD is not implemented.
 
 The First Playable milestone defined in TASK_GRAPH.md is now implemented.

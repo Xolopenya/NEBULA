@@ -2,6 +2,8 @@ import * as Phaser from 'phaser';
 import { segmentCircleHitTime } from '../combat/collision';
 import { addExperience, type ExperienceState } from '../progression/experience';
 
+type LaserUpgrade = 'power' | 'fireRate' | 'speed';
+
 type EnemyRuntime = {
   visual: Phaser.GameObjects.Polygon;
   health: number;
@@ -54,9 +56,8 @@ export class GameplayScene extends Phaser.Scene {
   private readonly hostileSpeed = 600;
   private readonly hostileLifetime = 3000;
   private readonly hostileDamage = 1;
-  private readonly laserDamage = 1;
-  private readonly laserFireInterval = 600;
-  private readonly projectileSpeed = 1200;
+  private laser = { damage: 1, fireInterval: 600, projectileSpeed: 1200 };
+  private laserTimer?: Phaser.Time.TimerEvent;
   private readonly projectileLifetime = 2000;
   private readonly projectileRadius = 6;
   private readonly spawnInterval = 2000;
@@ -71,6 +72,7 @@ export class GameplayScene extends Phaser.Scene {
   }
 
   create(): void {
+    this.laser = { damage: 1, fireInterval: 600, projectileSpeed: 1200 };
     this.playerExperience = { level: 1, xp: 0 };
     this.isPlayerDead = false;
     this.isLevelUpPaused = false;
@@ -113,8 +115,8 @@ export class GameplayScene extends Phaser.Scene {
       callback: () => this.spawnEnemy(),
     });
 
-    this.time.addEvent({
-      delay: this.laserFireInterval,
+    this.laserTimer = this.time.addEvent({
+      delay: this.laser.fireInterval,
       loop: true,
       callback: () => this.fireLaser(),
     });
@@ -216,10 +218,14 @@ export class GameplayScene extends Phaser.Scene {
       padding: { x: 24, y: 16 },
     }).setOrigin(0.5).setScrollFactor(0).setDepth(1);
     this.levelUpPresentation.push(title);
-    const labels = ['Laser Power', 'Laser Fire Rate', 'Laser Projectile Speed'];
-    labels.forEach((label, index) => {
+    const choices: { label: string; upgrade: LaserUpgrade }[] = [
+      { label: 'Laser Power — +1 damage', upgrade: 'power' },
+      { label: 'Laser Fire Rate — -50 ms (min 100 ms)', upgrade: 'fireRate' },
+      { label: 'Laser Projectile Speed — +200 px/s', upgrade: 'speed' },
+    ];
+    choices.forEach(({ label, upgrade }, index) => {
       const choice = this.add.text(this.scale.width / 2, this.scale.height / 2 - 40 + index * 110,
-        `${label}\nPlaceholder — no effect yet`, {
+        label, {
           fontFamily: 'Arial, sans-serif',
           fontSize: '32px',
           align: 'center',
@@ -229,12 +235,22 @@ export class GameplayScene extends Phaser.Scene {
         }).setOrigin(0.5).setScrollFactor(0).setDepth(1)
         .setInteractive({ useHandCursor: true });
       this.levelUpPresentation.push(choice);
-      choice.once('pointerdown', () => this.acceptLevelUpChoice(choice));
+      choice.once('pointerdown', () => this.acceptLevelUpChoice(choice, upgrade));
     });
   }
 
-  private acceptLevelUpChoice(choice: Phaser.GameObjects.Text): void {
+  private acceptLevelUpChoice(choice: Phaser.GameObjects.Text, upgrade: LaserUpgrade): void {
     if (this.isPlayerDead || !this.isLevelUpPaused || !this.levelUpPresentation.includes(choice)) return;
+    if (upgrade === 'power') this.laser.damage += 1;
+    if (upgrade === 'speed') this.laser.projectileSpeed += 200;
+    if (upgrade === 'fireRate') {
+      this.laser.fireInterval = Math.max(100, this.laser.fireInterval - 50);
+      this.laserTimer?.reset({
+        delay: this.laser.fireInterval,
+        loop: true,
+        callback: () => this.fireLaser(),
+      });
+    }
     this.isLevelUpPaused = false;
     for (const text of this.levelUpPresentation) text.destroy();
     this.levelUpPresentation = [];
@@ -339,10 +355,10 @@ export class GameplayScene extends Phaser.Scene {
 
     this.projectiles.push({
       source: 'player',
-      damage: this.laserDamage,
+      damage: this.laser.damage,
       visual: this.add.circle(this.player.x, this.player.y, this.projectileRadius, 0x67e8f9),
-      velocityX: (dx / distance) * this.projectileSpeed,
-      velocityY: (dy / distance) * this.projectileSpeed,
+      velocityX: (dx / distance) * this.laser.projectileSpeed,
+      velocityY: (dy / distance) * this.laser.projectileSpeed,
       remainingLifetime: this.projectileLifetime,
     });
   }

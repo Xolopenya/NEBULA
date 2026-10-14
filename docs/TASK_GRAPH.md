@@ -743,7 +743,7 @@ Present three upgrade choices and allow the player to select one.
 
 ## GAME-021 — Laser Upgrade Levels
 
-STATUS: READY
+STATUS: DONE
 
 DEPENDENCIES:
 
@@ -757,7 +757,7 @@ Allow the Laser to receive meaningful upgrades through level-up choices.
 
 ## GAME-022 — Basic HUD
 
-STATUS: BACKLOG
+STATUS: READY
 
 DEPENDENCIES:
 
