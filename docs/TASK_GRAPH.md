@@ -542,7 +542,7 @@ Enemy contact can reduce player health in a controlled and readable way.
 
 ## GAME-013 — Basic Enemy Projectile
 
-STATUS: READY
+STATUS: DONE
 
 DEPENDENCIES:
 
@@ -570,7 +570,7 @@ A simple hostile projectile can be fired and damage the player.
 
 ## GAME-014 — Player Death State
 
-STATUS: BLOCKED
+STATUS: READY
 
 DEPENDENCIES:
 

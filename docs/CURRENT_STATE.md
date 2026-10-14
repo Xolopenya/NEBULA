@@ -14,7 +14,7 @@ Do not place future plans or speculative features here.
 
 Current phase:
 
-FIRST PLAYABLE IMPLEMENTATION / GAME-012 COMPLETE
+FIRST PLAYABLE IMPLEMENTATION / GAME-013 COMPLETE
 
 The project has a working browser application, development toolchain and placeholder gameplay scene.
 
@@ -174,11 +174,12 @@ Enemies with remaining HP stay active. At zero HP their visual is destroyed and 
 Player health resets to 5 HP on scene creation. Enemy contact deals 1 damage using squared world-center distance with player radius 20 and enemy radius 24 (combined radius 44).
 Contact runs after projectile impacts/removals and starts 500 ms of global, delta-based protection. Multiple overlaps cause at most one hit per update. Successful damage reduces the ship alpha to 0.5 during protection, then restores it to 1. Continued overlap can damage again when protection expires.
 Health clamps at zero; further contact does not damage or flash at zero. Movement, combat and spawning continue; no player death/game-over state exists yet.
-Hostile enemy projectiles, health HUD and XP/rewards are not implemented.
+One global timer fires an orange hostile projectile from the nearest active enemy every 1500 ms. Shots use fixed firing-time aim, speed 600 px/s, lifetime 3000 ms and damage 1. Missing enemies and near-zero firing distance create no shot.
+Player and enemy shots share a local source/damage runtime record and movement/lifetime/world-exit cleanup. Hostile shots use swept segment-circle collision against the player and disappear even when protection or zero HP prevents damage. Both contact and hostile hits use the same global 500 ms player damage protection; its timer ticks before projectile/contact processing.
+Health HUD and XP/rewards are not implemented.
 
 There is currently no:
 
-- hostile enemy projectiles
 - health HUD
 - player death
 - kill rewards
@@ -262,7 +263,7 @@ The placeholder arena, bounded desktop movement, camera follow, repeated enemy s
 
 The next implementation task is:
 
-GAME-013 — Basic Enemy Projectile
+GAME-014 — Player Death State
 
 ---
 
@@ -270,6 +271,6 @@ GAME-013 — Basic Enemy Projectile
 
 The application boots successfully.
 
-The player can move the ship, outrun multiple chasing enemies and automatically launch moving Laser projectiles toward the current nearest target. Shots disappear on impact and kill enemies after three hits. Spawning continues after kills. Enemy contact reduces player HP with temporary protection and damage feedback; gameplay continues at zero HP. Hostile projectiles, HUD, death flow and XP/rewards are not implemented.
+The player can move the ship, outrun multiple chasing enemies and automatically launch moving Laser projectiles toward the current nearest target. Shots disappear on impact and kill enemies after three hits. Spawning continues after kills. Enemy contact reduces player HP with temporary protection and damage feedback; gameplay continues at zero HP. Orange hostile projectiles can be dodged and damage the player. HUD, death flow and XP/rewards are not implemented.
 
 The next major goal is the First Playable milestone defined in GAME_DESIGN.md.

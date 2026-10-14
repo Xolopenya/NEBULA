@@ -6,7 +6,9 @@ type EnemyRuntime = {
   health: number;
 };
 
-type LaserProjectile = {
+type ProjectileRuntime = {
+  source: 'player' | 'enemy';
+  damage: number;
   visual: Phaser.GameObjects.Arc;
   velocityX: number;
   velocityY: number;
@@ -19,11 +21,11 @@ export class GameplayScene extends Phaser.Scene {
   private playerHealth = this.playerMaxHealth;
   private readonly playerRadius = 20;
   private readonly contactDamage = 1;
-  private readonly contactProtectionDuration = 500;
-  private contactProtectionRemaining = 0;
+  private readonly playerDamageProtectionDuration = 500;
+  private playerDamageProtectionRemaining = 0;
   private enemies: EnemyRuntime[] = [];
   private currentTarget?: EnemyRuntime;
-  private projectiles: LaserProjectile[] = [];
+  private projectiles: ProjectileRuntime[] = [];
   private cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
   private wasd?: Record<'up' | 'left' | 'down' | 'right', Phaser.Input.Keyboard.Key>;
   private readonly movementDirection = new Phaser.Math.Vector2();
@@ -32,6 +34,10 @@ export class GameplayScene extends Phaser.Scene {
   private readonly enemySpeed = 180;
   private readonly enemyHealth = 3;
   private readonly enemyRadius = 24;
+  private readonly hostileFireInterval = 1500;
+  private readonly hostileSpeed = 600;
+  private readonly hostileLifetime = 3000;
+  private readonly hostileDamage = 1;
   private readonly laserDamage = 1;
   private readonly laserFireInterval = 600;
   private readonly projectileSpeed = 1200;
@@ -50,7 +56,7 @@ export class GameplayScene extends Phaser.Scene {
 
   create(): void {
     this.playerHealth = this.playerMaxHealth;
-    this.contactProtectionRemaining = 0;
+    this.playerDamageProtectionRemaining = 0;
     this.enemies = [];
     this.currentTarget = undefined;
     this.projectiles = [];
@@ -90,6 +96,12 @@ export class GameplayScene extends Phaser.Scene {
       delay: this.laserFireInterval,
       loop: true,
       callback: () => this.fireLaser(),
+    });
+
+    this.time.addEvent({
+      delay: this.hostileFireInterval,
+      loop: true,
+      callback: () => this.fireHostileProjectile(),
     });
 
     const keyboard = this.input.keyboard;
@@ -161,16 +173,20 @@ export class GameplayScene extends Phaser.Scene {
       this.currentTarget?.visual.setStrokeStyle(4, 0xfde047);
     }
 
+    this.updatePlayerProtection(delta);
     this.updateProjectiles(delta);
-    this.updatePlayerContact(delta);
+    this.updatePlayerContact();
   }
 
-  private updatePlayerContact(delta: number): void {
+  private updatePlayerProtection(delta: number): void {
     if (!this.player) return;
-    this.contactProtectionRemaining = Math.max(0, this.contactProtectionRemaining - delta);
-    if (this.contactProtectionRemaining > 0) return;
+    this.playerDamageProtectionRemaining = Math.max(0, this.playerDamageProtectionRemaining - delta);
+    if (this.playerDamageProtectionRemaining > 0) return;
     this.player.setAlpha(1);
-    if (this.playerHealth === 0) return;
+  }
+
+  private updatePlayerContact(): void {
+    if (!this.player || this.playerHealth === 0 || this.playerDamageProtectionRemaining > 0) return;
 
     const radius = this.playerRadius + this.enemyRadius;
     for (const enemy of this.enemies) {
@@ -184,9 +200,9 @@ export class GameplayScene extends Phaser.Scene {
   }
 
   private damagePlayer(amount: number): void {
-    if (!this.player || this.playerHealth === 0 || this.contactProtectionRemaining > 0) return;
+    if (!this.player || this.playerHealth === 0 || this.playerDamageProtectionRemaining > 0) return;
     this.playerHealth = Math.max(0, this.playerHealth - amount);
-    this.contactProtectionRemaining = this.contactProtectionDuration;
+    this.playerDamageProtectionRemaining = this.playerDamageProtectionDuration;
     this.player.setAlpha(0.5);
   }
 
@@ -199,10 +215,30 @@ export class GameplayScene extends Phaser.Scene {
     if (distance < 0.001) return;
 
     this.projectiles.push({
+      source: 'player',
+      damage: this.laserDamage,
       visual: this.add.circle(this.player.x, this.player.y, this.projectileRadius, 0x67e8f9),
       velocityX: (dx / distance) * this.projectileSpeed,
       velocityY: (dy / distance) * this.projectileSpeed,
       remainingLifetime: this.projectileLifetime,
+    });
+  }
+
+  private fireHostileProjectile(): void {
+    if (!this.player) return;
+    const enemy = this.selectNearestEnemy();
+    if (!enemy) return;
+    const dx = this.player.x - enemy.visual.x;
+    const dy = this.player.y - enemy.visual.y;
+    const distance = Math.hypot(dx, dy);
+    if (distance < 0.001) return;
+    this.projectiles.push({
+      source: 'enemy',
+      damage: this.hostileDamage,
+      visual: this.add.circle(enemy.visual.x, enemy.visual.y, this.projectileRadius, 0xfb923c),
+      velocityX: dx / distance * this.hostileSpeed,
+      velocityY: dy / distance * this.hostileSpeed,
+      remainingLifetime: this.hostileLifetime,
     });
   }
 
@@ -214,9 +250,18 @@ export class GameplayScene extends Phaser.Scene {
       const startY = projectile.visual.y;
       const stepX = projectile.velocityX * deltaSeconds;
       const stepY = projectile.velocityY * deltaSeconds;
+      if (projectile.source === 'enemy' && this.player && segmentCircleHitTime(
+        startX, startY, stepX, stepY,
+        this.player.x, this.player.y, this.playerRadius + this.projectileRadius,
+      ) !== Infinity) {
+        this.damagePlayer(projectile.damage);
+        projectile.visual.destroy();
+        this.projectiles.splice(i, 1);
+        continue;
+      }
       let hitEnemy: EnemyRuntime | undefined;
       let firstHit = Infinity;
-      for (const enemy of this.enemies) {
+      for (const enemy of projectile.source === 'player' ? this.enemies : []) {
         const hit = segmentCircleHitTime(
           startX, startY, stepX, stepY,
           enemy.visual.x, enemy.visual.y, this.enemyRadius + this.projectileRadius,
@@ -227,7 +272,7 @@ export class GameplayScene extends Phaser.Scene {
         }
       }
       if (hitEnemy) {
-        hitEnemy.health -= this.laserDamage;
+        hitEnemy.health -= projectile.damage;
         if (hitEnemy.health <= 0) {
           if (this.currentTarget === hitEnemy) this.currentTarget = undefined;
           hitEnemy.visual.destroy();
