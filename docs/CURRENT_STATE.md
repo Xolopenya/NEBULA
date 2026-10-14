@@ -14,7 +14,7 @@ Do not place future plans or speculative features here.
 
 Current phase:
 
-FIRST PLAYABLE CORE LOOP COMPLETE / GAME-022 COMPLETE
+FIRST PLAYABLE CORE LOOP COMPLETE / GAME-023 COMPLETE
 
 The project has a working browser application, development toolchain and placeholder gameplay scene.
 
@@ -100,7 +100,7 @@ Current screen:
 - red diamond enemy placeholders directly chasing the player in world space
 - temporary thicker yellow outline on the current nearest-enemy target
 - automatically launched cyan circle Laser projectiles moving through world space
-- screen-fixed top-left HUD showing current/max HP, XP toward the next threshold and level
+- screen-fixed top-left HUD showing current/max HP, XP toward the next threshold, level and Dash readiness/cooldown
 - desktop movement using WASD or arrow keys
 - "NEBULA — GAMEPLAY SCENE" label
 - "Placeholder space arena" text
@@ -128,6 +128,9 @@ src/
     scenes/
       BootScene.ts
       GameplayScene.ts
+    player/
+      dash.ts
+      dash.test.ts
 
 docs/
   GAME_DESIGN.md
@@ -150,7 +153,8 @@ Other root files include:
 
 A player ship placeholder is rendered in GameplayScene and controlled with WASD or arrow keys.
 Movement is immediate at 300 pixels per second, uses frame delta, and normalizes diagonal direction.
-Releasing movement keys stops the ship without inertia.
+Releasing movement keys stops normal movement without inertia.
+Fresh Space with non-zero current movement input activates Dash at 900 px/s for 200 ms, locking the normalized direction. Cooldown lasts 3000 ms from activation; idle, held/repeated, active-Dash, cooldown, paused and dead presses do not activate or queue. Dash replaces normal movement and a frame spanning expiry splits into remaining Dash time then normal movement time, clamping each segment to the arena. Duration/cooldown freeze during level-up pause and death; choice resume continues a pending burst. Dash adds no immunity and retains existing damage/protection rules. Restart clears remaining Dash/cooldown and direction; native keyboard reset plus fresh-key/repeat checks prevent stale input.
 The ship starts at world position (2400, 1350).
 Movement is clamped inside the 4800x2700 arena using half the ship dimensions plus its outline.
 The main camera follows the ship immediately and is bounded to the arena.
@@ -181,7 +185,7 @@ One global timer fires an orange hostile projectile from the nearest active enem
 Player and enemy shots share a local source/damage runtime record and movement/lifetime/world-exit cleanup. Hostile shots use swept segment-circle collision against the player and disappear even when protection prevents damage before death. Both contact and hostile hits use the same global 500 ms player damage protection; its timer ticks before projectile/contact processing.
 Every killed enemy creates one lime-green world-space XP pickup worth 1 at its death position. Scene-owned pickup records preserve visual, value and magnet speed; create resets the array and restart destroys old visuals. Pickups stay stationary outside a 180-pixel player-center magnet radius. Within range they accelerate toward the current player position at 900 px/s² up to 600 px/s, using frame delta; leaving range resets speed. Reaching a 20-pixel player-center collection radius credits pickup.value to player XP before destroying/removing the pickup. Motion is capped by collection to avoid overshoot. Magnet processing stops on player death. Scene-owned playerExperience starts at level 1 with 0 XP toward the next level. The pure experience module requires 5 × current level XP, subtracts each reached threshold, carries excess forward and allows multiple levels per award. Restart resets this state and clears the separate isLevelUpPaused flag. Collection that increases level credits/removes the triggering pickup, then enters level-up pause immediately; subsequent pickups remain untouched. Screen-fixed LEVEL UP — CHOOSE ONE text and exactly three selectable Laser upgrades appear: Power (+1 damage), Fire Rate (-50 ms interval, minimum 100 ms) and Projectile Speed (+200 px/s). isSimulationPaused combines death and level-up pause to freeze movement, chase/targeting, projectiles, damage/protection, XP movement/collection and all spawn/fire callbacks. This pause is not death and offers no retry. Clicking one current choice destroys the level-up title/options and resumes simulation; duplicate/stale choice callbacks are rejected. Selected effects apply before resume and accumulate across level-ups. Scene-owned laser data starts at damage 1, fireInterval 600 ms and projectileSpeed 1200 px/s and resets on each create. Fire Rate resets the existing laserTimer in place to the new interval with elapsed time zero, preserving one Laser event rather than adding another. New shots snapshot current damage/speed; already-fired shots keep their launch values. Hostile shots are unchanged. Restart clears presentation references and native scene shutdown destroys the texts.
 
-A scene-owned screen-fixed text HUD displays current/max HP, XP toward the next level threshold and level. It reads authoritative health/playerExperience state, refreshing immediately on damage and collection, including lethal damage and level-increasing awards. It stays visible during death and level-up choice presentation; create builds a fresh HUD with reset values on retry.
+A scene-owned screen-fixed text HUD displays current/max HP, XP toward the next level threshold, level and Dash READY/remaining seconds (rounded up to tenths). It reads authoritative health/playerExperience/Dash state, refreshing immediately on damage and collection, including lethal damage and level-increasing awards. Dash feedback refreshes when its displayed tenth of a second changes during active simulation. It stays visible during death and level-up choice presentation; create builds a fresh HUD with reset values on retry.
 
 There is currently no:
 
@@ -206,7 +210,7 @@ Gameplay prototypes will initially use placeholders and simple geometry.
 
 ## Tests
 
-Nine unit tests cover collision.ts and eight cover progression/experience.ts (17 total).
+Nine unit tests cover collision.ts, eight cover progression/experience.ts and six cover player/dash.ts timing/expiry partitions (23 total).
 
 Vitest is installed and configured.
 
@@ -260,7 +264,7 @@ These should only be introduced when real project requirements justify them.
 
 The placeholder arena, bounded desktop movement, camera follow, repeated enemy spawning/chase, nearest-enemy targeting and Laser projectile impacts with enemy damage/death are implemented and browser-verified.
 
-GAME-001 through GAME-022 are complete. Further implementation awaits the next task definition; Vertical Slice Preparation nodes remain BACKLOG concepts.
+GAME-001 through GAME-023 are complete. Further implementation awaits the next task definition; GAME-024 and later remain BACKLOG concepts.
 
 ---
 
@@ -268,6 +272,6 @@ GAME-001 through GAME-022 are complete. Further implementation awaits the next t
 
 The application boots successfully.
 
-The player can move the ship, outrun multiple chasing enemies and automatically launch moving Laser projectiles toward the current nearest target. Shots disappear on impact; baseline enemies require three hits, fewer after damage upgrades. Spawning continues after kills. Enemy contact reduces player HP with temporary protection and damage feedback; gameplay freezes at zero HP with SHIP DESTROYED displayed. Orange hostile projectiles can be dodged and damage the player. Clicking RETRY after death begins a clean new run. The First Playable start/play/die/restart loop is complete. Killed enemies leave XP pickups that move toward the player within magnet range and are consumed on arrival. Collected values advance player XP/level state; reaching a new level freezes gameplay with three Laser upgrade choices. Selecting one applies a cumulative Laser upgrade before resuming the run. A fixed HUD shows HP, XP toward the next threshold and level throughout the run, pause and death, and resets on retry.
+The player can move the ship, outrun multiple chasing enemies and automatically launch moving Laser projectiles toward the current nearest target. Shots disappear on impact; baseline enemies require three hits, fewer after damage upgrades. Spawning continues after kills. Enemy contact reduces player HP with temporary protection and damage feedback; gameplay freezes at zero HP with SHIP DESTROYED displayed. Orange hostile projectiles can be dodged and damage the player. Clicking RETRY after death begins a clean new run. The First Playable start/play/die/restart loop is complete. Killed enemies leave XP pickups that move toward the player within magnet range and are consumed on arrival. Collected values advance player XP/level state; reaching a new level freezes gameplay with three Laser upgrade choices. Selecting one applies a cumulative Laser upgrade before resuming the run. Directional Space Dash supports short repositioning bursts without immunity. A fixed HUD shows HP, XP toward the next threshold, level and Dash cooldown throughout the run, pause and death, and resets on retry.
 
 The First Playable milestone defined in TASK_GRAPH.md is now implemented.

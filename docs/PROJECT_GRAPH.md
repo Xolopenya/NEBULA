@@ -4,8 +4,8 @@
 
 - Project: NEBULA.
 - Milestone: First Playable / GAME-015 complete.
-- Source baseline HEAD: `bf5c428db797b3d88b0a765af14197c103681bcb`.
-- This map reflects that source baseline plus the GAME-022 HUD ownership changes.
+- Source baseline HEAD: `94b8cb0530ac44057b2db99de46735f0d1a9c39c`.
+- This map reflects that source baseline plus the GAME-023 Dash ownership changes.
 - Active task request defines task-specific requirements.
 - AGENTS.md defines repository policy.
 - TASK_GRAPH.md defines task scope, dependencies and status.
@@ -27,6 +27,8 @@ IDs are repository-relative paths; symbols use `path#export`.
 | `src/game/combat/collision.test.ts` | Tracked geometry tests |
 | `src/game/progression/experience.ts` | Pure XP threshold/award arithmetic and state type |
 | `src/game/progression/experience.test.ts` | Tracked progression tests |
+| `src/game/player/dash.ts` | Pure Dash frame timing split |
+| `src/game/player/dash.test.ts` | Tracked Dash timing tests |
 | `AGENTS.md` | Repository policy and detailed architect-review protocol |
 | `docs/GAME_DESIGN.md` | Gameplay/design intent; includes unimplemented directions |
 | `docs/ARCHITECTURE.md` | Architecture principles and boundaries |
@@ -46,6 +48,7 @@ IDs are repository-relative paths; symbols use `path#export`.
 | `src/game/progression/experience.ts#ExperienceState` | Numeric level and XP toward next level |
 | `src/game/progression/experience.ts#xpForNextLevel` | Prototype threshold calculation |
 | `src/game/progression/experience.ts#addExperience` | Pure award/level/carry calculation |
+| `src/game/player/dash.ts#stepDash` | Active-time burst/normal split and duration/cooldown stepping |
 
 ## Relations
 
@@ -66,6 +69,9 @@ Runtime labels below describe scene-owned concepts, not separate modules/classes
 | `src/game/scenes/GameplayScene.ts` | IMPORTS | `src/game/progression/experience.ts` (addExperience, xpForNextLevel, ExperienceState) |
 | `src/game/progression/experience.test.ts` | IMPORTS | `src/game/progression/experience.ts` |
 | `src/game/progression/experience.ts` | TESTED_BY | `src/game/progression/experience.test.ts` |
+| `src/game/scenes/GameplayScene.ts` | IMPORTS | `src/game/player/dash.ts#stepDash` |
+| `src/game/player/dash.test.ts` | IMPORTS | `src/game/player/dash.ts#stepDash` |
+| `src/game/player/dash.ts#stepDash` | TESTED_BY | `src/game/player/dash.test.ts` |
 | Player Laser | TARGETS | currentTarget from active enemies |
 | Player projectile | DAMAGES | First intersected active enemy |
 | Hostile projectile and contact | DAMAGES | Player through damagePlayer |
@@ -73,7 +79,7 @@ Runtime labels below describe scene-owned concepts, not separate modules/classes
 | Player death | CREATES | SHIP DESTROYED and RETRY controls |
 | GameplayScene | DOCUMENTED_BY | `docs/CURRENT_STATE.md` |
 
-External annotations: main/config/scenes import Phaser; collision/progression tests import Vitest.
+External annotations: main/config/scenes import Phaser; collision/progression/Dash tests import Vitest.
 Additional local presentation import: main imports `./style.css` (not a graph node).
 No external package internals or generated artifacts are indexed.
 
@@ -86,6 +92,7 @@ All private names below are navigation anchors, not exported symbol nodes.
 | World presentation | create; arena Graphics, stars, boundary | Scene-owned drawing |
 | Player visual/input | player, cursors, wasd; create | Polygon and keyboard bindings |
 | Movement/bounds/camera | update; movementDirection; create camera setup | Normalized delta movement, arena clamp/follow |
+| Dash | dashKey, dashDirection, dashRemaining, dashCooldownRemaining; update → stepDash / movePlayer | Fresh Space; scene-owned lock, 900 px/s, 200 ms, 3000 ms cooldown; active-time-only and segment clamping; create resets |
 | Player health | playerHealth, playerMaxHealth; damagePlayer | Current/max HP and clamping |
 | Damage protection | playerDamageProtectionRemaining; updatePlayerProtection | Global 500 ms protection, temporary alpha |
 | Level-up pause | isLevelUpPaused; enterLevelUpPause; isSimulationPaused | Distinct from death; level increase freezes update/callbacks; fixed title and three Laser upgrades; one selection resumes |
@@ -108,7 +115,7 @@ All private names below are navigation anchors, not exported symbol nodes.
 | Collision inputs | updateProjectiles; player/enemy/projectile radii | Scene supplies positions and combined radii |
 | Collision calculation | collision.ts; segmentCircleHitTime | Pure numeric math, no Phaser/runtime records |
 | Player damage sources | updatePlayerContact; updateProjectiles | Contact and hostile impacts share damagePlayer/protection |
-| Runtime HUD | hud; updateHud; create, damagePlayer, updateXpPickups | Fixed HP current/max, XP/threshold and level; reads existing state, refreshes on mutations, recreated on retry |
+| Runtime HUD | hud; updateHud; create, update, damagePlayer, updateXpPickups | Fixed HP current/max, XP/threshold, level and Dash readiness; reads existing state, refreshes on mutations/displayed cooldown change, recreated on retry |
 | Temporary UI | create; enterPlayerDeath | Fixed labels, SHIP DESTROYED, RETRY |
 
 ## Runtime and lifecycle
@@ -116,12 +123,14 @@ All private names below are navigation anchors, not exported symbol nodes.
 BootScene.create → scene.start('GameplayScene') → GameplayScene.create
 → fresh player/enemy/collections → spawn/Laser/hostile timers → update.
 
-update: simulation pause guard → player movement/bounds → enemy chase → target/highlight
+update: consume fresh Dash press → simulation pause guard → player movement/Dash split/bounds → enemy chase → target/highlight
 → protection countdown → projectiles/impacts → contact damage → XP magnet/collection (simulation active only).
 
 Lethal player damage → damagePlayer → enterPlayerDeath → frozen simulation
 → RETRY pointerdown (once) → scene.restart → fresh create.
 
+- Dash presses are consumed before pause guards and on choice acceptance; native repeat events are rejected, so rejected presses do not queue.
+- create resets Dash clocks/direction and reacquires input; keyboard shutdown clears old keys on retry.
 - create resets health/protection/death, arrays and target; constructs fresh visuals.
 - Spawn, Laser and hostile callbacks return while dead or level-up paused; timer events remain scheduled.
 - Level-increasing collection removes its pickup then pauses; subsequent pickups remain frozen.
@@ -136,6 +145,7 @@ Lethal player damage → damagePlayer → enterPlayerDeath → frozen simulation
 | --- | --- | --- |
 | TRACKED TESTS | collision.test.ts → segmentCircleHitTime | 9 tests: hits, misses, overlap, tangent, zero step, bounds, ordering |
 | TRACKED TESTS | experience.test.ts → experience.ts | 8 tests: thresholds, credit, exact/excess/multiple levels, zero/nonmutation, split awards |
+| TRACKED TESTS | dash.test.ts → stepDash | 6 tests: active burst, expiry split/boundary, delta partitions, zero time, large frame |
 | RUNTIME / MANUAL EVIDENCE | GameplayScene combat/death/restart | Browser smoke and ignored validation harnesses; not tracked Vitest coverage |
 
 Ignored harnesses are not graph nodes and do not run in npm run check.
@@ -156,6 +166,7 @@ GameplayScene.isLevelUpPaused / enterLevelUpPause / isSimulationPaused IMPLEMENT
 GameplayScene.levelUpPresentation / acceptLevelUpChoice IMPLEMENTS_TASK GAME-020.
 GameplayScene.laser / laserTimer / acceptLevelUpChoice IMPLEMENTS_TASK GAME-021.
 GameplayScene.hud / updateHud IMPLEMENTS_TASK GAME-022 — Basic HUD.
+GameplayScene Dash state / player/dash.ts IMPLEMENTS_TASK GAME-023 — Initial Ship Active Ability: Dash.
 No generalized weapon stats framework is implemented.
 Statuses and dependencies remain in TASK_GRAPH.md, not duplicated here.
 
@@ -168,6 +179,7 @@ Statuses and dependencies remain in TASK_GRAPH.md, not duplicated here.
 | Where are XP thresholds and levels calculated? | src/game/progression/experience.ts; scene playerExperience |
 | Where are level-up choices/resume owned? | GameplayScene.ts → enterLevelUpPause, levelUpPresentation, acceptLevelUpChoice |
 | Where are HUD values rendered/refreshed? | GameplayScene.ts → hud, updateHud; create, damagePlayer, updateXpPickups |
+| Where is Dash input/timing/reset owned? | GameplayScene.ts → dashKey, update, movePlayer, create; player/dash.ts#stepDash |
 | Where is player damage controlled? | GameplayScene.ts → damagePlayer, updatePlayerProtection |
 | Who owns projectile movement/lifetime/cleanup? | GameplayScene.ts → updateProjectiles |
 | Where is collision math implemented? | collision.ts#segmentCircleHitTime |

@@ -1,5 +1,6 @@
 import * as Phaser from 'phaser';
 import { segmentCircleHitTime } from '../combat/collision';
+import { stepDash } from '../player/dash';
 import { addExperience, xpForNextLevel, type ExperienceState } from '../progression/experience';
 
 type LaserUpgrade = 'power' | 'fireRate' | 'speed';
@@ -49,6 +50,13 @@ export class GameplayScene extends Phaser.Scene {
   private wasd?: Record<'up' | 'left' | 'down' | 'right', Phaser.Input.Keyboard.Key>;
   private readonly movementDirection = new Phaser.Math.Vector2();
   private readonly movementSpeed = 300;
+  private dashKey?: Phaser.Input.Keyboard.Key;
+  private readonly dashDirection = new Phaser.Math.Vector2();
+  private readonly dashSpeed = 900;
+  private readonly dashDuration = 200;
+  private readonly dashCooldown = 3000;
+  private dashRemaining = 0;
+  private dashCooldownRemaining = 0;
   private readonly chaseDirection = new Phaser.Math.Vector2();
   private readonly enemySpeed = 180;
   private readonly enemyHealth = 3;
@@ -73,6 +81,10 @@ export class GameplayScene extends Phaser.Scene {
   }
 
   create(): void {
+    this.dashRemaining = 0;
+    this.dashCooldownRemaining = 0;
+    this.dashDirection.set(0, 0);
+    this.dashKey = undefined;
     this.laser = { damage: 1, fireInterval: 600, projectileSpeed: 1200 };
     this.playerExperience = { level: 1, xp: 0 };
     this.isPlayerDead = false;
@@ -139,6 +151,7 @@ export class GameplayScene extends Phaser.Scene {
 
     const keyboard = this.input.keyboard;
     if (keyboard) {
+      this.dashKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
       this.cursors = keyboard.createCursorKeys();
       this.wasd = {
         up: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W),
@@ -172,10 +185,15 @@ export class GameplayScene extends Phaser.Scene {
       `HP: ${this.playerHealth}/${this.playerMaxHealth}`,
       `XP: ${this.playerExperience.xp}/${xpForNextLevel(this.playerExperience.level)}`,
       `Level: ${this.playerExperience.level}`,
+      `Dash: ${this.dashCooldownRemaining > 0 ? `${Math.ceil(this.dashCooldownRemaining / 100) / 10}s` : 'READY'}`,
     ]);
   }
 
   update(_time: number, delta: number): void {
+    // Consume even rejected presses so pause/death/cooldown cannot queue a Dash.
+    const dashPressed = this.dashKey
+      ? Phaser.Input.Keyboard.JustDown(this.dashKey) && this.dashKey.isDown && !this.dashKey.originalEvent?.repeat
+      : false;
     if (this.isSimulationPaused()) return;
     if (!this.player || !this.cursors || !this.wasd) return;
 
@@ -187,15 +205,20 @@ export class GameplayScene extends Phaser.Scene {
     this.movementDirection.set(Number(right) - Number(left), Number(down) - Number(up));
     this.movementDirection.normalize();
 
-    const distance = this.movementSpeed * (delta / 1000);
-    this.player.x += this.movementDirection.x * distance;
-    this.player.y += this.movementDirection.y * distance;
+    const previousCooldownDisplay = Math.ceil(this.dashCooldownRemaining / 100);
+    if (dashPressed && this.dashRemaining === 0 && this.dashCooldownRemaining === 0
+      && this.movementDirection.lengthSq() > 0) {
+      this.dashDirection.copy(this.movementDirection);
+      this.dashRemaining = this.dashDuration;
+      this.dashCooldownRemaining = this.dashCooldown;
+    }
 
-    // Half the placeholder size plus its outline keeps the whole ship inside.
-    const marginX = this.player.width / 2 + this.player.lineWidth / 2;
-    const marginY = this.player.height / 2 + this.player.lineWidth / 2;
-    this.player.x = Phaser.Math.Clamp(this.player.x, marginX, this.arenaWidth - marginX);
-    this.player.y = Phaser.Math.Clamp(this.player.y, marginY, this.arenaHeight - marginY);
+    const dash = stepDash(this.dashRemaining, this.dashCooldownRemaining, delta);
+    this.dashRemaining = dash.remainingDuration;
+    this.dashCooldownRemaining = dash.remainingCooldown;
+    this.movePlayer(this.dashDirection, this.dashSpeed * dash.dashTime / 1000);
+    this.movePlayer(this.movementDirection, this.movementSpeed * dash.normalTime / 1000);
+    if (previousCooldownDisplay !== Math.ceil(this.dashCooldownRemaining / 100)) this.updateHud();
 
     for (const enemy of this.enemies) {
       this.chaseDirection.set(this.player.x - enemy.visual.x, this.player.y - enemy.visual.y);
@@ -223,6 +246,17 @@ export class GameplayScene extends Phaser.Scene {
 
   private isSimulationPaused(): boolean {
     return this.isPlayerDead || this.isLevelUpPaused;
+  }
+
+  private movePlayer(direction: Phaser.Math.Vector2, distance: number): void {
+    if (!this.player) return;
+    // Clamp each segment separately when a frame spans Dash expiry at an edge.
+    const marginX = this.player.width / 2 + this.player.lineWidth / 2;
+    const marginY = this.player.height / 2 + this.player.lineWidth / 2;
+    this.player.x = Phaser.Math.Clamp(this.player.x + direction.x * distance,
+      marginX, this.arenaWidth - marginX);
+    this.player.y = Phaser.Math.Clamp(this.player.y + direction.y * distance,
+      marginY, this.arenaHeight - marginY);
   }
 
   private enterLevelUpPause(): void {
@@ -259,6 +293,7 @@ export class GameplayScene extends Phaser.Scene {
 
   private acceptLevelUpChoice(choice: Phaser.GameObjects.Text, upgrade: LaserUpgrade): void {
     if (this.isPlayerDead || !this.isLevelUpPaused || !this.levelUpPresentation.includes(choice)) return;
+    if (this.dashKey) Phaser.Input.Keyboard.JustDown(this.dashKey);
     if (upgrade === 'power') this.laser.damage += 1;
     if (upgrade === 'speed') this.laser.projectileSpeed += 200;
     if (upgrade === 'fireRate') {

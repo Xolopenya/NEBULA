@@ -776,7 +776,7 @@ remaining nodes are BACKLOG concepts and require separate task definitions.
 
 ## GAME-023 — Initial Ship Active Ability: Dash
 
-STATUS: READY
+STATUS: DONE
 
 DEPENDENCIES:
 
