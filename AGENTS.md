@@ -144,9 +144,48 @@ Do not use documentation as a changelog; Git stores history.
 
 Keep changes scoped to the active task.
 
-Do not commit unless explicitly requested by the workflow.
+The user creates the final commit after architect approval.
+Never commit, push, merge, delete branches, reset user work, restore unrelated files,
+amend, rebase or force push unless a future task explicitly authorizes that exact operation.
 
 Do not combine gameplay work with unrelated formatting, architecture changes or refactoring.
+
+## Post-Task Architect Review
+
+After every implementation task:
+
+1. Run task-required validation and manual/runtime checks. Unless the task explicitly
+   requires otherwise, run at least `npm run check` and `git diff --check`.
+2. Run `git status --short`, `git diff --stat` and `git diff --check`. Identify modified,
+   deleted and untracked files; unstaged diffs do not include untracked files.
+3. After successful validation, stage only active-task files, using explicit paths.
+   Never stage `.codex-review/`, temporary diffs, logs, build output, secrets or unrelated
+   user changes. Leave unrelated changes untouched and report them; do not discard or overwrite them.
+4. Run `git status`, `git diff --cached --stat` and `git diff --cached --check`.
+   Review `git diff --cached` to confirm only the active task is staged, including new files.
+5. Create the ignored `.codex-review/<TASK-ID>-review.txt` with these self-contained sections:
+   - TASK: task ID and title.
+   - BRANCH: current branch.
+   - BASE: HEAD commit hash and subject before the user's final commit.
+   - IMPLEMENTATION SUMMARY: concise description of changes.
+   - STAGED FILES: exact staged paths and statuses.
+   - UNRELATED WORKING TREE FILES: remaining unrelated modified/untracked files, or NONE.
+   - DIFF STAT: output of `git diff --cached --stat`.
+   - DIFF CHECK: pass/fail.
+   - QUALITY CHECKS: executed commands, pass/fail and important warnings only.
+   - MANUAL VERIFICATION: checks actually performed.
+   - SCOPE CONFIRMATION: whether later tasks and out-of-scope functionality were avoided.
+   - RISKS / UNCERTAINTIES: concise, or NONE.
+   - FULL STAGED DIFF: complete plain-text output of `git diff --cached --no-color`.
+   The review directory itself must never be staged or included in the diff.
+6. Return only a compact summary: task completed, files staged, validation result,
+   manual verification result, review file path and unrelated working-tree changes (if any).
+   Include exactly: "NO COMMIT CREATED — awaiting architect approval."
+   Do not paste the full diff into chat.
+
+If quality or diff checks fail, staging reveals unexpected files, unrelated changes conflict,
+or task scope cannot be isolated safely, do not claim review readiness. Do not commit.
+Create a clearly marked failure review file if useful and report the blocking issue.
 
 ## Definition of Done
 
