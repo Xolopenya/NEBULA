@@ -1,5 +1,6 @@
 import * as Phaser from 'phaser';
 import { segmentCircleHitTime } from '../combat/collision';
+import { addExperience, type ExperienceState } from '../progression/experience';
 
 type EnemyRuntime = {
   visual: Phaser.GameObjects.Polygon;
@@ -23,6 +24,7 @@ type ProjectileRuntime = {
 
 export class GameplayScene extends Phaser.Scene {
   private player?: Phaser.GameObjects.Polygon;
+  private playerExperience: ExperienceState = { level: 1, xp: 0 };
   private isPlayerDead = false;
   private readonly playerMaxHealth = 5;
   private playerHealth = this.playerMaxHealth;
@@ -67,6 +69,7 @@ export class GameplayScene extends Phaser.Scene {
   }
 
   create(): void {
+    this.playerExperience = { level: 1, xp: 0 };
     this.isPlayerDead = false;
     this.playerHealth = this.playerMaxHealth;
     this.playerDamageProtectionRemaining = 0;
@@ -214,6 +217,7 @@ export class GameplayScene extends Phaser.Scene {
       pickup.speed = Math.min(this.xpMagnetMaxSpeed,
         pickup.speed + this.xpMagnetAcceleration * seconds);
       if (distance <= this.xpCollectionRadius + step) {
+        this.playerExperience = addExperience(this.playerExperience, pickup.value);
         pickup.visual.destroy();
         this.xpPickups.splice(i, 1);
         continue;

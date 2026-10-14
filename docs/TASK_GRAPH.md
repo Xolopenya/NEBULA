@@ -701,7 +701,7 @@ XP pickups move toward the player inside collection radius and can be collected.
 
 ## GAME-018 — Player XP and Level Rules
 
-STATUS: READY
+STATUS: DONE
 
 DEPENDENCIES:
 
@@ -715,7 +715,7 @@ Track XP and determine when the player gains a level.
 
 ## GAME-019 — Level-Up Pause State
 
-STATUS: BACKLOG
+STATUS: READY
 
 DEPENDENCIES:
 

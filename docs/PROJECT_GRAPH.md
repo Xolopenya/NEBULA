@@ -4,8 +4,8 @@
 
 - Project: NEBULA.
 - Milestone: First Playable / GAME-015 complete.
-- Source baseline HEAD: `cd38941dd04eb2d945716aaa038b896fcec8b52d`.
-- This map reflects that source baseline plus the GAME-017 magnet/collection ownership changes.
+- Source baseline HEAD: `761e7b95ee4b4ca4fefa43b5acd0401046e9ab7d`.
+- This map reflects that source baseline plus the GAME-018 XP/level ownership changes.
 - Active task request defines task-specific requirements.
 - AGENTS.md defines repository policy.
 - TASK_GRAPH.md defines task scope, dependencies and status.
@@ -25,6 +25,8 @@ IDs are repository-relative paths; symbols use `path#export`.
 | `src/game/scenes/GameplayScene.ts` | Owns current run simulation and presentation |
 | `src/game/combat/collision.ts` | Pure numeric collision math |
 | `src/game/combat/collision.test.ts` | Tracked geometry tests |
+| `src/game/progression/experience.ts` | Pure XP threshold/award arithmetic and state type |
+| `src/game/progression/experience.test.ts` | Tracked progression tests |
 | `AGENTS.md` | Repository policy and detailed architect-review protocol |
 | `docs/GAME_DESIGN.md` | Gameplay/design intent; includes unimplemented directions |
 | `docs/ARCHITECTURE.md` | Architecture principles and boundaries |
@@ -41,6 +43,9 @@ IDs are repository-relative paths; symbols use `path#export`.
 | `src/game/scenes/BootScene.ts#BootScene` | Scene startup transition |
 | `src/game/scenes/GameplayScene.ts#GameplayScene` | Scene/run owner |
 | `src/game/combat/collision.ts#segmentCircleHitTime` | First segment-circle hit in [0,1], else Infinity |
+| `src/game/progression/experience.ts#ExperienceState` | Numeric level and XP toward next level |
+| `src/game/progression/experience.ts#xpForNextLevel` | Prototype threshold calculation |
+| `src/game/progression/experience.ts#addExperience` | Pure award/level/carry calculation |
 
 ## Relations
 
@@ -58,6 +63,9 @@ Runtime labels below describe scene-owned concepts, not separate modules/classes
 | `src/game/combat/collision.ts#segmentCircleHitTime` | TESTED_BY | `src/game/combat/collision.test.ts` |
 | `src/game/scenes/BootScene.ts#BootScene` | USES | GameplayScene startup via scene.start |
 | `src/game/scenes/GameplayScene.ts#GameplayScene` | OWNS | Player, enemies, projectiles, timers, temporary UI |
+| `src/game/scenes/GameplayScene.ts` | IMPORTS | `src/game/progression/experience.ts` (addExperience, ExperienceState) |
+| `src/game/progression/experience.test.ts` | IMPORTS | `src/game/progression/experience.ts` |
+| `src/game/progression/experience.ts` | TESTED_BY | `src/game/progression/experience.test.ts` |
 | Player Laser | TARGETS | currentTarget from active enemies |
 | Player projectile | DAMAGES | First intersected active enemy |
 | Hostile projectile and contact | DAMAGES | Player through damagePlayer |
@@ -65,7 +73,7 @@ Runtime labels below describe scene-owned concepts, not separate modules/classes
 | Player death | CREATES | SHIP DESTROYED and RETRY controls |
 | GameplayScene | DOCUMENTED_BY | `docs/CURRENT_STATE.md` |
 
-External annotations: main/config/scenes import Phaser; collision tests import Vitest.
+External annotations: main/config/scenes import Phaser; collision/progression tests import Vitest.
 Additional local presentation import: main imports `./style.css` (not a graph node).
 No external package internals or generated artifacts are indexed.
 
@@ -87,7 +95,8 @@ All private names below are navigation anchors, not exported symbol nodes.
 | Target/highlight | selectNearestEnemy, currentTarget; update | Nearest active enemy; temporary outline |
 | Enemy death | updateProjectiles → killEnemy | Create one XP drop, destroy visual, splice enemy, clear dead target |
 | XP drops | xpPickups; XpPickup; killEnemy | World-space visual + value 1 + speed; create resets collection |
-| XP magnet/collection | updateXpPickups | Stationary outside range; accelerated approach; arrival destroys/removes; no player XP accounting |
+| XP magnet/collection | updateXpPickups | Stationary outside range; accelerated approach; arrival credits pickup.value then destroys/removes |
+| Player XP/levels | playerExperience; create; updateXpPickups → addExperience | Scene owns state/reset/collection; pure module owns thresholds and carry |
 | Shared projectiles | projectiles; ProjectileRuntime | source, damage, visual, velocity, remainingLifetime |
 | Projectile stepping | updateProjectiles | Lifetime-clipped motion; swept impact; reverse removal |
 | Projectile cleanup | updateProjectiles | Impact, lifetime and world-exit destruction |
@@ -120,6 +129,7 @@ Lethal player damage → damagePlayer → enterPlayerDeath → frozen simulation
 | Classification | Owner | Evidence |
 | --- | --- | --- |
 | TRACKED TESTS | collision.test.ts → segmentCircleHitTime | 9 tests: hits, misses, overlap, tangent, zero step, bounds, ordering |
+| TRACKED TESTS | experience.test.ts → experience.ts | 8 tests: thresholds, credit, exact/excess/multiple levels, zero/nonmutation, split awards |
 | RUNTIME / MANUAL EVIDENCE | GameplayScene combat/death/restart | Browser smoke and ignored validation harnesses; not tracked Vitest coverage |
 
 Ignored harnesses are not graph nodes and do not run in npm run check.
@@ -135,7 +145,8 @@ Ignored harnesses are not graph nodes and do not run in npm run check.
 
 GameplayScene.killEnemy / xpPickups IMPLEMENTS_TASK GAME-016 — XP Drop.
 GameplayScene.updateXpPickups IMPLEMENTS_TASK GAME-017 — XP Magnet Collection.
-No player XP-total/level subsystem is implemented.
+GameplayScene.playerExperience / progression/experience.ts IMPLEMENTS_TASK GAME-018 — Player XP and Level Rules.
+No level-up pause, choice UI, HUD or upgrades are implemented.
 Statuses and dependencies remain in TASK_GRAPH.md, not duplicated here.
 
 ## Common navigation queries
@@ -144,6 +155,7 @@ Statuses and dependencies remain in TASK_GRAPH.md, not duplicated here.
 | --- | --- |
 | Where does enemy death happen? | GameplayScene.ts → updateProjectiles / killEnemy |
 | Where are XP drops/magnet/collection owned? | GameplayScene.ts → killEnemy, xpPickups, updateXpPickups; create resets |
+| Where are XP thresholds and levels calculated? | src/game/progression/experience.ts; scene playerExperience |
 | Where is player damage controlled? | GameplayScene.ts → damagePlayer, updatePlayerProtection |
 | Who owns projectile movement/lifetime/cleanup? | GameplayScene.ts → updateProjectiles |
 | Where is collision math implemented? | collision.ts#segmentCircleHitTime |
