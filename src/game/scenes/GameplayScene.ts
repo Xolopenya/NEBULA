@@ -9,6 +9,7 @@ type EnemyRuntime = {
 type XpPickup = {
   visual: Phaser.GameObjects.Arc;
   value: number;
+  speed: number;
 };
 
 type ProjectileRuntime = {
@@ -31,6 +32,10 @@ export class GameplayScene extends Phaser.Scene {
   private playerDamageProtectionRemaining = 0;
   private enemies: EnemyRuntime[] = [];
   private xpPickups: XpPickup[] = [];
+  private readonly xpMagnetRadius = 180;
+  private readonly xpCollectionRadius = 20;
+  private readonly xpMagnetAcceleration = 900;
+  private readonly xpMagnetMaxSpeed = 600;
   private currentTarget?: EnemyRuntime;
   private projectiles: ProjectileRuntime[] = [];
   private cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
@@ -186,6 +191,36 @@ export class GameplayScene extends Phaser.Scene {
     this.updatePlayerProtection(delta);
     this.updateProjectiles(delta);
     this.updatePlayerContact();
+    this.updateXpPickups(delta);
+  }
+
+  private updateXpPickups(delta: number): void {
+    if (!this.player || this.isPlayerDead) return;
+    for (let i = this.xpPickups.length - 1; i >= 0; i -= 1) {
+      const pickup = this.xpPickups[i];
+      const dx = this.player.x - pickup.visual.x;
+      const dy = this.player.y - pickup.visual.y;
+      const distance = Math.hypot(dx, dy);
+      if (distance > this.xpMagnetRadius) {
+        pickup.speed = 0;
+        continue;
+      }
+      const seconds = delta / 1000;
+      const accelerating = Math.min(seconds,
+        (this.xpMagnetMaxSpeed - pickup.speed) / this.xpMagnetAcceleration);
+      const step = pickup.speed * accelerating
+        + 0.5 * this.xpMagnetAcceleration * accelerating * accelerating
+        + this.xpMagnetMaxSpeed * (seconds - accelerating);
+      pickup.speed = Math.min(this.xpMagnetMaxSpeed,
+        pickup.speed + this.xpMagnetAcceleration * seconds);
+      if (distance <= this.xpCollectionRadius + step) {
+        pickup.visual.destroy();
+        this.xpPickups.splice(i, 1);
+        continue;
+      }
+      pickup.visual.x += dx / distance * step;
+      pickup.visual.y += dy / distance * step;
+    }
   }
 
   private updatePlayerProtection(delta: number): void {
@@ -358,6 +393,7 @@ export class GameplayScene extends Phaser.Scene {
       visual: this.add.circle(enemy.visual.x, enemy.visual.y, 10, 0xa3e635)
         .setStrokeStyle(2, 0xecfccb),
       value: 1,
+      speed: 0,
     });
     if (this.currentTarget === enemy) this.currentTarget = undefined;
     enemy.visual.destroy();

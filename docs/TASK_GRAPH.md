@@ -687,7 +687,7 @@ Enemies create XP pickups when killed.
 
 ## GAME-017 — XP Magnet Collection
 
-STATUS: READY
+STATUS: DONE
 
 DEPENDENCIES:
 
@@ -701,7 +701,7 @@ XP pickups move toward the player inside collection radius and can be collected.
 
 ## GAME-018 — Player XP and Level Rules
 
-STATUS: BACKLOG
+STATUS: READY
 
 DEPENDENCIES:
 
