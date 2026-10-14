@@ -456,7 +456,7 @@ The Laser fires automatically toward the selected target at a stable interval.
 
 ## GAME-010 — Projectile Runtime
 
-STATUS: READY
+STATUS: DONE
 
 DEPENDENCIES:
 
@@ -484,7 +484,7 @@ Projectiles move correctly and are removed after impact or lifetime expiration.
 
 ## GAME-011 — Enemy Damage and Death
 
-STATUS: BLOCKED
+STATUS: READY
 
 DEPENDENCIES:
 

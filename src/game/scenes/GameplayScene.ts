@@ -1,9 +1,17 @@
 import * as Phaser from 'phaser';
 
+type LaserProjectile = {
+  visual: Phaser.GameObjects.Arc;
+  velocityX: number;
+  velocityY: number;
+  remainingLifetime: number;
+};
+
 export class GameplayScene extends Phaser.Scene {
   private player?: Phaser.GameObjects.Polygon;
   private enemies: Phaser.GameObjects.Polygon[] = [];
   private currentTarget?: Phaser.GameObjects.Polygon;
+  private projectiles: LaserProjectile[] = [];
   private cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
   private wasd?: Record<'up' | 'left' | 'down' | 'right', Phaser.Input.Keyboard.Key>;
   private readonly movementDirection = new Phaser.Math.Vector2();
@@ -11,7 +19,9 @@ export class GameplayScene extends Phaser.Scene {
   private readonly chaseDirection = new Phaser.Math.Vector2();
   private readonly enemySpeed = 180;
   private readonly laserFireInterval = 600;
-  private readonly laserFlashDuration = 120;
+  private readonly projectileSpeed = 1200;
+  private readonly projectileLifetime = 2000;
+  private readonly projectileRadius = 6;
   private readonly spawnInterval = 2000;
   private readonly minimumSpawnDistance = 600;
   private readonly maximumEnemies = 10;
@@ -26,6 +36,7 @@ export class GameplayScene extends Phaser.Scene {
   create(): void {
     this.enemies = [];
     this.currentTarget = undefined;
+    this.projectiles = [];
     const { width, height } = this.scale;
     this.cameras.main.setBackgroundColor('#050816');
 
@@ -132,16 +143,42 @@ export class GameplayScene extends Phaser.Scene {
       this.currentTarget = target;
       this.currentTarget?.setStrokeStyle(4, 0xfde047);
     }
+
+    this.updateProjectiles(delta);
   }
 
   private fireLaser(): void {
     if (!this.player || !this.currentTarget) return;
 
-    const beam = this.add
-      .line(0, 0, this.player.x, this.player.y, this.currentTarget.x, this.currentTarget.y, 0x67e8f9)
-      .setOrigin(0, 0)
-      .setLineWidth(6);
-    this.time.delayedCall(this.laserFlashDuration, () => beam.destroy());
+    const dx = this.currentTarget.x - this.player.x;
+    const dy = this.currentTarget.y - this.player.y;
+    const distance = Math.hypot(dx, dy);
+    if (distance < 0.001) return;
+
+    this.projectiles.push({
+      visual: this.add.circle(this.player.x, this.player.y, this.projectileRadius, 0x67e8f9),
+      velocityX: (dx / distance) * this.projectileSpeed,
+      velocityY: (dy / distance) * this.projectileSpeed,
+      remainingLifetime: this.projectileLifetime,
+    });
+  }
+
+  private updateProjectiles(delta: number): void {
+    for (let i = this.projectiles.length - 1; i >= 0; i -= 1) {
+      const projectile = this.projectiles[i];
+      const deltaSeconds = Math.min(delta, projectile.remainingLifetime) / 1000;
+      projectile.visual.x += projectile.velocityX * deltaSeconds;
+      projectile.visual.y += projectile.velocityY * deltaSeconds;
+      projectile.remainingLifetime -= delta;
+
+      const { x, y } = projectile.visual;
+      const outsideArena = x < -this.projectileRadius || x > this.arenaWidth + this.projectileRadius
+        || y < -this.projectileRadius || y > this.arenaHeight + this.projectileRadius;
+      if (projectile.remainingLifetime <= 0 || outsideArena) {
+        projectile.visual.destroy();
+        this.projectiles.splice(i, 1);
+      }
+    }
   }
 
   private selectNearestEnemy(): Phaser.GameObjects.Polygon | undefined {
