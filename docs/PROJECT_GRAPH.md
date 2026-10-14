@@ -4,8 +4,8 @@
 
 - Project: NEBULA.
 - Milestone: First Playable / GAME-015 complete.
-- Source baseline HEAD: `7755cfa94f32d086b18a8b0cb12ba0b68429a3ff`.
-- This map reflects that source baseline plus the GAME-019 level-up pause ownership changes.
+- Source baseline HEAD: `adf7b9eac85069f2aa77d659c6f365583e562cf1`.
+- This map reflects that source baseline plus the GAME-020 choice/resume ownership changes.
 - Active task request defines task-specific requirements.
 - AGENTS.md defines repository policy.
 - TASK_GRAPH.md defines task scope, dependencies and status.
@@ -88,7 +88,8 @@ All private names below are navigation anchors, not exported symbol nodes.
 | Movement/bounds/camera | update; movementDirection; create camera setup | Normalized delta movement, arena clamp/follow |
 | Player health | playerHealth, playerMaxHealth; damagePlayer | Current/max HP and clamping |
 | Damage protection | playerDamageProtectionRemaining; updatePlayerProtection | Global 500 ms protection, temporary alpha |
-| Level-up pause | isLevelUpPaused; enterLevelUpPause; isSimulationPaused | Distinct from death; level increase freezes update/callbacks; fixed LEVEL UP label; no resume yet |
+| Level-up pause | isLevelUpPaused; enterLevelUpPause; isSimulationPaused | Distinct from death; level increase freezes update/callbacks; fixed title and three placeholders; one selection resumes |
+| Choice UI/resume | levelUpPresentation; enterLevelUpPause; acceptLevelUpChoice | Current text identity guard; destroys title/options then resumes; no stat effects |
 | Death/retry | isPlayerDead; enterPlayerDeath | Idempotent freeze; death-only clickable retry |
 | Enemy runtime | enemies; EnemyRuntime; createEnemy | One collection of visual + health records |
 | Spawning | spawnEnemy; spawnInterval, maximumEnemies | Global timer, placement, active-count cap |
@@ -122,6 +123,7 @@ Lethal player damage → damagePlayer → enterPlayerDeath → frozen simulation
 - create resets health/protection/death, arrays and target; constructs fresh visuals.
 - Spawn, Laser and hostile callbacks return while dead or level-up paused; timer events remain scheduled.
 - Level-increasing collection removes its pickup then pauses; subsequent pickups remain frozen.
+- One current placeholder choice destroys levelUpPresentation and clears pause; stale choices cannot close a new pause.
 - Projectile iteration stops after cleaning the lethal hostile impact; remaining objects freeze.
 - Native Phaser restart shuts down old display objects/UI and timer events before create.
 - Retry exists only in death presentation; no manual per-object reset service.
@@ -149,7 +151,8 @@ GameplayScene.killEnemy / xpPickups IMPLEMENTS_TASK GAME-016 — XP Drop.
 GameplayScene.updateXpPickups IMPLEMENTS_TASK GAME-017 — XP Magnet Collection.
 GameplayScene.playerExperience / progression/experience.ts IMPLEMENTS_TASK GAME-018 — Player XP and Level Rules.
 GameplayScene.isLevelUpPaused / enterLevelUpPause / isSimulationPaused IMPLEMENTS_TASK GAME-019.
-No choice UI, resume flow, HUD or upgrades are implemented.
+GameplayScene.levelUpPresentation / acceptLevelUpChoice IMPLEMENTS_TASK GAME-020.
+No HUD or actual upgrade effects are implemented.
 Statuses and dependencies remain in TASK_GRAPH.md, not duplicated here.
 
 ## Common navigation queries
@@ -159,6 +162,7 @@ Statuses and dependencies remain in TASK_GRAPH.md, not duplicated here.
 | Where does enemy death happen? | GameplayScene.ts → updateProjectiles / killEnemy |
 | Where are XP drops/magnet/collection owned? | GameplayScene.ts → killEnemy, xpPickups, updateXpPickups; create resets |
 | Where are XP thresholds and levels calculated? | src/game/progression/experience.ts; scene playerExperience |
+| Where are level-up choices/resume owned? | GameplayScene.ts → enterLevelUpPause, levelUpPresentation, acceptLevelUpChoice |
 | Where is player damage controlled? | GameplayScene.ts → damagePlayer, updatePlayerProtection |
 | Who owns projectile movement/lifetime/cleanup? | GameplayScene.ts → updateProjectiles |
 | Where is collision math implemented? | collision.ts#segmentCircleHitTime |

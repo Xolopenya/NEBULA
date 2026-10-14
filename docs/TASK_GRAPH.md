@@ -729,7 +729,7 @@ Pause active gameplay when a level-up decision is required.
 
 ## GAME-020 — Upgrade Choice UI
 
-STATUS: READY
+STATUS: DONE
 
 DEPENDENCIES:
 
@@ -743,7 +743,7 @@ Present three upgrade choices and allow the player to select one.
 
 ## GAME-021 — Laser Upgrade Levels
 
-STATUS: BACKLOG
+STATUS: READY
 
 DEPENDENCIES:
 

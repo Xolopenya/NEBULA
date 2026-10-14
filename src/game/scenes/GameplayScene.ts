@@ -27,6 +27,7 @@ export class GameplayScene extends Phaser.Scene {
   private playerExperience: ExperienceState = { level: 1, xp: 0 };
   private isPlayerDead = false;
   private isLevelUpPaused = false;
+  private levelUpPresentation: Phaser.GameObjects.Text[] = [];
   private readonly playerMaxHealth = 5;
   private playerHealth = this.playerMaxHealth;
   private readonly playerRadius = 20;
@@ -73,6 +74,7 @@ export class GameplayScene extends Phaser.Scene {
     this.playerExperience = { level: 1, xp: 0 };
     this.isPlayerDead = false;
     this.isLevelUpPaused = false;
+    this.levelUpPresentation = [];
     this.playerHealth = this.playerMaxHealth;
     this.playerDamageProtectionRemaining = 0;
     this.enemies = [];
@@ -206,13 +208,36 @@ export class GameplayScene extends Phaser.Scene {
   private enterLevelUpPause(): void {
     if (this.isSimulationPaused()) return;
     this.isLevelUpPaused = true;
-    this.add.text(this.scale.width / 2, this.scale.height / 2, 'LEVEL UP', {
+    const title = this.add.text(this.scale.width / 2, this.scale.height / 2 - 160, 'LEVEL UP — CHOOSE ONE', {
       fontFamily: 'Arial, sans-serif',
       fontSize: '64px',
       color: '#a3e635',
       backgroundColor: '#050816',
       padding: { x: 24, y: 16 },
     }).setOrigin(0.5).setScrollFactor(0).setDepth(1);
+    this.levelUpPresentation.push(title);
+    const labels = ['Laser Power', 'Laser Fire Rate', 'Laser Projectile Speed'];
+    labels.forEach((label, index) => {
+      const choice = this.add.text(this.scale.width / 2, this.scale.height / 2 - 40 + index * 110,
+        `${label}\nPlaceholder — no effect yet`, {
+          fontFamily: 'Arial, sans-serif',
+          fontSize: '32px',
+          align: 'center',
+          color: '#e0f2fe',
+          backgroundColor: '#1e3a5f',
+          padding: { x: 24, y: 12 },
+        }).setOrigin(0.5).setScrollFactor(0).setDepth(1)
+        .setInteractive({ useHandCursor: true });
+      this.levelUpPresentation.push(choice);
+      choice.once('pointerdown', () => this.acceptLevelUpChoice(choice));
+    });
+  }
+
+  private acceptLevelUpChoice(choice: Phaser.GameObjects.Text): void {
+    if (this.isPlayerDead || !this.isLevelUpPaused || !this.levelUpPresentation.includes(choice)) return;
+    this.isLevelUpPaused = false;
+    for (const text of this.levelUpPresentation) text.destroy();
+    this.levelUpPresentation = [];
   }
 
   private updateXpPickups(delta: number): void {
