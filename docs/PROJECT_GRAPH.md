@@ -4,8 +4,8 @@
 
 - Project: NEBULA.
 - Milestone: First Playable / GAME-015 complete.
-- Source baseline HEAD: `b23cda30e5c73d040698a130c8af9a0ac3e2dff1`.
-- This map reflects that source baseline plus the GAME-024 Chaser/Shooter ownership changes.
+- Source baseline HEAD: `d1521017c284d63cbe323823899f144681db22d3`.
+- This map reflects that source baseline plus the GAME-025 Tank/shared-pursuit and spawn-composition changes.
 - Active task request defines task-specific requirements.
 - AGENTS.md defines repository policy.
 - TASK_GRAPH.md defines task scope, dependencies and status.
@@ -104,9 +104,9 @@ All private names below are navigation anchors, not exported symbol nodes.
 | Level-up pause | isLevelUpPaused; enterLevelUpPause; isSimulationPaused | Distinct from death; level increase freezes update/callbacks; fixed title and three Laser upgrades; one selection resumes |
 | Choice UI/resume | levelUpPresentation; enterLevelUpPause; acceptLevelUpChoice | Current text identity guard; applies Laser effect, destroys title/options then resumes |
 | Death/retry | isPlayerDead; enterPlayerDeath | Idempotent freeze; death-only clickable retry |
-| Enemy runtime | enemies; EnemyRuntime; createEnemy | One collection of archetype identity + visual + health; scene-local enemyData holds varying HP/speed/presentation |
-| Spawning | spawnEnemy; successfulTimedSpawns, spawnInterval, maximumEnemies | Global timer, successful CCCS mix, placement, shared active-count cap; create resets sequence |
-| Enemy movement | update; chaseDirection; shooterMovement | Explicit Chaser pursuit / Shooter 350–500 inclusive band; scene arena clamp, pure Shooter step |
+| Enemy runtime | enemies; EnemyRuntime; createEnemy | One collection of archetype identity + visual + health; scene-local enemyData holds Chaser/Shooter/Tank HP/speed/presentation |
+| Spawning | spawnEnemy; timedSpawnSequence, successfulTimedSpawns, spawnInterval, maximumEnemies | Global timer, successful CCCSCT mix, placement, shared active-count cap; create resets sequence |
+| Enemy movement | update; chaseDirection; shooterMovement | Shared Chaser/Tank pursuit / Shooter 350–500 inclusive band; scene arena clamp, pure Shooter step |
 | Target/highlight | selectNearestEnemy, currentTarget; update | Nearest active enemy; temporary outline |
 | Enemy death | updateProjectiles → killEnemy | Create one XP drop, destroy visual, splice enemy, clear dead target |
 | XP drops | xpPickups; XpPickup; killEnemy | World-space visual + value 1 + speed; create resets collection |
@@ -129,7 +129,7 @@ All private names below are navigation anchors, not exported symbol nodes.
 BootScene.create → scene.start('GameplayScene') → GameplayScene.create
 → fresh player/enemy/collections → spawn/Laser/hostile timers → update.
 
-update: consume fresh Dash press → simulation pause guard → player movement/Dash split/bounds → Chaser chase / Shooter band movement → target/highlight
+update: consume fresh Dash press → simulation pause guard → player movement/Dash split/bounds → Chaser/Tank pursuit / Shooter band movement → target/highlight
 → protection countdown → projectiles/impacts → contact damage → XP magnet/collection (simulation active only).
 
 Lethal player damage → damagePlayer → enterPlayerDeath → frozen simulation
@@ -137,7 +137,7 @@ Lethal player damage → damagePlayer → enterPlayerDeath → frozen simulation
 
 - Dash presses are consumed before pause guards and on choice acceptance; native repeat events are rejected, so rejected presses do not queue.
 - create resets Dash clocks/direction and reacquires input; keyboard shutdown clears old keys on retry.
-- create resets health/protection/death, arrays, target and successfulTimedSpawns; constructs one initial Chaser outside the timed CCCS sequence.
+- create resets health/protection/death, arrays, target and successfulTimedSpawns; constructs one initial Chaser outside the timed CCCSCT sequence.
 - Spawn, Laser and hostile callbacks return while dead or level-up paused; timer events remain scheduled.
 - Level-increasing collection removes its pickup then pauses; subsequent pickups remain frozen.
 - One current choice applies its Laser upgrade then destroys levelUpPresentation and clears pause; stale choices cannot close a new pause.
@@ -175,6 +175,7 @@ GameplayScene.laser / laserTimer / acceptLevelUpChoice IMPLEMENTS_TASK GAME-021.
 GameplayScene.hud / updateHud IMPLEMENTS_TASK GAME-022 — Basic HUD.
 GameplayScene Dash state / player/dash.ts IMPLEMENTS_TASK GAME-023 — Initial Ship Active Ability: Dash.
 GameplayScene enemyData / EnemyRuntime / spawnEnemy / hostile fire + enemies/shooterMovement.ts IMPLEMENTS_TASK GAME-024 — Chaser/Shooter.
+GameplayScene enemyData / shared direct pursuit / timedSpawnSequence IMPLEMENTS_TASK GAME-025 — Tank.
 No generalized weapon stats framework is implemented.
 Statuses and dependencies remain in TASK_GRAPH.md, not duplicated here.
 
@@ -193,7 +194,7 @@ Statuses and dependencies remain in TASK_GRAPH.md, not duplicated here.
 | Where is collision math implemented? | collision.ts#segmentCircleHitTime |
 | Where is collision math tested? | src/game/combat/collision.test.ts |
 | Where are enemy archetypes/movement owned? | GameplayScene.ts → EnemyArchetype, enemyData, update; enemies/shooterMovement.ts |
-| Where are enemy spawn callbacks? | GameplayScene.ts → create timer / spawnEnemy / successfulTimedSpawns |
+| Where are enemy spawn callbacks? | GameplayScene.ts → create timer / spawnEnemy / timedSpawnSequence / successfulTimedSpawns |
 | Where are player/hostile fire callbacks? | GameplayScene.ts → create timers / fireLaser / fireHostileProjectile → selectNearestEnemy('shooter') |
 | What guards callbacks while dead or level-up paused? | GameplayScene.ts → isSimulationPaused checks in spawn/fire helpers |
 | Who owns Laser firing configuration? | GameplayScene.ts → laser, laserTimer, fireLaser; create/acceptLevelUpChoice |

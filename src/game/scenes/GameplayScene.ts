@@ -6,12 +6,15 @@ import { addExperience, xpForNextLevel, type ExperienceState } from '../progress
 
 type LaserUpgrade = 'power' | 'fireRate' | 'speed';
 
-type EnemyArchetype = 'chaser' | 'shooter';
+type EnemyArchetype = 'chaser' | 'shooter' | 'tank';
 
 const enemyData = {
   chaser: { health: 3, speed: 180, points: [24, 0, 48, 24, 24, 48, 0, 24], color: 0xf43f5e, outline: 0xffcdd2 },
   shooter: { health: 2, speed: 140, points: [8, 8, 40, 8, 40, 40, 8, 40], color: 0xa855f7, outline: 0xe9d5ff },
+  tank: { health: 6, speed: 100, points: [12, 4, 36, 4, 48, 24, 36, 44, 12, 44, 0, 24], color: 0xf59e0b, outline: 0xfef3c7 },
 } satisfies Record<EnemyArchetype, { health: number; speed: number; points: number[]; color: number; outline: number }>;
+
+const timedSpawnSequence: readonly EnemyArchetype[] = ['chaser', 'chaser', 'chaser', 'shooter', 'chaser', 'tank'];
 
 type EnemyRuntime = {
   archetype: EnemyArchetype;
@@ -571,7 +574,7 @@ export class GameplayScene extends Phaser.Scene {
       y = this.player.y < this.arenaHeight / 2 ? this.arenaHeight - this.enemyMargin : this.enemyMargin;
     }
 
-    const archetype = this.successfulTimedSpawns % 4 === 3 ? 'shooter' : 'chaser';
+    const archetype = timedSpawnSequence[this.successfulTimedSpawns % timedSpawnSequence.length];
     this.createEnemy(x, y, archetype);
     this.successfulTimedSpawns += 1;
   }
