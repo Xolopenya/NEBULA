@@ -1,6 +1,6 @@
 import * as Phaser from 'phaser';
 import { segmentCircleHitTime } from '../combat/collision';
-import { addExperience, type ExperienceState } from '../progression/experience';
+import { addExperience, xpForNextLevel, type ExperienceState } from '../progression/experience';
 
 type LaserUpgrade = 'power' | 'fireRate' | 'speed';
 
@@ -26,6 +26,7 @@ type ProjectileRuntime = {
 
 export class GameplayScene extends Phaser.Scene {
   private player?: Phaser.GameObjects.Polygon;
+  private hud?: Phaser.GameObjects.Text;
   private playerExperience: ExperienceState = { level: 1, xp: 0 };
   private isPlayerDead = false;
   private isLevelUpPaused = false;
@@ -85,6 +86,15 @@ export class GameplayScene extends Phaser.Scene {
     this.projectiles = [];
     const { width, height } = this.scale;
     this.cameras.main.setBackgroundColor('#050816');
+
+    this.hud = this.add.text(32, 24, '', {
+      fontFamily: 'Arial, sans-serif',
+      fontSize: '30px',
+      color: '#e2e8f0',
+      backgroundColor: '#050816',
+      padding: { x: 12, y: 8 },
+    }).setScrollFactor(0).setDepth(1);
+    this.updateHud();
 
     const arena = this.add.graphics();
     arena.fillStyle(0x7dd3fc, 0.4);
@@ -155,6 +165,14 @@ export class GameplayScene extends Phaser.Scene {
       })
       .setOrigin(0.5)
       .setScrollFactor(0);
+  }
+
+  private updateHud(): void {
+    this.hud?.setText([
+      `HP: ${this.playerHealth}/${this.playerMaxHealth}`,
+      `XP: ${this.playerExperience.xp}/${xpForNextLevel(this.playerExperience.level)}`,
+      `Level: ${this.playerExperience.level}`,
+    ]);
   }
 
   update(_time: number, delta: number): void {
@@ -279,6 +297,7 @@ export class GameplayScene extends Phaser.Scene {
       if (distance <= this.xpCollectionRadius + step) {
         const previousLevel = this.playerExperience.level;
         this.playerExperience = addExperience(this.playerExperience, pickup.value);
+        this.updateHud();
         pickup.visual.destroy();
         this.xpPickups.splice(i, 1);
         if (this.playerExperience.level > previousLevel) this.enterLevelUpPause();
@@ -315,6 +334,7 @@ export class GameplayScene extends Phaser.Scene {
     if (this.isSimulationPaused()) return;
     if (!this.player || this.playerHealth === 0 || this.playerDamageProtectionRemaining > 0) return;
     this.playerHealth = Math.max(0, this.playerHealth - amount);
+    this.updateHud();
     this.playerDamageProtectionRemaining = this.playerDamageProtectionDuration;
     this.player.setAlpha(0.5);
     if (this.playerHealth === 0) this.enterPlayerDeath();

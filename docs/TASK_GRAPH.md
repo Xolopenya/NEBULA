@@ -757,7 +757,7 @@ Allow the Laser to receive meaningful upgrades through level-up choices.
 
 ## GAME-022 — Basic HUD
 
-STATUS: READY
+STATUS: DONE
 
 DEPENDENCIES:
 

@@ -4,8 +4,8 @@
 
 - Project: NEBULA.
 - Milestone: First Playable / GAME-015 complete.
-- Source baseline HEAD: `16358a5245b412c8e94dccd4f59b2c986062502f`.
-- This map reflects that source baseline plus the GAME-021 Laser upgrade ownership changes.
+- Source baseline HEAD: `bf5c428db797b3d88b0a765af14197c103681bcb`.
+- This map reflects that source baseline plus the GAME-022 HUD ownership changes.
 - Active task request defines task-specific requirements.
 - AGENTS.md defines repository policy.
 - TASK_GRAPH.md defines task scope, dependencies and status.
@@ -63,7 +63,7 @@ Runtime labels below describe scene-owned concepts, not separate modules/classes
 | `src/game/combat/collision.ts#segmentCircleHitTime` | TESTED_BY | `src/game/combat/collision.test.ts` |
 | `src/game/scenes/BootScene.ts#BootScene` | USES | GameplayScene startup via scene.start |
 | `src/game/scenes/GameplayScene.ts#GameplayScene` | OWNS | Player, enemies, projectiles, timers, temporary UI |
-| `src/game/scenes/GameplayScene.ts` | IMPORTS | `src/game/progression/experience.ts` (addExperience, ExperienceState) |
+| `src/game/scenes/GameplayScene.ts` | IMPORTS | `src/game/progression/experience.ts` (addExperience, xpForNextLevel, ExperienceState) |
 | `src/game/progression/experience.test.ts` | IMPORTS | `src/game/progression/experience.ts` |
 | `src/game/progression/experience.ts` | TESTED_BY | `src/game/progression/experience.test.ts` |
 | Player Laser | TARGETS | currentTarget from active enemies |
@@ -108,6 +108,7 @@ All private names below are navigation anchors, not exported symbol nodes.
 | Collision inputs | updateProjectiles; player/enemy/projectile radii | Scene supplies positions and combined radii |
 | Collision calculation | collision.ts; segmentCircleHitTime | Pure numeric math, no Phaser/runtime records |
 | Player damage sources | updatePlayerContact; updateProjectiles | Contact and hostile impacts share damagePlayer/protection |
+| Runtime HUD | hud; updateHud; create, damagePlayer, updateXpPickups | Fixed HP current/max, XP/threshold and level; reads existing state, refreshes on mutations, recreated on retry |
 | Temporary UI | create; enterPlayerDeath | Fixed labels, SHIP DESTROYED, RETRY |
 
 ## Runtime and lifecycle
@@ -154,7 +155,8 @@ GameplayScene.playerExperience / progression/experience.ts IMPLEMENTS_TASK GAME-
 GameplayScene.isLevelUpPaused / enterLevelUpPause / isSimulationPaused IMPLEMENTS_TASK GAME-019.
 GameplayScene.levelUpPresentation / acceptLevelUpChoice IMPLEMENTS_TASK GAME-020.
 GameplayScene.laser / laserTimer / acceptLevelUpChoice IMPLEMENTS_TASK GAME-021.
-No HUD or generalized weapon stats framework is implemented.
+GameplayScene.hud / updateHud IMPLEMENTS_TASK GAME-022 — Basic HUD.
+No generalized weapon stats framework is implemented.
 Statuses and dependencies remain in TASK_GRAPH.md, not duplicated here.
 
 ## Common navigation queries
@@ -165,6 +167,7 @@ Statuses and dependencies remain in TASK_GRAPH.md, not duplicated here.
 | Where are XP drops/magnet/collection owned? | GameplayScene.ts → killEnemy, xpPickups, updateXpPickups; create resets |
 | Where are XP thresholds and levels calculated? | src/game/progression/experience.ts; scene playerExperience |
 | Where are level-up choices/resume owned? | GameplayScene.ts → enterLevelUpPause, levelUpPresentation, acceptLevelUpChoice |
+| Where are HUD values rendered/refreshed? | GameplayScene.ts → hud, updateHud; create, damagePlayer, updateXpPickups |
 | Where is player damage controlled? | GameplayScene.ts → damagePlayer, updatePlayerProtection |
 | Who owns projectile movement/lifetime/cleanup? | GameplayScene.ts → updateProjectiles |
 | Where is collision math implemented? | collision.ts#segmentCircleHitTime |
