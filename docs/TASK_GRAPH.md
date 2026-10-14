@@ -771,13 +771,93 @@ Display essential run information such as HP, XP and level.
 
 # 8. Vertical Slice Preparation
 
-These tasks are intentionally not detailed yet.
+Playable Core has been validated by MILESTONE-002. GAME-023 is defined below;
+remaining nodes are BACKLOG concepts and require separate task definitions.
 
-They will be expanded only after Playable Core is validated.
+## GAME-023 — Initial Ship Active Ability: Dash
 
-Known future nodes:
+STATUS: READY
 
-GAME-023 — Initial Ship Active Ability: Dash
+DEPENDENCIES:
+
+- GAME-022
+- MILESTONE-002 Playable Core validation
+
+GOAL:
+
+Give the initial ship one desktop active ability: a short directional Dash that
+helps reposition without changing damage rules or the combat/progression loop.
+
+PROTOTYPE RULES:
+
+- Space is the dedicated ability button. Activate on a fresh press, not keyboard
+  repeat or continuous hold; rejected presses are not queued for later activation.
+- Use the current normalized non-zero WASD/arrow movement direction at activation,
+  including diagonals. Do not reuse a stale direction from an earlier moving frame.
+- Idle activation does nothing and consumes no cooldown. Reject activation during
+  an existing Dash, cooldown, death or level-up pause.
+- Lock direction for the entire Dash; subsequent input changes do not steer it.
+- Dash replaces normal 300 px/s movement with 900 px/s for 200 ms. Cooldown is
+  3000 ms from successful activation, including Dash duration. Keep these three
+  prototype values explicit and easy to tune; they are not generalized ship stats.
+- Use frame delta for movement, duration and cooldown. If a frame crosses Dash
+  expiry, move at Dash speed only for its remaining duration, then use normal
+  movement/current input for the remaining active frame time. Do not add normal
+  movement on top of Dash movement or extend the burst by a whole frame.
+- Retain the existing ship-size-aware arena clamp throughout Dash. Reaching a
+  boundary clamps position; duration/cooldown still advance without early refund.
+- No Dash invulnerability or damage immunity. Existing contact/projectile damage
+  and the existing post-hit protection rules remain unchanged.
+- Dash duration and cooldown advance only while simulation is active. Level-up
+  pause freezes an ongoing Dash and its cooldown; resuming continues the remaining
+  burst in its locked direction. Space pressed during pause must not trigger on resume.
+- Death stops movement and activation through the existing freeze guards. Each
+  create/restart resets Dash to ready, with no remaining burst or locked direction.
+- Extend the existing screen-fixed prototype HUD with minimal Dash ready/cooldown
+  text. Read scene-owned ability state; refresh feedback as cooldown changes and
+  reset it on retry. No production HUD pass or separate UI state is needed.
+
+IMPLEMENTATION BOUNDARY:
+
+Keep Phaser input, movement integration, guards, presentation and run reset owned
+by GameplayScene. A small focused pure Dash calculation is acceptable if it makes
+meaningful duration/delta rules independently testable. Dash is behavior, not merely
+another ship numeric stat; preserve the GAME_DESIGN boundary and existing gameplay.
+
+OUT OF SCOPE:
+
+Generalized ShipStats, active-ability framework, generic cooldown system, state-machine
+framework, mobile controls, invulnerability, new ships, Dash upgrades, VFX/assets,
+new dependencies, unrelated refactors and GAME-024 or later functionality.
+
+ACCEPTANCE / VALIDATION:
+
+- Fresh Space plus cardinal/diagonal movement activates in the correct normalized
+  direction; direction stays locked even if input changes or is released.
+- Idle, held/repeated Space, cooldown, active-Dash, paused and dead activation are
+  rejected without consuming/resetting cooldown or causing a delayed activation.
+- Equivalent active-time delta partitions produce equivalent burst distance,
+  duration and cooldown, including a frame spanning Dash expiry. Normal movement
+  returns after expiry; the ship remains fully within arena bounds at every edge.
+- Level-up pause freezes Dash position/duration/cooldown and all existing simulation;
+  choice/resume continues correctly. Dash grants no protection from damage.
+- Death still freezes the run; repeated retry resets Dash, HP, XP/level, pickups,
+  choices, Laser values/timers and HUD without stale objects or duplicated timers.
+- Existing targeting, firing, collisions, spawning, XP credit, choices and upgrades
+  continue to work. Cooldown/readiness feedback stays fixed during camera movement.
+- Add focused tracked tests for meaningful pure Dash rules if extracted; otherwise
+  use targeted runtime validation. Do not add rendering-only Phaser tests.
+- Run npm run check, git diff --check and git diff --cached --check. Browser smoke:
+  move/Dash, idle rejection, cooldown/reuse, arena edge, level-up pause/resume and
+  death/retry. Report actual evidence and remaining limitations.
+- After implementation succeeds, update CURRENT_STATE and material PROJECT_GRAPH
+  ownership facts; mark only GAME-023 DONE. GAME-024 and later remain BACKLOG until
+  separately defined and authorized. Follow AGENTS.md staging/review; do not commit.
+
+---
+
+Remaining future nodes:
+
 GAME-024 — Second Enemy Archetype
 GAME-025 — Third Enemy Archetype
 GAME-026 — Missile Weapon
