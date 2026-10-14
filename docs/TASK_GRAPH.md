@@ -715,7 +715,7 @@ Track XP and determine when the player gains a level.
 
 ## GAME-019 — Level-Up Pause State
 
-STATUS: READY
+STATUS: DONE
 
 DEPENDENCIES:
 
@@ -729,7 +729,7 @@ Pause active gameplay when a level-up decision is required.
 
 ## GAME-020 — Upgrade Choice UI
 
-STATUS: BACKLOG
+STATUS: READY
 
 DEPENDENCIES:
 

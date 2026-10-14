@@ -14,7 +14,7 @@ Do not place future plans or speculative features here.
 
 Current phase:
 
-FIRST PLAYABLE CORE LOOP COMPLETE / GAME-018 COMPLETE
+FIRST PLAYABLE CORE LOOP COMPLETE / GAME-019 COMPLETE
 
 The project has a working browser application, development toolchain and placeholder gameplay scene.
 
@@ -178,12 +178,12 @@ Creation resets the player to alive. Death freezes movement, enemy chase, target
 Only after death, a screen-fixed clickable RETRY control appears. Clicking it once uses Phaser scene.restart() without reloading the page. Phaser shutdown destroys old scene objects/UI and timer events; create() restores an alive player at 5 HP and normal alpha at (2400, 1350), one initial enemy, no projectiles, a fresh target selection and exactly three spawn/Laser/hostile timers. Repeated death/retry cycles resume the same gameplay.
 One global timer fires an orange hostile projectile from the nearest active enemy every 1500 ms. Shots use fixed firing-time aim, speed 600 px/s, lifetime 3000 ms and damage 1. Missing enemies and near-zero firing distance create no shot.
 Player and enemy shots share a local source/damage runtime record and movement/lifetime/world-exit cleanup. Hostile shots use swept segment-circle collision against the player and disappear even when protection prevents damage before death. Both contact and hostile hits use the same global 500 ms player damage protection; its timer ticks before projectile/contact processing.
-Every killed enemy creates one lime-green world-space XP pickup worth 1 at its death position. Scene-owned pickup records preserve visual, value and magnet speed; create resets the array and restart destroys old visuals. Pickups stay stationary outside a 180-pixel player-center magnet radius. Within range they accelerate toward the current player position at 900 px/s² up to 600 px/s, using frame delta; leaving range resets speed. Reaching a 20-pixel player-center collection radius credits pickup.value to player XP before destroying/removing the pickup. Motion is capped by collection to avoid overshoot. Magnet processing stops on player death. Scene-owned playerExperience starts at level 1 with 0 XP toward the next level. The pure experience module requires 5 × current level XP, subtracts each reached threshold, carries excess forward and allows multiple levels per award. Restart resets this state; reaching levels does not pause gameplay. Level-up pause, choices, HUD and upgrades are not implemented.
+Every killed enemy creates one lime-green world-space XP pickup worth 1 at its death position. Scene-owned pickup records preserve visual, value and magnet speed; create resets the array and restart destroys old visuals. Pickups stay stationary outside a 180-pixel player-center magnet radius. Within range they accelerate toward the current player position at 900 px/s² up to 600 px/s, using frame delta; leaving range resets speed. Reaching a 20-pixel player-center collection radius credits pickup.value to player XP before destroying/removing the pickup. Motion is capped by collection to avoid overshoot. Magnet processing stops on player death. Scene-owned playerExperience starts at level 1 with 0 XP toward the next level. The pure experience module requires 5 × current level XP, subtracts each reached threshold, carries excess forward and allows multiple levels per award. Restart resets this state and clears the separate isLevelUpPaused flag. Collection that increases level credits/removes the triggering pickup, then enters level-up pause immediately; subsequent pickups remain untouched. A screen-fixed LEVEL UP label appears. isSimulationPaused combines death and level-up pause to freeze movement, chase/targeting, projectiles, damage/protection, XP movement/collection and all spawn/fire callbacks. This pause is not death and offers no retry or temporary resume control. Choices, upgrades and HUD are not implemented; completing a choice/resuming belongs to the next task.
 
 There is currently no:
 
 - health HUD
-- level-up pause and choice UI
+- upgrade choice UI
 - upgrades
 - boss
 - save system
@@ -262,7 +262,7 @@ The placeholder arena, bounded desktop movement, camera follow, repeated enemy s
 
 The next implementation task is:
 
-GAME-019 — Level-Up Pause State
+GAME-020 — Upgrade Choice UI
 
 ---
 
@@ -270,6 +270,6 @@ GAME-019 — Level-Up Pause State
 
 The application boots successfully.
 
-The player can move the ship, outrun multiple chasing enemies and automatically launch moving Laser projectiles toward the current nearest target. Shots disappear on impact and kill enemies after three hits. Spawning continues after kills. Enemy contact reduces player HP with temporary protection and damage feedback; gameplay freezes at zero HP with SHIP DESTROYED displayed. Orange hostile projectiles can be dodged and damage the player. Clicking RETRY after death begins a clean new run. The First Playable start/play/die/restart loop is complete. Killed enemies leave XP pickups that move toward the player within magnet range and are consumed on arrival. Collected values now advance player XP/level state while gameplay continues. Pause, choices, HUD and upgrades are not implemented.
+The player can move the ship, outrun multiple chasing enemies and automatically launch moving Laser projectiles toward the current nearest target. Shots disappear on impact and kill enemies after three hits. Spawning continues after kills. Enemy contact reduces player HP with temporary protection and damage feedback; gameplay freezes at zero HP with SHIP DESTROYED displayed. Orange hostile projectiles can be dodged and damage the player. Clicking RETRY after death begins a clean new run. The First Playable start/play/die/restart loop is complete. Killed enemies leave XP pickups that move toward the player within magnet range and are consumed on arrival. Collected values advance player XP/level state; reaching a new level freezes gameplay with LEVEL UP displayed. Choices, resume flow, HUD and upgrades are not implemented.
 
 The First Playable milestone defined in TASK_GRAPH.md is now implemented.

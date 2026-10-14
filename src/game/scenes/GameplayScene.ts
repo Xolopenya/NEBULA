@@ -26,6 +26,7 @@ export class GameplayScene extends Phaser.Scene {
   private player?: Phaser.GameObjects.Polygon;
   private playerExperience: ExperienceState = { level: 1, xp: 0 };
   private isPlayerDead = false;
+  private isLevelUpPaused = false;
   private readonly playerMaxHealth = 5;
   private playerHealth = this.playerMaxHealth;
   private readonly playerRadius = 20;
@@ -71,6 +72,7 @@ export class GameplayScene extends Phaser.Scene {
   create(): void {
     this.playerExperience = { level: 1, xp: 0 };
     this.isPlayerDead = false;
+    this.isLevelUpPaused = false;
     this.playerHealth = this.playerMaxHealth;
     this.playerDamageProtectionRemaining = 0;
     this.enemies = [];
@@ -152,7 +154,7 @@ export class GameplayScene extends Phaser.Scene {
   }
 
   update(_time: number, delta: number): void {
-    if (this.isPlayerDead) return;
+    if (this.isSimulationPaused()) return;
     if (!this.player || !this.cursors || !this.wasd) return;
 
     const left = this.wasd.left.isDown || this.cursors.left.isDown;
@@ -197,9 +199,26 @@ export class GameplayScene extends Phaser.Scene {
     this.updateXpPickups(delta);
   }
 
+  private isSimulationPaused(): boolean {
+    return this.isPlayerDead || this.isLevelUpPaused;
+  }
+
+  private enterLevelUpPause(): void {
+    if (this.isSimulationPaused()) return;
+    this.isLevelUpPaused = true;
+    this.add.text(this.scale.width / 2, this.scale.height / 2, 'LEVEL UP', {
+      fontFamily: 'Arial, sans-serif',
+      fontSize: '64px',
+      color: '#a3e635',
+      backgroundColor: '#050816',
+      padding: { x: 24, y: 16 },
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(1);
+  }
+
   private updateXpPickups(delta: number): void {
-    if (!this.player || this.isPlayerDead) return;
+    if (!this.player || this.isSimulationPaused()) return;
     for (let i = this.xpPickups.length - 1; i >= 0; i -= 1) {
+      if (this.isSimulationPaused()) return;
       const pickup = this.xpPickups[i];
       const dx = this.player.x - pickup.visual.x;
       const dy = this.player.y - pickup.visual.y;
@@ -217,9 +236,11 @@ export class GameplayScene extends Phaser.Scene {
       pickup.speed = Math.min(this.xpMagnetMaxSpeed,
         pickup.speed + this.xpMagnetAcceleration * seconds);
       if (distance <= this.xpCollectionRadius + step) {
+        const previousLevel = this.playerExperience.level;
         this.playerExperience = addExperience(this.playerExperience, pickup.value);
         pickup.visual.destroy();
         this.xpPickups.splice(i, 1);
+        if (this.playerExperience.level > previousLevel) this.enterLevelUpPause();
         continue;
       }
       pickup.visual.x += dx / distance * step;
@@ -235,7 +256,7 @@ export class GameplayScene extends Phaser.Scene {
   }
 
   private updatePlayerContact(): void {
-    if (this.isPlayerDead) return;
+    if (this.isSimulationPaused()) return;
     if (!this.player || this.playerHealth === 0 || this.playerDamageProtectionRemaining > 0) return;
 
     const radius = this.playerRadius + this.enemyRadius;
@@ -250,7 +271,7 @@ export class GameplayScene extends Phaser.Scene {
   }
 
   private damagePlayer(amount: number): void {
-    if (this.isPlayerDead) return;
+    if (this.isSimulationPaused()) return;
     if (!this.player || this.playerHealth === 0 || this.playerDamageProtectionRemaining > 0) return;
     this.playerHealth = Math.max(0, this.playerHealth - amount);
     this.playerDamageProtectionRemaining = this.playerDamageProtectionDuration;
@@ -283,7 +304,7 @@ export class GameplayScene extends Phaser.Scene {
   }
 
   private fireLaser(): void {
-    if (this.isPlayerDead) return;
+    if (this.isSimulationPaused()) return;
     if (!this.player || !this.currentTarget) return;
 
     const dx = this.currentTarget.visual.x - this.player.x;
@@ -302,7 +323,7 @@ export class GameplayScene extends Phaser.Scene {
   }
 
   private fireHostileProjectile(): void {
-    if (this.isPlayerDead) return;
+    if (this.isSimulationPaused()) return;
     if (!this.player) return;
     const enemy = this.selectNearestEnemy();
     if (!enemy) return;
@@ -322,7 +343,7 @@ export class GameplayScene extends Phaser.Scene {
 
   private updateProjectiles(delta: number): void {
     for (let i = this.projectiles.length - 1; i >= 0; i -= 1) {
-      if (this.isPlayerDead) return;
+      if (this.isSimulationPaused()) return;
       const projectile = this.projectiles[i];
       const deltaSeconds = Math.min(delta, projectile.remainingLifetime) / 1000;
       const startX = projectile.visual.x;
@@ -411,7 +432,7 @@ export class GameplayScene extends Phaser.Scene {
   }
 
   private spawnEnemy(): void {
-    if (this.isPlayerDead) return;
+    if (this.isSimulationPaused()) return;
     if (!this.player || this.enemies.length >= this.maximumEnemies) return;
 
     const view = this.cameras.main.worldView;

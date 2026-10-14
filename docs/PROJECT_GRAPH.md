@@ -4,8 +4,8 @@
 
 - Project: NEBULA.
 - Milestone: First Playable / GAME-015 complete.
-- Source baseline HEAD: `761e7b95ee4b4ca4fefa43b5acd0401046e9ab7d`.
-- This map reflects that source baseline plus the GAME-018 XP/level ownership changes.
+- Source baseline HEAD: `7755cfa94f32d086b18a8b0cb12ba0b68429a3ff`.
+- This map reflects that source baseline plus the GAME-019 level-up pause ownership changes.
 - Active task request defines task-specific requirements.
 - AGENTS.md defines repository policy.
 - TASK_GRAPH.md defines task scope, dependencies and status.
@@ -88,6 +88,7 @@ All private names below are navigation anchors, not exported symbol nodes.
 | Movement/bounds/camera | update; movementDirection; create camera setup | Normalized delta movement, arena clamp/follow |
 | Player health | playerHealth, playerMaxHealth; damagePlayer | Current/max HP and clamping |
 | Damage protection | playerDamageProtectionRemaining; updatePlayerProtection | Global 500 ms protection, temporary alpha |
+| Level-up pause | isLevelUpPaused; enterLevelUpPause; isSimulationPaused | Distinct from death; level increase freezes update/callbacks; fixed LEVEL UP label; no resume yet |
 | Death/retry | isPlayerDead; enterPlayerDeath | Idempotent freeze; death-only clickable retry |
 | Enemy runtime | enemies; EnemyRuntime; createEnemy | One collection of visual + health records |
 | Spawning | spawnEnemy; spawnInterval, maximumEnemies | Global timer, placement, active-count cap |
@@ -112,14 +113,15 @@ All private names below are navigation anchors, not exported symbol nodes.
 BootScene.create → scene.start('GameplayScene') → GameplayScene.create
 → fresh player/enemy/collections → spawn/Laser/hostile timers → update.
 
-update: death guard → player movement/bounds → enemy chase → target/highlight
-→ protection countdown → projectiles/impacts → contact damage → XP magnet/collection (alive only).
+update: simulation pause guard → player movement/bounds → enemy chase → target/highlight
+→ protection countdown → projectiles/impacts → contact damage → XP magnet/collection (simulation active only).
 
 Lethal player damage → damagePlayer → enterPlayerDeath → frozen simulation
 → RETRY pointerdown (once) → scene.restart → fresh create.
 
 - create resets health/protection/death, arrays and target; constructs fresh visuals.
-- Spawn, Laser and hostile callbacks return while dead; timer events remain scheduled.
+- Spawn, Laser and hostile callbacks return while dead or level-up paused; timer events remain scheduled.
+- Level-increasing collection removes its pickup then pauses; subsequent pickups remain frozen.
 - Projectile iteration stops after cleaning the lethal hostile impact; remaining objects freeze.
 - Native Phaser restart shuts down old display objects/UI and timer events before create.
 - Retry exists only in death presentation; no manual per-object reset service.
@@ -146,7 +148,8 @@ Ignored harnesses are not graph nodes and do not run in npm run check.
 GameplayScene.killEnemy / xpPickups IMPLEMENTS_TASK GAME-016 — XP Drop.
 GameplayScene.updateXpPickups IMPLEMENTS_TASK GAME-017 — XP Magnet Collection.
 GameplayScene.playerExperience / progression/experience.ts IMPLEMENTS_TASK GAME-018 — Player XP and Level Rules.
-No level-up pause, choice UI, HUD or upgrades are implemented.
+GameplayScene.isLevelUpPaused / enterLevelUpPause / isSimulationPaused IMPLEMENTS_TASK GAME-019.
+No choice UI, resume flow, HUD or upgrades are implemented.
 Statuses and dependencies remain in TASK_GRAPH.md, not duplicated here.
 
 ## Common navigation queries
@@ -162,7 +165,7 @@ Statuses and dependencies remain in TASK_GRAPH.md, not duplicated here.
 | Where is collision math tested? | src/game/combat/collision.test.ts |
 | Where are enemy spawn callbacks? | GameplayScene.ts → create timer / spawnEnemy |
 | Where are player/hostile fire callbacks? | GameplayScene.ts → create timers / fireLaser / fireHostileProjectile |
-| What guards callbacks after death? | GameplayScene.ts → isPlayerDead checks in spawn/fire helpers |
+| What guards callbacks while dead or level-up paused? | GameplayScene.ts → isSimulationPaused checks in spawn/fire helpers |
 | Who owns Laser firing configuration? | GameplayScene.ts → laserFireInterval, projectileSpeed/Lifetime, laserDamage |
 | Where does restart cleanup occur? | GameplayScene.ts → enterPlayerDeath → Phaser scene.restart lifecycle |
 | Where are repository/task rules? | AGENTS.md; docs/TASK_GRAPH.md; active user task |
