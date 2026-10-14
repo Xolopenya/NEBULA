@@ -1156,9 +1156,126 @@ ACCEPTANCE / VALIDATION:
 
 ---
 
+## GAME-027 — Drone Weapon
+
+STATUS: READY
+
+DEPENDENCIES:
+
+- GAME-026
+- FIX-001 Missile concurrency correction
+
+GOAL:
+
+Add Drone as the third concrete player weapon alongside Laser and Missile. Exactly
+one persistent Drone is active from run start; no acquisition, inventory, slots or
+changes to the existing three Laser level-up choices.
+
+PROTOTYPE RULES — ORBIT / PRESENTATION:
+
+- Drone is a distinct placeholder world-space companion with visual radius 10 px,
+  orbit radius 110 world pixels and angular speed 2 radians/second.
+- Each create/restart starts at angle 0, to the player's right. Advance angle only
+  by active simulation delta; derive offset from cosine/sine of the current angle
+  (positive angle advances clockwise in the screen's downward-positive Y coordinates).
+  Angle wrapping is allowed without changing the orbit.
+- Derive position from the player's current world position plus the orbit offset,
+  following movement and Dash immediately. No inertia, pathfinding or separate body.
+- Clamp the Drone visual center to the arena's existing world bounds when near an
+  edge; presentation clamping may shorten its apparent orbit. Do not change player
+  movement/bounds or add Drone collision/steering behavior. Full-radius inset is not required.
+- Drone has no health, contact damage, enemy blocking, collision or targetability.
+  It remains a world-space visual, not screen-fixed HUD or production art.
+
+PROTOTYPE RULES — FIRING / BOLTS:
+
+- Add exactly one global Drone firing TimerEvent at 1200 ms. Normal gameplay now
+  has five events: spawn, Laser, Missile, Drone and hostile fire. No per-Drone timers.
+- On each active callback, select nearest active enemy to the Drone's actual current
+  world position, with stable collection-order ties. No enemy means no bolt; near-zero
+  aiming distance suppresses the shot safely without changing timer cadence.
+- Launch from that Drone position with normalized fixed firing-time aim. Do not
+  launch from the player, predict/advance the orbit in the firing callback, home,
+  retarget or make the bolt depend on a target after launch.
+- Keep explicit Drone bolt baseline values: damage 1, speed 800 px/s, lifetime
+  1800 ms and radius 5 px. Use a distinct simple placeholder bolt visual.
+- Reuse existing straight player-projectile stepping, lifetime clipping, world-exit
+  cleanup and swept segment-circle collision where they fit. Use each bolt's actual
+  radius in collision/cleanup; a concrete per-projectile radius field is acceptable
+  if needed, preserving current Laser/hostile radius 6 while Drone bolts use 5.
+- The first swept enemy impact applies damage once and removes/destroys the bolt;
+  preserve earliest-hit and collection-order tie behavior. No piercing or contact attack.
+- Bolt damage/speed/lifetime are Drone-specific launch values, independent of every
+  Laser upgrade. All Chaser/Shooter/Tank health and lethal damage use the existing
+  killEnemy path with exactly one normal value-1 XP pickup per death.
+
+PAUSE / LIFECYCLE:
+
+- Existing death/level-up simulation guards freeze orbit angle and visual position,
+  straight bolt movement/collision/lifetime and Drone firing production.
+- Scheduled timer phase may continue internally under the existing guard policy;
+  callbacks return while paused/dead without adding shots or resetting timers.
+- Choice/resume continues the remaining orbit and bolts normally. Death remains
+  distinct from level-up pause; no Drone-driven resume/retry or separate pause state.
+- Each create/restart creates one fresh Drone at angle 0; native shutdown destroys
+  old Drone/bolt visuals and timer callbacks. Collections reset through the existing
+  run lifecycle; retry must leave exactly one fresh Drone timer and five gameplay timers.
+- Laser remains straight auto-fire from the ship with its unchanged three choices.
+  Missile remains separate homing/explosion runtime with maxActiveMissiles = 1;
+  neither Missile nor Drone gains upgrades. Preserve Dash, CCCSCT/cap, Shooter-only
+  hostile fire and GAME-016..026 health/XP/progression/HUD behavior.
+
+IMPLEMENTATION BOUNDARY:
+
+Keep Drone orbit/attack concrete and scene-owned. A focused pure orbit calculation
+is allowed if it clarifies delta/position rules and meaningful tests. Reuse shared
+straight projectile runtime; a small straight-player-shot creation helper/data shape
+is allowed only when Laser and Drone both use every field without optional
+weapon-specific flags. Missile keeps its distinct target/heading/explosion runtime.
+Do not encode orbit/attack as generic optional Laser/Missile fields or refactor
+unrelated combat/progression/enemy/Dash systems.
+
+OUT OF SCOPE:
+
+Multiple Drones, Drone upgrades/health/destruction, collision/body-blocking,
+weapon acquisition/inventory/slots, Passive Modules, Evolution, rarity/rerolls,
+weapon unlock choices, universal Weapon class/framework/manager, generic modifier/stat
+engine or giant WeaponStats interface, production assets/VFX and new dependencies.
+
+ACCEPTANCE / VALIDATION:
+
+- Exactly one Drone starts at angle 0 and orbits at radius 110 / 2 rad/s away from
+  clamping. Equivalent active-time delta partitions yield equivalent angle/position;
+  derive the current offset from current player position, including movement/Dash.
+- Pause/death freeze orbit angle/position; resume continues. All arena edges keep
+  the Drone center within bounds without influencing player movement or adding collision.
+- Actual Drone firing obeys 1200 ms cadence/no-enemy suppression. Selection is nearest
+  to Drone rather than player, stable ties and near-zero aim are safe, and launch
+  origin/heading use its actual current position. Bolts keep fixed aim after launch.
+- Swept first impact prevents tunneling and damages only one enemy per bolt.
+  Radius/lifetime/world-exit handling respects Drone values without changing Laser
+  or hostile-shot behavior. Bolt damage is exactly 1 under all Laser upgrades.
+- Chaser/Shooter/Tank nonlethal/lethal hits use shared health/death/one-XP behavior.
+  Missile homing/explosion and FIX-001 cap/stable target ownership remain unchanged.
+- All pause/death guards stop Drone and bolt movement/lifetime/production; choice
+  resume retains runtime. Laser choices/effects remain independent and unchanged.
+- Repeated native retry restores one Drone at angle 0, reset player/XP/Laser/Dash,
+  no stale bolts/visuals/callbacks, exactly one Drone timer and five gameplay timers.
+- Dash, CCCSCT spawning/cap, Shooter fire, Missile and GAME-016..026 progression
+  remain functional with Drone, including XP magnet/credit and choice pause/resume.
+- If pure orbit math is extracted, add focused tracked tests for partitions/position
+  and edge clamping where owned; use runtime validation for integration. No rendering-only tests.
+- Run npm run check, git diff --check and git diff --cached --check. Browser smoke:
+  orbit, Drone-relative targeting/firing, enemy deaths/XP, pause/resume, Laser upgrade
+  independence, Missile coexistence, Dash and repeated native retry. Report actual evidence.
+- After successful implementation, update CURRENT_STATE and material PROJECT_GRAPH
+  ownership facts and mark only GAME-027 DONE. GAME-028 and later remain BACKLOG until
+  separately defined and authorized. Follow AGENTS.md staging/review; do not commit.
+
+---
+
 Remaining future nodes:
 
-GAME-027 — Drone Weapon
 GAME-028 — Passive Module Foundation
 GAME-029 — Weapon Evolution Foundation
 GAME-030 — Elite Enemy Prototype
