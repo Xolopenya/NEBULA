@@ -37,6 +37,14 @@ type ProjectileRuntime = {
   remainingLifetime: number;
 };
 
+type MissileRuntime = {
+  visual: Phaser.GameObjects.Arc;
+  target?: EnemyRuntime;
+  headingX: number;
+  headingY: number;
+  remainingLifetime: number;
+};
+
 export class GameplayScene extends Phaser.Scene {
   private player?: Phaser.GameObjects.Polygon;
   private hud?: Phaser.GameObjects.Text;
@@ -58,6 +66,10 @@ export class GameplayScene extends Phaser.Scene {
   private readonly xpMagnetMaxSpeed = 600;
   private currentTarget?: EnemyRuntime;
   private projectiles: ProjectileRuntime[] = [];
+  private missiles: MissileRuntime[] = [];
+  private readonly missile = {
+    fireInterval: 1800, speed: 450, lifetime: 4000, damage: 2, explosionRadius: 120, radius: 8,
+  } as const;
   private cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
   private wasd?: Record<'up' | 'left' | 'down' | 'right', Phaser.Input.Keyboard.Key>;
   private readonly movementDirection = new Phaser.Math.Vector2();
@@ -110,6 +122,7 @@ export class GameplayScene extends Phaser.Scene {
     this.xpPickups = [];
     this.currentTarget = undefined;
     this.projectiles = [];
+    this.missiles = [];
     const { width, height } = this.scale;
     this.cameras.main.setBackgroundColor('#050816');
 
@@ -155,6 +168,12 @@ export class GameplayScene extends Phaser.Scene {
       delay: this.laser.fireInterval,
       loop: true,
       callback: () => this.fireLaser(),
+    });
+
+    this.time.addEvent({
+      delay: this.missile.fireInterval,
+      loop: true,
+      callback: () => this.fireMissile(),
     });
 
     this.time.addEvent({
@@ -263,6 +282,7 @@ export class GameplayScene extends Phaser.Scene {
 
     this.updatePlayerProtection(delta);
     this.updateProjectiles(delta);
+    this.updateMissiles(delta);
     this.updatePlayerContact();
     this.updateXpPickups(delta);
   }
@@ -513,15 +533,17 @@ export class GameplayScene extends Phaser.Scene {
     }
   }
 
-  private selectNearestEnemy(archetype?: EnemyArchetype): EnemyRuntime | undefined {
-    if (!this.player) return undefined;
+  private selectNearestEnemy(
+    archetype?: EnemyArchetype, origin: { x: number; y: number } | undefined = this.player,
+  ): EnemyRuntime | undefined {
+    if (!origin) return undefined;
 
     let nearest: EnemyRuntime | undefined;
     let nearestDistanceSquared = Infinity;
     for (const enemy of this.enemies) {
       if (archetype && enemy.archetype !== archetype) continue;
-      const dx = enemy.visual.x - this.player.x;
-      const dy = enemy.visual.y - this.player.y;
+      const dx = enemy.visual.x - origin.x;
+      const dy = enemy.visual.y - origin.y;
       const distanceSquared = dx * dx + dy * dy;
       if (distanceSquared < nearestDistanceSquared) {
         nearest = enemy;
@@ -529,6 +551,79 @@ export class GameplayScene extends Phaser.Scene {
       }
     }
     return nearest;
+  }
+
+  private fireMissile(): void {
+    if (this.isSimulationPaused() || !this.player) return;
+    const target = this.selectNearestEnemy();
+    if (!target) return;
+    const missile: MissileRuntime = {
+      visual: this.add.circle(this.player.x, this.player.y, this.missile.radius, 0xfacc15),
+      target,
+      headingX: 0,
+      headingY: 0,
+      remainingLifetime: this.missile.lifetime,
+    };
+    this.aimMissile(missile);
+    this.missiles.push(missile);
+  }
+
+  private aimMissile(missile: MissileRuntime): void {
+    if (!missile.target) return;
+    const dx = missile.target.visual.x - missile.visual.x;
+    const dy = missile.target.visual.y - missile.visual.y;
+    const distance = Math.hypot(dx, dy);
+    if (distance < 0.001) return;
+    missile.headingX = dx / distance;
+    missile.headingY = dy / distance;
+  }
+
+  private updateMissiles(delta: number): void {
+    for (let i = this.missiles.length - 1; i >= 0; i -= 1) {
+      if (this.isSimulationPaused()) return;
+      const missile = this.missiles[i];
+      if (!missile.target || !this.enemies.includes(missile.target)) {
+        missile.target = this.selectNearestEnemy(undefined, missile.visual);
+      }
+      this.aimMissile(missile);
+      const seconds = Math.min(delta, missile.remainingLifetime) / 1000;
+      const startX = missile.visual.x;
+      const startY = missile.visual.y;
+      const stepX = missile.headingX * this.missile.speed * seconds;
+      const stepY = missile.headingY * this.missile.speed * seconds;
+      let firstHit = Infinity;
+      for (const enemy of this.enemies) {
+        const hit = segmentCircleHitTime(startX, startY, stepX, stepY,
+          enemy.visual.x, enemy.visual.y, this.enemyRadius + this.missile.radius);
+        if (hit < firstHit) firstHit = hit;
+      }
+      if (firstHit !== Infinity) {
+        this.explodeMissile(startX + stepX * firstHit, startY + stepY * firstHit);
+      } else {
+        missile.visual.x += stepX;
+        missile.visual.y += stepY;
+        missile.remainingLifetime -= delta;
+        const { x, y } = missile.visual;
+        const outside = x < -this.missile.radius || x > this.arenaWidth + this.missile.radius
+          || y < -this.missile.radius || y > this.arenaHeight + this.missile.radius;
+        if (missile.remainingLifetime > 0 && !outside) continue;
+      }
+      missile.visual.destroy();
+      this.missiles.splice(i, 1);
+    }
+  }
+
+  private explodeMissile(x: number, y: number): void {
+    // Snapshot before lethal removals mutate the shared enemy collection.
+    const affected = this.enemies.filter(enemy => {
+      const dx = enemy.visual.x - x;
+      const dy = enemy.visual.y - y;
+      return dx * dx + dy * dy <= this.missile.explosionRadius ** 2;
+    });
+    for (const enemy of affected) {
+      enemy.health -= this.missile.damage;
+      if (enemy.health <= 0) this.killEnemy(enemy);
+    }
   }
 
   private killEnemy(enemy: EnemyRuntime): void {

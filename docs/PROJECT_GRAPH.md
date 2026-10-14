@@ -4,8 +4,8 @@
 
 - Project: NEBULA.
 - Milestone: First Playable / GAME-015 complete.
-- Source baseline HEAD: `d1521017c284d63cbe323823899f144681db22d3`.
-- This map reflects that source baseline plus the GAME-025 Tank/shared-pursuit and spawn-composition changes.
+- Source baseline HEAD: `f2fd5bfc38c78b64eb1f0360025dfd2f732c27a3`.
+- This map reflects that source baseline plus the GAME-026 Missile ownership changes.
 - Active task request defines task-specific requirements.
 - AGENTS.md defines repository policy.
 - TASK_GRAPH.md defines task scope, dependencies and status.
@@ -80,6 +80,8 @@ Runtime labels below describe scene-owned concepts, not separate modules/classes
 | `src/game/enemies/shooterMovement.ts#shooterMovement` | TESTED_BY | `src/game/enemies/shooterMovement.test.ts` |
 | Player Laser | TARGETS | currentTarget from active enemies |
 | Player projectile | DAMAGES | First intersected active enemy |
+| Missile | TARGETS | Nearest-player launch / nearest-to-Missile reacquisition; last heading without target |
+| Missile explosion | DAMAGES | Snapshot of enemy centers within inclusive radius 120; killEnemy on lethal damage |
 | Hostile projectile and contact | DAMAGES | Player through damagePlayer |
 | Lethal enemy hit | DESTROYS | Enemy visual and active runtime entry |
 | Player death | CREATES | SHIP DESTROYED and RETRY controls |
@@ -107,8 +109,8 @@ All private names below are navigation anchors, not exported symbol nodes.
 | Enemy runtime | enemies; EnemyRuntime; createEnemy | One collection of archetype identity + visual + health; scene-local enemyData holds Chaser/Shooter/Tank HP/speed/presentation |
 | Spawning | spawnEnemy; timedSpawnSequence, successfulTimedSpawns, spawnInterval, maximumEnemies | Global timer, successful CCCSCT mix, placement, shared active-count cap; create resets sequence |
 | Enemy movement | update; chaseDirection; shooterMovement | Shared Chaser/Tank pursuit / Shooter 350–500 inclusive band; scene arena clamp, pure Shooter step |
-| Target/highlight | selectNearestEnemy, currentTarget; update | Nearest active enemy; temporary outline |
-| Enemy death | updateProjectiles → killEnemy | Create one XP drop, destroy visual, splice enemy, clear dead target |
+| Target/highlight | selectNearestEnemy, currentTarget; update | Nearest active enemy; optional origin/archetype filter reused by Missile/Shooter; temporary outline |
+| Enemy death | updateProjectiles / updateMissiles → killEnemy | Create one XP drop, destroy visual, splice enemy, clear dead target |
 | XP drops | xpPickups; XpPickup; killEnemy | World-space visual + value 1 + speed; create resets collection |
 | XP magnet/collection | updateXpPickups | Stationary outside range; accelerated approach; arrival credits pickup.value then destroys/removes |
 | Player XP/levels | playerExperience; create; updateXpPickups → addExperience | Scene owns state/reset/collection; pure module owns thresholds and carry |
@@ -116,6 +118,8 @@ All private names below are navigation anchors, not exported symbol nodes.
 | Projectile stepping | updateProjectiles | Lifetime-clipped motion; swept impact; reverse removal |
 | Projectile cleanup | updateProjectiles | Impact, lifetime and world-exit destruction |
 | Player Laser | laser; laserTimer; fireLaser | Mutable Laser-only damage/interval/speed, baseline 600 ms; existing timer reset for cadence upgrades |
+| Missile | missile, missiles; MissileRuntime; fireMissile, aimMissile, updateMissiles | Separate concrete homing target/heading/lifetime; immutable baseline; one 1800 ms timer |
+| Missile explosion | updateMissiles → explodeMissile → killEnemy | Earliest swept hit point, center-radius snapshot damage once, common XP/death; no direct hit |
 | Laser upgrades | LaserUpgrade; acceptLevelUpChoice | Cumulative power/rate/speed effects before resume; create restores baseline |
 | Hostile fire | fireHostileProjectile; hostileFireInterval | 1500 ms global timer; selectNearestEnemy('shooter') filters nearest active Shooter only; no per-enemy timers |
 | Collision inputs | updateProjectiles; player/enemy/projectile radii | Scene supplies positions and combined radii |
@@ -127,10 +131,10 @@ All private names below are navigation anchors, not exported symbol nodes.
 ## Runtime and lifecycle
 
 BootScene.create → scene.start('GameplayScene') → GameplayScene.create
-→ fresh player/enemy/collections → spawn/Laser/hostile timers → update.
+→ fresh player/enemy/collections → spawn/Laser/Missile/hostile timers → update.
 
 update: consume fresh Dash press → simulation pause guard → player movement/Dash split/bounds → Chaser/Tank pursuit / Shooter band movement → target/highlight
-→ protection countdown → projectiles/impacts → contact damage → XP magnet/collection (simulation active only).
+→ protection countdown → straight projectiles/impacts → Missiles/homing/explosions → contact damage → XP magnet/collection (simulation active only).
 
 Lethal player damage → damagePlayer → enterPlayerDeath → frozen simulation
 → RETRY pointerdown (once) → scene.restart → fresh create.
@@ -138,11 +142,11 @@ Lethal player damage → damagePlayer → enterPlayerDeath → frozen simulation
 - Dash presses are consumed before pause guards and on choice acceptance; native repeat events are rejected, so rejected presses do not queue.
 - create resets Dash clocks/direction and reacquires input; keyboard shutdown clears old keys on retry.
 - create resets health/protection/death, arrays, target and successfulTimedSpawns; constructs one initial Chaser outside the timed CCCSCT sequence.
-- Spawn, Laser and hostile callbacks return while dead or level-up paused; timer events remain scheduled.
+- Spawn, Laser, Missile and hostile callbacks return while dead or level-up paused; timer events remain scheduled.
 - Level-increasing collection removes its pickup then pauses; subsequent pickups remain frozen.
 - One current choice applies its Laser upgrade then destroys levelUpPresentation and clears pause; stale choices cannot close a new pause.
 - Projectile iteration stops after cleaning the lethal hostile impact; remaining objects freeze.
-- Native Phaser restart shuts down old display objects/UI and timer events before create.
+- create empties missiles; native Phaser restart shuts down old display objects/UI and four timer events before create. Missile position/target/heading/lifetime freeze under existing simulation guard.
 - Retry exists only in death presentation; no manual per-object reset service.
 
 ## Test coverage
@@ -176,6 +180,7 @@ GameplayScene.hud / updateHud IMPLEMENTS_TASK GAME-022 — Basic HUD.
 GameplayScene Dash state / player/dash.ts IMPLEMENTS_TASK GAME-023 — Initial Ship Active Ability: Dash.
 GameplayScene enemyData / EnemyRuntime / spawnEnemy / hostile fire + enemies/shooterMovement.ts IMPLEMENTS_TASK GAME-024 — Chaser/Shooter.
 GameplayScene enemyData / shared direct pursuit / timedSpawnSequence IMPLEMENTS_TASK GAME-025 — Tank.
+GameplayScene MissileRuntime / missile / fireMissile / updateMissiles / explodeMissile IMPLEMENTS_TASK GAME-026 — Missile.
 No generalized weapon stats framework is implemented.
 Statuses and dependencies remain in TASK_GRAPH.md, not duplicated here.
 
@@ -183,19 +188,20 @@ Statuses and dependencies remain in TASK_GRAPH.md, not duplicated here.
 
 | Question | Likely path / anchor |
 | --- | --- |
-| Where does enemy death happen? | GameplayScene.ts → updateProjectiles / killEnemy |
+| Where does enemy death happen? | GameplayScene.ts → updateProjectiles / updateMissiles → explodeMissile / killEnemy |
 | Where are XP drops/magnet/collection owned? | GameplayScene.ts → killEnemy, xpPickups, updateXpPickups; create resets |
 | Where are XP thresholds and levels calculated? | src/game/progression/experience.ts; scene playerExperience |
 | Where are level-up choices/resume owned? | GameplayScene.ts → enterLevelUpPause, levelUpPresentation, acceptLevelUpChoice |
 | Where are HUD values rendered/refreshed? | GameplayScene.ts → hud, updateHud; create, damagePlayer, updateXpPickups |
 | Where is Dash input/timing/reset owned? | GameplayScene.ts → dashKey, update, movePlayer, create; player/dash.ts#stepDash |
 | Where is player damage controlled? | GameplayScene.ts → damagePlayer, updatePlayerProtection |
-| Who owns projectile movement/lifetime/cleanup? | GameplayScene.ts → updateProjectiles |
+| Who owns projectile movement/lifetime/cleanup? | GameplayScene.ts → updateProjectiles (straight shots), updateMissiles (homing) |
+| Where are Missile homing/explosion owned? | GameplayScene.ts → fireMissile, aimMissile, updateMissiles, explodeMissile; collision.ts sweep |
 | Where is collision math implemented? | collision.ts#segmentCircleHitTime |
 | Where is collision math tested? | src/game/combat/collision.test.ts |
 | Where are enemy archetypes/movement owned? | GameplayScene.ts → EnemyArchetype, enemyData, update; enemies/shooterMovement.ts |
 | Where are enemy spawn callbacks? | GameplayScene.ts → create timer / spawnEnemy / timedSpawnSequence / successfulTimedSpawns |
-| Where are player/hostile fire callbacks? | GameplayScene.ts → create timers / fireLaser / fireHostileProjectile → selectNearestEnemy('shooter') |
+| Where are player/hostile fire callbacks? | GameplayScene.ts → create timers / fireLaser / fireMissile / fireHostileProjectile → selectNearestEnemy('shooter') |
 | What guards callbacks while dead or level-up paused? | GameplayScene.ts → isSimulationPaused checks in spawn/fire helpers |
 | Who owns Laser firing configuration? | GameplayScene.ts → laser, laserTimer, fireLaser; create/acceptLevelUpChoice |
 | Where does restart cleanup occur? | GameplayScene.ts → enterPlayerDeath → Phaser scene.restart lifecycle |
