@@ -7,6 +7,8 @@ export class GameplayScene extends Phaser.Scene {
   private wasd?: Record<'up' | 'left' | 'down' | 'right', Phaser.Input.Keyboard.Key>;
   private readonly movementDirection = new Phaser.Math.Vector2();
   private readonly movementSpeed = 300;
+  private readonly chaseDirection = new Phaser.Math.Vector2();
+  private readonly enemySpeed = 180;
   private readonly arenaWidth = 4800;
   private readonly arenaHeight = 2700;
 
@@ -73,7 +75,7 @@ export class GameplayScene extends Phaser.Scene {
   }
 
   update(_time: number, delta: number): void {
-    if (!this.player || !this.cursors || !this.wasd) return;
+    if (!this.player || !this.enemy || !this.cursors || !this.wasd) return;
 
     const left = this.wasd.left.isDown || this.cursors.left.isDown;
     const right = this.wasd.right.isDown || this.cursors.right.isDown;
@@ -92,5 +94,12 @@ export class GameplayScene extends Phaser.Scene {
     const marginY = this.player.height / 2 + this.player.lineWidth / 2;
     this.player.x = Phaser.Math.Clamp(this.player.x, marginX, this.arenaWidth - marginX);
     this.player.y = Phaser.Math.Clamp(this.player.y, marginY, this.arenaHeight - marginY);
+
+    this.chaseDirection.set(this.player.x - this.enemy.x, this.player.y - this.enemy.y);
+    const chaseDistance = this.chaseDirection.length();
+    const chaseStep = Math.min(this.enemySpeed * (delta / 1000), chaseDistance);
+    this.chaseDirection.normalize().scale(chaseStep);
+    this.enemy.x += this.chaseDirection.x;
+    this.enemy.y += this.chaseDirection.y;
   }
 }

@@ -339,7 +339,7 @@ A placeholder enemy can exist in the gameplay scene with basic runtime state.
 
 ## GAME-006 — Enemy Chase Movement
 
-STATUS: READY
+STATUS: DONE
 
 DEPENDENCIES:
 
@@ -368,7 +368,7 @@ The enemy consistently approaches the player.
 
 ## GAME-007 — Enemy Spawning
 
-STATUS: BLOCKED
+STATUS: READY
 
 DEPENDENCIES:
 
