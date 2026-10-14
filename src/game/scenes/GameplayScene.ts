@@ -15,6 +15,12 @@ type LaserProjectile = {
 
 export class GameplayScene extends Phaser.Scene {
   private player?: Phaser.GameObjects.Polygon;
+  private readonly playerMaxHealth = 5;
+  private playerHealth = this.playerMaxHealth;
+  private readonly playerRadius = 20;
+  private readonly contactDamage = 1;
+  private readonly contactProtectionDuration = 500;
+  private contactProtectionRemaining = 0;
   private enemies: EnemyRuntime[] = [];
   private currentTarget?: EnemyRuntime;
   private projectiles: LaserProjectile[] = [];
@@ -43,6 +49,8 @@ export class GameplayScene extends Phaser.Scene {
   }
 
   create(): void {
+    this.playerHealth = this.playerMaxHealth;
+    this.contactProtectionRemaining = 0;
     this.enemies = [];
     this.currentTarget = undefined;
     this.projectiles = [];
@@ -154,6 +162,32 @@ export class GameplayScene extends Phaser.Scene {
     }
 
     this.updateProjectiles(delta);
+    this.updatePlayerContact(delta);
+  }
+
+  private updatePlayerContact(delta: number): void {
+    if (!this.player) return;
+    this.contactProtectionRemaining = Math.max(0, this.contactProtectionRemaining - delta);
+    if (this.contactProtectionRemaining > 0) return;
+    this.player.setAlpha(1);
+    if (this.playerHealth === 0) return;
+
+    const radius = this.playerRadius + this.enemyRadius;
+    for (const enemy of this.enemies) {
+      const dx = enemy.visual.x - this.player.x;
+      const dy = enemy.visual.y - this.player.y;
+      if (dx * dx + dy * dy <= radius * radius) {
+        this.damagePlayer(this.contactDamage);
+        break;
+      }
+    }
+  }
+
+  private damagePlayer(amount: number): void {
+    if (!this.player || this.playerHealth === 0 || this.contactProtectionRemaining > 0) return;
+    this.playerHealth = Math.max(0, this.playerHealth - amount);
+    this.contactProtectionRemaining = this.contactProtectionDuration;
+    this.player.setAlpha(0.5);
   }
 
   private fireLaser(): void {

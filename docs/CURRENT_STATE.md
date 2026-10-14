@@ -14,7 +14,7 @@ Do not place future plans or speculative features here.
 
 Current phase:
 
-FIRST PLAYABLE IMPLEMENTATION / GAME-011 COMPLETE
+FIRST PLAYABLE IMPLEMENTATION / GAME-012 COMPLETE
 
 The project has a working browser application, development toolchain and placeholder gameplay scene.
 
@@ -171,11 +171,15 @@ No manual fire input is required. Exact or near-zero-distance shots are suppress
 Without a current target no shot is created; the timer stays ready for a future target.
 Each Laser projectile deals 1 damage to the first enemy intersected along its movement segment and is immediately destroyed and removed. Hit detection sweeps against an approximate 24-pixel enemy radius expanded by the 6-pixel projectile radius, avoiding projectile tunneling across larger frame steps. Shots do not pierce.
 Enemies with remaining HP stay active. At zero HP their visual is destroyed and their runtime entry is removed, so they no longer chase, count toward the cap or participate in targeting. Death clears currentTarget immediately when applicable; normal targeting selects and highlights the next nearest enemy on the following update.
-Player health/contact damage and XP/rewards are not implemented.
+Player health resets to 5 HP on scene creation. Enemy contact deals 1 damage using squared world-center distance with player radius 20 and enemy radius 24 (combined radius 44).
+Contact runs after projectile impacts/removals and starts 500 ms of global, delta-based protection. Multiple overlaps cause at most one hit per update. Successful damage reduces the ship alpha to 0.5 during protection, then restores it to 1. Continued overlap can damage again when protection expires.
+Health clamps at zero; further contact does not damage or flash at zero. Movement, combat and spawning continue; no player death/game-over state exists yet.
+Hostile enemy projectiles, health HUD and XP/rewards are not implemented.
 
 There is currently no:
 
-- player health/contact damage
+- hostile enemy projectiles
+- health HUD
 - player death
 - kill rewards
 - XP
@@ -258,7 +262,7 @@ The placeholder arena, bounded desktop movement, camera follow, repeated enemy s
 
 The next implementation task is:
 
-GAME-012 — Player Health and Contact Damage
+GAME-013 — Basic Enemy Projectile
 
 ---
 
@@ -266,6 +270,6 @@ GAME-012 — Player Health and Contact Damage
 
 The application boots successfully.
 
-The player can move the ship, outrun multiple chasing enemies and automatically launch moving Laser projectiles toward the current nearest target. Shots disappear on impact and kill enemies after three hits. Spawning continues after kills; player contact damage and XP/rewards are not implemented.
+The player can move the ship, outrun multiple chasing enemies and automatically launch moving Laser projectiles toward the current nearest target. Shots disappear on impact and kill enemies after three hits. Spawning continues after kills. Enemy contact reduces player HP with temporary protection and damage feedback; gameplay continues at zero HP. Hostile projectiles, HUD, death flow and XP/rewards are not implemented.
 
 The next major goal is the First Playable milestone defined in GAME_DESIGN.md.

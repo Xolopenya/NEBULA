@@ -513,7 +513,7 @@ Enemies have health, take Laser damage and are removed when health reaches zero.
 
 ## GAME-012 — Player Health and Contact Damage
 
-STATUS: READY
+STATUS: DONE
 
 DEPENDENCIES:
 
@@ -542,7 +542,7 @@ Enemy contact can reduce player health in a controlled and readable way.
 
 ## GAME-013 — Basic Enemy Projectile
 
-STATUS: BLOCKED
+STATUS: READY
 
 DEPENDENCIES:
 
