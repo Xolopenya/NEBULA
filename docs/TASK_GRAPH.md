@@ -948,9 +948,97 @@ ACCEPTANCE / VALIDATION:
 
 ---
 
+## GAME-025 — Third Enemy Archetype: Tank
+
+STATUS: READY
+
+DEPENDENCIES:
+
+- GAME-024
+
+GOAL:
+
+Add a slow, durable melee Tank alongside Chaser and Shooter, preserving the shared
+enemy/combat/progression runtime and the existing direct-pursuit behavior family.
+
+PROTOTYPE RULES:
+
+- Tank starts with 6 HP and moves at 100 px/s. Use normalized, delta-based direct
+  pursuit of the player's current world position, capping each step at the remaining
+  distance to avoid overshoot. Share Chaser's pursuit logic where behavior is identical;
+  keep the existing arena margin/clamp and approximate 24-pixel enemy collision radius.
+- Use a clearly distinct amber/orange hexagon or heavy-looking polygon within the
+  existing enemy size/margin convention. No production art or collision-radius redesign.
+- Tank contact damage remains 1 through the existing global player protection path.
+  No armor, damage reduction, knockback resistance, immunity or special defense.
+- Tank never fires hostile projectiles. Keep the single global hostile-fire timer
+  and nearest-active-Shooter-only source selection, stable ties and no-Shooter suppression.
+  Do not add per-enemy timers or change projectile values/types.
+- Chaser retains 3 HP, 180 px/s direct pursuit and no hostile fire. Shooter retains
+  2 HP, 140 px/s and its inclusive 350–500 px approach/hold/retreat band, including
+  large-delta stopping, deterministic coincident retreat and existing arena clamping.
+- Replace timed-spawn CCCS with repeating Chaser, Chaser, Chaser, Shooter, Chaser,
+  Tank (CCCSCT). Initial enemy remains Chaser and is excluded from the sequence.
+  Only successful timed spawns advance it; cap/pause/death rejection must not advance
+  it. Kills free slots without rewinding the sequence. Each create/restart resets it.
+- Preserve current spawn cadence/placement and the shared cap of 10 active enemies,
+  counting all three archetypes. Keep one enemy collection and existing nearest-target
+  selection/highlighting, Laser collision/damage and upgrade effects for every type.
+- All three use killEnemy for lethal removal and exactly one value-1 XP drop at
+  the death position. Duplicate removal attempts must not create another pickup.
+- Existing level-up pause/death guards freeze all three movement behaviors,
+  targeting, projectiles, contact, XP and spawn/fire production. Native retry clears
+  old runtime objects/UI/timers and restores a fresh initial Chaser and spawn sequence.
+
+IMPLEMENTATION BOUNDARY:
+
+Extend existing EnemyArchetype/enemyData for Tank's genuinely varying health, speed
+and presentation. Keep behavior explicit: Chaser/Tank share direct pursuit; Shooter
+keeps distance-band movement. Reuse enemy collection, targeting, Laser damage,
+killEnemy, XP and cap paths. A small enemy-definition extraction is allowed only
+if it clearly reduces duplicated concrete data ownership. Do not generalize beyond
+three real types or perform a broad GameplayScene refactor.
+
+OUT OF SCOPE:
+
+Fourth archetype/Summoner, armor/damage reduction, variable contact damage,
+per-enemy collision-radius redesign, new attacks/projectiles, elites/bosses,
+SpawnDirector/difficulty scaling, spawn rifts/telegraphs, per-enemy timers,
+inheritance/ECS/entity framework, generic combat-stat engine, new dependencies
+and unrelated gameplay/refactors.
+
+ACCEPTANCE / VALIDATION:
+
+- Tank is visually distinct from Chaser and Shooter and requires exactly six
+  baseline one-damage Laser hits: active after five, removed by the sixth.
+- Tank pursues at 100 px/s with normalized cardinal/diagonal motion and consistent
+  delta stepping, stops safely at the player for large deltas/coincident centers,
+  and stays within existing arena bounds. Chaser and Shooter behavior stays unchanged.
+- Tank/Chaser never originate hostile shots, even when closer than a Shooter.
+  The global callback selects the nearest active Shooter; no Shooter means no shot.
+- Successful timed spawns repeat CCCSCT across multiple cycles; initial creation,
+  cap/pause/death rejection and kills obey the sequence rules. Shared cap counts all
+  three, rejects at 10 and refills freed slots without altering sequence order.
+- Target/highlight and Laser upgrades work for all three. Each type uses the common
+  lethal-removal path and drops exactly one value-1 XP, including duplicate kill attempts.
+- Pause/death freeze all movement and guarded callbacks without changing spawn
+  progression. Repeated native retry resets initial Chaser/sequence, HP, XP/level,
+  pickups, choice UI, Laser values, Dash and HUD; no stale objects or extra timers.
+- Dash and GAME-016..024 progression/combat remain functional, including magnet,
+  XP credit, level-up choice/pause/resume and Shooter fire. Preserve three gameplay timers.
+- Add focused tracked tests for meaningful pure rules where practical and targeted
+  runtime validation for shared integration; do not add rendering-only Phaser tests.
+- Run npm run check, git diff --check and git diff --cached --check. Browser smoke:
+  mixed spawning, Tank pursuit/durability, Shooter-only fire, deaths/XP, Dash,
+  level-up choice/resume and death/retry. Report actual evidence and limitations.
+- After successful implementation, update CURRENT_STATE and material PROJECT_GRAPH
+  ownership facts and mark only GAME-025 DONE. GAME-026 and later remain BACKLOG until
+  separately defined and authorized. Follow AGENTS.md staging/review; do not commit.
+
+---
+
 Remaining future nodes:
 
-GAME-025 — Third Enemy Archetype
 GAME-026 — Missile Weapon
 GAME-027 — Drone Weapon
 GAME-028 — Passive Module Foundation
