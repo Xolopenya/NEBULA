@@ -1,4 +1,5 @@
 import * as Phaser from 'phaser';
+import { segmentCircleHitTime } from '../combat/collision';
 
 type EnemyRuntime = {
   visual: Phaser.GameObjects.Polygon;
@@ -182,7 +183,10 @@ export class GameplayScene extends Phaser.Scene {
       let hitEnemy: EnemyRuntime | undefined;
       let firstHit = Infinity;
       for (const enemy of this.enemies) {
-        const hit = this.projectileHitTime(startX, startY, stepX, stepY, enemy);
+        const hit = segmentCircleHitTime(
+          startX, startY, stepX, stepY,
+          enemy.visual.x, enemy.visual.y, this.enemyRadius + this.projectileRadius,
+        );
         if (hit < firstHit) {
           firstHit = hit;
           hitEnemy = enemy;
@@ -211,24 +215,6 @@ export class GameplayScene extends Phaser.Scene {
         this.projectiles.splice(i, 1);
       }
     }
-  }
-
-  // Sweep against a circle expanded by projectile radius; return first hit in [0, 1].
-  private projectileHitTime(
-    x: number, y: number, stepX: number, stepY: number, enemy: EnemyRuntime,
-  ): number {
-    const dx = x - enemy.visual.x;
-    const dy = y - enemy.visual.y;
-    const radius = this.enemyRadius + this.projectileRadius;
-    const c = dx * dx + dy * dy - radius * radius;
-    if (c <= 0) return 0;
-    const a = stepX * stepX + stepY * stepY;
-    if (a === 0) return Infinity;
-    const b = dx * stepX + dy * stepY;
-    const discriminant = b * b - a * c;
-    if (discriminant < 0) return Infinity;
-    const hit = (-b - Math.sqrt(discriminant)) / a;
-    return hit >= 0 && hit <= 1 ? hit : Infinity;
   }
 
   private selectNearestEnemy(): EnemyRuntime | undefined {

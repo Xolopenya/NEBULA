@@ -181,6 +181,9 @@ src/
   style.css
   game/
     config.ts
+    combat/
+      collision.ts
+      collision.test.ts
     scenes/
       BootScene.ts
       GameplayScene.ts

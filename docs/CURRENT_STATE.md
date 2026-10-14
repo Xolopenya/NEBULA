@@ -65,7 +65,7 @@ npm test
 
 Runs Vitest.
 
-There are currently no test files. Desktop movement is implemented locally in GameplayScene.
+Focused Vitest tests cover the pure segment-circle collision utility. Desktop movement remains local to GameplayScene.
 
 ### Production Build
 
@@ -202,7 +202,7 @@ Gameplay prototypes will initially use placeholders and simple geometry.
 
 ## Tests
 
-No gameplay unit tests exist yet.
+Nine unit tests cover the pure segment-circle collision utility in src/game/combat/collision.test.ts.
 
 Vitest is installed and configured.
 
