@@ -2,7 +2,7 @@
 
 ## Last Updated
 
-2026-10-13.
+2026-10-14.
 
 This document describes only what is currently implemented and working.
 
@@ -14,11 +14,11 @@ Do not place future plans or speculative features here.
 
 Current phase:
 
-FIRST PLAYABLE IMPLEMENTATION / GAME-002 COMPLETE
+FIRST PLAYABLE IMPLEMENTATION / GAME-004 COMPLETE
 
 The project has a working browser application, development toolchain and placeholder gameplay scene.
 
-Interactive gameplay mechanics have not been implemented yet.
+The player ship supports responsive desktop keyboard movement.
 
 ---
 
@@ -51,7 +51,7 @@ Available commands:
 
 npm run dev
 
-Starts the Vite development server.
+Starts the Vite development server on IPv4 localhost (127.0.0.1).
 
 ### Type Check
 
@@ -65,7 +65,7 @@ npm test
 
 Runs Vitest.
 
-There are currently no test files because no meaningful testable gameplay logic exists yet.
+There are currently no test files. Desktop movement is implemented locally in GameplayScene.
 
 ### Production Build
 
@@ -95,8 +95,9 @@ The project boots Phaser in the browser and transitions from BootScene into Game
 
 Current screen:
 
-- dark-space placeholder arena with static stars and a rectangular boundary
-- stationary cyan player ship placeholder at the arena center, drawn with Phaser geometry
+- 4800x2700 dark-space placeholder arena with deterministic static stars and an outer boundary
+- cyan player ship placeholder starting at the arena center, drawn with Phaser geometry
+- desktop movement using WASD or arrow keys
 - "NEBULA — GAMEPLAY SCENE" label
 - "Placeholder space arena" text
 
@@ -104,7 +105,7 @@ Rendering:
 
 - Phaser 4.2.1
 - WebGL
-- 1280x720 internal resolution
+- 1920x1080 internal viewport (separate from the larger arena)
 - landscape
 - FIT scaling
 - centered canvas
@@ -143,13 +144,16 @@ Other root files include:
 
 ## Implemented Gameplay
 
-A stationary player ship placeholder is rendered in GameplayScene.
-No input or movement logic is implemented.
+A player ship placeholder is rendered in GameplayScene and controlled with WASD or arrow keys.
+Movement is immediate at 300 pixels per second, uses frame delta, and normalizes diagonal direction.
+Releasing movement keys stops the ship without inertia.
+The ship starts at world position (2400, 1350).
+Movement is clamped inside the 4800x2700 arena using half the ship dimensions plus its outline.
+The main camera follows the ship immediately and is bounded to the arena.
+Browser resizing preserves the internal viewport and responsive 16:9 FIT presentation.
 
 There is currently no:
 
-- movement
-- arena gameplay
 - enemies
 - enemy spawning
 - weapons
@@ -233,11 +237,11 @@ These should only be introduced when real project requirements justify them.
 
 ## Next Step
 
-The placeholder gameplay scene and stationary player ship are implemented and browser-verified.
+The placeholder arena, bounded desktop movement and camera follow are implemented and browser-verified.
 
 The next implementation task is:
 
-GAME-003 — Desktop Player Movement
+GAME-005 — Basic Enemy Runtime
 
 ---
 
@@ -245,6 +249,6 @@ GAME-003 — Desktop Player Movement
 
 The application boots successfully.
 
-There is no playable gameplay yet.
+The player can move the ship with desktop keyboard controls. Enemies and combat are not implemented.
 
 The next major goal is the First Playable milestone defined in GAME_DESIGN.md.

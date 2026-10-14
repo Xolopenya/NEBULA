@@ -58,7 +58,7 @@ Current target:
 
 Internal landscape game resolution:
 
-- 1280 ? 720
+- 1920 x 1080
 - 16:9
 - Phaser Scale FIT
 

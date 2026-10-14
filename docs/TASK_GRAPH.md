@@ -248,7 +248,7 @@ A placeholder ship appears at the expected starting position.
 
 ## GAME-003 � Desktop Player Movement
 
-STATUS: READY
+STATUS: DONE
 
 DEPENDENCIES:
 
@@ -282,7 +282,7 @@ The ship moves responsively in all directions and diagonal speed is handled corr
 
 ## GAME-004 � Arena Bounds and Camera
 
-STATUS: BLOCKED
+STATUS: DONE
 
 DEPENDENCIES:
 
@@ -310,7 +310,7 @@ The player cannot leave the intended arena and camera behavior is stable.
 
 ## GAME-005 � Basic Enemy Runtime
 
-STATUS: BLOCKED
+STATUS: READY
 
 DEPENDENCIES:
 

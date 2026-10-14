@@ -5,8 +5,8 @@ import { GameplayScene } from './scenes/GameplayScene';
 export const gameConfig: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
 
-  width: 1280,
-  height: 720,
+  width: 1920,
+  height: 1080,
 
   parent: 'game',
 
