@@ -858,7 +858,7 @@ ACCEPTANCE / VALIDATION:
 
 ## GAME-024 — Second Enemy Archetype: Shooter
 
-STATUS: READY
+STATUS: DONE
 
 DEPENDENCIES:
 

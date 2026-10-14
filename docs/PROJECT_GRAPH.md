@@ -4,8 +4,8 @@
 
 - Project: NEBULA.
 - Milestone: First Playable / GAME-015 complete.
-- Source baseline HEAD: `94b8cb0530ac44057b2db99de46735f0d1a9c39c`.
-- This map reflects that source baseline plus the GAME-023 Dash ownership changes.
+- Source baseline HEAD: `b23cda30e5c73d040698a130c8af9a0ac3e2dff1`.
+- This map reflects that source baseline plus the GAME-024 Chaser/Shooter ownership changes.
 - Active task request defines task-specific requirements.
 - AGENTS.md defines repository policy.
 - TASK_GRAPH.md defines task scope, dependencies and status.
@@ -27,6 +27,8 @@ IDs are repository-relative paths; symbols use `path#export`.
 | `src/game/combat/collision.test.ts` | Tracked geometry tests |
 | `src/game/progression/experience.ts` | Pure XP threshold/award arithmetic and state type |
 | `src/game/progression/experience.test.ts` | Tracked progression tests |
+| `src/game/enemies/shooterMovement.ts` | Pure inclusive distance-band movement step |
+| `src/game/enemies/shooterMovement.test.ts` | Tracked Shooter movement tests |
 | `src/game/player/dash.ts` | Pure Dash frame timing split |
 | `src/game/player/dash.test.ts` | Tracked Dash timing tests |
 | `AGENTS.md` | Repository policy and detailed architect-review protocol |
@@ -49,6 +51,7 @@ IDs are repository-relative paths; symbols use `path#export`.
 | `src/game/progression/experience.ts#xpForNextLevel` | Prototype threshold calculation |
 | `src/game/progression/experience.ts#addExperience` | Pure award/level/carry calculation |
 | `src/game/player/dash.ts#stepDash` | Active-time burst/normal split and duration/cooldown stepping |
+| `src/game/enemies/shooterMovement.ts#shooterMovement` | Approach/hold/retreat step capped at band; deterministic coincident retreat |
 
 ## Relations
 
@@ -72,6 +75,9 @@ Runtime labels below describe scene-owned concepts, not separate modules/classes
 | `src/game/scenes/GameplayScene.ts` | IMPORTS | `src/game/player/dash.ts#stepDash` |
 | `src/game/player/dash.test.ts` | IMPORTS | `src/game/player/dash.ts#stepDash` |
 | `src/game/player/dash.ts#stepDash` | TESTED_BY | `src/game/player/dash.test.ts` |
+| `src/game/scenes/GameplayScene.ts` | IMPORTS | `src/game/enemies/shooterMovement.ts#shooterMovement` |
+| `src/game/enemies/shooterMovement.test.ts` | IMPORTS | `src/game/enemies/shooterMovement.ts#shooterMovement` |
+| `src/game/enemies/shooterMovement.ts#shooterMovement` | TESTED_BY | `src/game/enemies/shooterMovement.test.ts` |
 | Player Laser | TARGETS | currentTarget from active enemies |
 | Player projectile | DAMAGES | First intersected active enemy |
 | Hostile projectile and contact | DAMAGES | Player through damagePlayer |
@@ -79,7 +85,7 @@ Runtime labels below describe scene-owned concepts, not separate modules/classes
 | Player death | CREATES | SHIP DESTROYED and RETRY controls |
 | GameplayScene | DOCUMENTED_BY | `docs/CURRENT_STATE.md` |
 
-External annotations: main/config/scenes import Phaser; collision/progression/Dash tests import Vitest.
+External annotations: main/config/scenes import Phaser; collision/progression/Dash/Shooter tests import Vitest.
 Additional local presentation import: main imports `./style.css` (not a graph node).
 No external package internals or generated artifacts are indexed.
 
@@ -98,9 +104,9 @@ All private names below are navigation anchors, not exported symbol nodes.
 | Level-up pause | isLevelUpPaused; enterLevelUpPause; isSimulationPaused | Distinct from death; level increase freezes update/callbacks; fixed title and three Laser upgrades; one selection resumes |
 | Choice UI/resume | levelUpPresentation; enterLevelUpPause; acceptLevelUpChoice | Current text identity guard; applies Laser effect, destroys title/options then resumes |
 | Death/retry | isPlayerDead; enterPlayerDeath | Idempotent freeze; death-only clickable retry |
-| Enemy runtime | enemies; EnemyRuntime; createEnemy | One collection of visual + health records |
-| Spawning | spawnEnemy; spawnInterval, maximumEnemies | Global timer, placement, active-count cap |
-| Chase | update; chaseDirection | World-space chase and arena clamp |
+| Enemy runtime | enemies; EnemyRuntime; createEnemy | One collection of archetype identity + visual + health; scene-local enemyData holds varying HP/speed/presentation |
+| Spawning | spawnEnemy; successfulTimedSpawns, spawnInterval, maximumEnemies | Global timer, successful CCCS mix, placement, shared active-count cap; create resets sequence |
+| Enemy movement | update; chaseDirection; shooterMovement | Explicit Chaser pursuit / Shooter 350–500 inclusive band; scene arena clamp, pure Shooter step |
 | Target/highlight | selectNearestEnemy, currentTarget; update | Nearest active enemy; temporary outline |
 | Enemy death | updateProjectiles → killEnemy | Create one XP drop, destroy visual, splice enemy, clear dead target |
 | XP drops | xpPickups; XpPickup; killEnemy | World-space visual + value 1 + speed; create resets collection |
@@ -111,7 +117,7 @@ All private names below are navigation anchors, not exported symbol nodes.
 | Projectile cleanup | updateProjectiles | Impact, lifetime and world-exit destruction |
 | Player Laser | laser; laserTimer; fireLaser | Mutable Laser-only damage/interval/speed, baseline 600 ms; existing timer reset for cadence upgrades |
 | Laser upgrades | LaserUpgrade; acceptLevelUpChoice | Cumulative power/rate/speed effects before resume; create restores baseline |
-| Hostile fire | fireHostileProjectile; hostileFireInterval | 1500 ms global timer; nearest active firing enemy |
+| Hostile fire | fireHostileProjectile; hostileFireInterval | 1500 ms global timer; selectNearestEnemy('shooter') filters nearest active Shooter only; no per-enemy timers |
 | Collision inputs | updateProjectiles; player/enemy/projectile radii | Scene supplies positions and combined radii |
 | Collision calculation | collision.ts; segmentCircleHitTime | Pure numeric math, no Phaser/runtime records |
 | Player damage sources | updatePlayerContact; updateProjectiles | Contact and hostile impacts share damagePlayer/protection |
@@ -123,7 +129,7 @@ All private names below are navigation anchors, not exported symbol nodes.
 BootScene.create → scene.start('GameplayScene') → GameplayScene.create
 → fresh player/enemy/collections → spawn/Laser/hostile timers → update.
 
-update: consume fresh Dash press → simulation pause guard → player movement/Dash split/bounds → enemy chase → target/highlight
+update: consume fresh Dash press → simulation pause guard → player movement/Dash split/bounds → Chaser chase / Shooter band movement → target/highlight
 → protection countdown → projectiles/impacts → contact damage → XP magnet/collection (simulation active only).
 
 Lethal player damage → damagePlayer → enterPlayerDeath → frozen simulation
@@ -131,7 +137,7 @@ Lethal player damage → damagePlayer → enterPlayerDeath → frozen simulation
 
 - Dash presses are consumed before pause guards and on choice acceptance; native repeat events are rejected, so rejected presses do not queue.
 - create resets Dash clocks/direction and reacquires input; keyboard shutdown clears old keys on retry.
-- create resets health/protection/death, arrays and target; constructs fresh visuals.
+- create resets health/protection/death, arrays, target and successfulTimedSpawns; constructs one initial Chaser outside the timed CCCS sequence.
 - Spawn, Laser and hostile callbacks return while dead or level-up paused; timer events remain scheduled.
 - Level-increasing collection removes its pickup then pauses; subsequent pickups remain frozen.
 - One current choice applies its Laser upgrade then destroys levelUpPresentation and clears pause; stale choices cannot close a new pause.
@@ -146,6 +152,7 @@ Lethal player damage → damagePlayer → enterPlayerDeath → frozen simulation
 | TRACKED TESTS | collision.test.ts → segmentCircleHitTime | 9 tests: hits, misses, overlap, tangent, zero step, bounds, ordering |
 | TRACKED TESTS | experience.test.ts → experience.ts | 8 tests: thresholds, credit, exact/excess/multiple levels, zero/nonmutation, split awards |
 | TRACKED TESTS | dash.test.ts → stepDash | 6 tests: active burst, expiry split/boundary, delta partitions, zero time, large frame |
+| TRACKED TESTS | shooterMovement.test.ts → shooterMovement | 7 tests: speed/diagonal, inclusive edges, retreat, large steps, coincident center, zero time, partitions |
 | RUNTIME / MANUAL EVIDENCE | GameplayScene combat/death/restart | Browser smoke and ignored validation harnesses; not tracked Vitest coverage |
 
 Ignored harnesses are not graph nodes and do not run in npm run check.
@@ -167,6 +174,7 @@ GameplayScene.levelUpPresentation / acceptLevelUpChoice IMPLEMENTS_TASK GAME-020
 GameplayScene.laser / laserTimer / acceptLevelUpChoice IMPLEMENTS_TASK GAME-021.
 GameplayScene.hud / updateHud IMPLEMENTS_TASK GAME-022 — Basic HUD.
 GameplayScene Dash state / player/dash.ts IMPLEMENTS_TASK GAME-023 — Initial Ship Active Ability: Dash.
+GameplayScene enemyData / EnemyRuntime / spawnEnemy / hostile fire + enemies/shooterMovement.ts IMPLEMENTS_TASK GAME-024 — Chaser/Shooter.
 No generalized weapon stats framework is implemented.
 Statuses and dependencies remain in TASK_GRAPH.md, not duplicated here.
 
@@ -184,8 +192,9 @@ Statuses and dependencies remain in TASK_GRAPH.md, not duplicated here.
 | Who owns projectile movement/lifetime/cleanup? | GameplayScene.ts → updateProjectiles |
 | Where is collision math implemented? | collision.ts#segmentCircleHitTime |
 | Where is collision math tested? | src/game/combat/collision.test.ts |
-| Where are enemy spawn callbacks? | GameplayScene.ts → create timer / spawnEnemy |
-| Where are player/hostile fire callbacks? | GameplayScene.ts → create timers / fireLaser / fireHostileProjectile |
+| Where are enemy archetypes/movement owned? | GameplayScene.ts → EnemyArchetype, enemyData, update; enemies/shooterMovement.ts |
+| Where are enemy spawn callbacks? | GameplayScene.ts → create timer / spawnEnemy / successfulTimedSpawns |
+| Where are player/hostile fire callbacks? | GameplayScene.ts → create timers / fireLaser / fireHostileProjectile → selectNearestEnemy('shooter') |
 | What guards callbacks while dead or level-up paused? | GameplayScene.ts → isSimulationPaused checks in spawn/fire helpers |
 | Who owns Laser firing configuration? | GameplayScene.ts → laser, laserTimer, fireLaser; create/acceptLevelUpChoice |
 | Where does restart cleanup occur? | GameplayScene.ts → enterPlayerDeath → Phaser scene.restart lifecycle |

@@ -1,11 +1,20 @@
 import * as Phaser from 'phaser';
 import { segmentCircleHitTime } from '../combat/collision';
+import { shooterMovement } from '../enemies/shooterMovement';
 import { stepDash } from '../player/dash';
 import { addExperience, xpForNextLevel, type ExperienceState } from '../progression/experience';
 
 type LaserUpgrade = 'power' | 'fireRate' | 'speed';
 
+type EnemyArchetype = 'chaser' | 'shooter';
+
+const enemyData = {
+  chaser: { health: 3, speed: 180, points: [24, 0, 48, 24, 24, 48, 0, 24], color: 0xf43f5e, outline: 0xffcdd2 },
+  shooter: { health: 2, speed: 140, points: [8, 8, 40, 8, 40, 40, 8, 40], color: 0xa855f7, outline: 0xe9d5ff },
+} satisfies Record<EnemyArchetype, { health: number; speed: number; points: number[]; color: number; outline: number }>;
+
 type EnemyRuntime = {
+  archetype: EnemyArchetype;
   visual: Phaser.GameObjects.Polygon;
   health: number;
 };
@@ -58,8 +67,9 @@ export class GameplayScene extends Phaser.Scene {
   private dashRemaining = 0;
   private dashCooldownRemaining = 0;
   private readonly chaseDirection = new Phaser.Math.Vector2();
-  private readonly enemySpeed = 180;
-  private readonly enemyHealth = 3;
+  private readonly shooterMinimumRange = 350;
+  private readonly shooterMaximumRange = 500;
+  private successfulTimedSpawns = 0;
   private readonly enemyRadius = 24;
   private readonly hostileFireInterval = 1500;
   private readonly hostileSpeed = 600;
@@ -93,6 +103,7 @@ export class GameplayScene extends Phaser.Scene {
     this.playerHealth = this.playerMaxHealth;
     this.playerDamageProtectionRemaining = 0;
     this.enemies = [];
+    this.successfulTimedSpawns = 0;
     this.xpPickups = [];
     this.currentTarget = undefined;
     this.projectiles = [];
@@ -125,7 +136,7 @@ export class GameplayScene extends Phaser.Scene {
       .polygon(this.arenaWidth / 2, this.arenaHeight / 2, [20, 0, 40, 48, 20, 36, 0, 48], 0x38bdf8)
       .setStrokeStyle(2, 0xe0f2fe);
 
-    this.createEnemy(this.player.x + this.minimumSpawnDistance, this.player.y);
+    this.createEnemy(this.player.x + this.minimumSpawnDistance, this.player.y, 'chaser');
 
     this.cameras.main.setBounds(0, 0, this.arenaWidth, this.arenaHeight);
     this.cameras.main.startFollow(this.player);
@@ -222,9 +233,16 @@ export class GameplayScene extends Phaser.Scene {
 
     for (const enemy of this.enemies) {
       this.chaseDirection.set(this.player.x - enemy.visual.x, this.player.y - enemy.visual.y);
-      const chaseDistance = this.chaseDirection.length();
-      const chaseStep = Math.min(this.enemySpeed * (delta / 1000), chaseDistance);
-      this.chaseDirection.normalize().scale(chaseStep);
+      const speed = enemyData[enemy.archetype].speed;
+      if (enemy.archetype === 'shooter') {
+        const step = shooterMovement(this.chaseDirection.x, this.chaseDirection.y, speed, delta,
+          this.shooterMinimumRange, this.shooterMaximumRange);
+        this.chaseDirection.set(step.x, step.y);
+      } else {
+        const chaseDistance = this.chaseDirection.length();
+        const chaseStep = Math.min(speed * (delta / 1000), chaseDistance);
+        this.chaseDirection.normalize().scale(chaseStep);
+      }
       enemy.visual.x += this.chaseDirection.x;
       enemy.visual.y += this.chaseDirection.y;
       enemy.visual.x = Phaser.Math.Clamp(enemy.visual.x, this.enemyMargin, this.arenaWidth - this.enemyMargin);
@@ -233,7 +251,9 @@ export class GameplayScene extends Phaser.Scene {
 
     const target = this.selectNearestEnemy();
     if (target !== this.currentTarget) {
-      this.currentTarget?.visual.setStrokeStyle(2, 0xffcdd2);
+      if (this.currentTarget) {
+        this.currentTarget.visual.setStrokeStyle(2, enemyData[this.currentTarget.archetype].outline);
+      }
       this.currentTarget = target;
       this.currentTarget?.visual.setStrokeStyle(4, 0xfde047);
     }
@@ -421,7 +441,7 @@ export class GameplayScene extends Phaser.Scene {
   private fireHostileProjectile(): void {
     if (this.isSimulationPaused()) return;
     if (!this.player) return;
-    const enemy = this.selectNearestEnemy();
+    const enemy = this.selectNearestEnemy('shooter');
     if (!enemy) return;
     const dx = this.player.x - enemy.visual.x;
     const dy = this.player.y - enemy.visual.y;
@@ -490,12 +510,13 @@ export class GameplayScene extends Phaser.Scene {
     }
   }
 
-  private selectNearestEnemy(): EnemyRuntime | undefined {
+  private selectNearestEnemy(archetype?: EnemyArchetype): EnemyRuntime | undefined {
     if (!this.player) return undefined;
 
     let nearest: EnemyRuntime | undefined;
     let nearestDistanceSquared = Infinity;
     for (const enemy of this.enemies) {
+      if (archetype && enemy.archetype !== archetype) continue;
       const dx = enemy.visual.x - this.player.x;
       const dy = enemy.visual.y - this.player.y;
       const distanceSquared = dx * dx + dy * dy;
@@ -521,10 +542,11 @@ export class GameplayScene extends Phaser.Scene {
     this.enemies.splice(index, 1);
   }
 
-  private createEnemy(x: number, y: number): void {
-    const enemy = this.add.polygon(x, y, [24, 0, 48, 24, 24, 48, 0, 24], 0xf43f5e);
-    enemy.setStrokeStyle(2, 0xffcdd2);
-    this.enemies.push({ visual: enemy, health: this.enemyHealth });
+  private createEnemy(x: number, y: number, archetype: EnemyArchetype): void {
+    const data = enemyData[archetype];
+    const enemy = this.add.polygon(x, y, data.points, data.color);
+    enemy.setStrokeStyle(2, data.outline);
+    this.enemies.push({ archetype, visual: enemy, health: data.health });
   }
 
   private spawnEnemy(): void {
@@ -549,6 +571,8 @@ export class GameplayScene extends Phaser.Scene {
       y = this.player.y < this.arenaHeight / 2 ? this.arenaHeight - this.enemyMargin : this.enemyMargin;
     }
 
-    this.createEnemy(x, y);
+    const archetype = this.successfulTimedSpawns % 4 === 3 ? 'shooter' : 'chaser';
+    this.createEnemy(x, y, archetype);
+    this.successfulTimedSpawns += 1;
   }
 }

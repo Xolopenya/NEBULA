@@ -14,7 +14,7 @@ Do not place future plans or speculative features here.
 
 Current phase:
 
-FIRST PLAYABLE CORE LOOP COMPLETE / GAME-023 COMPLETE
+FIRST PLAYABLE CORE LOOP COMPLETE / GAME-024 COMPLETE
 
 The project has a working browser application, development toolchain and placeholder gameplay scene.
 
@@ -65,7 +65,7 @@ npm test
 
 Runs Vitest.
 
-Focused Vitest tests cover pure collision and XP/level arithmetic. Desktop movement remains local to GameplayScene.
+Focused Vitest tests cover pure collision, XP/level arithmetic, Dash timing and Shooter distance-band movement. Desktop movement remains local to GameplayScene.
 
 ### Production Build
 
@@ -97,7 +97,7 @@ Current screen:
 
 - 4800x2700 dark-space placeholder arena with deterministic static stars and an outer boundary
 - cyan player ship placeholder starting at the arena center, drawn with Phaser geometry
-- red diamond enemy placeholders directly chasing the player in world space
+- red diamond Chasers pursuing the player and purple square Shooters approaching, holding or retreating to a preferred distance band
 - temporary thicker yellow outline on the current nearest-enemy target
 - automatically launched cyan circle Laser projectiles moving through world space
 - screen-fixed top-left HUD showing current/max HP, XP toward the next threshold, level and Dash readiness/cooldown
@@ -128,6 +128,9 @@ src/
     scenes/
       BootScene.ts
       GameplayScene.ts
+    enemies/
+      shooterMovement.ts
+      shooterMovement.test.ts
     player/
       dash.ts
       dash.test.ts
@@ -159,12 +162,12 @@ The ship starts at world position (2400, 1350).
 Movement is clamped inside the 4800x2700 arena using half the ship dimensions plus its outline.
 The main camera follows the ship immediately and is bounded to the arena.
 Browser resizing preserves the internal viewport and responsive 16:9 FIT presentation.
-One enemy placeholder starts at (3000, 1350); additional enemies spawn every 2 seconds up to a temporary cap of 10 active enemies.
+One Chaser starts at (3000, 1350). Successful timed spawns every 2 seconds repeat Chaser, Chaser, Chaser, Shooter up to a shared cap of 10 active enemies. Initial creation does not advance the sequence; cap/pause/death rejection leaves it unchanged, kills free slots without rewinding it, and restart resets it.
 Spawn positions are chosen just outside a random camera edge, clamped with a 25-pixel arena margin, and kept at least 600 pixels from the player. Too-close candidates use the opposite arena corner.
-All enemies directly pursue the player's current world position at 180 pixels per second.
-Enemy movement uses frame delta and caps each step at the remaining distance to avoid overshoot at the player.
-Chase positions also respect the 25-pixel arena margin to keep the larger enemy polygon fully inside.
-Enemies use local runtime records containing their polygon visual and health, starting at 3 HP. Enemies may overlap. The cap counts currently active enemies; deaths free slots for the existing spawn timer.
+Chasers directly pursue the player's current world position at 180 pixels per second. Shooters move at 140 pixels per second toward the player above 500 pixels, retreat below 350 and hold within the inclusive 350–500 world-center band. Movement stops at the nearest band edge even for large deltas; coincident centers retreat deterministically right. Arena clamping may prevent further retreat at an edge.
+Chaser movement uses frame delta and caps each step at the remaining distance to avoid overshoot at the player.
+Both archetypes respect the 25-pixel arena margin to keep their polygons fully inside.
+Enemies use one local runtime collection with explicit chaser/shooter identity, polygon visual and health. Small scene-local archetype data supplies health, speed, polygon points, fill and normal outline: Chaser 3 HP/red diamond, Shooter 2 HP/purple square. Behavior remains explicit per type; both share collision radius, contact damage, targeting, Laser hits and killEnemy/XP. Enemies may overlap. The cap counts currently active enemies; deaths free slots for the existing spawn timer.
 The nearest active enemy is automatically selected each frame after movement using squared world-space distance.
 Equal-distance ties select the first enemy in array order; an empty enemy array clears the target.
 The selected enemy has a temporary 4-pixel yellow outline; the former target returns to its normal 2-pixel pale outline when selection changes.
@@ -181,7 +184,7 @@ Contact runs after projectile impacts/removals and starts 500 ms of global, delt
 Health clamps at zero and immediately enters a scene-owned isPlayerDead state through the damage helper, for lethal contact or hostile hits. The transition runs once, dims the ship to alpha 0.25 and displays centered screen-fixed SHIP DESTROYED text.
 Creation resets the player to alive. Death freezes movement, enemy chase, targeting, projectile movement/collision and contact processing. Existing enemies and projectiles remain visible and frozen; timer events stay scheduled but guarded callbacks produce no spawns or shots. The lethal hostile projectile is removed before further projectile processing stops.
 Only after death, a screen-fixed clickable RETRY control appears. Clicking it once uses Phaser scene.restart() without reloading the page. Phaser shutdown destroys old scene objects/UI and timer events; create() restores an alive player at 5 HP and normal alpha at (2400, 1350), one initial enemy, no projectiles, a fresh target selection and exactly three spawn/Laser/hostile timers. Repeated death/retry cycles resume the same gameplay.
-One global timer fires an orange hostile projectile from the nearest active enemy every 1500 ms. Shots use fixed firing-time aim, speed 600 px/s, lifetime 3000 ms and damage 1. Missing enemies and near-zero firing distance create no shot.
+One global timer fires an orange hostile projectile from the nearest active Shooter every 1500 ms, ignoring Chasers and keeping collection-order ties stable. Chasers never fire; no active Shooter or near-zero firing distance creates no shot. Shots use fixed firing-time aim, speed 600 px/s, lifetime 3000 ms and damage 1. The preferred movement band does not limit firing range. No per-enemy timers exist.
 Player and enemy shots share a local source/damage runtime record and movement/lifetime/world-exit cleanup. Hostile shots use swept segment-circle collision against the player and disappear even when protection prevents damage before death. Both contact and hostile hits use the same global 500 ms player damage protection; its timer ticks before projectile/contact processing.
 Every killed enemy creates one lime-green world-space XP pickup worth 1 at its death position. Scene-owned pickup records preserve visual, value and magnet speed; create resets the array and restart destroys old visuals. Pickups stay stationary outside a 180-pixel player-center magnet radius. Within range they accelerate toward the current player position at 900 px/s² up to 600 px/s, using frame delta; leaving range resets speed. Reaching a 20-pixel player-center collection radius credits pickup.value to player XP before destroying/removing the pickup. Motion is capped by collection to avoid overshoot. Magnet processing stops on player death. Scene-owned playerExperience starts at level 1 with 0 XP toward the next level. The pure experience module requires 5 × current level XP, subtracts each reached threshold, carries excess forward and allows multiple levels per award. Restart resets this state and clears the separate isLevelUpPaused flag. Collection that increases level credits/removes the triggering pickup, then enters level-up pause immediately; subsequent pickups remain untouched. Screen-fixed LEVEL UP — CHOOSE ONE text and exactly three selectable Laser upgrades appear: Power (+1 damage), Fire Rate (-50 ms interval, minimum 100 ms) and Projectile Speed (+200 px/s). isSimulationPaused combines death and level-up pause to freeze movement, chase/targeting, projectiles, damage/protection, XP movement/collection and all spawn/fire callbacks. This pause is not death and offers no retry. Clicking one current choice destroys the level-up title/options and resumes simulation; duplicate/stale choice callbacks are rejected. Selected effects apply before resume and accumulate across level-ups. Scene-owned laser data starts at damage 1, fireInterval 600 ms and projectileSpeed 1200 px/s and resets on each create. Fire Rate resets the existing laserTimer in place to the new interval with elapsed time zero, preserving one Laser event rather than adding another. New shots snapshot current damage/speed; already-fired shots keep their launch values. Hostile shots are unchanged. Restart clears presentation references and native scene shutdown destroys the texts.
 
@@ -210,7 +213,7 @@ Gameplay prototypes will initially use placeholders and simple geometry.
 
 ## Tests
 
-Nine unit tests cover collision.ts, eight cover progression/experience.ts and six cover player/dash.ts timing/expiry partitions (23 total).
+Nine unit tests cover collision.ts, eight cover progression/experience.ts, six cover player/dash.ts timing/expiry partitions and seven cover enemies/shooterMovement.ts band rules (30 total).
 
 Vitest is installed and configured.
 
@@ -264,7 +267,7 @@ These should only be introduced when real project requirements justify them.
 
 The placeholder arena, bounded desktop movement, camera follow, repeated enemy spawning/chase, nearest-enemy targeting and Laser projectile impacts with enemy damage/death are implemented and browser-verified.
 
-GAME-001 through GAME-023 are complete. Further implementation awaits the next task definition; GAME-024 and later remain BACKLOG concepts.
+GAME-001 through GAME-024 are complete. Further implementation awaits the next task definition; GAME-025 and later remain BACKLOG concepts.
 
 ---
 
@@ -272,6 +275,6 @@ GAME-001 through GAME-023 are complete. Further implementation awaits the next t
 
 The application boots successfully.
 
-The player can move the ship, outrun multiple chasing enemies and automatically launch moving Laser projectiles toward the current nearest target. Shots disappear on impact; baseline enemies require three hits, fewer after damage upgrades. Spawning continues after kills. Enemy contact reduces player HP with temporary protection and damage feedback; gameplay freezes at zero HP with SHIP DESTROYED displayed. Orange hostile projectiles can be dodged and damage the player. Clicking RETRY after death begins a clean new run. The First Playable start/play/die/restart loop is complete. Killed enemies leave XP pickups that move toward the player within magnet range and are consumed on arrival. Collected values advance player XP/level state; reaching a new level freezes gameplay with three Laser upgrade choices. Selecting one applies a cumulative Laser upgrade before resuming the run. Directional Space Dash supports short repositioning bursts without immunity. A fixed HUD shows HP, XP toward the next threshold, level and Dash cooldown throughout the run, pause and death, and resets on retry.
+The player can move the ship, outrun Chasers, approach ranged Shooters and automatically launch moving Laser projectiles toward the current nearest target of either type. Shots disappear on impact; baseline Chasers require three hits and Shooters two, fewer after damage upgrades. Spawning continues after kills. Enemy contact reduces player HP with temporary protection and damage feedback; gameplay freezes at zero HP with SHIP DESTROYED displayed. Orange hostile projectiles can be dodged and damage the player. Clicking RETRY after death begins a clean new run. The First Playable start/play/die/restart loop is complete. Killed enemies leave XP pickups that move toward the player within magnet range and are consumed on arrival. Collected values advance player XP/level state; reaching a new level freezes gameplay with three Laser upgrade choices. Selecting one applies a cumulative Laser upgrade before resuming the run. Directional Space Dash supports short repositioning bursts without immunity. A fixed HUD shows HP, XP toward the next threshold, level and Dash cooldown throughout the run, pause and death, and resets on retry.
 
 The First Playable milestone defined in TASK_GRAPH.md is now implemented.
