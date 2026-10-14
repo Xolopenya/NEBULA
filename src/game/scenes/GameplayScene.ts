@@ -6,6 +6,11 @@ type EnemyRuntime = {
   health: number;
 };
 
+type XpPickup = {
+  visual: Phaser.GameObjects.Arc;
+  value: number;
+};
+
 type ProjectileRuntime = {
   source: 'player' | 'enemy';
   damage: number;
@@ -25,6 +30,7 @@ export class GameplayScene extends Phaser.Scene {
   private readonly playerDamageProtectionDuration = 500;
   private playerDamageProtectionRemaining = 0;
   private enemies: EnemyRuntime[] = [];
+  private xpPickups: XpPickup[] = [];
   private currentTarget?: EnemyRuntime;
   private projectiles: ProjectileRuntime[] = [];
   private cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
@@ -60,6 +66,7 @@ export class GameplayScene extends Phaser.Scene {
     this.playerHealth = this.playerMaxHealth;
     this.playerDamageProtectionRemaining = 0;
     this.enemies = [];
+    this.xpPickups = [];
     this.currentTarget = undefined;
     this.projectiles = [];
     const { width, height } = this.scale;
@@ -307,9 +314,7 @@ export class GameplayScene extends Phaser.Scene {
       if (hitEnemy) {
         hitEnemy.health -= projectile.damage;
         if (hitEnemy.health <= 0) {
-          if (this.currentTarget === hitEnemy) this.currentTarget = undefined;
-          hitEnemy.visual.destroy();
-          this.enemies.splice(this.enemies.indexOf(hitEnemy), 1);
+          this.killEnemy(hitEnemy);
         }
         projectile.visual.destroy();
         this.projectiles.splice(i, 1);
@@ -344,6 +349,19 @@ export class GameplayScene extends Phaser.Scene {
       }
     }
     return nearest;
+  }
+
+  private killEnemy(enemy: EnemyRuntime): void {
+    const index = this.enemies.indexOf(enemy);
+    if (index === -1) return;
+    this.xpPickups.push({
+      visual: this.add.circle(enemy.visual.x, enemy.visual.y, 10, 0xa3e635)
+        .setStrokeStyle(2, 0xecfccb),
+      value: 1,
+    });
+    if (this.currentTarget === enemy) this.currentTarget = undefined;
+    enemy.visual.destroy();
+    this.enemies.splice(index, 1);
   }
 
   private createEnemy(x: number, y: number): void {

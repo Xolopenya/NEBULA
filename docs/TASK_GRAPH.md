@@ -677,7 +677,7 @@ PLAYABLE CORE
 
 ## GAME-016 — XP Drop
 
-STATUS: READY
+STATUS: DONE
 
 GOAL:
 
@@ -687,7 +687,7 @@ Enemies create XP pickups when killed.
 
 ## GAME-017 — XP Magnet Collection
 
-STATUS: BACKLOG
+STATUS: READY
 
 DEPENDENCIES:
 

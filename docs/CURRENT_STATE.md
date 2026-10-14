@@ -14,7 +14,7 @@ Do not place future plans or speculative features here.
 
 Current phase:
 
-FIRST PLAYABLE CORE LOOP COMPLETE / GAME-015 COMPLETE
+FIRST PLAYABLE CORE LOOP COMPLETE / GAME-016 COMPLETE
 
 The project has a working browser application, development toolchain and placeholder gameplay scene.
 
@@ -178,13 +178,12 @@ Creation resets the player to alive. Death freezes movement, enemy chase, target
 Only after death, a screen-fixed clickable RETRY control appears. Clicking it once uses Phaser scene.restart() without reloading the page. Phaser shutdown destroys old scene objects/UI and timer events; create() restores an alive player at 5 HP and normal alpha at (2400, 1350), one initial enemy, no projectiles, a fresh target selection and exactly three spawn/Laser/hostile timers. Repeated death/retry cycles resume the same gameplay.
 One global timer fires an orange hostile projectile from the nearest active enemy every 1500 ms. Shots use fixed firing-time aim, speed 600 px/s, lifetime 3000 ms and damage 1. Missing enemies and near-zero firing distance create no shot.
 Player and enemy shots share a local source/damage runtime record and movement/lifetime/world-exit cleanup. Hostile shots use swept segment-circle collision against the player and disappear even when protection prevents damage before death. Both contact and hostile hits use the same global 500 ms player damage protection; its timer ticks before projectile/contact processing.
-Health HUD and XP/rewards are not implemented.
+Every killed enemy creates exactly one stationary lime-green world-space XP pickup worth 1 at its death position. Scene-owned pickup records contain visual and value; create resets their array and Phaser restart destroys old pickup visuals. Walking over a pickup does not collect it. Magnet movement/collection, player XP totals, levels, HUD and upgrades are not implemented.
 
 There is currently no:
 
 - health HUD
-- kill rewards
-- XP
+- XP collection and player XP totals
 - progression
 - upgrades
 - boss
@@ -264,7 +263,7 @@ The placeholder arena, bounded desktop movement, camera follow, repeated enemy s
 
 The next implementation task is:
 
-GAME-016 — XP Drop
+GAME-017 — XP Magnet Collection
 
 ---
 
@@ -272,6 +271,6 @@ GAME-016 — XP Drop
 
 The application boots successfully.
 
-The player can move the ship, outrun multiple chasing enemies and automatically launch moving Laser projectiles toward the current nearest target. Shots disappear on impact and kill enemies after three hits. Spawning continues after kills. Enemy contact reduces player HP with temporary protection and damage feedback; gameplay freezes at zero HP with SHIP DESTROYED displayed. Orange hostile projectiles can be dodged and damage the player. Clicking RETRY after death begins a clean new run. The First Playable start/play/die/restart loop is complete. HUD and XP/rewards are not implemented.
+The player can move the ship, outrun multiple chasing enemies and automatically launch moving Laser projectiles toward the current nearest target. Shots disappear on impact and kill enemies after three hits. Spawning continues after kills. Enemy contact reduces player HP with temporary protection and damage feedback; gameplay freezes at zero HP with SHIP DESTROYED displayed. Orange hostile projectiles can be dodged and damage the player. Clicking RETRY after death begins a clean new run. The First Playable start/play/die/restart loop is complete. Killed enemies leave stationary XP pickups. Collection, player XP totals, HUD and upgrades are not implemented.
 
 The First Playable milestone defined in TASK_GRAPH.md is now implemented.

@@ -4,8 +4,8 @@
 
 - Project: NEBULA.
 - Milestone: First Playable / GAME-015 complete.
-- Source baseline HEAD: `ee5215ce7d542ca288a29f500c1443a48d5f9c44`.
-- This map reflects implementation at that HEAD; the map itself is added afterward.
+- Source baseline HEAD: `2850b982112ff92ce7d55fea359328ec8b7330ad`.
+- This map reflects that source baseline plus the GAME-016 XP-drop ownership changes.
 - Active task request defines task-specific requirements.
 - AGENTS.md defines repository policy.
 - TASK_GRAPH.md defines task scope, dependencies and status.
@@ -85,7 +85,8 @@ All private names below are navigation anchors, not exported symbol nodes.
 | Spawning | spawnEnemy; spawnInterval, maximumEnemies | Global timer, placement, active-count cap |
 | Chase | update; chaseDirection | World-space chase and arena clamp |
 | Target/highlight | selectNearestEnemy, currentTarget; update | Nearest active enemy; temporary outline |
-| Enemy death | updateProjectiles lethal hit branch | Destroy visual, splice enemy, clear dead target |
+| Enemy death | updateProjectiles → killEnemy | Create one XP drop, destroy visual, splice enemy, clear dead target |
+| XP drops | xpPickups; XpPickup; killEnemy | Stationary world-space visual + value 1; create resets collection; no collection yet |
 | Shared projectiles | projectiles; ProjectileRuntime | source, damage, visual, velocity, remainingLifetime |
 | Projectile stepping | updateProjectiles | Lifetime-clipped motion; swept impact; reverse removal |
 | Projectile cleanup | updateProjectiles | Impact, lifetime and world-exit destruction |
@@ -131,16 +132,16 @@ Ignored harnesses are not graph nodes and do not run in npm run check.
 | GameplayScene: Laser/projectiles/enemy damage/death | IMPLEMENTS_TASK | GAME-009..011 |
 | GameplayScene: player health/hostile fire/death/retry | IMPLEMENTS_TASK | GAME-012..015 |
 
-Next navigation hook only: GAME-016 — XP Drop → inspect GameplayScene.updateProjectiles
-at the existing lethal-enemy removal branch. No XP implementation or subsystem is indexed.
+GameplayScene.killEnemy / xpPickups IMPLEMENTS_TASK GAME-016 — XP Drop.
+No magnet movement, collection or player XP-total/level subsystem is implemented.
 Statuses and dependencies remain in TASK_GRAPH.md, not duplicated here.
 
 ## Common navigation queries
 
 | Question | Likely path / anchor |
 | --- | --- |
-| Where does enemy death happen? | GameplayScene.ts → updateProjectiles lethal branch |
-| Where should the next drop task inspect first? | GameplayScene.ts → updateProjectiles lethal branch |
+| Where does enemy death happen? | GameplayScene.ts → updateProjectiles / killEnemy |
+| Where are stationary XP drops owned? | GameplayScene.ts → killEnemy, xpPickups; create resets |
 | Where is player damage controlled? | GameplayScene.ts → damagePlayer, updatePlayerProtection |
 | Who owns projectile movement/lifetime/cleanup? | GameplayScene.ts → updateProjectiles |
 | Where is collision math implemented? | collision.ts#segmentCircleHitTime |
