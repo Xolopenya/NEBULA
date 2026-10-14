@@ -2,6 +2,7 @@ import * as Phaser from 'phaser';
 
 export class GameplayScene extends Phaser.Scene {
   private player?: Phaser.GameObjects.Polygon;
+  private enemy?: Phaser.GameObjects.Polygon;
   private cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
   private wasd?: Record<'up' | 'left' | 'down' | 'right', Phaser.Input.Keyboard.Key>;
   private readonly movementDirection = new Phaser.Math.Vector2();
@@ -33,6 +34,9 @@ export class GameplayScene extends Phaser.Scene {
     this.player = this.add
       .polygon(this.arenaWidth / 2, this.arenaHeight / 2, [20, 0, 40, 48, 20, 36, 0, 48], 0x38bdf8)
       .setStrokeStyle(2, 0xe0f2fe);
+
+    this.enemy = this.add.polygon(2800, 1350, [24, 0, 48, 24, 24, 48, 0, 24], 0xf43f5e);
+    this.enemy.setStrokeStyle(2, 0xffcdd2);
 
     this.cameras.main.setBounds(0, 0, this.arenaWidth, this.arenaHeight);
     this.cameras.main.startFollow(this.player);

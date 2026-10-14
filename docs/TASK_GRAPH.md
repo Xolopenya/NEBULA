@@ -310,7 +310,7 @@ The player cannot leave the intended arena and camera behavior is stable.
 
 ## GAME-005 — Basic Enemy Runtime
 
-STATUS: READY
+STATUS: DONE
 
 DEPENDENCIES:
 
@@ -339,7 +339,7 @@ A placeholder enemy can exist in the gameplay scene with basic runtime state.
 
 ## GAME-006 — Enemy Chase Movement
 
-STATUS: BLOCKED
+STATUS: READY
 
 DEPENDENCIES:
 
