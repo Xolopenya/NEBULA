@@ -1037,9 +1037,127 @@ ACCEPTANCE / VALIDATION:
 
 ---
 
+## GAME-026 — Missile Weapon
+
+STATUS: READY
+
+DEPENDENCIES:
+
+- GAME-025
+
+GOAL:
+
+Add Missile as the second concrete player weapon alongside Laser, active from the
+beginning of every run. No weapon acquisition/inventory or choice-pool change.
+
+PROTOTYPE RULES — FIRING / HOMING:
+
+- One global Missile timer fires automatically every 1800 ms when simulation is
+  active and at least one active enemy exists. Launch from the player's world position
+  toward the nearest active enemy by world-center distance, with collection-order ties.
+- Keep explicit Missile-specific baseline values: speed 450 px/s, lifetime 4000 ms,
+  explosion damage 2 and radius 120 world pixels. Use a distinct small yellow/orange
+  placeholder circle with an 8-pixel radius, or equivalent geometry within that radius.
+- Missile homes: each active frame updates its normalized heading toward its living
+  target's current position. Use delta-based direct steering; no turn-rate simulation.
+- If its target is removed, reacquire the nearest active enemy from the Missile's
+  current world position, with stable collection-order ties. Reacquire whenever an
+  untargeted Missile has active enemies available; otherwise retain its last valid
+  heading and continue until impact, lifetime expiry or world exit.
+- Near-zero target distance must not divide by zero or create non-finite movement.
+  Retain the previous heading if available; a launch overlapping an enemy can use a
+  zero movement segment and resolve its existing overlap as an immediate swept hit.
+- Clip each movement segment to remaining active lifetime. Expiry and whole-projectile
+  world exit destroy/remove the Missile without explosion; no stale target dependency
+  may prevent motion or cleanup. Already-launched Missiles outlive their original target.
+
+PROTOTYPE RULES — IMPACT / EXPLOSION:
+
+- Sweep the actual frame segment against every active enemy using existing pure
+  segment-circle math and the existing enemy radius plus Missile radius. Detonate on
+  the first intersection, even if the intersected enemy is not the homing target.
+  Equal hit times use collection order; starting overlap is a hit at segment time zero.
+- Place detonation at that first hit point on the segment, not the frame endpoint or
+  target center. Remove/destroy the Missile once; it cannot pierce or explode again.
+- Apply damage 2 once to each active enemy whose world center is within the inclusive
+  120-pixel radius of the detonation point. Do not expand explosion range by enemy
+  radius. The impact enemy receives explosion damage only, with no separate direct hit.
+- Determine affected enemies without skipping entries as deaths remove them from the
+  shared collection. Each enemy is damaged at most once by this explosion; separate
+  Missiles may each deal their own damage. No damage falloff or armor rules are added.
+- Nonlethal enemies retain remaining HP. Every lethal hit uses existing killEnemy,
+  producing exactly one normal value-1 XP pickup at that enemy's death position.
+  One explosion may kill several enemies. Chaser, Shooter and Tank use the same path.
+- Optional brief simple explosion marker may show the area, but correctness must not
+  depend on it. No production assets, VFX system or marker-driven damage callbacks.
+
+PAUSE / LIFECYCLE:
+
+- Add exactly one Missile firing timer: normal gameplay now has four events — spawn,
+  Laser, Missile and hostile fire. Existing scheduled events may remain running
+  internally, but Missile callbacks must return while dead or level-up paused.
+- Existing pause/death guards freeze Missile position, homing/target changes and
+  remaining lifetime, alongside the current simulation. Resume continues remaining
+  runtime normally; no shots or explosions are produced while simulation is frozen.
+- create/restart restores baseline Missile values and an empty scene-owned Missile
+  collection. Native Phaser shutdown destroys old Missile visuals and timer events;
+  repeated retry must not preserve old targets/Missiles or duplicate firing timers.
+- Preserve Laser behavior, all three existing Laser upgrade choices and their stale
+  selection protection. Missile has no upgrades and does not enter the choice pool.
+- Preserve Dash, CCCSCT successful spawning/cap, Shooter-only hostile fire, contact,
+  health/death and GAME-016..025 XP/progression/HUD behavior.
+
+IMPLEMENTATION BOUNDARY:
+
+Keep concrete Missile-specific state/behavior. A separate MissileRuntime collection
+is appropriate for homing target/heading/lifetime/explosion differences; do not force
+Laser/Missile into one straight-projectile record full of optional fields. Reuse
+collision, target-selection and enemy damage/death helpers where they genuinely apply.
+Only extract a tiny shared weapon-stat shape if both actual weapons use every shared
+field and it materially reduces duplication. Explosion radius and homing remain
+Missile-specific. No universal weapon framework or unrelated enemy/progression/Dash refactor.
+
+OUT OF SCOPE:
+
+Missile upgrades, weapon acquisition/inventory/slots, Drone, passive modules,
+evolution, rerolls/rarity, generic modifier/stat engine, universal Weapon class/manager,
+turn-rate physics, new enemy mechanics, production VFX/assets and new dependencies.
+
+ACCEPTANCE / VALIDATION:
+
+- Automatic launch obeys 1800 ms cadence, active simulation and enemy availability;
+  nearest-player launch target and stable ties are correct, with no empty-array shot.
+- Homing follows a moving target with normalized delta motion. Removing a target
+  deterministically reacquires nearest-to-Missile; no replacement preserves heading,
+  and later enemies can be acquired. Coincident/near-zero positions remain safe.
+- Swept first impact prevents tunneling through any enemy, including non-targets;
+  detonation uses the swept hit point and occurs once, including starting overlap.
+  Lifetime-clipped movement and world-exit cleanup work without unintended explosions.
+- Explosion includes exact radius boundary, excludes centers outside it and damages
+  each affected enemy exactly once. Impact damage is not added separately. Multiple
+  deaths do not skip affected entries and each produces exactly one XP pickup.
+- Chaser/Shooter/Tank health differences remain correct under nonlethal/lethal hits;
+  Laser behavior/upgrades and the existing three-choice pool remain unchanged.
+- Level-up pause/death freeze Missile production, position, homing and lifetime;
+  choice/resume continues in-flight runtime. Other simulation guards remain effective.
+- Repeated native retry returns baseline Missile state, no stale visuals/targets,
+  exactly one Missile timer and exactly four total gameplay timers. Existing player,
+  XP/levels, choices, Laser upgrades, Dash and HUD reset correctly.
+- Dash, CCCSCT spawning/cap, Shooter fire and GAME-016..025 progression work alongside
+  Missile, including clustered kills, XP magnet/credit and level-up choice/resume.
+- Add focused tracked tests for any extracted pure homing/explosion math where
+  meaningful; use targeted runtime validation for integration, not rendering-only tests.
+- Run npm run check, git diff --check and git diff --cached --check. Browser smoke:
+  firing/homing, target death/reacquisition, clustered explosion kills/XP, pause/resume,
+  Dash and repeated death/retry. Report actual evidence and remaining limitations.
+- After successful implementation, update CURRENT_STATE and material PROJECT_GRAPH
+  ownership facts and mark only GAME-026 DONE. GAME-027 and later remain BACKLOG until
+  separately defined and authorized. Follow AGENTS.md staging/review; do not commit.
+
+---
+
 Remaining future nodes:
 
-GAME-026 — Missile Weapon
 GAME-027 — Drone Weapon
 GAME-028 — Passive Module Foundation
 GAME-029 — Weapon Evolution Foundation
