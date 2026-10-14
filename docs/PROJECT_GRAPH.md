@@ -4,8 +4,8 @@
 
 - Project: NEBULA.
 - Milestone: First Playable / GAME-015 complete.
-- Source baseline HEAD: `f2fd5bfc38c78b64eb1f0360025dfd2f732c27a3`.
-- This map reflects that source baseline plus the GAME-026 Missile ownership changes.
+- Source baseline HEAD: `604c3ff6e70f749121e242914c9bf75837685067`.
+- This map reflects that source baseline plus the FIX-001 Missile launch-cap facts.
 - Active task request defines task-specific requirements.
 - AGENTS.md defines repository policy.
 - TASK_GRAPH.md defines task scope, dependencies and status.
@@ -80,7 +80,7 @@ Runtime labels below describe scene-owned concepts, not separate modules/classes
 | `src/game/enemies/shooterMovement.ts#shooterMovement` | TESTED_BY | `src/game/enemies/shooterMovement.test.ts` |
 | Player Laser | TARGETS | currentTarget from active enemies |
 | Player projectile | DAMAGES | First intersected active enemy |
-| Missile | TARGETS | Nearest-player launch / nearest-to-Missile reacquisition; last heading without target |
+| Missile | TARGETS | Nearest-player launch; retain living target; nearest-to-Missile reacquisition only after loss; last heading without target |
 | Missile explosion | DAMAGES | Snapshot of enemy centers within inclusive radius 120; killEnemy on lethal damage |
 | Hostile projectile and contact | DAMAGES | Player through damagePlayer |
 | Lethal enemy hit | DESTROYS | Enemy visual and active runtime entry |
@@ -118,7 +118,7 @@ All private names below are navigation anchors, not exported symbol nodes.
 | Projectile stepping | updateProjectiles | Lifetime-clipped motion; swept impact; reverse removal |
 | Projectile cleanup | updateProjectiles | Impact, lifetime and world-exit destruction |
 | Player Laser | laser; laserTimer; fireLaser | Mutable Laser-only damage/interval/speed, baseline 600 ms; existing timer reset for cadence upgrades |
-| Missile | missile, missiles; MissileRuntime; fireMissile, aimMissile, updateMissiles | Separate concrete homing target/heading/lifetime; immutable baseline; one 1800 ms timer |
+| Missile | missile, missiles; MissileRuntime; fireMissile, aimMissile, updateMissiles | Separate concrete homing target/heading/lifetime; immutable maxActiveMissiles = 1; cap blocks launch without resetting the one 1800 ms timer |
 | Missile explosion | updateMissiles → explodeMissile → killEnemy | Earliest swept hit point, center-radius snapshot damage once, common XP/death; no direct hit |
 | Laser upgrades | LaserUpgrade; acceptLevelUpChoice | Cumulative power/rate/speed effects before resume; create restores baseline |
 | Hostile fire | fireHostileProjectile; hostileFireInterval | 1500 ms global timer; selectNearestEnemy('shooter') filters nearest active Shooter only; no per-enemy timers |

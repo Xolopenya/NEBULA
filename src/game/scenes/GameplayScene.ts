@@ -68,6 +68,7 @@ export class GameplayScene extends Phaser.Scene {
   private projectiles: ProjectileRuntime[] = [];
   private missiles: MissileRuntime[] = [];
   private readonly missile = {
+    maxActiveMissiles: 1,
     fireInterval: 1800, speed: 450, lifetime: 4000, damage: 2, explosionRadius: 120, radius: 8,
   } as const;
   private cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
@@ -555,6 +556,7 @@ export class GameplayScene extends Phaser.Scene {
 
   private fireMissile(): void {
     if (this.isSimulationPaused() || !this.player) return;
+    if (this.missiles.length >= this.missile.maxActiveMissiles) return;
     const target = this.selectNearestEnemy();
     if (!target) return;
     const missile: MissileRuntime = {
