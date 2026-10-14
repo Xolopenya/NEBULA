@@ -156,15 +156,37 @@ Future ships should differ through gameplay behavior rather than only numerical 
 
 ### Future tunable ship characteristics
 
-Ships should eventually expose explicit balance data as mechanics require it: maximum health,
-movement speed and pickup/magnet radius. Armor or damage/cooldown modifiers belong here only
-if those mechanics become real. Active abilities such as Dash remain behavior, not just numeric stats.
+Ship/run characteristics may become mutable when a real Passive Module or gameplay system
+consumes them. Primary characteristics are distinct from run-wide combat modifiers:
+
+| Characteristic | Design meaning |
+| --- | --- |
+| Maximum Health | Controls maximum HP; any healing granted by an increase must be explicitly defined by its future module task. Current baseline HP remains an implementation detail. |
+| Movement Speed | Affects normal movement, not Dash automatically. |
+| XP Pickup / Magnet Radius | Distance at which XP pickups begin moving toward the ship; collection radius, acceleration and magnet maximum speed remain separate. |
+| Armor (future defense) | Proportional incoming-damage mitigation, not flat -1 damage: common 1-damage attacks would otherwise become binary immunity. Exact math waits for an Armor implementation task. |
+| Health Regeneration (future sustain) | Restores HP over time; rate and tick/continuous semantics are not locked. Does not implicitly create a shield. |
+| XP Gain (future utility) | Increases XP credited from collected experience, not attraction or collection geometry. |
 
 Add characteristics when an actual mechanic consumes them; do not predefine speculative stats.
 This supports ship differentiation, balancing, passive upgrades/modules and additional ships
 without spreading balance through scene logic. Concrete needs should emerge through Dash,
 passives/modules and additional ships. Current player values remain local to GameplayScene;
 no generalized ship-characteristics system is implemented.
+
+### Dedicated mechanics
+
+These are possible future mechanics, not scalar fields automatically owned by every ship:
+
+- Shield is a dedicated defensive mechanic, potentially with capacity/current shield,
+  recharge delay/rate and break/recharge behavior. A future Shield Generator may introduce it;
+  do not model it now as simply another number beside HP.
+- Dodge / Evasion is not committed for the prototype; introducing it requires a deliberate combat rule.
+- Revive is a capability/perk separate from base characteristics.
+- Status effects/chance belong to actual burn, slow or other implemented combat mechanics;
+  do not predefine generic status fields.
+- Dash remains active-ability behavior. Its cooldown, charges, duration and distance/speed
+  belong to ability progression unless a concrete design explicitly broadens their meaning.
 
 ---
 
@@ -207,6 +229,23 @@ Combat should prioritize:
 - immediate hit feedback
 - large enemy counts
 - understandable enemy behavior
+
+### Future global combat modifiers
+
+Separate from ship characteristics, these belong conceptually to the current run/build:
+Damage, Attack Cooldown / Attack Speed, Projectile Speed, Area / Effect Size, Duration,
+Critical Chance and Critical Damage. Knockback joins this category only if it becomes a real mechanic.
+These are candidates, not implemented global modifiers; percentages and stacking formulas are not locked.
+
+The player owns a modifier; concrete weapon behavior decides whether it applies:
+
+- Damage may eventually affect Laser damage, Missile explosion damage and Drone bolt damage.
+- Area may affect Missile explosions or future AoE weapons; do not invent an area effect for Laser.
+- Projectile Speed applies to meaningful projectile motion; persistent/non-projectile behavior
+  need not consume it.
+- Duration applies only to weapons/effects with a meaningful duration.
+
+Do not force every weapon to consume every modifier.
 
 ### Future spawn telegraph / space rift
 
@@ -290,9 +329,27 @@ Do not define one giant universal structure with every possible optional weapon 
 Introduce shared fields only after actual weapons demonstrate the common requirement.
 
 The goal is easier balancing, upgrades and weapon additions with clear numerical/behavior separation.
-GAME-021 is expected to create the first concrete need for mutable/upgradable Laser values;
-broader generalization waits for multiple weapon implementations. Current Laser values are local
-to GameplayScene. No generalized weapon-characteristics system or weapon framework exists now.
+GAME-021 introduced the first concrete mutable/upgradable Laser values;
+broader generalization requires genuinely shared consumers, not just similarly named numbers.
+No generalized weapon-characteristics system or weapon framework exists now.
+
+### Current concrete weapon ownership
+
+- Laser owns mutable damage, fire interval and projectile speed through its existing upgrades.
+- Missile owns concrete speed, lifetime, explosion damage/radius and maxActiveMissiles = 1;
+  homing, explosion and concurrency cap remain Missile-specific.
+- Drone owns orbit behavior and independent straight-bolt values; orbit is not a generic weapon stat.
+
+These values/behaviors currently belong to GameplayScene. Future global modifiers must integrate
+deliberately with these concrete owners rather than replace them with one generic weapon structure.
+
+### Amount / additional instances
+
+More weapon instances/projectiles is an important future build axis, but not one universal Amount stat:
+Laser might fire multiple projectiles per attack; Missile might use maxActiveMissiles or missiles
+per launch; Drone might support multiple companions. Keep meaning weapon-specific until multiple
+real weapons demonstrate one common semantic. Current Missile maxActiveMissiles = 1 stays specific;
+do not turn it into a global projectileCount field.
 
 ---
 
@@ -305,6 +362,52 @@ Vertical Slice target:
 Passive modules should modify or complement builds.
 
 They should not exist only as trivial permanent percentage bonuses when a more interesting gameplay interaction is possible.
+
+### Future catalog direction
+
+The following are approved design candidates, not implemented modules or a promise that every
+candidate will ship in the Vertical Slice. Even safer first candidates need a scoped implementation task.
+
+| Core / safer first candidate | Characteristic or effect |
+| --- | --- |
+| Hull Plating | Maximum Health |
+| Thruster Module | Movement Speed |
+| Collector Field | XP Pickup / Magnet Radius |
+| Repair Nanites | Health Regeneration |
+| Combat Processor | Global Damage |
+
+| Additional future candidate | Characteristic or effect |
+| --- | --- |
+| Reinforced Armor | Armor |
+| Experience Analyzer | XP Gain |
+| Cooling System | Attack Cooldown / Attack Speed |
+| Accelerator Coil | Projectile Speed |
+| Spatial Amplifier | Area / Effect Size |
+| Temporal Capacitor | Duration |
+| Targeting Matrix | Critical Chance |
+| Critical Core | Critical Damage |
+
+Possible later/special modules:
+
+- Shield Generator introduces/strengthens dedicated Shield mechanics.
+- Replicator / Replication Matrix may increase weapon-specific amount/instances;
+  a universal Amount effect is not defined.
+- A knockback-related module waits until knockback exists as a real mechanic.
+
+### Run progression and implementation boundary
+
+Passive Modules belong to the current run and reset between fresh runs/restarts unless later
+meta systems explicitly say otherwise. They may be levelable/repeatable where concrete stacking
+supports it, change explicit characteristics rather than arbitrary string-keyed properties,
+coexist with weapon upgrades in the level-up ecosystem and support build differentiation.
+
+Exact caps, increments, rarity, rerolls, weighting, inventory slots, acquisition count and evolution
+recipes remain for concrete implementation/content tasks; existing build targets do not lock these rules.
+
+GAME-028 remains BACKLOG until separate definition/review selects a small implemented subset and
+exact numbers. Hull Plating, Thruster Module, Collector Field, Repair Nanites and Combat Processor
+are recommended first candidates, not an implementation commitment. TASK_GRAPH remains authoritative.
+DESIGN-002 neither defines nor implements GAME-029 Evolution.
 
 ---
 
@@ -362,7 +465,8 @@ This should make creation and balance adjustments easier, allow controlled run d
 composition and make increasing threat readable. Do not prescribe a deep inheritance hierarchy
 or TypeScript class structure. Multiple archetypes are already in the future content roadmap;
 choose concrete architecture when the second and third real enemy types are implemented.
-Current gameplay has one enemy runtime shape/chase behavior, not an archetype data system.
+Current gameplay has Chaser, Shooter and Tank identities with small scene-local archetype data
+and one shared enemy runtime collection. Chaser/Tank share direct pursuit; Shooter uses distance-band behavior.
 
 ---
 
@@ -634,6 +738,18 @@ rewriting the associated behavior. Do not centralize every number prematurely, c
 stat engine or make every entity share a generic property bag. Extract common data structures
 only when multiple real consumers justify them. These are approved future directions, not
 instructions to build shared combat, ship, enemy or spawn systems during the current prototype.
+
+### Player/run data boundaries
+
+Prefer explicit player/run characteristics plus explicit global combat modifiers with real consumers,
+weapon-specific configuration/behavior and dedicated mechanics for Shield, Dash and other capabilities.
+Small explicit data ownership may emerge when GAME-028 creates actual mutable consumers;
+DESIGN-002 does not prescribe final TypeScript representations.
+
+Avoid a giant PlayerStats object containing every imaginable optional future stat, string-keyed
+property bags, generic Modifier pipelines, buff/debuff frameworks and universal combat stat engines.
+Do not force every weapon to consume every modifier or reduce Shield, Revive or Dash behavior
+to scalar stats. This vocabulary records future design directions, not implemented systems.
 
 NEBULA should optimize for:
 
