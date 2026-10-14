@@ -11,8 +11,9 @@ Use repository-root paths below. The active user/task request supplies specific 
 
 1. Read AGENTS.md and identify the active task from the user request.
 2. Read docs/CURRENT_STATE.md, then only the active task section in docs/TASK_GRAPH.md when present.
-3. Inspect directly relevant source files. Read docs/GAME_DESIGN.md only for relevant gameplay requirements and docs/ARCHITECTURE.md only when architectural context is needed.
-4. Avoid broad repository exploration without a concrete reason.
+3. For tasks touching existing gameplay/source architecture, after CURRENT_STATE and the active TASK_GRAPH node read docs/PROJECT_GRAPH.md to locate likely files/symbols, then inspect actual source before editing; the map never overrides task docs or current source. Skip it for trivial documentation-only work.
+4. Inspect directly relevant source files. Read docs/GAME_DESIGN.md only for relevant gameplay requirements and docs/ARCHITECTURE.md only when architectural context is needed.
+5. Avoid broad repository exploration without a concrete reason.
 
 ## Pre-edit branch guard
 
