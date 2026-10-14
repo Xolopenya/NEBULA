@@ -14,7 +14,7 @@ Do not place future plans or speculative features here.
 
 Current phase:
 
-FIRST PLAYABLE IMPLEMENTATION / GAME-010 COMPLETE
+FIRST PLAYABLE IMPLEMENTATION / GAME-011 COMPLETE
 
 The project has a working browser application, development toolchain and placeholder gameplay scene.
 
@@ -159,7 +159,7 @@ Spawn positions are chosen just outside a random camera edge, clamped with a 25-
 All enemies directly pursue the player's current world position at 180 pixels per second.
 Enemy movement uses frame delta and caps each step at the remaining distance to avoid overshoot at the player.
 Chase positions also respect the 25-pixel arena margin to keep the larger enemy polygon fully inside.
-Enemies may overlap. They are not removed or recycled; spawning stops at the temporary cap while chase continues.
+Enemies use local runtime records containing their polygon visual and health, starting at 3 HP. Enemies may overlap. The cap counts currently active enemies; deaths free slots for the existing spawn timer.
 The nearest active enemy is automatically selected each frame after movement using squared world-space distance.
 Equal-distance ties select the first enemy in array order; an empty enemy array clears the target.
 The selected enemy has a temporary 4-pixel yellow outline; the former target returns to its normal 2-pixel pale outline when selection changes.
@@ -169,14 +169,15 @@ Scene-owned projectile records contain the cyan circle visual, fixed velocity co
 Projectiles expire after 2000 ms or are removed early once their whole 6-pixel-radius circle leaves the arena. Cleanup destroys the visual and removes the runtime entry.
 No manual fire input is required. Exact or near-zero-distance shots are suppressed safely.
 Without a current target no shot is created; the timer stays ready for a future target.
-Shots pass through enemies. Collision, impact, enemy damage/death, health and contact damage are not implemented.
+Each Laser projectile deals 1 damage to the first enemy intersected along its movement segment and is immediately destroyed and removed. Hit detection sweeps against an approximate 24-pixel enemy radius expanded by the 6-pixel projectile radius, avoiding projectile tunneling across larger frame steps. Shots do not pierce.
+Enemies with remaining HP stay active. At zero HP their visual is destroyed and their runtime entry is removed, so they no longer chase, count toward the cap or participate in targeting. Death clears currentTarget immediately when applicable; normal targeting selects and highlights the next nearest enemy on the following update.
+Player health/contact damage and XP/rewards are not implemented.
 
 There is currently no:
 
-- projectile collision/impact
-- damage
-- health
-- death
+- player health/contact damage
+- player death
+- kill rewards
 - XP
 - progression
 - upgrades
@@ -253,11 +254,11 @@ These should only be introduced when real project requirements justify them.
 
 ## Next Step
 
-The placeholder arena, bounded desktop movement, camera follow, repeated enemy spawning/chase, nearest-enemy targeting and moving Laser projectiles are implemented and browser-verified.
+The placeholder arena, bounded desktop movement, camera follow, repeated enemy spawning/chase, nearest-enemy targeting and Laser projectile impacts with enemy damage/death are implemented and browser-verified.
 
 The next implementation task is:
 
-GAME-011 — Enemy Damage and Death
+GAME-012 — Player Health and Contact Damage
 
 ---
 
@@ -265,6 +266,6 @@ GAME-011 — Enemy Damage and Death
 
 The application boots successfully.
 
-The player can move the ship, outrun multiple chasing enemies and automatically launch moving Laser projectiles toward the current nearest target. Shots pass through enemies without damage; combat and contact damage are not implemented.
+The player can move the ship, outrun multiple chasing enemies and automatically launch moving Laser projectiles toward the current nearest target. Shots disappear on impact and kill enemies after three hits. Spawning continues after kills; player contact damage and XP/rewards are not implemented.
 
 The next major goal is the First Playable milestone defined in GAME_DESIGN.md.

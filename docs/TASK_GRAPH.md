@@ -484,7 +484,7 @@ Projectiles move correctly and are removed after impact or lifetime expiration.
 
 ## GAME-011 — Enemy Damage and Death
 
-STATUS: READY
+STATUS: DONE
 
 DEPENDENCIES:
 
@@ -513,7 +513,7 @@ Enemies have health, take Laser damage and are removed when health reaches zero.
 
 ## GAME-012 — Player Health and Contact Damage
 
-STATUS: BLOCKED
+STATUS: READY
 
 DEPENDENCIES:
 

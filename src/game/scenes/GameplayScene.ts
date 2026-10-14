@@ -1,5 +1,10 @@
 import * as Phaser from 'phaser';
 
+type EnemyRuntime = {
+  visual: Phaser.GameObjects.Polygon;
+  health: number;
+};
+
 type LaserProjectile = {
   visual: Phaser.GameObjects.Arc;
   velocityX: number;
@@ -9,8 +14,8 @@ type LaserProjectile = {
 
 export class GameplayScene extends Phaser.Scene {
   private player?: Phaser.GameObjects.Polygon;
-  private enemies: Phaser.GameObjects.Polygon[] = [];
-  private currentTarget?: Phaser.GameObjects.Polygon;
+  private enemies: EnemyRuntime[] = [];
+  private currentTarget?: EnemyRuntime;
   private projectiles: LaserProjectile[] = [];
   private cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
   private wasd?: Record<'up' | 'left' | 'down' | 'right', Phaser.Input.Keyboard.Key>;
@@ -18,6 +23,9 @@ export class GameplayScene extends Phaser.Scene {
   private readonly movementSpeed = 300;
   private readonly chaseDirection = new Phaser.Math.Vector2();
   private readonly enemySpeed = 180;
+  private readonly enemyHealth = 3;
+  private readonly enemyRadius = 24;
+  private readonly laserDamage = 1;
   private readonly laserFireInterval = 600;
   private readonly projectileSpeed = 1200;
   private readonly projectileLifetime = 2000;
@@ -127,21 +135,21 @@ export class GameplayScene extends Phaser.Scene {
     this.player.y = Phaser.Math.Clamp(this.player.y, marginY, this.arenaHeight - marginY);
 
     for (const enemy of this.enemies) {
-      this.chaseDirection.set(this.player.x - enemy.x, this.player.y - enemy.y);
+      this.chaseDirection.set(this.player.x - enemy.visual.x, this.player.y - enemy.visual.y);
       const chaseDistance = this.chaseDirection.length();
       const chaseStep = Math.min(this.enemySpeed * (delta / 1000), chaseDistance);
       this.chaseDirection.normalize().scale(chaseStep);
-      enemy.x += this.chaseDirection.x;
-      enemy.y += this.chaseDirection.y;
-      enemy.x = Phaser.Math.Clamp(enemy.x, this.enemyMargin, this.arenaWidth - this.enemyMargin);
-      enemy.y = Phaser.Math.Clamp(enemy.y, this.enemyMargin, this.arenaHeight - this.enemyMargin);
+      enemy.visual.x += this.chaseDirection.x;
+      enemy.visual.y += this.chaseDirection.y;
+      enemy.visual.x = Phaser.Math.Clamp(enemy.visual.x, this.enemyMargin, this.arenaWidth - this.enemyMargin);
+      enemy.visual.y = Phaser.Math.Clamp(enemy.visual.y, this.enemyMargin, this.arenaHeight - this.enemyMargin);
     }
 
     const target = this.selectNearestEnemy();
     if (target !== this.currentTarget) {
-      this.currentTarget?.setStrokeStyle(2, 0xffcdd2);
+      this.currentTarget?.visual.setStrokeStyle(2, 0xffcdd2);
       this.currentTarget = target;
-      this.currentTarget?.setStrokeStyle(4, 0xfde047);
+      this.currentTarget?.visual.setStrokeStyle(4, 0xfde047);
     }
 
     this.updateProjectiles(delta);
@@ -150,8 +158,8 @@ export class GameplayScene extends Phaser.Scene {
   private fireLaser(): void {
     if (!this.player || !this.currentTarget) return;
 
-    const dx = this.currentTarget.x - this.player.x;
-    const dy = this.currentTarget.y - this.player.y;
+    const dx = this.currentTarget.visual.x - this.player.x;
+    const dy = this.currentTarget.visual.y - this.player.y;
     const distance = Math.hypot(dx, dy);
     if (distance < 0.001) return;
 
@@ -167,8 +175,32 @@ export class GameplayScene extends Phaser.Scene {
     for (let i = this.projectiles.length - 1; i >= 0; i -= 1) {
       const projectile = this.projectiles[i];
       const deltaSeconds = Math.min(delta, projectile.remainingLifetime) / 1000;
-      projectile.visual.x += projectile.velocityX * deltaSeconds;
-      projectile.visual.y += projectile.velocityY * deltaSeconds;
+      const startX = projectile.visual.x;
+      const startY = projectile.visual.y;
+      const stepX = projectile.velocityX * deltaSeconds;
+      const stepY = projectile.velocityY * deltaSeconds;
+      let hitEnemy: EnemyRuntime | undefined;
+      let firstHit = Infinity;
+      for (const enemy of this.enemies) {
+        const hit = this.projectileHitTime(startX, startY, stepX, stepY, enemy);
+        if (hit < firstHit) {
+          firstHit = hit;
+          hitEnemy = enemy;
+        }
+      }
+      if (hitEnemy) {
+        hitEnemy.health -= this.laserDamage;
+        if (hitEnemy.health <= 0) {
+          if (this.currentTarget === hitEnemy) this.currentTarget = undefined;
+          hitEnemy.visual.destroy();
+          this.enemies.splice(this.enemies.indexOf(hitEnemy), 1);
+        }
+        projectile.visual.destroy();
+        this.projectiles.splice(i, 1);
+        continue;
+      }
+      projectile.visual.x = startX + stepX;
+      projectile.visual.y = startY + stepY;
       projectile.remainingLifetime -= delta;
 
       const { x, y } = projectile.visual;
@@ -181,14 +213,32 @@ export class GameplayScene extends Phaser.Scene {
     }
   }
 
-  private selectNearestEnemy(): Phaser.GameObjects.Polygon | undefined {
+  // Sweep against a circle expanded by projectile radius; return first hit in [0, 1].
+  private projectileHitTime(
+    x: number, y: number, stepX: number, stepY: number, enemy: EnemyRuntime,
+  ): number {
+    const dx = x - enemy.visual.x;
+    const dy = y - enemy.visual.y;
+    const radius = this.enemyRadius + this.projectileRadius;
+    const c = dx * dx + dy * dy - radius * radius;
+    if (c <= 0) return 0;
+    const a = stepX * stepX + stepY * stepY;
+    if (a === 0) return Infinity;
+    const b = dx * stepX + dy * stepY;
+    const discriminant = b * b - a * c;
+    if (discriminant < 0) return Infinity;
+    const hit = (-b - Math.sqrt(discriminant)) / a;
+    return hit >= 0 && hit <= 1 ? hit : Infinity;
+  }
+
+  private selectNearestEnemy(): EnemyRuntime | undefined {
     if (!this.player) return undefined;
 
-    let nearest: Phaser.GameObjects.Polygon | undefined;
+    let nearest: EnemyRuntime | undefined;
     let nearestDistanceSquared = Infinity;
     for (const enemy of this.enemies) {
-      const dx = enemy.x - this.player.x;
-      const dy = enemy.y - this.player.y;
+      const dx = enemy.visual.x - this.player.x;
+      const dy = enemy.visual.y - this.player.y;
       const distanceSquared = dx * dx + dy * dy;
       if (distanceSquared < nearestDistanceSquared) {
         nearest = enemy;
@@ -201,7 +251,7 @@ export class GameplayScene extends Phaser.Scene {
   private createEnemy(x: number, y: number): void {
     const enemy = this.add.polygon(x, y, [24, 0, 48, 24, 24, 48, 0, 24], 0xf43f5e);
     enemy.setStrokeStyle(2, 0xffcdd2);
-    this.enemies.push(enemy);
+    this.enemies.push({ visual: enemy, health: this.enemyHealth });
   }
 
   private spawnEnemy(): void {
