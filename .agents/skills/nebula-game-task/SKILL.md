@@ -12,7 +12,15 @@ Use repository-root paths below. The active user/task request supplies specific 
 1. Read AGENTS.md and identify the active task from the user request.
 2. Read docs/CURRENT_STATE.md, then only the active task section in docs/TASK_GRAPH.md when present.
 3. Inspect directly relevant source files. Read docs/GAME_DESIGN.md only for relevant gameplay requirements and docs/ARCHITECTURE.md only when architectural context is needed.
-4. Avoid broad repository exploration without a concrete reason. Inspect Git state to identify existing user changes before editing.
+4. Avoid broad repository exploration without a concrete reason.
+
+## Pre-edit branch guard
+
+For implementation/refactor tasks, before editing run `git branch --show-current` and `git status --short` to inspect the branch, working tree and staged changes.
+
+- If the active task specifies an expected branch, require that exact branch. On mismatch, STOP before editing and report the expected and current branches.
+- If no expected branch is specified and the current branch is `main`, STOP before editing and report that implementation work must occur on a task branch.
+- Do not silently create or switch branches. Explicitly authorized read-only audits/checkpoints/reviews may run on `main`.
 
 ## Implement and verify
 
@@ -30,6 +38,6 @@ Follow AGENTS.md's Post-Task Architect Review procedure directly rather than inv
 - Inspect the complete staged diff and run git diff --cached --check before claiming completion.
 - Generate the ignored .codex-review/<TASK-ID>-review.txt with all sections and the complete staged diff required by AGENTS.md. Report failures honestly; do not claim review readiness with unresolved blocking checks.
 - Never commit, push, merge, rebase, reset, amend, delete branches or restore unrelated work unless the user explicitly authorizes that exact operation. This skill grants no such authorization.
-- Return the compact architect-review handoff defined in AGENTS.md, including task-specific requested facts. End exactly with:
+- Return the compact architect-review handoff defined in AGENTS.md, including the current branch name and task-specific requested facts. Include the current branch in the review report as well. End exactly with:
 
 NO COMMIT CREATED — awaiting architect approval.
