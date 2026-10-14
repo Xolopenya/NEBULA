@@ -570,7 +570,7 @@ A simple hostile projectile can be fired and damage the player.
 
 ## GAME-014 — Player Death State
 
-STATUS: READY
+STATUS: DONE
 
 DEPENDENCIES:
 
@@ -598,7 +598,7 @@ At zero HP, active gameplay stops and a clear death state is displayed.
 
 ## GAME-015 — Restart Flow
 
-STATUS: BLOCKED
+STATUS: READY
 
 DEPENDENCIES:
 

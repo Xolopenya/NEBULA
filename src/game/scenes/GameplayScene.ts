@@ -17,6 +17,7 @@ type ProjectileRuntime = {
 
 export class GameplayScene extends Phaser.Scene {
   private player?: Phaser.GameObjects.Polygon;
+  private isPlayerDead = false;
   private readonly playerMaxHealth = 5;
   private playerHealth = this.playerMaxHealth;
   private readonly playerRadius = 20;
@@ -55,6 +56,7 @@ export class GameplayScene extends Phaser.Scene {
   }
 
   create(): void {
+    this.isPlayerDead = false;
     this.playerHealth = this.playerMaxHealth;
     this.playerDamageProtectionRemaining = 0;
     this.enemies = [];
@@ -135,6 +137,7 @@ export class GameplayScene extends Phaser.Scene {
   }
 
   update(_time: number, delta: number): void {
+    if (this.isPlayerDead) return;
     if (!this.player || !this.cursors || !this.wasd) return;
 
     const left = this.wasd.left.isDown || this.cursors.left.isDown;
@@ -186,6 +189,7 @@ export class GameplayScene extends Phaser.Scene {
   }
 
   private updatePlayerContact(): void {
+    if (this.isPlayerDead) return;
     if (!this.player || this.playerHealth === 0 || this.playerDamageProtectionRemaining > 0) return;
 
     const radius = this.playerRadius + this.enemyRadius;
@@ -200,13 +204,29 @@ export class GameplayScene extends Phaser.Scene {
   }
 
   private damagePlayer(amount: number): void {
+    if (this.isPlayerDead) return;
     if (!this.player || this.playerHealth === 0 || this.playerDamageProtectionRemaining > 0) return;
     this.playerHealth = Math.max(0, this.playerHealth - amount);
     this.playerDamageProtectionRemaining = this.playerDamageProtectionDuration;
     this.player.setAlpha(0.5);
+    if (this.playerHealth === 0) this.enterPlayerDeath();
+  }
+
+  private enterPlayerDeath(): void {
+    if (this.isPlayerDead) return;
+    this.isPlayerDead = true;
+    this.player?.setAlpha(0.25);
+    this.add.text(this.scale.width / 2, this.scale.height / 2, 'SHIP DESTROYED', {
+      fontFamily: 'Arial, sans-serif',
+      fontSize: '64px',
+      color: '#fca5a5',
+      backgroundColor: '#050816',
+      padding: { x: 24, y: 16 },
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(1);
   }
 
   private fireLaser(): void {
+    if (this.isPlayerDead) return;
     if (!this.player || !this.currentTarget) return;
 
     const dx = this.currentTarget.visual.x - this.player.x;
@@ -225,6 +245,7 @@ export class GameplayScene extends Phaser.Scene {
   }
 
   private fireHostileProjectile(): void {
+    if (this.isPlayerDead) return;
     if (!this.player) return;
     const enemy = this.selectNearestEnemy();
     if (!enemy) return;
@@ -244,6 +265,7 @@ export class GameplayScene extends Phaser.Scene {
 
   private updateProjectiles(delta: number): void {
     for (let i = this.projectiles.length - 1; i >= 0; i -= 1) {
+      if (this.isPlayerDead) return;
       const projectile = this.projectiles[i];
       const deltaSeconds = Math.min(delta, projectile.remainingLifetime) / 1000;
       const startX = projectile.visual.x;
@@ -320,6 +342,7 @@ export class GameplayScene extends Phaser.Scene {
   }
 
   private spawnEnemy(): void {
+    if (this.isPlayerDead) return;
     if (!this.player || this.enemies.length >= this.maximumEnemies) return;
 
     const view = this.cameras.main.worldView;
