@@ -1,4 +1,4 @@
-# NEBULA — Agent Instructions
+# NEBULA â€” Agent Instructions
 
 ## Project
 
@@ -20,9 +20,9 @@ Always read:
 
 Read only when relevant:
 
-- docs/ARCHITECTURE.md — technical boundaries
-- docs/GAME_DESIGN.md — gameplay/product decisions
-- docs/TASK_GRAPH.md — dependencies and sequencing
+- docs/ARCHITECTURE.md â€” technical boundaries
+- docs/GAME_DESIGN.md â€” gameplay/product decisions
+- docs/TASK_GRAPH.md â€” dependencies and sequencing
 
 Inspect only code relevant to the active task.
 

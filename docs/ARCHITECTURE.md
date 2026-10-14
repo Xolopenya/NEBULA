@@ -1,4 +1,4 @@
-# NEBULA — Architecture
+# NEBULA â€” Architecture
 
 ## Status
 
@@ -183,6 +183,7 @@ src/
     config.ts
     scenes/
       BootScene.ts
+      GameplayScene.ts
 
 Do not create all future directories before they have real consumers.
 

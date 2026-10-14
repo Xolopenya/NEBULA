@@ -1,4 +1,4 @@
-# NEBULA � Development Task Graph
+# NEBULA — Development Task Graph
 
 ## Status
 
@@ -45,7 +45,7 @@ Task is known but not yet ready for implementation.
 
 # 2. Preparation State
 
-## PREP-001 � Repository Bootstrap
+## PREP-001 — Repository Bootstrap
 
 STATUS: DONE
 
@@ -59,7 +59,7 @@ Includes:
 
 ---
 
-## PREP-002 � Browser Toolchain
+## PREP-002 — Browser Toolchain
 
 STATUS: DONE
 
@@ -73,7 +73,7 @@ Includes:
 
 ---
 
-## PREP-003 � Phaser Bootstrap
+## PREP-003 — Phaser Bootstrap
 
 STATUS: DONE
 
@@ -87,7 +87,7 @@ Includes:
 
 ---
 
-## PREP-004 � Quality Gates
+## PREP-004 — Quality Gates
 
 STATUS: DONE
 
@@ -100,7 +100,7 @@ Includes:
 
 ---
 
-## PREP-005 � Architecture Baseline
+## PREP-005 — Architecture Baseline
 
 STATUS: DONE
 
@@ -180,7 +180,7 @@ FIRST PLAYABLE
 
 # 5. First Playable Tasks
 
-## GAME-001 � Gameplay Scene
+## GAME-001 — Gameplay Scene
 
 STATUS: DONE
 
@@ -216,7 +216,7 @@ The application boots directly into or can enter a minimal gameplay scene withou
 
 ---
 
-## GAME-002 � Player Placeholder
+## GAME-002 — Player Placeholder
 
 STATUS: DONE
 
@@ -246,7 +246,7 @@ A placeholder ship appears at the expected starting position.
 
 ---
 
-## GAME-003 � Desktop Player Movement
+## GAME-003 — Desktop Player Movement
 
 STATUS: DONE
 
@@ -280,7 +280,7 @@ The ship moves responsively in all directions and diagonal speed is handled corr
 
 ---
 
-## GAME-004 � Arena Bounds and Camera
+## GAME-004 — Arena Bounds and Camera
 
 STATUS: DONE
 
@@ -308,7 +308,7 @@ The player cannot leave the intended arena and camera behavior is stable.
 
 ---
 
-## GAME-005 � Basic Enemy Runtime
+## GAME-005 — Basic Enemy Runtime
 
 STATUS: READY
 
@@ -337,7 +337,7 @@ A placeholder enemy can exist in the gameplay scene with basic runtime state.
 
 ---
 
-## GAME-006 � Enemy Chase Movement
+## GAME-006 — Enemy Chase Movement
 
 STATUS: BLOCKED
 
@@ -366,7 +366,7 @@ The enemy consistently approaches the player.
 
 ---
 
-## GAME-007 � Enemy Spawning
+## GAME-007 — Enemy Spawning
 
 STATUS: BLOCKED
 
@@ -396,7 +396,7 @@ Enemies spawn repeatedly at valid locations without spawning directly on top of 
 
 ---
 
-## GAME-008 � Automatic Target Selection
+## GAME-008 — Automatic Target Selection
 
 STATUS: BLOCKED
 
@@ -424,7 +424,7 @@ A valid nearby enemy can be selected reliably for weapon fire.
 
 ---
 
-## GAME-009 � Basic Laser Weapon
+## GAME-009 — Basic Laser Weapon
 
 STATUS: BLOCKED
 
@@ -454,7 +454,7 @@ The Laser fires automatically toward the selected target at a stable interval.
 
 ---
 
-## GAME-010 � Projectile Runtime
+## GAME-010 — Projectile Runtime
 
 STATUS: BLOCKED
 
@@ -482,7 +482,7 @@ Projectiles move correctly and are removed after impact or lifetime expiration.
 
 ---
 
-## GAME-011 � Enemy Damage and Death
+## GAME-011 — Enemy Damage and Death
 
 STATUS: BLOCKED
 
@@ -511,7 +511,7 @@ Enemies have health, take Laser damage and are removed when health reaches zero.
 
 ---
 
-## GAME-012 � Player Health and Contact Damage
+## GAME-012 — Player Health and Contact Damage
 
 STATUS: BLOCKED
 
@@ -540,7 +540,7 @@ Enemy contact can reduce player health in a controlled and readable way.
 
 ---
 
-## GAME-013 � Basic Enemy Projectile
+## GAME-013 — Basic Enemy Projectile
 
 STATUS: BLOCKED
 
@@ -568,7 +568,7 @@ A simple hostile projectile can be fired and damage the player.
 
 ---
 
-## GAME-014 � Player Death State
+## GAME-014 — Player Death State
 
 STATUS: BLOCKED
 
@@ -596,7 +596,7 @@ At zero HP, active gameplay stops and a clear death state is displayed.
 
 ---
 
-## GAME-015 � Restart Flow
+## GAME-015 — Restart Flow
 
 STATUS: BLOCKED
 
@@ -651,7 +651,7 @@ Required checks:
 
 ---
 
-# 7. Playable Core � Progression Branch
+# 7. Playable Core — Progression Branch
 
 After FIRST PLAYABLE:
 
@@ -675,7 +675,7 @@ PLAYABLE CORE
 
 ---
 
-## GAME-016 � XP Drop
+## GAME-016 — XP Drop
 
 STATUS: BACKLOG
 
@@ -685,7 +685,7 @@ Enemies create XP pickups when killed.
 
 ---
 
-## GAME-017 � XP Magnet Collection
+## GAME-017 — XP Magnet Collection
 
 STATUS: BACKLOG
 
@@ -699,7 +699,7 @@ XP pickups move toward the player inside collection radius and can be collected.
 
 ---
 
-## GAME-018 � Player XP and Level Rules
+## GAME-018 — Player XP and Level Rules
 
 STATUS: BACKLOG
 
@@ -713,7 +713,7 @@ Track XP and determine when the player gains a level.
 
 ---
 
-## GAME-019 � Level-Up Pause State
+## GAME-019 — Level-Up Pause State
 
 STATUS: BACKLOG
 
@@ -727,7 +727,7 @@ Pause active gameplay when a level-up decision is required.
 
 ---
 
-## GAME-020 � Upgrade Choice UI
+## GAME-020 — Upgrade Choice UI
 
 STATUS: BACKLOG
 
@@ -741,7 +741,7 @@ Present three upgrade choices and allow the player to select one.
 
 ---
 
-## GAME-021 � Laser Upgrade Levels
+## GAME-021 — Laser Upgrade Levels
 
 STATUS: BACKLOG
 
@@ -755,7 +755,7 @@ Allow the Laser to receive meaningful upgrades through level-up choices.
 
 ---
 
-## GAME-022 � Basic HUD
+## GAME-022 — Basic HUD
 
 STATUS: BACKLOG
 
@@ -777,19 +777,19 @@ They will be expanded only after Playable Core is validated.
 
 Known future nodes:
 
-GAME-023 � Initial Ship Active Ability: Dash
-GAME-024 � Second Enemy Archetype
-GAME-025 � Third Enemy Archetype
-GAME-026 � Missile Weapon
-GAME-027 � Drone Weapon
-GAME-028 � Passive Module Foundation
-GAME-029 � Weapon Evolution Foundation
-GAME-030 � Elite Enemy Prototype
-GAME-031 � Boss Prototype
-GAME-032 � Run Victory / Result Flow
-GAME-033 � First DevTools Utilities
-GAME-034 � Mobile Movement Prototype
-GAME-035 � Production-Like HUD Pass
+GAME-023 — Initial Ship Active Ability: Dash
+GAME-024 — Second Enemy Archetype
+GAME-025 — Third Enemy Archetype
+GAME-026 — Missile Weapon
+GAME-027 — Drone Weapon
+GAME-028 — Passive Module Foundation
+GAME-029 — Weapon Evolution Foundation
+GAME-030 — Elite Enemy Prototype
+GAME-031 — Boss Prototype
+GAME-032 — Run Victory / Result Flow
+GAME-033 — First DevTools Utilities
+GAME-034 — Mobile Movement Prototype
+GAME-035 — Production-Like HUD Pass
 
 These are BACKLOG concepts, not authorization to implement them.
 

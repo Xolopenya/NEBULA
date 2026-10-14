@@ -8,4 +8,4 @@ Target platforms:
 - Desktop
 - Mobile
 
-Status: pre-production / project bootstrap.
+Status: First playable implementation — GAME-004 complete.

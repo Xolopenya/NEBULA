@@ -1,4 +1,4 @@
-# NEBULA — Game Design
+# NEBULA â€” Game Design
 
 ## Status
 
@@ -33,7 +33,7 @@ Target audience:
 
 Target run duration:
 
-- approximately 12–15 minutes
+- approximately 12â€“15 minutes
 
 ---
 
@@ -311,7 +311,7 @@ Bosses should use readable telegraphed attacks.
 
 Initial target:
 
-- approximately 2–3 distinct attack patterns
+- approximately 2â€“3 distinct attack patterns
 - clear attack warning
 - identifiable safe / dangerous space
 - final run victory on boss defeat
@@ -324,7 +324,7 @@ The run is won when the final boss is defeated.
 
 Target boss arrival:
 
-approximately 12–15 minutes into the run.
+approximately 12â€“15 minutes into the run.
 
 ---
 
@@ -353,7 +353,7 @@ Maximum:
 After revive:
 
 - approximately 50% HP
-- approximately 2–3 seconds of invulnerability
+- approximately 2â€“3 seconds of invulnerability
 - nearby immediate danger should be cleared or reduced
 
 This system belongs to a later platform/monetization phase.
@@ -415,7 +415,7 @@ Audio production is not a blocker for the Mechanical Prototype.
 
 ## First 30 Seconds
 
-### 0–5 seconds
+### 0â€“5 seconds
 
 The run starts immediately.
 
@@ -427,7 +427,7 @@ The player sees:
 
 The player should understand that movement is the primary input without reading a long tutorial.
 
-### 5–15 seconds
+### 5â€“15 seconds
 
 Enemies move toward the player.
 
@@ -439,7 +439,7 @@ The player sees:
 - enemy damage
 - enemy death
 
-### 15–30 seconds
+### 15â€“30 seconds
 
 Enemy pressure begins to increase.
 

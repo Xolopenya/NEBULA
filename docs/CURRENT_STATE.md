@@ -1,4 +1,4 @@
-# NEBULA � Current State
+# NEBULA — Current State
 
 ## Last Updated
 
