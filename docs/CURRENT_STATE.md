@@ -14,7 +14,7 @@ Do not place future plans or speculative features here.
 
 Current phase:
 
-FIRST PLAYABLE IMPLEMENTATION / GAME-014 COMPLETE
+FIRST PLAYABLE CORE LOOP COMPLETE / GAME-015 COMPLETE
 
 The project has a working browser application, development toolchain and placeholder gameplay scene.
 
@@ -175,6 +175,7 @@ Player health resets to 5 HP on scene creation. Enemy contact deals 1 damage usi
 Contact runs after projectile impacts/removals and starts 500 ms of global, delta-based protection. Multiple overlaps cause at most one hit per update. Successful damage reduces the ship alpha to 0.5 during protection, then restores it to 1. Continued overlap can damage again when protection expires.
 Health clamps at zero and immediately enters a scene-owned isPlayerDead state through the damage helper, for lethal contact or hostile hits. The transition runs once, dims the ship to alpha 0.25 and displays centered screen-fixed SHIP DESTROYED text.
 Creation resets the player to alive. Death freezes movement, enemy chase, targeting, projectile movement/collision and contact processing. Existing enemies and projectiles remain visible and frozen; timer events stay scheduled but guarded callbacks produce no spawns or shots. The lethal hostile projectile is removed before further projectile processing stops.
+Only after death, a screen-fixed clickable RETRY control appears. Clicking it once uses Phaser scene.restart() without reloading the page. Phaser shutdown destroys old scene objects/UI and timer events; create() restores an alive player at 5 HP and normal alpha at (2400, 1350), one initial enemy, no projectiles, a fresh target selection and exactly three spawn/Laser/hostile timers. Repeated death/retry cycles resume the same gameplay.
 One global timer fires an orange hostile projectile from the nearest active enemy every 1500 ms. Shots use fixed firing-time aim, speed 600 px/s, lifetime 3000 ms and damage 1. Missing enemies and near-zero firing distance create no shot.
 Player and enemy shots share a local source/damage runtime record and movement/lifetime/world-exit cleanup. Hostile shots use swept segment-circle collision against the player and disappear even when protection prevents damage before death. Both contact and hostile hits use the same global 500 ms player damage protection; its timer ticks before projectile/contact processing.
 Health HUD and XP/rewards are not implemented.
@@ -182,7 +183,6 @@ Health HUD and XP/rewards are not implemented.
 There is currently no:
 
 - health HUD
-- restart/retry flow
 - kill rewards
 - XP
 - progression
@@ -264,7 +264,7 @@ The placeholder arena, bounded desktop movement, camera follow, repeated enemy s
 
 The next implementation task is:
 
-GAME-015 — Restart Flow
+GAME-016 — XP Drop
 
 ---
 
@@ -272,6 +272,6 @@ GAME-015 — Restart Flow
 
 The application boots successfully.
 
-The player can move the ship, outrun multiple chasing enemies and automatically launch moving Laser projectiles toward the current nearest target. Shots disappear on impact and kill enemies after three hits. Spawning continues after kills. Enemy contact reduces player HP with temporary protection and damage feedback; gameplay freezes at zero HP with SHIP DESTROYED displayed. Orange hostile projectiles can be dodged and damage the player. HUD, restart/retry and XP/rewards are not implemented.
+The player can move the ship, outrun multiple chasing enemies and automatically launch moving Laser projectiles toward the current nearest target. Shots disappear on impact and kill enemies after three hits. Spawning continues after kills. Enemy contact reduces player HP with temporary protection and damage feedback; gameplay freezes at zero HP with SHIP DESTROYED displayed. Orange hostile projectiles can be dodged and damage the player. Clicking RETRY after death begins a clean new run. The First Playable start/play/die/restart loop is complete. HUD and XP/rewards are not implemented.
 
-The next major goal is the First Playable milestone defined in GAME_DESIGN.md.
+The First Playable milestone defined in TASK_GRAPH.md is now implemented.

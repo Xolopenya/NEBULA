@@ -598,7 +598,7 @@ At zero HP, active gameplay stops and a clear death state is displayed.
 
 ## GAME-015 — Restart Flow
 
-STATUS: READY
+STATUS: DONE
 
 DEPENDENCIES:
 
@@ -677,7 +677,7 @@ PLAYABLE CORE
 
 ## GAME-016 — XP Drop
 
-STATUS: BACKLOG
+STATUS: READY
 
 GOAL:
 

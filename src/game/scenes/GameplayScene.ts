@@ -223,6 +223,17 @@ export class GameplayScene extends Phaser.Scene {
       backgroundColor: '#050816',
       padding: { x: 24, y: 16 },
     }).setOrigin(0.5).setScrollFactor(0).setDepth(1);
+    this.add.text(this.scale.width / 2, this.scale.height / 2 + 100, 'RETRY', {
+      fontFamily: 'Arial, sans-serif',
+      fontSize: '40px',
+      color: '#e0f2fe',
+      backgroundColor: '#1e3a5f',
+      padding: { x: 24, y: 12 },
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(1)
+      .setInteractive({ useHandCursor: true })
+      .once('pointerdown', () => {
+        if (this.isPlayerDead) this.scene.restart();
+      });
   }
 
   private fireLaser(): void {
