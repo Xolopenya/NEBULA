@@ -4,8 +4,8 @@
 
 - Project: NEBULA.
 - Milestone: First Playable / GAME-015 complete.
-- Source baseline HEAD: `604c3ff6e70f749121e242914c9bf75837685067`.
-- This map reflects that source baseline plus the FIX-001 Missile launch-cap facts.
+- Source baseline HEAD: `d8d1f6707cdabbb90ddd2aef1ffbe63572e76d92`.
+- This map reflects that source baseline plus the GAME-027 Drone/shared-straight-shot ownership changes.
 - Active task request defines task-specific requirements.
 - AGENTS.md defines repository policy.
 - TASK_GRAPH.md defines task scope, dependencies and status.
@@ -79,6 +79,7 @@ Runtime labels below describe scene-owned concepts, not separate modules/classes
 | `src/game/enemies/shooterMovement.test.ts` | IMPORTS | `src/game/enemies/shooterMovement.ts#shooterMovement` |
 | `src/game/enemies/shooterMovement.ts#shooterMovement` | TESTED_BY | `src/game/enemies/shooterMovement.test.ts` |
 | Player Laser | TARGETS | currentTarget from active enemies |
+| Drone bolt | TARGETS | Nearest active enemy from actual Drone position; fixed launch aim |
 | Player projectile | DAMAGES | First intersected active enemy |
 | Missile | TARGETS | Nearest-player launch; retain living target; nearest-to-Missile reacquisition only after loss; last heading without target |
 | Missile explosion | DAMAGES | Snapshot of enemy centers within inclusive radius 120; killEnemy on lethal damage |
@@ -114,10 +115,12 @@ All private names below are navigation anchors, not exported symbol nodes.
 | XP drops | xpPickups; XpPickup; killEnemy | World-space visual + value 1 + speed; create resets collection |
 | XP magnet/collection | updateXpPickups | Stationary outside range; accelerated approach; arrival credits pickup.value then destroys/removes |
 | Player XP/levels | playerExperience; create; updateXpPickups → addExperience | Scene owns state/reset/collection; pure module owns thresholds and carry |
-| Shared projectiles | projectiles; ProjectileRuntime | source, damage, visual, velocity, remainingLifetime |
+| Shared projectiles | projectiles; ProjectileRuntime | source, damage, required radius, visual, velocity, remainingLifetime |
 | Projectile stepping | updateProjectiles | Lifetime-clipped motion; swept impact; reverse removal |
 | Projectile cleanup | updateProjectiles | Impact, lifetime and world-exit destruction |
 | Player Laser | laser; laserTimer; fireLaser | Mutable Laser-only damage/interval/speed, baseline 600 ms; existing timer reset for cadence upgrades |
+| Drone | drone, droneAngle, droneConfig; updateDrone, fireDrone | One world-space companion; active-time 110 px / 2 rad/s orbit, center clamp; one 1200 ms timer |
+| Straight player-shot creation | firePlayerProjectile; fireLaser, fireDrone | Shared origin/aim/data snapshot; Laser radius 6, Drone 5; Drone independent of Laser upgrades |
 | Missile | missile, missiles; MissileRuntime; fireMissile, aimMissile, updateMissiles | Separate concrete homing target/heading/lifetime; immutable maxActiveMissiles = 1; cap blocks launch without resetting the one 1800 ms timer |
 | Missile explosion | updateMissiles → explodeMissile → killEnemy | Earliest swept hit point, center-radius snapshot damage once, common XP/death; no direct hit |
 | Laser upgrades | LaserUpgrade; acceptLevelUpChoice | Cumulative power/rate/speed effects before resume; create restores baseline |
@@ -131,9 +134,9 @@ All private names below are navigation anchors, not exported symbol nodes.
 ## Runtime and lifecycle
 
 BootScene.create → scene.start('GameplayScene') → GameplayScene.create
-→ fresh player/enemy/collections → spawn/Laser/Missile/hostile timers → update.
+→ fresh player/enemy/collections → spawn/Laser/Missile/Drone/hostile timers → update.
 
-update: consume fresh Dash press → simulation pause guard → player movement/Dash split/bounds → Chaser/Tank pursuit / Shooter band movement → target/highlight
+update: consume fresh Dash press → simulation pause guard → player movement/Dash split/bounds → Drone orbit → Chaser/Tank pursuit / Shooter band movement → target/highlight
 → protection countdown → straight projectiles/impacts → Missiles/homing/explosions → contact damage → XP magnet/collection (simulation active only).
 
 Lethal player damage → damagePlayer → enterPlayerDeath → frozen simulation
@@ -142,11 +145,12 @@ Lethal player damage → damagePlayer → enterPlayerDeath → frozen simulation
 - Dash presses are consumed before pause guards and on choice acceptance; native repeat events are rejected, so rejected presses do not queue.
 - create resets Dash clocks/direction and reacquires input; keyboard shutdown clears old keys on retry.
 - create resets health/protection/death, arrays, target and successfulTimedSpawns; constructs one initial Chaser outside the timed CCCSCT sequence.
-- Spawn, Laser, Missile and hostile callbacks return while dead or level-up paused; timer events remain scheduled.
+- Spawn, Laser, Missile, Drone and hostile callbacks return while dead or level-up paused; timer events remain scheduled.
 - Level-increasing collection removes its pickup then pauses; subsequent pickups remain frozen.
 - One current choice applies its Laser upgrade then destroys levelUpPresentation and clears pause; stale choices cannot close a new pause.
 - Projectile iteration stops after cleaning the lethal hostile impact; remaining objects freeze.
-- create empties missiles; native Phaser restart shuts down old display objects/UI and four timer events before create. Missile position/target/heading/lifetime freeze under existing simulation guard.
+- create empties missiles; native Phaser restart shuts down old display objects/UI and five timer events before create. Missile position/target/heading/lifetime freeze under existing simulation guard.
+- create restores one Drone at angle 0; orbit/visual/bolts freeze under simulation guard. Shared straight projectiles use each launch radius for collision/cleanup.
 - Retry exists only in death presentation; no manual per-object reset service.
 
 ## Test coverage
@@ -181,6 +185,7 @@ GameplayScene Dash state / player/dash.ts IMPLEMENTS_TASK GAME-023 — Initial S
 GameplayScene enemyData / EnemyRuntime / spawnEnemy / hostile fire + enemies/shooterMovement.ts IMPLEMENTS_TASK GAME-024 — Chaser/Shooter.
 GameplayScene enemyData / shared direct pursuit / timedSpawnSequence IMPLEMENTS_TASK GAME-025 — Tank.
 GameplayScene MissileRuntime / missile / fireMissile / updateMissiles / explodeMissile IMPLEMENTS_TASK GAME-026 — Missile.
+GameplayScene drone / droneAngle / updateDrone / fireDrone / firePlayerProjectile IMPLEMENTS_TASK GAME-027 — Drone.
 No generalized weapon stats framework is implemented.
 Statuses and dependencies remain in TASK_GRAPH.md, not duplicated here.
 
@@ -196,12 +201,13 @@ Statuses and dependencies remain in TASK_GRAPH.md, not duplicated here.
 | Where is Dash input/timing/reset owned? | GameplayScene.ts → dashKey, update, movePlayer, create; player/dash.ts#stepDash |
 | Where is player damage controlled? | GameplayScene.ts → damagePlayer, updatePlayerProtection |
 | Who owns projectile movement/lifetime/cleanup? | GameplayScene.ts → updateProjectiles (straight shots), updateMissiles (homing) |
+| Where are Drone orbit/bolts owned? | GameplayScene.ts → droneConfig, droneAngle, updateDrone, fireDrone, firePlayerProjectile / updateProjectiles |
 | Where are Missile homing/explosion owned? | GameplayScene.ts → fireMissile, aimMissile, updateMissiles, explodeMissile; collision.ts sweep |
 | Where is collision math implemented? | collision.ts#segmentCircleHitTime |
 | Where is collision math tested? | src/game/combat/collision.test.ts |
 | Where are enemy archetypes/movement owned? | GameplayScene.ts → EnemyArchetype, enemyData, update; enemies/shooterMovement.ts |
 | Where are enemy spawn callbacks? | GameplayScene.ts → create timer / spawnEnemy / timedSpawnSequence / successfulTimedSpawns |
-| Where are player/hostile fire callbacks? | GameplayScene.ts → create timers / fireLaser / fireMissile / fireHostileProjectile → selectNearestEnemy('shooter') |
+| Where are player/hostile fire callbacks? | GameplayScene.ts → create timers / fireLaser / fireMissile / fireDrone / fireHostileProjectile → selectNearestEnemy('shooter') |
 | What guards callbacks while dead or level-up paused? | GameplayScene.ts → isSimulationPaused checks in spawn/fire helpers |
 | Who owns Laser firing configuration? | GameplayScene.ts → laser, laserTimer, fireLaser; create/acceptLevelUpChoice |
 | Where does restart cleanup occur? | GameplayScene.ts → enterPlayerDeath → Phaser scene.restart lifecycle |

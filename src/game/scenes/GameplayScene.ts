@@ -31,6 +31,7 @@ type XpPickup = {
 type ProjectileRuntime = {
   source: 'player' | 'enemy';
   damage: number;
+  radius: number;
   visual: Phaser.GameObjects.Arc;
   velocityX: number;
   velocityY: number;
@@ -47,6 +48,12 @@ type MissileRuntime = {
 
 export class GameplayScene extends Phaser.Scene {
   private player?: Phaser.GameObjects.Polygon;
+  private drone?: Phaser.GameObjects.Arc;
+  private droneAngle = 0;
+  private readonly droneConfig = {
+    orbitRadius: 110, angularSpeed: 2, visualRadius: 10,
+    fireInterval: 1200, damage: 1, speed: 800, lifetime: 1800, boltRadius: 5,
+  } as const;
   private hud?: Phaser.GameObjects.Text;
   private playerExperience: ExperienceState = { level: 1, xp: 0 };
   private isPlayerDead = false;
@@ -107,6 +114,7 @@ export class GameplayScene extends Phaser.Scene {
   }
 
   create(): void {
+    this.droneAngle = 0;
     this.dashRemaining = 0;
     this.dashCooldownRemaining = 0;
     this.dashDirection.set(0, 0);
@@ -153,6 +161,10 @@ export class GameplayScene extends Phaser.Scene {
       .polygon(this.arenaWidth / 2, this.arenaHeight / 2, [20, 0, 40, 48, 20, 36, 0, 48], 0x38bdf8)
       .setStrokeStyle(2, 0xe0f2fe);
 
+    this.drone = this.add.circle(0, 0, this.droneConfig.visualRadius, 0x2dd4bf)
+      .setStrokeStyle(2, 0xccfbf1);
+    this.updateDrone(0);
+
     this.createEnemy(this.player.x + this.minimumSpawnDistance, this.player.y, 'chaser');
 
     this.cameras.main.setBounds(0, 0, this.arenaWidth, this.arenaHeight);
@@ -175,6 +187,12 @@ export class GameplayScene extends Phaser.Scene {
       delay: this.missile.fireInterval,
       loop: true,
       callback: () => this.fireMissile(),
+    });
+
+    this.time.addEvent({
+      delay: this.droneConfig.fireInterval,
+      loop: true,
+      callback: () => this.fireDrone(),
     });
 
     this.time.addEvent({
@@ -252,6 +270,7 @@ export class GameplayScene extends Phaser.Scene {
     this.dashCooldownRemaining = dash.remainingCooldown;
     this.movePlayer(this.dashDirection, this.dashSpeed * dash.dashTime / 1000);
     this.movePlayer(this.movementDirection, this.movementSpeed * dash.normalTime / 1000);
+    this.updateDrone(delta);
     if (previousCooldownDisplay !== Math.ceil(this.dashCooldownRemaining / 100)) this.updateHud();
 
     for (const enemy of this.enemies) {
@@ -447,18 +466,44 @@ export class GameplayScene extends Phaser.Scene {
     if (this.isSimulationPaused()) return;
     if (!this.player || !this.currentTarget) return;
 
-    const dx = this.currentTarget.visual.x - this.player.x;
-    const dy = this.currentTarget.visual.y - this.player.y;
+    this.firePlayerProjectile(this.player, this.currentTarget, this.laser.damage,
+      this.laser.projectileSpeed, this.projectileLifetime, this.projectileRadius, 0x67e8f9);
+  }
+
+  private updateDrone(delta: number): void {
+    if (this.isSimulationPaused() || !this.player || !this.drone) return;
+    this.droneAngle = (this.droneAngle + this.droneConfig.angularSpeed * delta / 1000) % (Math.PI * 2);
+    this.drone.x = Phaser.Math.Clamp(this.player.x + Math.cos(this.droneAngle) * this.droneConfig.orbitRadius,
+      0, this.arenaWidth);
+    this.drone.y = Phaser.Math.Clamp(this.player.y + Math.sin(this.droneAngle) * this.droneConfig.orbitRadius,
+      0, this.arenaHeight);
+  }
+
+  private fireDrone(): void {
+    if (this.isSimulationPaused() || !this.drone) return;
+    const target = this.selectNearestEnemy(undefined, this.drone);
+    if (!target) return;
+    this.firePlayerProjectile(this.drone, target, this.droneConfig.damage, this.droneConfig.speed,
+      this.droneConfig.lifetime, this.droneConfig.boltRadius, 0xc084fc);
+  }
+
+  private firePlayerProjectile(
+    origin: { x: number; y: number }, target: EnemyRuntime,
+    damage: number, speed: number, lifetime: number, radius: number, color: number,
+  ): void {
+    const dx = target.visual.x - origin.x;
+    const dy = target.visual.y - origin.y;
     const distance = Math.hypot(dx, dy);
     if (distance < 0.001) return;
 
     this.projectiles.push({
       source: 'player',
-      damage: this.laser.damage,
-      visual: this.add.circle(this.player.x, this.player.y, this.projectileRadius, 0x67e8f9),
-      velocityX: (dx / distance) * this.laser.projectileSpeed,
-      velocityY: (dy / distance) * this.laser.projectileSpeed,
-      remainingLifetime: this.projectileLifetime,
+      damage,
+      radius,
+      visual: this.add.circle(origin.x, origin.y, radius, color),
+      velocityX: (dx / distance) * speed,
+      velocityY: (dy / distance) * speed,
+      remainingLifetime: lifetime,
     });
   }
 
@@ -474,6 +519,7 @@ export class GameplayScene extends Phaser.Scene {
     this.projectiles.push({
       source: 'enemy',
       damage: this.hostileDamage,
+      radius: this.projectileRadius,
       visual: this.add.circle(enemy.visual.x, enemy.visual.y, this.projectileRadius, 0xfb923c),
       velocityX: dx / distance * this.hostileSpeed,
       velocityY: dy / distance * this.hostileSpeed,
@@ -492,7 +538,7 @@ export class GameplayScene extends Phaser.Scene {
       const stepY = projectile.velocityY * deltaSeconds;
       if (projectile.source === 'enemy' && this.player && segmentCircleHitTime(
         startX, startY, stepX, stepY,
-        this.player.x, this.player.y, this.playerRadius + this.projectileRadius,
+        this.player.x, this.player.y, this.playerRadius + projectile.radius,
       ) !== Infinity) {
         this.damagePlayer(projectile.damage);
         projectile.visual.destroy();
@@ -504,7 +550,7 @@ export class GameplayScene extends Phaser.Scene {
       for (const enemy of projectile.source === 'player' ? this.enemies : []) {
         const hit = segmentCircleHitTime(
           startX, startY, stepX, stepY,
-          enemy.visual.x, enemy.visual.y, this.enemyRadius + this.projectileRadius,
+          enemy.visual.x, enemy.visual.y, this.enemyRadius + projectile.radius,
         );
         if (hit < firstHit) {
           firstHit = hit;
@@ -525,8 +571,8 @@ export class GameplayScene extends Phaser.Scene {
       projectile.remainingLifetime -= delta;
 
       const { x, y } = projectile.visual;
-      const outsideArena = x < -this.projectileRadius || x > this.arenaWidth + this.projectileRadius
-        || y < -this.projectileRadius || y > this.arenaHeight + this.projectileRadius;
+      const outsideArena = x < -projectile.radius || x > this.arenaWidth + projectile.radius
+        || y < -projectile.radius || y > this.arenaHeight + projectile.radius;
       if (projectile.remainingLifetime <= 0 || outsideArena) {
         projectile.visual.destroy();
         this.projectiles.splice(i, 1);
