@@ -2,13 +2,17 @@ import * as Phaser from 'phaser';
 
 export class GameplayScene extends Phaser.Scene {
   private player?: Phaser.GameObjects.Polygon;
-  private enemy?: Phaser.GameObjects.Polygon;
+  private enemies: Phaser.GameObjects.Polygon[] = [];
   private cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
   private wasd?: Record<'up' | 'left' | 'down' | 'right', Phaser.Input.Keyboard.Key>;
   private readonly movementDirection = new Phaser.Math.Vector2();
   private readonly movementSpeed = 300;
   private readonly chaseDirection = new Phaser.Math.Vector2();
   private readonly enemySpeed = 180;
+  private readonly spawnInterval = 2000;
+  private readonly minimumSpawnDistance = 600;
+  private readonly maximumEnemies = 10;
+  private readonly enemyMargin = 25;
   private readonly arenaWidth = 4800;
   private readonly arenaHeight = 2700;
 
@@ -17,6 +21,7 @@ export class GameplayScene extends Phaser.Scene {
   }
 
   create(): void {
+    this.enemies = [];
     const { width, height } = this.scale;
     this.cameras.main.setBackgroundColor('#050816');
 
@@ -37,12 +42,17 @@ export class GameplayScene extends Phaser.Scene {
       .polygon(this.arenaWidth / 2, this.arenaHeight / 2, [20, 0, 40, 48, 20, 36, 0, 48], 0x38bdf8)
       .setStrokeStyle(2, 0xe0f2fe);
 
-    this.enemy = this.add.polygon(2800, 1350, [24, 0, 48, 24, 24, 48, 0, 24], 0xf43f5e);
-    this.enemy.setStrokeStyle(2, 0xffcdd2);
+    this.createEnemy(this.player.x + this.minimumSpawnDistance, this.player.y);
 
     this.cameras.main.setBounds(0, 0, this.arenaWidth, this.arenaHeight);
     this.cameras.main.startFollow(this.player);
     this.cameras.main.centerOn(this.player.x, this.player.y);
+
+    this.time.addEvent({
+      delay: this.spawnInterval,
+      loop: true,
+      callback: () => this.spawnEnemy(),
+    });
 
     const keyboard = this.input.keyboard;
     if (keyboard) {
@@ -75,7 +85,7 @@ export class GameplayScene extends Phaser.Scene {
   }
 
   update(_time: number, delta: number): void {
-    if (!this.player || !this.enemy || !this.cursors || !this.wasd) return;
+    if (!this.player || !this.cursors || !this.wasd) return;
 
     const left = this.wasd.left.isDown || this.cursors.left.isDown;
     const right = this.wasd.right.isDown || this.cursors.right.isDown;
@@ -95,11 +105,45 @@ export class GameplayScene extends Phaser.Scene {
     this.player.x = Phaser.Math.Clamp(this.player.x, marginX, this.arenaWidth - marginX);
     this.player.y = Phaser.Math.Clamp(this.player.y, marginY, this.arenaHeight - marginY);
 
-    this.chaseDirection.set(this.player.x - this.enemy.x, this.player.y - this.enemy.y);
-    const chaseDistance = this.chaseDirection.length();
-    const chaseStep = Math.min(this.enemySpeed * (delta / 1000), chaseDistance);
-    this.chaseDirection.normalize().scale(chaseStep);
-    this.enemy.x += this.chaseDirection.x;
-    this.enemy.y += this.chaseDirection.y;
+    for (const enemy of this.enemies) {
+      this.chaseDirection.set(this.player.x - enemy.x, this.player.y - enemy.y);
+      const chaseDistance = this.chaseDirection.length();
+      const chaseStep = Math.min(this.enemySpeed * (delta / 1000), chaseDistance);
+      this.chaseDirection.normalize().scale(chaseStep);
+      enemy.x += this.chaseDirection.x;
+      enemy.y += this.chaseDirection.y;
+      enemy.x = Phaser.Math.Clamp(enemy.x, this.enemyMargin, this.arenaWidth - this.enemyMargin);
+      enemy.y = Phaser.Math.Clamp(enemy.y, this.enemyMargin, this.arenaHeight - this.enemyMargin);
+    }
+  }
+
+  private createEnemy(x: number, y: number): void {
+    const enemy = this.add.polygon(x, y, [24, 0, 48, 24, 24, 48, 0, 24], 0xf43f5e);
+    enemy.setStrokeStyle(2, 0xffcdd2);
+    this.enemies.push(enemy);
+  }
+
+  private spawnEnemy(): void {
+    if (!this.player || this.enemies.length >= this.maximumEnemies) return;
+
+    const view = this.cameras.main.worldView;
+    const side = Phaser.Math.Between(0, 3);
+    // One enemy width beyond a camera edge, then keep the whole polygon in the arena.
+    let x = side < 2
+      ? (side === 0 ? view.left - 48 : view.right + 48)
+      : Phaser.Math.FloatBetween(view.left, view.right);
+    let y = side < 2
+      ? Phaser.Math.FloatBetween(view.top, view.bottom)
+      : (side === 2 ? view.top - 48 : view.bottom + 48);
+    x = Phaser.Math.Clamp(x, this.enemyMargin, this.arenaWidth - this.enemyMargin);
+    y = Phaser.Math.Clamp(y, this.enemyMargin, this.arenaHeight - this.enemyMargin);
+
+    if (Phaser.Math.Distance.Between(x, y, this.player.x, this.player.y) < this.minimumSpawnDistance) {
+      // At arena edges the chosen side may be too close; the opposite corner is safely distant.
+      x = this.player.x < this.arenaWidth / 2 ? this.arenaWidth - this.enemyMargin : this.enemyMargin;
+      y = this.player.y < this.arenaHeight / 2 ? this.arenaHeight - this.enemyMargin : this.enemyMargin;
+    }
+
+    this.createEnemy(x, y);
   }
 }

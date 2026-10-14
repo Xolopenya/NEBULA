@@ -368,7 +368,7 @@ The enemy consistently approaches the player.
 
 ## GAME-007 — Enemy Spawning
 
-STATUS: READY
+STATUS: DONE
 
 DEPENDENCIES:
 
@@ -398,7 +398,7 @@ Enemies spawn repeatedly at valid locations without spawning directly on top of 
 
 ## GAME-008 — Automatic Target Selection
 
-STATUS: BLOCKED
+STATUS: READY
 
 DEPENDENCIES:
 

@@ -14,7 +14,7 @@ Do not place future plans or speculative features here.
 
 Current phase:
 
-FIRST PLAYABLE IMPLEMENTATION / GAME-006 COMPLETE
+FIRST PLAYABLE IMPLEMENTATION / GAME-007 COMPLETE
 
 The project has a working browser application, development toolchain and placeholder gameplay scene.
 
@@ -97,7 +97,7 @@ Current screen:
 
 - 4800x2700 dark-space placeholder arena with deterministic static stars and an outer boundary
 - cyan player ship placeholder starting at the arena center, drawn with Phaser geometry
-- one red diamond enemy placeholder starting at (2800, 1350) and directly chasing the player in world space
+- red diamond enemy placeholders directly chasing the player in world space
 - desktop movement using WASD or arrow keys
 - "NEBULA — GAMEPLAY SCENE" label
 - "Placeholder space arena" text
@@ -152,13 +152,16 @@ The ship starts at world position (2400, 1350).
 Movement is clamped inside the 4800x2700 arena using half the ship dimensions plus its outline.
 The main camera follows the ship immediately and is bounded to the arena.
 Browser resizing preserves the internal viewport and responsive 16:9 FIT presentation.
-Exactly one enemy placeholder starts near the player and directly pursues their current world position at 180 pixels per second.
+One enemy placeholder starts at (3000, 1350); additional enemies spawn every 2 seconds up to a temporary cap of 10 active enemies.
+Spawn positions are chosen just outside a random camera edge, clamped with a 25-pixel arena margin, and kept at least 600 pixels from the player. Too-close candidates use the opposite arena corner.
+All enemies directly pursue the player's current world position at 180 pixels per second.
 Enemy movement uses frame delta and caps each step at the remaining distance to avoid overshoot at the player.
-Dynamic spawning, combat and contact damage are not implemented.
+Chase positions also respect the 25-pixel arena margin to keep the larger enemy polygon fully inside.
+Enemies may overlap. They are not removed or recycled; spawning stops at the temporary cap while chase continues.
+Targeting, combat, health, death and contact damage are not implemented.
 
 There is currently no:
 
-- enemy spawning
 - weapons
 - targeting
 - damage
@@ -240,11 +243,11 @@ These should only be introduced when real project requirements justify them.
 
 ## Next Step
 
-The placeholder arena, bounded desktop movement, camera follow and single chasing enemy are implemented and browser-verified.
+The placeholder arena, bounded desktop movement, camera follow and repeated enemy spawning/chase are implemented and browser-verified.
 
 The next implementation task is:
 
-GAME-007 — Enemy Spawning
+GAME-008 — Automatic Target Selection
 
 ---
 
@@ -252,6 +255,6 @@ GAME-007 — Enemy Spawning
 
 The application boots successfully.
 
-The player can move the ship with desktop keyboard controls and outrun one chasing enemy placeholder. Combat and contact damage are not implemented.
+The player can move the ship with desktop keyboard controls and outrun multiple chasing enemies. Targeting, combat and contact damage are not implemented.
 
 The next major goal is the First Playable milestone defined in GAME_DESIGN.md.
