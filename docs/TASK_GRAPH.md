@@ -771,7 +771,7 @@ Display essential run information such as HP, XP and level.
 
 # 8. Vertical Slice Preparation
 
-Playable Core has been validated by MILESTONE-002. GAME-023 is defined below;
+Playable Core has been validated by MILESTONE-002. GAME-023 and GAME-024 are defined below;
 remaining nodes are BACKLOG concepts and require separate task definitions.
 
 ## GAME-023 — Initial Ship Active Ability: Dash
@@ -856,9 +856,100 @@ ACCEPTANCE / VALIDATION:
 
 ---
 
+## GAME-024 — Second Enemy Archetype: Shooter
+
+STATUS: READY
+
+DEPENDENCIES:
+
+- GAME-023
+
+GOAL:
+
+Introduce a distinct ranged Shooter alongside the existing enemy, now identified
+as Chaser, without replacing the shared enemy/combat/progression runtime.
+
+PROTOTYPE RULES:
+
+- Chaser retains the current red diamond placeholder, 3 HP, 180 px/s direct pursuit
+  and existing contact damage/protection rules. Chaser does not fire hostile shots.
+- Shooter uses 2 HP and 140 px/s with a visibly distinct placeholder silhouette and
+  color, such as a purple square. Keep both placeholders within the existing enemy
+  size/margin and approximate collision-radius convention; no production art.
+- Shooter preferred player-center distance band is 350–500 world pixels, inclusive.
+  Above 500, approach the player's current position; below 350, retreat directly
+  away; inside the band, hold position. Use delta-based motion and cap each step at
+  the nearest band edge to avoid overshooting it with a large delta.
+- At coincident centers, use one deterministic retreat direction rather than
+  dividing by zero. Retain existing arena clamping; an edge may prevent further
+  retreat, without pathfinding or an alternate steering system.
+- Shooter keeps existing contact damage (1), global player protection and enemy
+  collision rules. Both types die through killEnemy and drop exactly one value-1
+  XP pickup. Neither gains immunity or a separate damage/death path.
+- Reuse the one global 1500 ms hostile-fire timer. fireHostileProjectile selects the
+  nearest active Shooter by world-center distance (stable collection-order tie),
+  ignoring nearer Chasers. No Shooter means no shot; near-zero aim still suppresses
+  a shot safely. The movement band is not an additional firing-range restriction.
+- Keep the existing orange hostile projectile: fixed firing-time direction,
+  600 px/s, 3000 ms lifetime, damage 1 and existing player collision/cleanup.
+  Do not add per-enemy timers or change the player Laser cadence/upgrades.
+- Initial enemy is always Chaser. For successful timed spawns, use repeating
+  Chaser, Chaser, Chaser, Shooter (every fourth). Initial creation does not count;
+  callbacks rejected by cap/pause/death do not advance the sequence. Restart resets
+  it so the first three successful timed spawns in each run are Chasers again.
+- Preserve current spawn placement and the 10-active-enemy cap across both types.
+  Kills free shared cap slots; removal does not rewind the successful-spawn count.
+- Existing nearest-target selection/highlighting and Laser impacts must include
+  either type. Keep one scene-owned enemy collection with explicit archetype identity.
+- Existing simulation pause/death guards freeze approach, retreat, chase, targeting,
+  projectiles and spawn/fire production for both types. Native retry clears all old
+  enemies/projectiles/UI/timers and restores a fresh initial Chaser and spawn count.
+
+IMPLEMENTATION BOUNDARY:
+
+Two concrete types now justify a small explicit archetype/data representation for
+varying health, movement speed and placeholder presentation. Keep behavior explicit
+per archetype; data values alone do not encode pursuit versus ranged movement.
+Reuse existing shared runtime records, creation, targeting, damage/death and XP paths.
+A focused pure movement/band rule is acceptable if it materially clarifies testing.
+No broad scene refactor or future-archetype stubs are required.
+
+OUT OF SCOPE:
+
+Third archetype, elites/bosses, SpawnDirector/difficulty scaling, portal/rift telegraph,
+per-enemy Phaser timers, deep inheritance, ECS/generic entity framework, generalized
+combat stat engine, new projectile types, new dependencies and unrelated mechanics.
+
+ACCEPTANCE / VALIDATION:
+
+- Both types spawn in the stated deterministic mix and are visually distinguishable;
+  Chaser still pursues at its baseline speed and never originates hostile shots.
+- Shooter approaches, holds (including exact 350/500 boundaries) and retreats at its
+  own speed with normalized delta motion; large steps stop at the band, coincident
+  centers are safe, and arena edges constrain the whole placeholder.
+- The global callback fires from the nearest active Shooter even with a closer
+  Chaser; ties are stable and missing/removed Shooters produce no stale shot.
+- Target/highlight and Laser damage work for either type (3/2 baseline HP); lethal
+  hits use the same removal path and produce one XP pickup only, including duplicate
+  removal attempts. Shared cap counts both types and refills after either dies.
+- Pause/death freeze both behaviors and guarded callbacks without new timers;
+  rejected spawn callbacks leave the sequence unchanged.
+- Repeated death/retry restores initial Chaser, spawn mix, existing three gameplay
+  timers and fresh HP/XP/level, pickups, choices, Laser values, Dash and HUD. No old
+  enemies, timers or UI survive. Dash and GAME-016..023 progression remain functional.
+- Add meaningful tracked tests for deterministic archetype/movement rules where
+  practical, plus targeted scene/runtime validation; no drawing-only Phaser tests.
+- Run npm run check, git diff --check and git diff --cached --check. Browser smoke:
+  mixed spawning, approach/hold/retreat, Shooter-origin shots, both enemy deaths/XP,
+  Dash, level-up pause/choice/resume and death/retry. Report actual evidence.
+- After successful implementation, update CURRENT_STATE and material PROJECT_GRAPH
+  ownership facts and mark only GAME-024 DONE. GAME-025 and later remain BACKLOG until
+  separately defined and authorized. Follow AGENTS.md staging/review; do not commit.
+
+---
+
 Remaining future nodes:
 
-GAME-024 — Second Enemy Archetype
 GAME-025 — Third Enemy Archetype
 GAME-026 — Missile Weapon
 GAME-027 — Drone Weapon
