@@ -10,6 +10,8 @@ export class GameplayScene extends Phaser.Scene {
   private readonly movementSpeed = 300;
   private readonly chaseDirection = new Phaser.Math.Vector2();
   private readonly enemySpeed = 180;
+  private readonly laserFireInterval = 600;
+  private readonly laserFlashDuration = 120;
   private readonly spawnInterval = 2000;
   private readonly minimumSpawnDistance = 600;
   private readonly maximumEnemies = 10;
@@ -54,6 +56,12 @@ export class GameplayScene extends Phaser.Scene {
       delay: this.spawnInterval,
       loop: true,
       callback: () => this.spawnEnemy(),
+    });
+
+    this.time.addEvent({
+      delay: this.laserFireInterval,
+      loop: true,
+      callback: () => this.fireLaser(),
     });
 
     const keyboard = this.input.keyboard;
@@ -124,6 +132,16 @@ export class GameplayScene extends Phaser.Scene {
       this.currentTarget = target;
       this.currentTarget?.setStrokeStyle(4, 0xfde047);
     }
+  }
+
+  private fireLaser(): void {
+    if (!this.player || !this.currentTarget) return;
+
+    const beam = this.add
+      .line(0, 0, this.player.x, this.player.y, this.currentTarget.x, this.currentTarget.y, 0x67e8f9)
+      .setOrigin(0, 0)
+      .setLineWidth(6);
+    this.time.delayedCall(this.laserFlashDuration, () => beam.destroy());
   }
 
   private selectNearestEnemy(): Phaser.GameObjects.Polygon | undefined {

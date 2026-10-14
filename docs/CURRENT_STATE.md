@@ -14,7 +14,7 @@ Do not place future plans or speculative features here.
 
 Current phase:
 
-FIRST PLAYABLE IMPLEMENTATION / GAME-008 COMPLETE
+FIRST PLAYABLE IMPLEMENTATION / GAME-009 COMPLETE
 
 The project has a working browser application, development toolchain and placeholder gameplay scene.
 
@@ -99,6 +99,7 @@ Current screen:
 - cyan player ship placeholder starting at the arena center, drawn with Phaser geometry
 - red diamond enemy placeholders directly chasing the player in world space
 - temporary thicker yellow outline on the current nearest-enemy target
+- automatic temporary cyan Laser beam flashes from the player toward the current target
 - desktop movement using WASD or arrow keys
 - "NEBULA — GAMEPLAY SCENE" label
 - "Placeholder space arena" text
@@ -162,11 +163,14 @@ Enemies may overlap. They are not removed or recycled; spawning stops at the tem
 The nearest active enemy is automatically selected each frame after movement using squared world-space distance.
 Equal-distance ties select the first enemy in array order; an empty enemy array clears the target.
 The selected enemy has a temporary 4-pixel yellow outline; the former target returns to its normal 2-pixel pale outline when selection changes.
-Weapons, combat, health, death and contact damage are not implemented.
+A Phaser timer automatically fires the basic Laser every 600 ms when a current target exists.
+Each shot snapshots player and target world positions into a cyan Line placeholder and destroys it after 120 ms with a Phaser delayed callback. No manual fire input is required.
+Without a current target no shot is created; the timer stays ready for a future target.
+Projectile travel, collision, impact, enemy damage/death, health and contact damage are not implemented.
 
 There is currently no:
 
-- weapons
+- moving projectiles
 - damage
 - health
 - death
@@ -246,11 +250,11 @@ These should only be introduced when real project requirements justify them.
 
 ## Next Step
 
-The placeholder arena, bounded desktop movement, camera follow, repeated enemy spawning/chase and nearest-enemy targeting are implemented and browser-verified.
+The placeholder arena, bounded desktop movement, camera follow, repeated enemy spawning/chase, nearest-enemy targeting and automatic Laser flashes are implemented and browser-verified.
 
 The next implementation task is:
 
-GAME-009 — Basic Laser Weapon
+GAME-010 — Projectile Runtime
 
 ---
 
@@ -258,6 +262,6 @@ GAME-009 — Basic Laser Weapon
 
 The application boots successfully.
 
-The player can move the ship, outrun multiple chasing enemies and see the current nearest target highlighted. Weapons, combat and contact damage are not implemented.
+The player can move the ship, outrun multiple chasing enemies and see automatic Laser flashes aimed at the current nearest target. Shots do not travel or damage enemies; combat and contact damage are not implemented.
 
 The next major goal is the First Playable milestone defined in GAME_DESIGN.md.

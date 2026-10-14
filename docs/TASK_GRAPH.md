@@ -426,7 +426,7 @@ A valid nearby enemy can be selected reliably for weapon fire.
 
 ## GAME-009 — Basic Laser Weapon
 
-STATUS: READY
+STATUS: DONE
 
 DEPENDENCIES:
 
@@ -456,7 +456,7 @@ The Laser fires automatically toward the selected target at a stable interval.
 
 ## GAME-010 — Projectile Runtime
 
-STATUS: BLOCKED
+STATUS: READY
 
 DEPENDENCIES:
 
