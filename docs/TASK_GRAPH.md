@@ -1274,9 +1274,153 @@ ACCEPTANCE / VALIDATION:
 
 ---
 
+## GAME-028 — Passive Module Foundation
+
+STATUS: READY
+
+DEPENDENCIES:
+
+- GAME-027
+- DESIGN-002 — Player Stats & Passive Modules
+- MILESTONE-003 — Weapon Architecture Audit
+
+GOAL:
+
+Introduce exactly four run-local Passive Modules: Hull Plating, Thruster Module,
+Collector Field and Combat Processor. Mix them with existing Laser upgrades in
+the level-up choice pool. Other DESIGN-002 candidates remain future work.
+
+PROTOTYPE RULES — MODULE STATE / EFFECTS:
+
+- Track an explicit level for each of the four modules, initially 0 on create/restart.
+  Each accepted repeat selection increments that module's level by exactly 1 and
+  reapplies its effect. No level cap or module inventory slots.
+- Hull Plating: baseline maximum HP 5; each level adds 1 maximum HP and immediately
+  heals current HP by 1, clamped to the new maximum. Examples: 5/5 → 6/6,
+  3/5 → 4/6, then 6/6 → 7/7 on another selection. Refresh current/max HP HUD
+  immediately. No Armor, Shield or regeneration.
+- Thruster Module: baseline normal movement 300 px/s; each level adds 30 px/s
+  (300 → 330 → 360). Preserve normalized cardinal/diagonal delta-based movement.
+  Do not change Dash speed 900 px/s, duration 200 ms, cooldown 3000 ms,
+  direction locking or expiry-frame timing.
+- Collector Field: baseline XP magnet activation radius 180 world pixels; each
+  level adds 40 (180 → 220 → 260). Subsequent pickup updates use it immediately.
+  Preserve collection radius 20 px, acceleration 900 px/s², maximum magnet speed
+  600 px/s and pickup value.
+- Combat Processor: baseline global player weapon damage multiplier 1.0; each
+  level adds 0.25 (level 0: 1.00x; level 1: 1.25x; level 2: 1.50x).
+  Final damage = weapon-specific current damage × global multiplier; do not round.
+  Apply to Laser damage, Missile explosion damage and Drone bolt damage only.
+  Do not affect hostile projectiles, contact damage, player HP, Dash or XP.
+  Laser Power changes Laser's own damage first; the multiplier applies afterward.
+
+PROTOTYPE RULES — LAUNCH DAMAGE / EXISTING WEAPONS:
+
+- Laser and Drone snapshot final multiplied damage when each straight shot launches.
+- Missile snapshots final multiplied explosion damage at launch; concrete damage
+  on MissileRuntime is appropriate if needed. A Missile frozen during level-up pause
+  retains old damage after Combat Processor is selected, as do all in-flight shots.
+  Subsequent launches use the new multiplier. Do not read current global damage at impact.
+- Preserve Missile homing, explosion radius and maxActiveMissiles = 1, Drone orbit/
+  targeting/bolt behavior, and concrete weapon ownership. No weapon acquisition.
+- Preserve Laser Power +1 Laser-specific damage; Fire Rate -50 ms, minimum 100 ms;
+  Projectile Speed +200 px/s. Fire Rate resets the SAME existing Laser TimerEvent,
+  never adds a timer. Combat Processor composes with the resulting Laser damage.
+
+PROTOTYPE RULES — MIXED CHOICES / PRESENTATION:
+
+- Eligible pool: Laser Power, Laser Fire Rate, Laser Projectile Speed, Hull Plating,
+  Thruster Module, Collector Field, Combat Processor. All seven stay eligible at every level.
+- Each pause presents exactly THREE DISTINCT options sampled without replacement
+  from that pool. Use random selection in normal gameplay, no weighting/rarity/rerolls.
+  Any option may appear again in a later pause. Do not mutate the source pool.
+- Generate choices once on entering a pause; do not regenerate while it remains active.
+  Exactly one current accepted choice applies one effect before resume; preserve
+  stale/double callback rejection, including callbacks from a previous presentation.
+- Keep simple screen-fixed three-choice UI. Labels distinguish Laser weapon upgrades
+  from Passive Modules; passive labels show the effect and next module level
+  (for example Hull Plating Lv. 1, +1 Max HP / heal 1). No inventory/status panel
+  or production UI styling.
+- Implement a REQUIRED small pure choice-selection helper: select exactly N distinct
+  entries from a supplied pool without replacement, leave the source pool unchanged,
+  and accept an injectable random-number source for deterministic tests. Keep it
+  selection-only, with no Phaser rendering/UI or loot/rarity/content framework.
+
+PROTOTYPE RULES — PAUSE / XP / RESTART:
+
+- Credit the level-reaching XP award and remove its pickup, then immediately pause.
+  Subsequent pickups in that update must not be collected. Preserve XP/level arithmetic.
+- Existing guards freeze active movement, enemy chase/targeting, projectiles/Missiles,
+  Drone orbit, damage/contact, Dash and XP pickup movement/collection. Spawn and all
+  weapon/hostile production callbacks return while paused/dead; scheduled timer phase
+  may continue internally under the existing guard policy. Death remains distinct.
+- Native create/restart resets four module levels to 0, max/current HP to 5/5,
+  normal movement speed to 300, magnet radius to 180, damage multiplier to 1.0,
+  Laser values, XP/level, Dash, choices/presentation and weapon runtime.
+  No stale objects/callbacks. Exactly five gameplay TimerEvents remain: spawn,
+  Laser, Missile, Drone, hostile fire. Do not manually reset every object or add timers.
+
+ARCHITECTURE BOUNDARY:
+
+- Small explicit scene-owned mutable data is allowed for actual consumers only:
+  maxHealth, movementSpeed, xpMagnetRadius, globalDamageMultiplier. No unused fields.
+- Use explicit PassiveModule identity, explicit effect application and an explicit/
+  discriminated choice identity covering the existing Laser upgrades and four modules.
+- MILESTONE-003 found no required weapon refactor. Preserve existing concrete owners;
+  do not introduce a universal PlayerStats framework, string-keyed property bag,
+  generic Modifier pipeline, effect scripting, buff/debuff framework, WeaponManager,
+  passive inventory framework, ECS, DI or event bus.
+
+OUT OF SCOPE:
+
+Repair Nanites/regeneration, Armor, Shield, XP Gain, global cooldown/projectile-speed
+modules, Area, Duration, Critical Chance/Damage, Amount/additional instances,
+weapon acquisition/inventory, module slots/caps, rarity/weights/rerolls, Evolution,
+production UI/assets, save/meta progression, universal stat/modifier frameworks,
+new dependencies and GAME-029 or later implementation.
+
+ACCEPTANCE / VALIDATION:
+
+- Exactly three distinct eligible choices from seven; Laser and Passive options can
+  coexist. Options remain eligible/repeatable across pauses, one effect applies once,
+  choices remain stable during a pause and stale callbacks cannot dismiss a later pause.
+- Hull Plating covers full/damaged/repeated HP examples, clamps healing and updates HUD.
+- Thruster covers 300 → 330 → 360 cardinal/normalized diagonal movement; Dash remains
+  900 px/s / 200 ms / 3000 ms with existing timing/bounds and no immunity changes.
+- Collector covers 180 → 220 → 260 attraction boundaries; collection/acceleration/
+  maximum speed/value remain 20 / 900 / 600 / unchanged respectively.
+- Combat Processor covers 1.00x → 1.25x → 1.50x fractional damage for all three weapons,
+  Laser Power composition, unchanged hostile/contact damage, old launch snapshots
+  versus new launches, including a Missile spanning pause/selection/resume.
+- Preserve Missile homing/explosion/radius/cap, Drone orbit/targeting/bolt behavior,
+  Laser cadence ownership, CCCSCT spawning/shared cap, Shooter-only hostile fire,
+  XP magnet/credit/pause, Dash and death freeze. Two or more native retries restore
+  complete baseline state, no stale objects/callbacks and exactly five gameplay timers.
+- The required pure choice-selection helper MUST have tracked deterministic tests:
+  selecting 3 from the seven-option pool returns exactly 3; all results are distinct;
+  every result belongs to the supplied pool; the source pool remains unchanged;
+  controlled random input produces deterministic expected output; separate selections
+  may offer options seen earlier. Verify no invalid/generalized loot-system behavior
+  is introduced. Test meaningful pure module arithmetic/
+  state helpers if extracted; no rendering-only tests.
+- Targeted runtime/harness checks additionally prove Fire Rate resets the existing
+  TimerEvent without duplication, stale callbacks cannot apply twice/dismiss a later
+  pause, and entering pause stops subsequent XP collections in the same update.
+  These choice-boundary regressions follow MILESTONE-003 recommendations.
+- Run npm run check, git diff --check and git diff --cached --check.
+- Browser smoke must cover mixed choices, obtaining/stacking all four modules,
+  HP/HUD, changed normal movement with unchanged Dash, changed magnet boundary,
+  Combat Processor across Laser/Missile/Drone, launch snapshots before/after selection,
+  Missile cap/homing, Drone operation, XP pause/resume, death and at least two native
+  retries with exactly five timers. Report actual verification and limitations.
+- After successful implementation, update CURRENT_STATE and material PROJECT_GRAPH
+  ownership facts; mark only GAME-028 DONE. GAME-029 and later remain BACKLOG.
+  Follow AGENTS.md explicit staging/architect-review workflow; do not commit.
+
+---
+
 Remaining future nodes:
 
-GAME-028 — Passive Module Foundation
 GAME-029 — Weapon Evolution Foundation
 GAME-030 — Elite Enemy Prototype
 GAME-031 — Boss Prototype
