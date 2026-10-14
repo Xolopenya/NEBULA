@@ -5,7 +5,8 @@
 Pre-production baseline.
 
 This document describes the intended game design.
-It does not describe implementation details or future speculative systems.
+Approved future directions below are not implemented systems or authorization to build them.
+TASK_GRAPH.md remains authoritative for scheduled implementation work; CURRENT_STATE.md records what works now.
 
 ---
 
@@ -153,6 +154,18 @@ Initial ship:
 
 Future ships should differ through gameplay behavior rather than only numerical stat changes.
 
+### Future tunable ship characteristics
+
+Ships should eventually expose explicit balance data as mechanics require it: maximum health,
+movement speed and pickup/magnet radius. Armor or damage/cooldown modifiers belong here only
+if those mechanics become real. Active abilities such as Dash remain behavior, not just numeric stats.
+
+Add characteristics when an actual mechanic consumes them; do not predefine speculative stats.
+This supports ship differentiation, balancing, passive upgrades/modules and additional ships
+without spreading balance through scene logic. Concrete needs should emerge through Dash,
+passives/modules and additional ships. Current player values remain local to GameplayScene;
+no generalized ship-characteristics system is implemented.
+
 ---
 
 ## Arena
@@ -194,6 +207,26 @@ Combat should prioritize:
 - immediate hit feedback
 - large enemy counts
 - understandable enemy behavior
+
+### Future spawn telegraph / space rift
+
+Enemy or dangerous-object arrivals should eventually support a temporary portal, spatial rift
+or anomaly before materialization. This is gameplay readability as well as presentation:
+it shows where danger will appear, gives a short reaction window and communicates event importance.
+
+Conceptual sequence:
+
+spawn request → valid location → portal/rift warning → short delay → entity materializes → warning disappears
+
+Timing is not locked. Normal arrivals may be short/subtle, elites or groups stronger,
+and bosses/events prominent custom arrivals when their significance justifies it.
+The telegraph is not necessarily an active enemy. Pending spawns and active enemies must
+eventually be accounted for together so opening many pending portals cannot bypass spawn caps.
+
+First Playable currently spawns enemies directly outside the camera edge, without a telegraph.
+Presentation/location rules may need adjustment so future warnings are actually visible and useful.
+Introduce this readability feature before content density makes instant arrivals difficult to read;
+the telegraph and pending-spawn runtime are not implemented now.
 
 ---
 
@@ -243,6 +276,23 @@ Vertical Slice target weapons:
 Weapon behavior should be meaningfully different.
 
 Balance-only variations should normally use content configuration rather than separate weapon implementations.
+
+### Future tunable weapon characteristics
+
+Future weapons should separate explicit tunable balance data from behavior. Where applicable,
+shared characteristics may include damage, attack/fire cooldown, projectile speed, lifetime,
+size, count, range and other values demonstrated to be genuinely shared.
+
+Prefer shared characteristics plus weapon-specific behavior/configuration. Laser may use damage,
+cooldown, projectile speed and lifetime; Missile may also need explosion radius and homing behavior;
+Drone may need orbit, range, movement and attack behavior. Numerical tuning does not replace mechanics.
+Do not define one giant universal structure with every possible optional weapon property.
+Introduce shared fields only after actual weapons demonstrate the common requirement.
+
+The goal is easier balancing, upgrades and weapon additions with clear numerical/behavior separation.
+GAME-021 is expected to create the first concrete need for mutable/upgradable Laser values;
+broader generalization waits for multiple weapon implementations. Current Laser values are local
+to GameplayScene. No generalized weapon-characteristics system or weapon framework exists now.
 
 ---
 
@@ -300,6 +350,19 @@ Potential archetypes include:
 - Tank
 
 The exact final set is not yet fixed.
+
+### Future archetype data and behavior
+
+Future variety should combine explicit enemy definition/data with specific behavior.
+Gameplay roles may include chaser/melee, shooter/ranged, tank/durable enemy, summoner
+and specialists as needed. Relevant values may include health, movement speed, contact damage,
+attack cadence and role-specific balance values; statistics alone cannot express behavior.
+
+This should make creation and balance adjustments easier, allow controlled run difficulty
+composition and make increasing threat readable. Do not prescribe a deep inheritance hierarchy
+or TypeScript class structure. Multiple archetypes are already in the future content roadmap;
+choose concrete architecture when the second and third real enemy types are implemented.
+Current gameplay has one enemy runtime shape/chase behavior, not an archetype data system.
 
 ---
 
@@ -562,6 +625,15 @@ Therefore visual production, meta progression and platform integration must not 
 ---
 
 ## Design Principle
+
+### Balance as explicit data
+
+Where practical, future balance values should live in explicit game data/configuration.
+Enemy HP/speed, weapon damage/cooldown and ship movement speed should be tunable without
+rewriting the associated behavior. Do not centralize every number prematurely, create a universal
+stat engine or make every entity share a generic property bag. Extract common data structures
+only when multiple real consumers justify them. These are approved future directions, not
+instructions to build shared combat, ship, enemy or spawn systems during the current prototype.
 
 NEBULA should optimize for:
 
