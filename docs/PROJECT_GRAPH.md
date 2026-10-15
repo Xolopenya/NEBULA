@@ -4,8 +4,8 @@
 
 - Project: NEBULA.
 - Milestone: First Playable / GAME-015 complete.
-- Source baseline HEAD: `fe54ed5bb5d5cfc8f1450255aa003031d134b981`.
-- This map reflects that source baseline plus GAME-030 Missile ranks/snapshots and focused-choice ownership changes.
+- Source baseline HEAD: `091ac83b6120e765e26d5361b2b9851d54ef93fd`.
+- This map reflects that source baseline plus GAME-031 Spatial Amplifier level and effective Missile launch-radius ownership.
 - Active task request defines task-specific requirements.
 - AGENTS.md defines repository policy.
 - TASK_GRAPH.md defines task scope, dependencies and status.
@@ -29,6 +29,8 @@ IDs are repository-relative paths; symbols use `path#export`.
 | `src/game/progression/experience.test.ts` | Tracked progression tests |
 | `src/game/progression/selectChoices.ts` | Pure supplied-pool selection without replacement; injectable RNG |
 | `src/game/progression/selectChoices.test.ts` | Tracked deterministic selection tests |
+| `src/game/progression/spatialAmplifier.ts` | Pure Missile-specific effective explosion radius from Missile radius and Spatial level |
+| `src/game/progression/spatialAmplifier.test.ts` | Six tracked numeric radius tests |
 | `src/game/progression/focusedUpgrade.ts` | Concrete MissileRanks, WeaponFocus, FocusCursors and pure least-rank/cyclic fallback selection |
 | `src/game/progression/focusedUpgrade.test.ts` | Nine tracked focused deterministic tests |
 | `src/game/progression/prismLaser.ts` | Explicit LaserRanks and pure Prism recipe eligibility |
@@ -102,6 +104,8 @@ Runtime labels below describe scene-owned concepts, not separate modules/classes
 | `src/game/combat/prismSpread.ts#prismSpread` | TESTED_BY | `src/game/combat/prismSpread.test.ts` |
 | `src/game/scenes/GameplayScene.ts` | IMPORTS | `src/game/progression/focusedUpgrade.ts` |
 | `src/game/progression/focusedUpgrade.ts#selectFocusedUpgrade` | TESTED_BY | `src/game/progression/focusedUpgrade.test.ts` |
+| `src/game/scenes/GameplayScene.ts` | IMPORTS | `src/game/progression/spatialAmplifier.ts#effectiveMissileExplosionRadius` |
+| `src/game/progression/spatialAmplifier.ts#effectiveMissileExplosionRadius` | TESTED_BY | `src/game/progression/spatialAmplifier.test.ts` |
 | Player Laser | TARGETS | currentTarget from active enemies |
 | Drone bolt | TARGETS | Nearest active enemy from actual Drone position; fixed launch aim |
 | Player projectile | DAMAGES | First intersected active enemy |
@@ -146,14 +150,15 @@ All private names below are navigation anchors, not exported symbol nodes.
 | Drone | drone, droneAngle, droneConfig; updateDrone, fireDrone | One world-space companion; active-time 110 px / 2 rad/s orbit, center clamp; one 1200 ms timer |
 | Straight player-shot creation | firePlayerProjectile → launchPlayerProjectile; fireLaser, fireDrone | Existing target aim wrapper and shared direction-based launch snapshot; Prism directions enter launch directly; weapon damage multiplied by globalDamageMultiplier at launch; Laser radius 6, Drone 5 |
 | Missile | missile, missileValues, missiles; MissileRuntime; fireMissile, aimMissile, updateMissiles | Separate concrete homing target/heading/lifetime and readonly launch damage/speed/explosionRadius; immutable maxActiveMissiles = 1; cap blocks launch without resetting the one 1800 ms timer |
+| Spatial Amplifier | moduleLevels.spatial; fireMissile → effectiveMissileExplosionRadius | Repeatable +15 px per level added to Missile-specific radius at launch; stored MissileRuntime radius owns later explosion; no focus/cursor mutation or other consumers |
 | Missile explosion | updateMissiles → explodeMissile → killEnemy | Earliest swept hit point, center-radius snapshot damage once, common XP/death; no direct hit |
 | Laser upgrades | laserRanks, LaserUpgrade; acceptLevelUpChoice | Explicit independent ranks 0..2; capped upgrades filtered out, numeric effects and same timer reset retained; create resets ranks |
 | Prism Laser | prismEvolved; enterLevelUpPause → canEvolvePrismLaser; fireLaser → prismSpread | New-presentation eligibility only; guaranteed Slot 3 offer after focused/passive slots; same Laser timer/runtime, three full-damage shots; create resets evolved state |
 | Missile upgrades | missileRanks, missileValues; acceptLevelUpChoice | Explicit ranks 0..2 and mutable damage/speed/explosion radius; snapshots isolate active Missiles; create resets |
 | Weapon focus | weaponFocus, focusCursors; enterLevelUpPause → selectFocusedUpgrade | Laser baseline; least-rank cyclic offer/fallback; cursor advances once per presentation, focus changes only on accepted weapon/Prism |
-| Passive Modules | PassiveModule, moduleLevels; acceptLevelUpChoice | Explicit Hull/Thruster/Collector/Combat levels and effects; create resets levels and mutable values |
+| Passive Modules | PassiveModule, moduleLevels; acceptLevelUpChoice | Explicit Hull/Thruster/Collector/Combat/Spatial levels and effects; create resets levels and mutable values |
 | Mutable run values | playerMaxHealth, movementSpeed, xpMagnetRadius, globalDamageMultiplier | Consumed by HP/HUD, normal movement, pickup activation and player weapon launch damage respectively |
-| Mixed choice pool | OrdinaryChoice, LevelUpChoice, levelUpPool, choiceLabel; enterLevelUpPause → selectChoices | Four repeatable passives plus uncapped Laser/Missile tracks; focused least-rank slot, passive slot, open/guaranteed Prism slot; existing text identity rejects stale callbacks |
+| Mixed choice pool | OrdinaryChoice, LevelUpChoice, levelUpPool, choiceLabel; enterLevelUpPause → selectChoices | Five repeatable passives plus uncapped Laser/Missile tracks; focused least-rank slot, passive slot, open/guaranteed Prism slot; existing text identity rejects stale callbacks |
 | Hostile fire | fireHostileProjectile; hostileFireInterval | 1500 ms global timer; selectNearestEnemy('shooter') filters nearest active Shooter only; no per-enemy timers |
 | Collision inputs | updateProjectiles; player/enemy/projectile radii | Scene supplies positions and combined radii |
 | Collision calculation | collision.ts; segmentCircleHitTime | Pure numeric math, no Phaser/runtime records |
@@ -192,6 +197,7 @@ Lethal player damage → damagePlayer → enterPlayerDeath → frozen simulation
 | TRACKED TESTS | collision.test.ts → segmentCircleHitTime | 9 tests: hits, misses, overlap, tangent, zero step, bounds, ordering |
 | TRACKED TESTS | experience.test.ts → experience.ts | 8 tests: thresholds, credit, exact/excess/multiple levels, zero/nonmutation, split awards |
 | TRACKED TESTS | selectChoices.test.ts → selectChoices | 6 tests: size/distinctness/membership/nonmutation, deterministic RNG, later repeats, empty/full selection and invalid input |
+| TRACKED TESTS | spatialAmplifier.test.ts → effectiveMissileExplosionRadius | Six tests: baseline/stacking, Blast combinations, deterministic numeric inputs and uncapped repeats |
 | TRACKED TESTS | focusedUpgrade.test.ts → selectFocusedUpgrade | Nine cases: initial focus, minimum rank, both cyclic orders, caps, both fallbacks, mastery, nonmutation |
 | TRACKED TESTS | prismLaser.test.ts → canEvolvePrismLaser | 8 cases: each missing rank, Combat 0/exact/higher, already evolved, nonmutation |
 | TRACKED TESTS | prismSpread.test.ts → prismSpread | 7 cases: three unit directions, center aim, symmetric sides, deterministic equivalent aim, near-zero suppression |
@@ -225,6 +231,8 @@ GameplayScene drone / droneAngle / updateDrone / fireDrone / firePlayerProjectil
 GameplayScene.moduleLevels / mutable run values / LevelUpChoice / progression/selectChoices.ts IMPLEMENTS_TASK GAME-028 — Passive Module Foundation.
 GameplayScene.laserRanks / prismEvolved / progression/prismLaser.ts / combat/prismSpread.ts IMPLEMENTS_TASK GAME-029 — Laser → Prism Laser.
 GameplayScene.missileRanks / missileValues / weaponFocus / focusCursors / progression/focusedUpgrade.ts IMPLEMENTS_TASK GAME-030 — Missile Upgrade Foundation.
+GameplayScene.moduleLevels.spatial / fireMissile / progression/spatialAmplifier.ts IMPLEMENTS_TASK GAME-031 — Spatial Amplifier Passive.
+Spatial affects only final Missile launch explosion radius; Blast Expansion remains separate. create resets Spatial0; existing choice slots/focus and five timers remain authoritative.
 Combat Processor is applied in launchPlayerProjectile and fireMissile; explodeMissile consumes MissileRuntime.damage and explosionRadius, never current run values; updateMissiles consumes MissileRuntime.speed.
 create resets all module levels and run values before constructing the HUD. Existing native shutdown still owns object/timer cleanup.
 No generalized weapon stats framework is implemented.

@@ -1562,7 +1562,7 @@ ACCEPTANCE / VALIDATION:
 
 ## Future weapon-progression block
 
-GAME-030 is DONE and GAME-031 is READY below. GAME-032+ remain BACKLOG concepts scheduled from
+GAME-030 and GAME-031 are DONE below. GAME-032+ remain BACKLOG concepts scheduled from
 DESIGN-004, not implementation-ready definitions or authorization to implement them.
 GAME-029 remains DONE; later tasks each need a separate concrete definition and architect review.
 
@@ -1724,7 +1724,7 @@ ACCEPTANCE / VALIDATION:
 
 ### GAME-031 — Spatial Amplifier Passive
 
-STATUS: READY
+STATUS: DONE
 
 DEPENDENCIES:
 
@@ -1738,7 +1738,9 @@ GOAL:
 Implement one new run-local Passive Module, Spatial Amplifier, with Missile explosion
 radius as its first real consumer. Establish an Area/explosion-oriented build axis and
 explicit future Cluster Missile prerequisite state without implementing GAME-032.
-This is an implementation definition, not a claim that Spatial Amplifier already works.
+Implemented with an explicit module level, a pure Missile-radius helper and launch-owned
+radius snapshots. Tracked checks and real-browser/runtime validation pass, including
+two native RETRY cycles restoring Spatial0 and exactly five gameplay timers.
 
 PROTOTYPE RULES — PASSIVE STATE / EFFECT:
 

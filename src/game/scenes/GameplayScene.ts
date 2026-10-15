@@ -4,12 +4,13 @@ import { prismSpread } from '../combat/prismSpread';
 import { shooterMovement } from '../enemies/shooterMovement';
 import { stepDash } from '../player/dash';
 import { selectChoices } from '../progression/selectChoices';
+import { effectiveMissileExplosionRadius } from '../progression/spatialAmplifier';
 import { selectFocusedUpgrade, type MissileRanks, type WeaponFocus, type FocusCursors } from '../progression/focusedUpgrade';
 import { canEvolvePrismLaser, type LaserRanks } from '../progression/prismLaser';
 import { addExperience, xpForNextLevel, type ExperienceState } from '../progression/experience';
 
 type LaserUpgrade = keyof LaserRanks;
-type PassiveModule = 'hull' | 'thruster' | 'collector' | 'combat';
+type PassiveModule = 'hull' | 'thruster' | 'collector' | 'combat' | 'spatial';
 type OrdinaryChoice = { kind: 'laser'; upgrade: LaserUpgrade }
   | { kind: 'missile'; upgrade: keyof MissileRanks } | { kind: 'passive'; module: PassiveModule };
 type LevelUpChoice = OrdinaryChoice | { kind: 'prism' };
@@ -25,6 +26,7 @@ const levelUpPool: readonly OrdinaryChoice[] = [
   { kind: 'passive', module: 'thruster' },
   { kind: 'passive', module: 'collector' },
   { kind: 'passive', module: 'combat' },
+  { kind: 'passive', module: 'spatial' },
 ];
 
 type EnemyArchetype = 'chaser' | 'shooter' | 'tank';
@@ -83,7 +85,7 @@ export class GameplayScene extends Phaser.Scene {
   private isPlayerDead = false;
   private isLevelUpPaused = false;
   private levelUpPresentation: Phaser.GameObjects.Text[] = [];
-  private moduleLevels: Record<PassiveModule, number> = { hull: 0, thruster: 0, collector: 0, combat: 0 };
+  private moduleLevels: Record<PassiveModule, number> = { hull: 0, thruster: 0, collector: 0, combat: 0, spatial: 0 };
   private globalDamageMultiplier = 1;
   private playerMaxHealth = 5;
   private playerHealth = this.playerMaxHealth;
@@ -146,7 +148,7 @@ export class GameplayScene extends Phaser.Scene {
   }
 
   create(): void {
-    this.moduleLevels = { hull: 0, thruster: 0, collector: 0, combat: 0 };
+    this.moduleLevels = { hull: 0, thruster: 0, collector: 0, combat: 0, spatial: 0 };
     this.playerMaxHealth = 5;
     this.movementSpeed = 300;
     this.xpMagnetRadius = 180;
@@ -430,6 +432,7 @@ export class GameplayScene extends Phaser.Scene {
       case 'thruster': return `Passive: Thruster Module Lv. ${level}\n+30 px/s normal movement`;
       case 'collector': return `Passive: Collector Field Lv. ${level}\n+40 px magnet radius`;
       case 'combat': return `Passive: Combat Processor Lv. ${level}\n+0.25x player weapon damage`;
+      case 'spatial': return `Passive: Spatial Amplifier Lv. ${level}\n+15 Missile explosion radius`;
     }
   }
 
@@ -732,7 +735,7 @@ export class GameplayScene extends Phaser.Scene {
     const missile: MissileRuntime = {
       damage: this.missileValues.damage * this.globalDamageMultiplier,
       speed: this.missileValues.speed,
-      explosionRadius: this.missileValues.explosionRadius,
+      explosionRadius: effectiveMissileExplosionRadius(this.missileValues.explosionRadius, this.moduleLevels.spatial),
       visual: this.add.circle(this.player.x, this.player.y, this.missile.radius, 0xfacc15),
       target,
       headingX: 0,
