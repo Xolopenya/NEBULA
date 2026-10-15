@@ -1,15 +1,18 @@
 import * as Phaser from 'phaser';
 import { segmentCircleHitTime } from '../combat/collision';
+import { prismSpread } from '../combat/prismSpread';
 import { shooterMovement } from '../enemies/shooterMovement';
 import { stepDash } from '../player/dash';
 import { selectChoices } from '../progression/selectChoices';
+import { canEvolvePrismLaser, type LaserRanks } from '../progression/prismLaser';
 import { addExperience, xpForNextLevel, type ExperienceState } from '../progression/experience';
 
-type LaserUpgrade = 'power' | 'fireRate' | 'speed';
+type LaserUpgrade = keyof LaserRanks;
 type PassiveModule = 'hull' | 'thruster' | 'collector' | 'combat';
-type LevelUpChoice = { kind: 'laser'; upgrade: LaserUpgrade } | { kind: 'passive'; module: PassiveModule };
+type OrdinaryChoice = { kind: 'laser'; upgrade: LaserUpgrade } | { kind: 'passive'; module: PassiveModule };
+type LevelUpChoice = OrdinaryChoice | { kind: 'prism' };
 
-const levelUpPool: readonly LevelUpChoice[] = [
+const levelUpPool: readonly OrdinaryChoice[] = [
   { kind: 'laser', upgrade: 'power' },
   { kind: 'laser', upgrade: 'fireRate' },
   { kind: 'laser', upgrade: 'speed' },
@@ -115,6 +118,8 @@ export class GameplayScene extends Phaser.Scene {
   private readonly hostileLifetime = 3000;
   private readonly hostileDamage = 1;
   private laser = { damage: 1, fireInterval: 600, projectileSpeed: 1200 };
+  private laserRanks: LaserRanks = { power: 0, fireRate: 0, speed: 0 };
+  private prismEvolved = false;
   private laserTimer?: Phaser.Time.TimerEvent;
   private readonly projectileLifetime = 2000;
   private readonly projectileRadius = 6;
@@ -141,6 +146,8 @@ export class GameplayScene extends Phaser.Scene {
     this.dashDirection.set(0, 0);
     this.dashKey = undefined;
     this.laser = { damage: 1, fireInterval: 600, projectileSpeed: 1200 };
+    this.laserRanks = { power: 0, fireRate: 0, speed: 0 };
+    this.prismEvolved = false;
     this.playerExperience = { level: 1, xp: 0 };
     this.isPlayerDead = false;
     this.isLevelUpPaused = false;
@@ -354,7 +361,13 @@ export class GameplayScene extends Phaser.Scene {
       padding: { x: 24, y: 16 },
     }).setOrigin(0.5).setScrollFactor(0).setDepth(1);
     this.levelUpPresentation.push(title);
-    const choices = selectChoices(levelUpPool, 3);
+    const ordinaryPool = levelUpPool.filter(option =>
+      option.kind === 'passive' || this.laserRanks[option.upgrade] < 2);
+    // Eligibility belongs to this presentation; completing a prerequisite only affects the next one.
+    const prismEligible = canEvolvePrismLaser(this.laserRanks, this.moduleLevels.combat, this.prismEvolved);
+    const choices: LevelUpChoice[] = prismEligible
+      ? [{ kind: 'prism' }, ...selectChoices(ordinaryPool, 2)]
+      : selectChoices(ordinaryPool, 3);
     choices.forEach((option, index) => {
       const choice = this.add.text(this.scale.width / 2, this.scale.height / 2 - 40 + index * 110,
         this.choiceLabel(option), {
@@ -372,6 +385,7 @@ export class GameplayScene extends Phaser.Scene {
   }
 
   private choiceLabel(choice: LevelUpChoice): string {
+    if (choice.kind === 'prism') return 'EVOLVE: Prism Laser\nThree beams — full Laser damage each';
     if (choice.kind === 'laser') {
       switch (choice.upgrade) {
         case 'power': return 'Laser Power — +1 damage';
@@ -390,7 +404,11 @@ export class GameplayScene extends Phaser.Scene {
 
   private acceptLevelUpChoice(choice: Phaser.GameObjects.Text, option: LevelUpChoice): void {
     if (this.isPlayerDead || !this.isLevelUpPaused || !this.levelUpPresentation.includes(choice)) return;
+    if (option.kind === 'laser' && this.laserRanks[option.upgrade] >= 2) return;
+    if (option.kind === 'prism' && this.prismEvolved) return;
     if (this.dashKey) Phaser.Input.Keyboard.JustDown(this.dashKey);
+    if (option.kind === 'laser') this.laserRanks[option.upgrade] += 1;
+    if (option.kind === 'prism') this.prismEvolved = true;
     if (option.kind === 'passive') {
       this.moduleLevels[option.module] += 1;
       switch (option.module) {
@@ -513,6 +531,15 @@ export class GameplayScene extends Phaser.Scene {
     if (this.isSimulationPaused()) return;
     if (!this.player || !this.currentTarget) return;
 
+    if (this.prismEvolved) {
+      const directions = prismSpread(this.currentTarget.visual.x - this.player.x,
+        this.currentTarget.visual.y - this.player.y);
+      for (const direction of directions) {
+        this.launchPlayerProjectile(this.player, direction, this.laser.damage,
+          this.laser.projectileSpeed, this.projectileLifetime, this.projectileRadius, 0x67e8f9);
+      }
+      return;
+    }
     this.firePlayerProjectile(this.player, this.currentTarget, this.laser.damage,
       this.laser.projectileSpeed, this.projectileLifetime, this.projectileRadius, 0x67e8f9);
   }
@@ -543,13 +570,21 @@ export class GameplayScene extends Phaser.Scene {
     const distance = Math.hypot(dx, dy);
     if (distance < 0.001) return;
 
+    this.launchPlayerProjectile(origin, { x: dx / distance, y: dy / distance },
+      damage, speed, lifetime, radius, color);
+  }
+
+  private launchPlayerProjectile(
+    origin: { x: number; y: number }, direction: { x: number; y: number },
+    damage: number, speed: number, lifetime: number, radius: number, color: number,
+  ): void {
     this.projectiles.push({
       source: 'player',
       damage: damage * this.globalDamageMultiplier,
       radius,
       visual: this.add.circle(origin.x, origin.y, radius, color),
-      velocityX: (dx / distance) * speed,
-      velocityY: (dy / distance) * speed,
+      velocityX: direction.x * speed,
+      velocityY: direction.y * speed,
       remainingLifetime: lifetime,
     });
   }

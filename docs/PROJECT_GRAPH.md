@@ -4,8 +4,8 @@
 
 - Project: NEBULA.
 - Milestone: First Playable / GAME-015 complete.
-- Source baseline HEAD: `4669a9e41dcf71b809953f63d51ebdc91de668c5`.
-- This map reflects that source baseline plus the GAME-028 passive-module/choice-selection and launch-damage ownership changes.
+- Source baseline HEAD: `0fe3a06b6fe214629675e650ad2ac5a00f1b56e6`.
+- This map reflects that source baseline plus GAME-029 Laser ranks, Prism eligibility and spread ownership changes.
 - Active task request defines task-specific requirements.
 - AGENTS.md defines repository policy.
 - TASK_GRAPH.md defines task scope, dependencies and status.
@@ -29,6 +29,10 @@ IDs are repository-relative paths; symbols use `path#export`.
 | `src/game/progression/experience.test.ts` | Tracked progression tests |
 | `src/game/progression/selectChoices.ts` | Pure supplied-pool selection without replacement; injectable RNG |
 | `src/game/progression/selectChoices.test.ts` | Tracked deterministic selection tests |
+| `src/game/progression/prismLaser.ts` | Explicit LaserRanks and pure Prism recipe eligibility |
+| `src/game/progression/prismLaser.test.ts` | Tracked pure eligibility tests |
+| `src/game/combat/prismSpread.ts` | Pure center/-12/+12 direction calculation and whole-volley near-zero suppression |
+| `src/game/combat/prismSpread.test.ts` | Tracked pure spread tests |
 | `src/game/enemies/shooterMovement.ts` | Pure inclusive distance-band movement step |
 | `src/game/enemies/shooterMovement.test.ts` | Tracked Shooter movement tests |
 | `src/game/player/dash.ts` | Pure Dash frame timing split |
@@ -53,6 +57,9 @@ IDs are repository-relative paths; symbols use `path#export`.
 | `src/game/progression/experience.ts#xpForNextLevel` | Prototype threshold calculation |
 | `src/game/progression/experience.ts#addExperience` | Pure award/level/carry calculation |
 | `src/game/progression/selectChoices.ts#selectChoices` | Select N distinct entries without mutating the supplied pool |
+| `src/game/progression/prismLaser.ts#LaserRanks` | Power, Fire Rate and Projectile Speed rank state |
+| `src/game/progression/prismLaser.ts#canEvolvePrismLaser` | Concrete 2/2/2 + Combat >=1 + unevolved recipe |
+| `src/game/combat/prismSpread.ts#prismSpread` | Normalized fixed three-beam directions; empty for near-zero aim |
 | `src/game/player/dash.ts#stepDash` | Active-time burst/normal split and duration/cooldown stepping |
 | `src/game/enemies/shooterMovement.ts#shooterMovement` | Approach/hold/retreat step capped at band; deterministic coincident retreat |
 
@@ -83,6 +90,10 @@ Runtime labels below describe scene-owned concepts, not separate modules/classes
 | `src/game/enemies/shooterMovement.ts#shooterMovement` | TESTED_BY | `src/game/enemies/shooterMovement.test.ts` |
 | `src/game/scenes/GameplayScene.ts` | IMPORTS | `src/game/progression/selectChoices.ts#selectChoices` |
 | `src/game/progression/selectChoices.ts#selectChoices` | TESTED_BY | `src/game/progression/selectChoices.test.ts` |
+| `src/game/scenes/GameplayScene.ts` | IMPORTS | `src/game/progression/prismLaser.ts` (LaserRanks, canEvolvePrismLaser) |
+| `src/game/scenes/GameplayScene.ts` | IMPORTS | `src/game/combat/prismSpread.ts#prismSpread` |
+| `src/game/progression/prismLaser.ts#canEvolvePrismLaser` | TESTED_BY | `src/game/progression/prismLaser.test.ts` |
+| `src/game/combat/prismSpread.ts#prismSpread` | TESTED_BY | `src/game/combat/prismSpread.test.ts` |
 | Player Laser | TARGETS | currentTarget from active enemies |
 | Drone bolt | TARGETS | Nearest active enemy from actual Drone position; fixed launch aim |
 | Player projectile | DAMAGES | First intersected active enemy |
@@ -125,13 +136,14 @@ All private names below are navigation anchors, not exported symbol nodes.
 | Projectile cleanup | updateProjectiles | Impact, lifetime and world-exit destruction |
 | Player Laser | laser; laserTimer; fireLaser | Mutable Laser-only damage/interval/speed, baseline 600 ms; existing timer reset for cadence upgrades |
 | Drone | drone, droneAngle, droneConfig; updateDrone, fireDrone | One world-space companion; active-time 110 px / 2 rad/s orbit, center clamp; one 1200 ms timer |
-| Straight player-shot creation | firePlayerProjectile; fireLaser, fireDrone | Shared origin/aim/data snapshot; weapon damage multiplied by globalDamageMultiplier at launch; Laser radius 6, Drone 5; Drone independent of Laser upgrades |
+| Straight player-shot creation | firePlayerProjectile → launchPlayerProjectile; fireLaser, fireDrone | Existing target aim wrapper and shared direction-based launch snapshot; Prism directions enter launch directly; weapon damage multiplied by globalDamageMultiplier at launch; Laser radius 6, Drone 5 |
 | Missile | missile, missiles; MissileRuntime; fireMissile, aimMissile, updateMissiles | Separate concrete homing target/heading/lifetime/launch-damage snapshot; immutable maxActiveMissiles = 1; cap blocks launch without resetting the one 1800 ms timer |
 | Missile explosion | updateMissiles → explodeMissile → killEnemy | Earliest swept hit point, center-radius snapshot damage once, common XP/death; no direct hit |
-| Laser upgrades | LaserUpgrade; acceptLevelUpChoice | Cumulative power/rate/speed effects before resume; create restores baseline |
+| Laser upgrades | laserRanks, LaserUpgrade; acceptLevelUpChoice | Explicit independent ranks 0..2; capped upgrades filtered out, numeric effects and same timer reset retained; create resets ranks |
+| Prism Laser | prismEvolved; enterLevelUpPause → canEvolvePrismLaser; fireLaser → prismSpread | New-presentation eligibility only; one guaranteed offer + two ordinary; same Laser timer/runtime, three full-damage shots; create resets evolved state |
 | Passive Modules | PassiveModule, moduleLevels; acceptLevelUpChoice | Explicit Hull/Thruster/Collector/Combat levels and effects; create resets levels and mutable values |
 | Mutable run values | playerMaxHealth, movementSpeed, xpMagnetRadius, globalDamageMultiplier | Consumed by HP/HUD, normal movement, pickup activation and player weapon launch damage respectively |
-| Mixed choice pool | LevelUpChoice, levelUpPool, choiceLabel; enterLevelUpPause → selectChoices | Seven discriminated options; sample three once per pause; next-level passive labels; existing text identity rejects stale callbacks |
+| Mixed choice pool | OrdinaryChoice, LevelUpChoice, levelUpPool, choiceLabel; enterLevelUpPause → selectChoices | Four repeatable passives plus uncapped Laser tracks; three distinct choices total, eligible Prism guaranteed; existing text identity rejects stale callbacks |
 | Hostile fire | fireHostileProjectile; hostileFireInterval | 1500 ms global timer; selectNearestEnemy('shooter') filters nearest active Shooter only; no per-enemy timers |
 | Collision inputs | updateProjectiles; player/enemy/projectile radii | Scene supplies positions and combined radii |
 | Collision calculation | collision.ts; segmentCircleHitTime | Pure numeric math, no Phaser/runtime records |
@@ -155,7 +167,9 @@ Lethal player damage → damagePlayer → enterPlayerDeath → frozen simulation
 - create resets health/protection/death, arrays, target and successfulTimedSpawns; constructs one initial Chaser outside the timed CCCSCT sequence.
 - Spawn, Laser, Missile, Drone and hostile callbacks return while dead or level-up paused; timer events remain scheduled.
 - Level-increasing collection removes its pickup then pauses; subsequent pickups remain frozen.
-- One current choice applies its Laser upgrade or Passive Module then destroys levelUpPresentation and clears pause; stale choices cannot close a new pause.
+- One current choice applies its Laser upgrade, Passive Module or Prism evolution then destroys levelUpPresentation and clears pause; stale choices cannot close a new pause.
+- Final recipe prerequisite resumes normally; only the next presentation can offer Prism. Ignoring it keeps eligibility; accepting sets prismEvolved without consuming Combat or changing numeric Laser values/timer.
+- create resets laserRanks and prismEvolved. Prism uses the same straight-shot collection and five existing gameplay timers.
 - Projectile iteration stops after cleaning the lethal hostile impact; remaining objects freeze.
 - create empties missiles; native Phaser restart shuts down old display objects/UI and five timer events before create. Missile position/target/heading/lifetime freeze under existing simulation guard.
 - create restores one Drone at angle 0; orbit/visual/bolts freeze under simulation guard. Shared straight projectiles use each launch radius for collision/cleanup.
@@ -168,6 +182,8 @@ Lethal player damage → damagePlayer → enterPlayerDeath → frozen simulation
 | TRACKED TESTS | collision.test.ts → segmentCircleHitTime | 9 tests: hits, misses, overlap, tangent, zero step, bounds, ordering |
 | TRACKED TESTS | experience.test.ts → experience.ts | 8 tests: thresholds, credit, exact/excess/multiple levels, zero/nonmutation, split awards |
 | TRACKED TESTS | selectChoices.test.ts → selectChoices | 6 tests: size/distinctness/membership/nonmutation, deterministic RNG, later repeats, empty/full selection and invalid input |
+| TRACKED TESTS | prismLaser.test.ts → canEvolvePrismLaser | 8 cases: each missing rank, Combat 0/exact/higher, already evolved, nonmutation |
+| TRACKED TESTS | prismSpread.test.ts → prismSpread | 7 cases: three unit directions, center aim, symmetric sides, deterministic equivalent aim, near-zero suppression |
 | TRACKED TESTS | dash.test.ts → stepDash | 6 tests: active burst, expiry split/boundary, delta partitions, zero time, large frame |
 | TRACKED TESTS | shooterMovement.test.ts → shooterMovement | 7 tests: speed/diagonal, inclusive edges, retreat, large steps, coincident center, zero time, partitions |
 | RUNTIME / MANUAL EVIDENCE | GameplayScene combat/death/restart | Browser smoke and ignored validation harnesses; not tracked Vitest coverage |
@@ -196,7 +212,8 @@ GameplayScene enemyData / shared direct pursuit / timedSpawnSequence IMPLEMENTS_
 GameplayScene MissileRuntime / missile / fireMissile / updateMissiles / explodeMissile IMPLEMENTS_TASK GAME-026 — Missile.
 GameplayScene drone / droneAngle / updateDrone / fireDrone / firePlayerProjectile IMPLEMENTS_TASK GAME-027 — Drone.
 GameplayScene.moduleLevels / mutable run values / LevelUpChoice / progression/selectChoices.ts IMPLEMENTS_TASK GAME-028 — Passive Module Foundation.
-Combat Processor is applied in firePlayerProjectile and fireMissile; explodeMissile consumes MissileRuntime.damage, never the current multiplier.
+GameplayScene.laserRanks / prismEvolved / progression/prismLaser.ts / combat/prismSpread.ts IMPLEMENTS_TASK GAME-029 — Laser → Prism Laser.
+Combat Processor is applied in launchPlayerProjectile and fireMissile; explodeMissile consumes MissileRuntime.damage, never the current multiplier.
 create resets all module levels and run values before constructing the HUD. Existing native shutdown still owns object/timer cleanup.
 No generalized weapon stats framework is implemented.
 Statuses and dependencies remain in TASK_GRAPH.md, not duplicated here.
@@ -222,6 +239,7 @@ Statuses and dependencies remain in TASK_GRAPH.md, not duplicated here.
 | Where are player/hostile fire callbacks? | GameplayScene.ts → create timers / fireLaser / fireMissile / fireDrone / fireHostileProjectile → selectNearestEnemy('shooter') |
 | What guards callbacks while dead or level-up paused? | GameplayScene.ts → isSimulationPaused checks in spawn/fire helpers |
 | Who owns Laser firing configuration? | GameplayScene.ts → laser, laserTimer, fireLaser; create/acceptLevelUpChoice |
+| Where are Prism prerequisites, ranks and spread owned? | GameplayScene.ts → laserRanks, prismEvolved, enterLevelUpPause, fireLaser; progression/prismLaser.ts; combat/prismSpread.ts |
 | Where does restart cleanup occur? | GameplayScene.ts → enterPlayerDeath → Phaser scene.restart lifecycle |
 | Where are repository/task rules? | AGENTS.md; docs/TASK_GRAPH.md; active user task |
 
