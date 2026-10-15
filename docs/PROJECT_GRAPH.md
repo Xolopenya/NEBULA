@@ -4,8 +4,8 @@
 
 - Project: NEBULA.
 - Milestone: First Playable / GAME-015 complete.
-- Source baseline HEAD: `d8d1f6707cdabbb90ddd2aef1ffbe63572e76d92`.
-- This map reflects that source baseline plus the GAME-027 Drone/shared-straight-shot ownership changes.
+- Source baseline HEAD: `4669a9e41dcf71b809953f63d51ebdc91de668c5`.
+- This map reflects that source baseline plus the GAME-028 passive-module/choice-selection and launch-damage ownership changes.
 - Active task request defines task-specific requirements.
 - AGENTS.md defines repository policy.
 - TASK_GRAPH.md defines task scope, dependencies and status.
@@ -27,6 +27,8 @@ IDs are repository-relative paths; symbols use `path#export`.
 | `src/game/combat/collision.test.ts` | Tracked geometry tests |
 | `src/game/progression/experience.ts` | Pure XP threshold/award arithmetic and state type |
 | `src/game/progression/experience.test.ts` | Tracked progression tests |
+| `src/game/progression/selectChoices.ts` | Pure supplied-pool selection without replacement; injectable RNG |
+| `src/game/progression/selectChoices.test.ts` | Tracked deterministic selection tests |
 | `src/game/enemies/shooterMovement.ts` | Pure inclusive distance-band movement step |
 | `src/game/enemies/shooterMovement.test.ts` | Tracked Shooter movement tests |
 | `src/game/player/dash.ts` | Pure Dash frame timing split |
@@ -50,6 +52,7 @@ IDs are repository-relative paths; symbols use `path#export`.
 | `src/game/progression/experience.ts#ExperienceState` | Numeric level and XP toward next level |
 | `src/game/progression/experience.ts#xpForNextLevel` | Prototype threshold calculation |
 | `src/game/progression/experience.ts#addExperience` | Pure award/level/carry calculation |
+| `src/game/progression/selectChoices.ts#selectChoices` | Select N distinct entries without mutating the supplied pool |
 | `src/game/player/dash.ts#stepDash` | Active-time burst/normal split and duration/cooldown stepping |
 | `src/game/enemies/shooterMovement.ts#shooterMovement` | Approach/hold/retreat step capped at band; deterministic coincident retreat |
 
@@ -78,6 +81,8 @@ Runtime labels below describe scene-owned concepts, not separate modules/classes
 | `src/game/scenes/GameplayScene.ts` | IMPORTS | `src/game/enemies/shooterMovement.ts#shooterMovement` |
 | `src/game/enemies/shooterMovement.test.ts` | IMPORTS | `src/game/enemies/shooterMovement.ts#shooterMovement` |
 | `src/game/enemies/shooterMovement.ts#shooterMovement` | TESTED_BY | `src/game/enemies/shooterMovement.test.ts` |
+| `src/game/scenes/GameplayScene.ts` | IMPORTS | `src/game/progression/selectChoices.ts#selectChoices` |
+| `src/game/progression/selectChoices.ts#selectChoices` | TESTED_BY | `src/game/progression/selectChoices.test.ts` |
 | Player Laser | TARGETS | currentTarget from active enemies |
 | Drone bolt | TARGETS | Nearest active enemy from actual Drone position; fixed launch aim |
 | Player projectile | DAMAGES | First intersected active enemy |
@@ -104,8 +109,8 @@ All private names below are navigation anchors, not exported symbol nodes.
 | Dash | dashKey, dashDirection, dashRemaining, dashCooldownRemaining; update → stepDash / movePlayer | Fresh Space; scene-owned lock, 900 px/s, 200 ms, 3000 ms cooldown; active-time-only and segment clamping; create resets |
 | Player health | playerHealth, playerMaxHealth; damagePlayer | Current/max HP and clamping |
 | Damage protection | playerDamageProtectionRemaining; updatePlayerProtection | Global 500 ms protection, temporary alpha |
-| Level-up pause | isLevelUpPaused; enterLevelUpPause; isSimulationPaused | Distinct from death; level increase freezes update/callbacks; fixed title and three Laser upgrades; one selection resumes |
-| Choice UI/resume | levelUpPresentation; enterLevelUpPause; acceptLevelUpChoice | Current text identity guard; applies Laser effect, destroys title/options then resumes |
+| Level-up pause | isLevelUpPaused; enterLevelUpPause; isSimulationPaused | Distinct from death; level increase freezes update/callbacks; fixed title and three distinct mixed Laser/passive choices; one selection resumes |
+| Choice UI/resume | levelUpPresentation; enterLevelUpPause; acceptLevelUpChoice | Current text identity guard; applies one Laser/passive effect, destroys title/options then resumes |
 | Death/retry | isPlayerDead; enterPlayerDeath | Idempotent freeze; death-only clickable retry |
 | Enemy runtime | enemies; EnemyRuntime; createEnemy | One collection of archetype identity + visual + health; scene-local enemyData holds Chaser/Shooter/Tank HP/speed/presentation |
 | Spawning | spawnEnemy; timedSpawnSequence, successfulTimedSpawns, spawnInterval, maximumEnemies | Global timer, successful CCCSCT mix, placement, shared active-count cap; create resets sequence |
@@ -120,10 +125,13 @@ All private names below are navigation anchors, not exported symbol nodes.
 | Projectile cleanup | updateProjectiles | Impact, lifetime and world-exit destruction |
 | Player Laser | laser; laserTimer; fireLaser | Mutable Laser-only damage/interval/speed, baseline 600 ms; existing timer reset for cadence upgrades |
 | Drone | drone, droneAngle, droneConfig; updateDrone, fireDrone | One world-space companion; active-time 110 px / 2 rad/s orbit, center clamp; one 1200 ms timer |
-| Straight player-shot creation | firePlayerProjectile; fireLaser, fireDrone | Shared origin/aim/data snapshot; Laser radius 6, Drone 5; Drone independent of Laser upgrades |
-| Missile | missile, missiles; MissileRuntime; fireMissile, aimMissile, updateMissiles | Separate concrete homing target/heading/lifetime; immutable maxActiveMissiles = 1; cap blocks launch without resetting the one 1800 ms timer |
+| Straight player-shot creation | firePlayerProjectile; fireLaser, fireDrone | Shared origin/aim/data snapshot; weapon damage multiplied by globalDamageMultiplier at launch; Laser radius 6, Drone 5; Drone independent of Laser upgrades |
+| Missile | missile, missiles; MissileRuntime; fireMissile, aimMissile, updateMissiles | Separate concrete homing target/heading/lifetime/launch-damage snapshot; immutable maxActiveMissiles = 1; cap blocks launch without resetting the one 1800 ms timer |
 | Missile explosion | updateMissiles → explodeMissile → killEnemy | Earliest swept hit point, center-radius snapshot damage once, common XP/death; no direct hit |
 | Laser upgrades | LaserUpgrade; acceptLevelUpChoice | Cumulative power/rate/speed effects before resume; create restores baseline |
+| Passive Modules | PassiveModule, moduleLevels; acceptLevelUpChoice | Explicit Hull/Thruster/Collector/Combat levels and effects; create resets levels and mutable values |
+| Mutable run values | playerMaxHealth, movementSpeed, xpMagnetRadius, globalDamageMultiplier | Consumed by HP/HUD, normal movement, pickup activation and player weapon launch damage respectively |
+| Mixed choice pool | LevelUpChoice, levelUpPool, choiceLabel; enterLevelUpPause → selectChoices | Seven discriminated options; sample three once per pause; next-level passive labels; existing text identity rejects stale callbacks |
 | Hostile fire | fireHostileProjectile; hostileFireInterval | 1500 ms global timer; selectNearestEnemy('shooter') filters nearest active Shooter only; no per-enemy timers |
 | Collision inputs | updateProjectiles; player/enemy/projectile radii | Scene supplies positions and combined radii |
 | Collision calculation | collision.ts; segmentCircleHitTime | Pure numeric math, no Phaser/runtime records |
@@ -147,7 +155,7 @@ Lethal player damage → damagePlayer → enterPlayerDeath → frozen simulation
 - create resets health/protection/death, arrays, target and successfulTimedSpawns; constructs one initial Chaser outside the timed CCCSCT sequence.
 - Spawn, Laser, Missile, Drone and hostile callbacks return while dead or level-up paused; timer events remain scheduled.
 - Level-increasing collection removes its pickup then pauses; subsequent pickups remain frozen.
-- One current choice applies its Laser upgrade then destroys levelUpPresentation and clears pause; stale choices cannot close a new pause.
+- One current choice applies its Laser upgrade or Passive Module then destroys levelUpPresentation and clears pause; stale choices cannot close a new pause.
 - Projectile iteration stops after cleaning the lethal hostile impact; remaining objects freeze.
 - create empties missiles; native Phaser restart shuts down old display objects/UI and five timer events before create. Missile position/target/heading/lifetime freeze under existing simulation guard.
 - create restores one Drone at angle 0; orbit/visual/bolts freeze under simulation guard. Shared straight projectiles use each launch radius for collision/cleanup.
@@ -159,6 +167,7 @@ Lethal player damage → damagePlayer → enterPlayerDeath → frozen simulation
 | --- | --- | --- |
 | TRACKED TESTS | collision.test.ts → segmentCircleHitTime | 9 tests: hits, misses, overlap, tangent, zero step, bounds, ordering |
 | TRACKED TESTS | experience.test.ts → experience.ts | 8 tests: thresholds, credit, exact/excess/multiple levels, zero/nonmutation, split awards |
+| TRACKED TESTS | selectChoices.test.ts → selectChoices | 6 tests: size/distinctness/membership/nonmutation, deterministic RNG, later repeats, empty/full selection and invalid input |
 | TRACKED TESTS | dash.test.ts → stepDash | 6 tests: active burst, expiry split/boundary, delta partitions, zero time, large frame |
 | TRACKED TESTS | shooterMovement.test.ts → shooterMovement | 7 tests: speed/diagonal, inclusive edges, retreat, large steps, coincident center, zero time, partitions |
 | RUNTIME / MANUAL EVIDENCE | GameplayScene combat/death/restart | Browser smoke and ignored validation harnesses; not tracked Vitest coverage |
@@ -186,6 +195,9 @@ GameplayScene enemyData / EnemyRuntime / spawnEnemy / hostile fire + enemies/sho
 GameplayScene enemyData / shared direct pursuit / timedSpawnSequence IMPLEMENTS_TASK GAME-025 — Tank.
 GameplayScene MissileRuntime / missile / fireMissile / updateMissiles / explodeMissile IMPLEMENTS_TASK GAME-026 — Missile.
 GameplayScene drone / droneAngle / updateDrone / fireDrone / firePlayerProjectile IMPLEMENTS_TASK GAME-027 — Drone.
+GameplayScene.moduleLevels / mutable run values / LevelUpChoice / progression/selectChoices.ts IMPLEMENTS_TASK GAME-028 — Passive Module Foundation.
+Combat Processor is applied in firePlayerProjectile and fireMissile; explodeMissile consumes MissileRuntime.damage, never the current multiplier.
+create resets all module levels and run values before constructing the HUD. Existing native shutdown still owns object/timer cleanup.
 No generalized weapon stats framework is implemented.
 Statuses and dependencies remain in TASK_GRAPH.md, not duplicated here.
 

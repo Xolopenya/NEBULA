@@ -2,9 +2,22 @@ import * as Phaser from 'phaser';
 import { segmentCircleHitTime } from '../combat/collision';
 import { shooterMovement } from '../enemies/shooterMovement';
 import { stepDash } from '../player/dash';
+import { selectChoices } from '../progression/selectChoices';
 import { addExperience, xpForNextLevel, type ExperienceState } from '../progression/experience';
 
 type LaserUpgrade = 'power' | 'fireRate' | 'speed';
+type PassiveModule = 'hull' | 'thruster' | 'collector' | 'combat';
+type LevelUpChoice = { kind: 'laser'; upgrade: LaserUpgrade } | { kind: 'passive'; module: PassiveModule };
+
+const levelUpPool: readonly LevelUpChoice[] = [
+  { kind: 'laser', upgrade: 'power' },
+  { kind: 'laser', upgrade: 'fireRate' },
+  { kind: 'laser', upgrade: 'speed' },
+  { kind: 'passive', module: 'hull' },
+  { kind: 'passive', module: 'thruster' },
+  { kind: 'passive', module: 'collector' },
+  { kind: 'passive', module: 'combat' },
+];
 
 type EnemyArchetype = 'chaser' | 'shooter' | 'tank';
 
@@ -39,6 +52,7 @@ type ProjectileRuntime = {
 };
 
 type MissileRuntime = {
+  damage: number;
   visual: Phaser.GameObjects.Arc;
   target?: EnemyRuntime;
   headingX: number;
@@ -59,7 +73,9 @@ export class GameplayScene extends Phaser.Scene {
   private isPlayerDead = false;
   private isLevelUpPaused = false;
   private levelUpPresentation: Phaser.GameObjects.Text[] = [];
-  private readonly playerMaxHealth = 5;
+  private moduleLevels: Record<PassiveModule, number> = { hull: 0, thruster: 0, collector: 0, combat: 0 };
+  private globalDamageMultiplier = 1;
+  private playerMaxHealth = 5;
   private playerHealth = this.playerMaxHealth;
   private readonly playerRadius = 20;
   private readonly contactDamage = 1;
@@ -67,7 +83,7 @@ export class GameplayScene extends Phaser.Scene {
   private playerDamageProtectionRemaining = 0;
   private enemies: EnemyRuntime[] = [];
   private xpPickups: XpPickup[] = [];
-  private readonly xpMagnetRadius = 180;
+  private xpMagnetRadius = 180;
   private readonly xpCollectionRadius = 20;
   private readonly xpMagnetAcceleration = 900;
   private readonly xpMagnetMaxSpeed = 600;
@@ -81,7 +97,7 @@ export class GameplayScene extends Phaser.Scene {
   private cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
   private wasd?: Record<'up' | 'left' | 'down' | 'right', Phaser.Input.Keyboard.Key>;
   private readonly movementDirection = new Phaser.Math.Vector2();
-  private readonly movementSpeed = 300;
+  private movementSpeed = 300;
   private dashKey?: Phaser.Input.Keyboard.Key;
   private readonly dashDirection = new Phaser.Math.Vector2();
   private readonly dashSpeed = 900;
@@ -114,6 +130,11 @@ export class GameplayScene extends Phaser.Scene {
   }
 
   create(): void {
+    this.moduleLevels = { hull: 0, thruster: 0, collector: 0, combat: 0 };
+    this.playerMaxHealth = 5;
+    this.movementSpeed = 300;
+    this.xpMagnetRadius = 180;
+    this.globalDamageMultiplier = 1;
     this.droneAngle = 0;
     this.dashRemaining = 0;
     this.dashCooldownRemaining = 0;
@@ -333,14 +354,10 @@ export class GameplayScene extends Phaser.Scene {
       padding: { x: 24, y: 16 },
     }).setOrigin(0.5).setScrollFactor(0).setDepth(1);
     this.levelUpPresentation.push(title);
-    const choices: { label: string; upgrade: LaserUpgrade }[] = [
-      { label: 'Laser Power — +1 damage', upgrade: 'power' },
-      { label: 'Laser Fire Rate — -50 ms (min 100 ms)', upgrade: 'fireRate' },
-      { label: 'Laser Projectile Speed — +200 px/s', upgrade: 'speed' },
-    ];
-    choices.forEach(({ label, upgrade }, index) => {
+    const choices = selectChoices(levelUpPool, 3);
+    choices.forEach((option, index) => {
       const choice = this.add.text(this.scale.width / 2, this.scale.height / 2 - 40 + index * 110,
-        label, {
+        this.choiceLabel(option), {
           fontFamily: 'Arial, sans-serif',
           fontSize: '32px',
           align: 'center',
@@ -350,16 +367,46 @@ export class GameplayScene extends Phaser.Scene {
         }).setOrigin(0.5).setScrollFactor(0).setDepth(1)
         .setInteractive({ useHandCursor: true });
       this.levelUpPresentation.push(choice);
-      choice.once('pointerdown', () => this.acceptLevelUpChoice(choice, upgrade));
+      choice.once('pointerdown', () => this.acceptLevelUpChoice(choice, option));
     });
   }
 
-  private acceptLevelUpChoice(choice: Phaser.GameObjects.Text, upgrade: LaserUpgrade): void {
+  private choiceLabel(choice: LevelUpChoice): string {
+    if (choice.kind === 'laser') {
+      switch (choice.upgrade) {
+        case 'power': return 'Laser Power — +1 damage';
+        case 'fireRate': return 'Laser Fire Rate — -50 ms (min 100 ms)';
+        case 'speed': return 'Laser Projectile Speed — +200 px/s';
+      }
+    }
+    const level = this.moduleLevels[choice.module] + 1;
+    switch (choice.module) {
+      case 'hull': return `Passive: Hull Plating Lv. ${level}\n+1 Max HP / Heal 1`;
+      case 'thruster': return `Passive: Thruster Module Lv. ${level}\n+30 px/s normal movement`;
+      case 'collector': return `Passive: Collector Field Lv. ${level}\n+40 px magnet radius`;
+      case 'combat': return `Passive: Combat Processor Lv. ${level}\n+0.25x player weapon damage`;
+    }
+  }
+
+  private acceptLevelUpChoice(choice: Phaser.GameObjects.Text, option: LevelUpChoice): void {
     if (this.isPlayerDead || !this.isLevelUpPaused || !this.levelUpPresentation.includes(choice)) return;
     if (this.dashKey) Phaser.Input.Keyboard.JustDown(this.dashKey);
-    if (upgrade === 'power') this.laser.damage += 1;
-    if (upgrade === 'speed') this.laser.projectileSpeed += 200;
-    if (upgrade === 'fireRate') {
+    if (option.kind === 'passive') {
+      this.moduleLevels[option.module] += 1;
+      switch (option.module) {
+        case 'hull':
+          this.playerMaxHealth += 1;
+          this.playerHealth = Math.min(this.playerMaxHealth, this.playerHealth + 1);
+          this.updateHud();
+          break;
+        case 'thruster': this.movementSpeed += 30; break;
+        case 'collector': this.xpMagnetRadius += 40; break;
+        case 'combat': this.globalDamageMultiplier += 0.25; break;
+      }
+    }
+    if (option.kind === 'laser' && option.upgrade === 'power') this.laser.damage += 1;
+    if (option.kind === 'laser' && option.upgrade === 'speed') this.laser.projectileSpeed += 200;
+    if (option.kind === 'laser' && option.upgrade === 'fireRate') {
       this.laser.fireInterval = Math.max(100, this.laser.fireInterval - 50);
       this.laserTimer?.reset({
         delay: this.laser.fireInterval,
@@ -498,7 +545,7 @@ export class GameplayScene extends Phaser.Scene {
 
     this.projectiles.push({
       source: 'player',
-      damage,
+      damage: damage * this.globalDamageMultiplier,
       radius,
       visual: this.add.circle(origin.x, origin.y, radius, color),
       velocityX: (dx / distance) * speed,
@@ -606,6 +653,7 @@ export class GameplayScene extends Phaser.Scene {
     const target = this.selectNearestEnemy();
     if (!target) return;
     const missile: MissileRuntime = {
+      damage: this.missile.damage * this.globalDamageMultiplier,
       visual: this.add.circle(this.player.x, this.player.y, this.missile.radius, 0xfacc15),
       target,
       headingX: 0,
@@ -646,7 +694,7 @@ export class GameplayScene extends Phaser.Scene {
         if (hit < firstHit) firstHit = hit;
       }
       if (firstHit !== Infinity) {
-        this.explodeMissile(startX + stepX * firstHit, startY + stepY * firstHit);
+        this.explodeMissile(startX + stepX * firstHit, startY + stepY * firstHit, missile.damage);
       } else {
         missile.visual.x += stepX;
         missile.visual.y += stepY;
@@ -661,7 +709,7 @@ export class GameplayScene extends Phaser.Scene {
     }
   }
 
-  private explodeMissile(x: number, y: number): void {
+  private explodeMissile(x: number, y: number, damage: number): void {
     // Snapshot before lethal removals mutate the shared enemy collection.
     const affected = this.enemies.filter(enemy => {
       const dx = enemy.visual.x - x;
@@ -669,7 +717,7 @@ export class GameplayScene extends Phaser.Scene {
       return dx * dx + dy * dy <= this.missile.explosionRadius ** 2;
     });
     for (const enemy of affected) {
-      enemy.health -= this.missile.damage;
+      enemy.health -= damage;
       if (enemy.health <= 0) this.killEnemy(enemy);
     }
   }
