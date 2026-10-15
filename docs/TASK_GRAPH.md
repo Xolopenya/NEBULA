@@ -1562,7 +1562,7 @@ ACCEPTANCE / VALIDATION:
 
 ## Future weapon-progression block
 
-GAME-030 is DONE below. GAME-031+ remain BACKLOG concepts scheduled from
+GAME-030 is DONE and GAME-031 is READY below. GAME-032+ remain BACKLOG concepts scheduled from
 DESIGN-004, not implementation-ready definitions or authorization to implement them.
 GAME-029 remains DONE; later tasks each need a separate concrete definition and architect review.
 
@@ -1724,14 +1724,132 @@ ACCEPTANCE / VALIDATION:
 
 ### GAME-031 — Spatial Amplifier Passive
 
-STATUS: BACKLOG
+STATUS: READY
 
-Conceptual dependencies: GAME-030, DESIGN-002, DESIGN-004.
+DEPENDENCIES:
 
-Future run-local Area/explosion-oriented Passive prerequisite for Cluster Missile;
-not currently implemented. A later definition must identify actual consumers, effect,
-stacking, numbers and level-up integration. Follow DESIGN-002's explicit-consumer rule:
-do not impose universal Area behavior on every weapon.
+- GAME-030
+- DESIGN-002 — Player Stats & Passive Modules
+- DESIGN-003 — Weapon Evolution Architecture
+- DESIGN-004 — Missile & Drone Progression
+
+GOAL:
+
+Implement one new run-local Passive Module, Spatial Amplifier, with Missile explosion
+radius as its first real consumer. Establish an Area/explosion-oriented build axis and
+explicit future Cluster Missile prerequisite state without implementing GAME-032.
+This is an implementation definition, not a claim that Spatial Amplifier already works.
+
+PROTOTYPE RULES — PASSIVE STATE / EFFECT:
+
+- Extend existing explicit PassiveModule identity and moduleLevels with Spatial Amplifier.
+  Its level starts at 0, is repeatable/uncapped and resets to 0 on fresh create/restart.
+  Each accepted selection increments only its module level by exactly 1. No inventory,
+  slots or equipment ownership; preserve Hull, Thruster, Collector and Combat state/effects.
+- Add +15 world pixels of effective Missile explosion radius per Spatial Amplifier level:
+  effective radius = current Missile-specific explosion radius + Spatial Amplifier level × 15.
+  This is additive to Blast Expansion, not a mutation of its rank or Missile-specific value.
+  Keep both progression sources explicit and separate.
+- Required examples: 120 + Spatial0 = 120; 120 + Spatial1 = 135; 120 + Spatial2 = 150;
+  Blast Expansion rank 1: 150 + Spatial1 = 165; rank 2: 180 + Spatial2 = 210.
+- Missile explosion radius is the ONLY current consumer. Laser/Prism, Drone, hostile
+  projectiles, contact damage and enemies are unchanged. Do not create universal Area
+  behavior or a global Area multiplier/stat pipeline. Follow DESIGN-002's explicit-consumer
+  policy; future satellite blasts may consume the module only if GAME-032 defines that.
+- Expose explicit Spatial Amplifier level for future GAME-032 inspection. Do not implement
+  Cluster eligibility, an evolution offer, satellite blasts, Cluster fields or any recipe
+  level requirement. GAME-032 owns the exact prerequisite level and evolved behavior.
+
+PROTOTYPE RULES — MISSILE LAUNCH SNAPSHOTS:
+
+- At launch compute effectiveExplosionRadius = current Missile-specific explosion radius
+  + Spatial Amplifier level × 15. Store that final radius in MissileRuntime.explosionRadius.
+  Detonation consumes this stored launch radius, never a later live module/radius lookup.
+- An already-flying Missile retains its old radius across Spatial selection during pause;
+  later launches use the new effective radius. Do not alter its stored damage or speed.
+- Preserve independent launch snapshots: damage = current Missile-specific damage ×
+  globalDamageMultiplier; speed = current Missile-specific speed; radius = current
+  Missile-specific radius + Spatial bonus. Combat Processor changes damage only; Spatial
+  changes radius only. No multiplicative interaction between them and no damage rounding.
+- Preserve GAME-030 Warhead Power/Propulsion/Blast Expansion ranks, values and explicit
+  mastery; immutable active-Missile snapshots; maxActiveMissiles = 1; cadence 1800 ms;
+  direct homing, living-target retention, nearest-from-Missile reacquisition and last-heading
+  continuation; lifetime 4000 ms; direct collision radius 8; swept first impact; inclusive
+  AoE damage, shared killEnemy/exactly-one XP drop and normal cleanup. No new Missile timer.
+
+PROTOTYPE RULES — LEVEL-UP / FOCUS / LABEL:
+
+- Preserve GAME-030's exactly THREE DISTINCT choices, generated once per pause and stable
+  until selection: Slot 1 focused weapon upgrade (with existing mastered/no-upgrade fallback),
+  Slot 2 one Passive Module, Slot 3 open/pivot or guaranteed eligible Prism.
+- Slot 2 samples among FIVE repeatable uncapped passives: Hull Plating, Thruster Module,
+  Collector Field, Combat Processor and Spatial Amplifier. Spatial is also eligible in
+  the open slot when Prism is absent, after excluding earlier choices. It follows existing
+  ordinary fallback eligibility where applicable. No duplicate Spatial entry in a presentation;
+  do not mutate source pools. Use existing selection logic; no category/loot framework.
+- Accepting Spatial increments its level once BEFORE resume, changes no weapon focus and
+  resumes normally. Preserve initial Laser focus, Laser/Missile pivots, independent
+  deterministic cursors, least-rank focused selection and mastered-focus fallback.
+  Adding the fifth passive must not change focused weapon selection policy.
+- Preserve Prism's Slot 3 guarantee, next-presentation prerequisite timing and ignore/reoffer
+  behavior. Preserve stale/double callback protection: one current choice applies once;
+  old callbacks cannot apply to or dismiss a later pause. Simulation stays frozen during pause.
+- Show next level and concrete current effect, e.g. "Passive: Spatial Amplifier Lv. N /
+  +15 Missile explosion radius". Avoid wording implying all AoE weapons currently consume it.
+
+PROTOTYPE RULES — RESTART / REGRESSION:
+
+- Native create/restart resets Spatial level to 0 and effective baseline Missile radius to
+  120; preserve existing resets for Missile ranks/values, all passive levels, focus/cursors,
+  Laser ranks/Prism, XP/level, Dash, UI and weapon runtimes. Clear old active Missiles through
+  normal lifecycle; no stale objects or callbacks.
+- Exactly FIVE gameplay TimerEvents remain: spawn, Laser/Prism, Missile, Drone, hostile fire.
+  Spatial selection adds/replaces no timer. Preserve pause/death callback guards and native retry.
+- Preserve Laser/Prism behavior/snapshots/timer, Drone orbit/targeting/bolts/snapshots/timer,
+  other passive effects/stacking, XP credit/pause/resume, Dash, CCCSCT spawn/cap, Shooter-only
+  hostile fire, death freeze and restart behavior. Spatial must not change Missile damage/speed.
+
+ARCHITECTURE / TRACKED TESTS:
+
+- Allow only explicit Spatial module level, a direct Missile-radius consumer and a tiny pure
+  effectiveMissileExplosionRadius(missileSpecificRadius, spatialAmplifierLevel) helper if it
+  materially improves clarity/testing. Do not replace explicit passive state with dictionaries,
+  a PlayerStats framework, modifier lists or effect pipelines.
+- If that helper is extracted, add tracked tests for 120/0 → 120, 120/1 → 135, 120/2 → 150,
+  150/1 → 165 and 180/2 → 210, plus deterministic/nonmutating behavior. If the formula remains
+  trivial scene code, tracked tests may instead cover an extracted Passive calculation helper
+  already justified by actual code. Do not extract rendering code or build a modifier engine
+  merely for tests. Runtime checks below must verify the scene integration either way.
+- No generic Area stat, PlayerStats framework, modifier registry, effect pipeline,
+  WeaponManager, generic Passive definition system, universal AoE interface, ECS, DI or event bus.
+  Preserve DESIGN-003 weapon/evolution ownership; do not refactor GAME-030 or other weapons.
+
+OUT OF SCOPE:
+
+Cluster Missile, satellite explosions, GAME-032 recipe/eligibility/offers, Drone upgrades,
+Replication Matrix, Twin Drone, new weapons, rarity/rerolls, acquisition/inventory,
+Elite/Boss/Victory, production UI/VFX, save/meta, new dependencies and GAME-032+ implementation.
+
+ACCEPTANCE / VALIDATION:
+
+- Verify initial Spatial0, exact one-level increments/repeatable stacking, next-level/effect
+  label and unchanged focus. Demonstrate Spatial in Slot 2 and in the open slot without
+  Prism; exactly three distinct stable choices, no duplicate Spatial, unchanged focus policy,
+  Prism guarantee/ignore/reoffer and stale/double callback rejection.
+- Verify all five additive-radius examples above. Launch an old Missile, select Spatial
+  through level-up pause and prove its stored/explosion radius stays old; a new Missile
+  uses updated effective radius. Blast rank/value, Warhead damage, speed and Combat damage
+  snapshots remain unchanged. Confirm effective radius is actually used by explosion coverage.
+- Run npm run check, git diff --check and git diff --cached --check.
+- Later implementation browser/runtime validation must cover the state/choice/label and
+  old/new launch-radius scenarios above; Missile cap/homing/reacquisition/swept impact/AoE/XP;
+  Laser/Prism, Drone, other passives, focus/cursors, XP/Dash/enemy/Shooter regressions;
+  pause/resume/death; and at least TWO native RETRY cycles proving Spatial0, radius120,
+  all prior baseline resets, no stale runtimes/callbacks and exactly five timers. Check
+  the console and report actual evidence/limitations, not unexecuted runtime claims.
+- After successful implementation, update CURRENT_STATE and material PROJECT_GRAPH ownership
+  facts, mark only GAME-031 DONE and leave GAME-032+ BACKLOG. Follow AGENTS.md explicit staging
+  and architect-review workflow; generate .codex-review/GAME-031-review.txt. Do not commit.
 
 ### GAME-032 — Cluster Missile Evolution
 
