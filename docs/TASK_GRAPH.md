@@ -1562,7 +1562,7 @@ ACCEPTANCE / VALIDATION:
 
 ## Future weapon-progression block
 
-GAME-030 and GAME-031 are DONE below. GAME-032+ remain BACKLOG concepts scheduled from
+GAME-030 and GAME-031 are DONE, and GAME-032 is READY below. GAME-033+ remain BACKLOG concepts scheduled from
 DESIGN-004, not implementation-ready definitions or authorization to implement them.
 GAME-029 remains DONE; later tasks each need a separate concrete definition and architect review.
 
@@ -1855,15 +1855,199 @@ ACCEPTANCE / VALIDATION:
 
 ### GAME-032 — Cluster Missile Evolution
 
-STATUS: BACKLOG
+STATUS: READY
 
-Conceptual dependencies: GAME-030, GAME-031, DESIGN-003, DESIGN-004.
+DEPENDENCIES:
 
-Missile mastery + Spatial Amplifier prerequisite → Cluster Missile. Retain the primary
-homing Missile, primary impact explosion and primary maxActiveMissiles = 1; add
-Missile-specific radial satellite blasts. No recursive fragmentation or universal Amount.
-Satellite count/offsets, damage, radii, overlap-hit policy, recipe levels and secondary
-damage snapshot timing await the concrete definition. Preserve existing weapon ownership.
+- GAME-029
+- GAME-030
+- GAME-031
+- DESIGN-003 — Weapon Evolution Architecture
+- DESIGN-004 — Missile & Drone Progression
+
+GOAL:
+
+Implement the second concrete run-local weapon evolution: Missile mastery + Spatial
+Amplifier → Cluster Missile. Preserve the homing Missile and primary impact explosion,
+then add a deterministic radial field of smaller satellite explosions. Define fair
+two-evolution arbitration for the one evolution/open slot. This READY definition does
+not claim Cluster Missile is implemented. Do not add Drone progression/evolution.
+
+PROTOTYPE RULES — RECIPE / TIMING:
+
+- Cluster is eligible only when Missile Warhead Power, Propulsion and Blast Expansion
+  ranks are each >= 2, Spatial Amplifier level >= 1, and Cluster has not already evolved.
+  Mastery remains explicit capped 2/2/2 progression, never inferred from numeric values;
+  no generic WeaponLevel. Higher Spatial levels qualify; Spatial is not consumed.
+- Evaluate eligibility only when creating a NEW level-up presentation. Accepting the
+  final Missile rank or Spatial0→1 applies that choice, closes the current pause and
+  resumes normally. Do not immediately create another pause; Cluster becomes offerable
+  on the NEXT later presentation. Evolution is explicit player acceptance, never automatic.
+- Selecting Cluster marks explicit clusterEvolved true exactly once, retains all Missile
+  ranks/current numeric values and Spatial level, sets focus Missile and resumes normally.
+  Cluster is never offered again that run. Both Prism and Cluster may coexist.
+
+PROTOTYPE RULES — THREE SLOTS / TWO-EVOLUTION OFFER POLICY:
+
+- Preserve exactly THREE DISTINCT choices generated once and stable during a pause.
+  Slot 1 keeps focused-weapon/ordinary fallback rules; Slot 2 keeps one of the five
+  repeatable passives. Slot 3 is the single open/evolution slot. Do not offer Prism and
+  Cluster simultaneously or add a fourth choice. Source pools remain unmutated.
+- Evaluate concrete Prism and Cluster eligibility at presentation creation. If neither
+  qualifies, Slot 3 uses the existing random open/pivot sampler, excluding Slots 1/2.
+  If exactly one qualifies, it MUST occupy Slot 3 every new presentation until accepted,
+  regardless of cursor. This preserves Prism's existing sole-eligible guarantee.
+- Add one small run-local evolution offer cursor with concrete order Prism, Cluster;
+  initial/reset cursor is Prism. When both unevolved evolutions qualify, offer the
+  cursor's evolution, then advance to the other evolution ONCE after creating that
+  presentation. If both remain eligible and ignored from the initial cursor, new
+  presentations offer Prism → Cluster → Prism → Cluster. Never choose randomly.
+- Concrete cursor contract: any offered evolution sets next cursor to the other one;
+  no eligible evolution leaves it unchanged. A sole eligible evolution ignores cursor
+  position and continues reoffering itself. Advancing/normalizing happens once per NEW
+  presentation, not on update, re-entry while paused or acceptance. Keep this cursor
+  separate from existing Laser/Missile focused-track cursors.
+- After one evolution is accepted it becomes ineligible; the other, if eligible, owns
+  Slot 3 every later presentation until accepted. Ignoring an evolution leaves eligibility
+  intact; when both qualify, the deterministic alternation replaces the sole-offer guarantee.
+- Accepting Prism retains its existing Laser focus effect; accepting Cluster sets Missile
+  focus. Offering/ignoring alone does not change focus; passive acceptance retains focus.
+  Slots 1/2, focus-track cursors and current mastered-focus fallback remain otherwise unchanged.
+- Preserve stale/double callback rejection: one current choice applies once before resume;
+  old callbacks cannot evolve twice, change focus/cursor or dismiss a later presentation.
+- Prototype label: "EVOLVE: Cluster Missile / Primary blast + 6 satellite explosions".
+  Do not imply extra Missile count or independently homing child warheads.
+
+PROTOTYPE RULES — EXISTING MISSILE / PRIMARY EXPLOSION:
+
+- Cluster transforms newly launched Missiles, not a second weapon. Keep the SAME 1800 ms
+  Missile TimerEvent and maxActiveMissiles = 1. No extra firing event, secondary Missile
+  projectile runtime, child homing warheads or per-blast timers.
+- Preserve direct homing, living-target retention, nearest-from-Missile reacquisition,
+  last-heading continuation, launch speed/damage/primary-radius snapshots, lifetime 4000 ms,
+  direct collision radius 8, swept earliest impact and normal cleanup.
+- On impact resolve the normal primary explosion FIRST at the actual swept impact point,
+  using MissileRuntime launch damage and effective primary radius. Preserve inclusive
+  world-center distance, at most one primary hit per enemy, common killEnemy and exactly
+  one normal value-1 XP drop per death. No separate direct-hit damage.
+- Lifetime expiry/world exit only cleans up, without primary or satellite explosion.
+  Existing pause/death guards continue freezing homing, motion, lifetime and firing.
+
+PROTOTYPE RULES — SIX SATELLITE EXPLOSIONS:
+
+- After primary resolution, an evolved launch resolves SIX nonrecursive satellite
+  explosions at angles 0°, 60°, 120°, 180°, 240°, 300°, in world-space around the impact.
+  For stored primary radius R, center i = impact + unit(angle_i) × R. Offset distance
+  is exactly R; no randomness, no recursive fragmentation or persistent satellite projectiles.
+- Each satellite radius = R × 0.5: primary120 → satellite60; primary195 → satellite97.5.
+  Primary R already includes launch Spatial bonus, so Spatial also expands center offsets
+  and satellite radii through R. Never read Spatial again or apply its bonus twice.
+- Satellite damage = final primary launch damage × 0.5, without rounding: primary4 → 2,
+  primary5 → 2.5. Primary damage already includes Missile-specific damage × Combat multiplier.
+  Never read current Combat at detonation or multiply by Combat a second time.
+- Resolve satellite coverage against the ACTIVE enemy collection AFTER primary damage/deaths.
+  Treat coverage as the union of the six inclusive center-radius circles: each surviving
+  enemy can receive satellite damage at most ONCE for the entire detonation even if several
+  satellite circles overlap. Snapshot affected references before lethal removals can mutate
+  the collection. Every satellite kill uses existing killEnemy and one normal XP drop.
+- A survivor may receive primary + one satellite hit; other outcomes are primary only,
+  satellite only or none. Primary-killed enemies are absent from satellite processing:
+  no duplicate damage/death/XP and no skipped surviving entries after array removal.
+- Satellite centers may lie outside the arena; do NOT clamp them. Geometry stays relative
+  to the true impact point and only actual active enemies in range are affected. There is
+  no persistent satellite object requiring world-exit cleanup.
+- Production VFX/assets are out of scope. Behavioral explosions suffice when the existing
+  primary has no VFX; do not add a VFX system. Ignored harness geometry markers are allowed
+  only for validation and must not be staged.
+
+PROTOTYPE RULES — CLUSTER LAUNCH SNAPSHOT OWNERSHIP:
+
+- Decide Cluster behavior at MISSILE LAUNCH. A pre-evolution active Missile remains normal
+  after accepting Cluster; a post-evolution launch stores enough immutable Missile-specific
+  data to detonate without consulting live evolution, Combat or Spatial state.
+- Snapshot or derive immutable equivalents of clusterEnabled, satelliteDamage = stored
+  primary damage × 0.5, satelliteCenterOffset = stored primary radius and satelliteRadius =
+  stored primary radius × 0.5. Deriving these from immutable primary launch fields is valid;
+  never derive from current missileValues/moduleLevels/clusterEvolved at detonation.
+- Old Cluster launches retain all behavior/damage/radius/offset/speed values after later
+  Combat, Spatial or unrelated choices; later launches use the new launch values.
+  Preserve primary effective radius = Missile-specific radius + Spatial level × 15.
+
+PROTOTYPE RULES — RESTART / REGRESSION:
+
+- Native create/restart resets clusterEvolved false and evolution offer cursor Prism-first.
+  Preserve resets for Missile ranks 0/0/0 and values 2/450/120, Spatial 0, Laser ranks 0/0/0,
+  Prism false, focus Laser, both focused-track cursors, every passive/run value, XP/level,
+  Dash, runtime collections and choice UI. No stale callbacks or active Cluster data.
+- Exactly FIVE gameplay TimerEvents remain: spawn, Laser/Prism, Missile/Cluster, Drone,
+  hostile fire. Evolution names do not establish additional timers.
+- Preserve GAME-029 Prism recipe/firing/full-damage three beams/launch snapshots/same Laser
+  event, with only the explicit Slot 3 multi-eligible arbitration above replacing its
+  unconditional reoffer when BOTH evolutions qualify. Preserve GAME-030 Missile numeric
+  progression, focus/slots/cap/cadence/snapshots and GAME-031 fifth-passive/+15 radius/focus
+  preservation. Drone remains unchanged without ranks/evolution. Other passives, XP/pause,
+  Dash, CCCSCT/cap, Shooter-only fire, contact/damage, death and native retry remain functional.
+
+ARCHITECTURE / TRACKED TESTS:
+
+- Allow explicit clusterEvolved, a concrete Prism/Cluster cursor, small pure two-evolution
+  offer helper, small Cluster geometry/eligibility helpers and concrete launch snapshot
+  fields in MissileRuntime. This second real evolution justifies only demonstrated common
+  offer policy. Keep weapon-specific mastery, geometry and runtime ownership concrete.
+- Prefer a pure clusterSatelliteOffsets(primaryExplosionRadius) returning six relative
+  offsets. A second tiny pure satellite damage/radius helper is allowed if it improves
+  clarity. Do not create a generic explosion-pattern/effect framework.
+- Tracked pure tests are REQUIRED for deterministic Cluster geometry: exactly six offsets,
+  correct angles 0/60/120/180/240/300, each radial distance R, primary radii 120 and 195
+  (satellite radius 97.5), noninteger inputs, deterministic output and input nonmutation.
+- Tracked eligibility tests are REQUIRED: false below EACH Missile mastery rank, false
+  Spatial 0, true exactly 2/2/2 + Spatial 1, true higher Spatial, false already evolved and
+  nonmutation. Use explicit progression, not numeric Missile values.
+- A small concrete pure offer helper is recommended; tracked policy tests are REQUIRED:
+  none→none/unchanged cursor, Prism-only→Prism repeatedly, Cluster-only→Cluster repeatedly,
+  both→Prism/Cluster/Prism from baseline, each cursor state/next cursor, acceptance of one
+  leaving the other as sole eligible, Prism-first reset contract and no input mutation.
+  Requirements apply even if implemented without a separate helper; no rendering-only tests.
+- No EvolutionManager, recipe registry, universal/plugin evolution catalogue, WeaponManager,
+  generic Weapon base/WeaponLevel, universal Amount, generic explosion/effect pipeline,
+  Area system, ECS, DI, event bus or plugin architecture. Extract only actual shared policy.
+
+OUT OF SCOPE:
+
+Drone upgrades, Replication Matrix, Twin Drone, recursive fragmentation, independently
+homing child warheads, additional Missile count/new Missile timer, rarity/rerolls,
+inventory/acquisition, Elite/Boss/Victory, production VFX/assets, save/meta, new dependencies
+and GAME-033+ definition or implementation.
+
+ACCEPTANCE / VALIDATION:
+
+- Verify recipe independently below every rank and at Spatial0, exact/higher qualifying
+  Spatial and already-evolved exclusion. Test BOTH final-prerequisite categories through
+  actual selection: current pause closes/resumes and Cluster appears NEXT presentation only.
+- Verify three distinct stable slots; none/sole Prism/sole Cluster behavior, ignored sole
+  reoffer, both-eligible deterministic alternation, cursor advances once per NEW presentation
+  only, remaining offer after accepting either and coexistence of both evolutions. Preserve
+  focus rules, fallback, five passives and stale/double callback protection.
+- Verify pre-evolution active Missile remains normal, new evolved launch resolves primary
+  then six correctly positioned satellites, unchanged primary hit, exact 50% fractional
+  satellite damage/radius and R offset. Include fractional radii and arena-edge/no-clamp cases.
+- Verify primary-only, satellite-only, primary+one satellite and no-hit cases; inclusive
+  boundaries; overlapping satellites never stack; primary kills excluded from satellites;
+  clustered lethal removals never skip another enemy or create duplicate XP. Cover all
+  three enemy archetypes through common health/death and cleanup paths.
+- Verify old Cluster snapshot survives later Combat/Spatial choices unchanged, later launch
+  uses new values, no double multiplier/bonus, unchanged cap1/cadence1800/timer identity,
+  targeting/reacquisition/heading/speed/lifetime/collision/expiry and no extra timer.
+- Run npm run check, git diff --check and git diff --cached --check. Later implementation
+  real-browser/runtime validation must cover ALL recipe, next-pause, arbitration, choice,
+  geometry, coverage/overlap/XP and snapshot scenarios above; Laser/Prism, Missile upgrades,
+  Spatial, Drone, passives/focus/XP/Dash/enemy/Shooter regressions; pause/resume/death; at least
+  TWO native RETRY cycles resetting both evolution states/cursor and all prior baselines;
+  five fresh timers, no stale runtime/callbacks and clean console. Report executed evidence
+  separately from tracked pure tests and any limitations. Do not claim unexecuted checks.
+- After successful implementation, update CURRENT_STATE and material PROJECT_GRAPH facts,
+  mark only GAME-032 DONE and leave GAME-033+ BACKLOG. Follow AGENTS.md explicit staging/
+  architect-review workflow; generate .codex-review/GAME-032-review.txt. Do not commit.
 
 ### GAME-033 — Drone Upgrade Foundation
 
