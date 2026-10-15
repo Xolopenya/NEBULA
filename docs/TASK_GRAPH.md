@@ -1562,7 +1562,7 @@ ACCEPTANCE / VALIDATION:
 
 ## Future weapon-progression block
 
-GAME-030 through GAME-032 are DONE below. GAME-033+ remain BACKLOG concepts scheduled from
+GAME-030 through GAME-032 are DONE, and GAME-033 is READY below. GAME-034+ remain BACKLOG concepts scheduled from
 DESIGN-004, not implementation-ready definitions or authorization to implement them.
 GAME-029 remains DONE; later tasks each need a separate concrete definition and architect review.
 
@@ -2052,14 +2052,171 @@ ACCEPTANCE / VALIDATION:
 
 ### GAME-033 — Drone Upgrade Foundation
 
-STATUS: BACKLOG
+STATUS: READY
 
-Conceptual dependencies: GAME-032, DESIGN-004.
+DEPENDENCIES:
 
-Future tracks: Bolt Power, Firing System and Bolt Propulsion. Mastery follows completion
-of real Drone progression; exact caps/increments remain deferred. Preserve persistent
-companion/orbit ownership, Drone-relative targeting, one existing Drone TimerEvent and
-launch snapshots. Account for the larger-pool policy before runtime pool expansion.
+- GAME-032
+- DESIGN-003 — Weapon Evolution Architecture
+- DESIGN-004 — Missile & Drone Progression
+
+GOAL:
+
+Add explicit run-local progression to the existing Drone: Bolt Power, Firing System and
+Bolt Propulsion. Extend the existing concrete Laser/Missile focused-choice policy to
+Laser/Missile/Drone without changing evolution arbitration. This READY definition is
+future implementation work, not a claim that Drone upgrades already exist. No Replication
+Matrix, Twin Drone Formation or additional Drone instance.
+
+PROTOTYPE RULES — DRONE RANKS / ATTACK VALUES:
+
+- Introduce explicit run-local DroneRanks for Bolt Power, Firing System and Bolt Propulsion.
+  Each starts at 0 and caps at 2. Each accepted selection increments only its track by 1
+  and applies its effect once; rank 2 excludes only that track from ordinary eligibility.
+  Mastery is explicit 2/2/2 progression for later GAME-035 consumption, never inferred from
+  numeric values or generic WeaponLevel. This two-rank cap is concrete GAME-033 prototype
+  tuning, not a universal future-weapon rule. Do not add a Twin recipe/evolution offer/state.
+- Bolt Power: Drone-specific bolt damage 1 → 2 → 3 (+1 per rank). Final launch damage =
+  current Drone-specific damage × globalDamageMultiplier, without rounding. Combat applies
+  afterward; Laser/Prism, Missile/Cluster and incoming hostile/contact damage are unchanged.
+- Firing System: current Drone interval 1200 → 1050 → 900 ms (-150 per rank). Update the
+  current interval and reset/reschedule the SAME existing Drone TimerEvent in place on
+  accepted selection, with elapsed time returning to 0. Never create another event.
+  Do not alter orbit angular speed/radius or bolt lifetime.
+- Bolt Propulsion: current bolt speed 800 → 1000 → 1200 px/s (+200 per rank). Only newly
+  launched bolts use the new speed; no homing, reacquisition or global projectile-speed
+  modifier. Bolts remain straight with fixed firing-time aim.
+- Keep mutable Drone attack values explicit and scene-owned, e.g. droneAttackValues with
+  damage, fireInterval and projectileSpeed. Baselines are 1 / 1200 ms / 800 px/s. Keep orbit
+  configuration separately concrete/immutable; no generic WeaponStats or companion system.
+- Preserve ONE persistent Drone, orbit radius 110, angular speed 2 rad/s, current player-relative
+  positioning/arena-center clamp, actual Drone-relative nearest-target selection with stable
+  ties and near-zero/no-target suppression. Keep bolt lifetime 1800 ms/radius 5, existing
+  shared straight-projectile swept first-hit/death/XP/cleanup path and no Drone health/destruction.
+
+PROTOTYPE RULES — BOLT LAUNCH SNAPSHOTS / TIMER:
+
+- Each new Drone bolt snapshots final damage = current Drone damage × Combat multiplier,
+  and velocity = normalized current firing aim × current Drone bolt speed. Existing bolts
+  retain old damage and velocity/speed after later Bolt Power, Propulsion or Combat selections.
+  Firing interval belongs to the event and does not alter existing bolts.
+- Keep exactly one Drone firing event and exactly FIVE gameplay TimerEvents total:
+  spawn, Laser/Prism, Missile/Cluster, Drone, hostile fire. Retain the Drone TimerEvent
+  reference needed to reset it in place; both Firing selections preserve identity and reset
+  elapsed time to zero. No per-upgrade or per-Drone events, no duplicate/stale callback.
+
+PROTOTYPE RULES — THREE-WEAPON FOCUS / CURSORS:
+
+- Extend explicit WeaponFocus to laser / missile / drone; initial/reset focus remains Laser.
+  Accepting Laser upgrade or Prism sets Laser; Missile upgrade or Cluster sets Missile;
+  Drone upgrade sets Drone. Passive acceptance retains focus. Offering a choice alone,
+  including a fallback or ignored evolution, does not change focus.
+- Each weapon owns an independent zero-based track cursor, all initially/reset to 0.
+  Stable track order: Laser Power / Fire Rate / Projectile Speed; Missile Warhead Power /
+  Propulsion / Blast Expansion; Drone Bolt Power / Firing System / Bolt Propulsion.
+- Slot 1 first uses the focused weapon's minimum-rank eligible track, excluding capped
+  ranks. Resolve tied minimums by scanning cyclically from that weapon's cursor and advance
+  past the selected track. Advance ONLY the offered weapon's cursor, once per NEW presentation;
+  the same paused presentation never advances or reselects. Preserve helper input nonmutation.
+- If the focused weapon is mastered, exclude it and scan remaining weapons in stable order
+  Laser → Missile → Drone. Use the FIRST weapon with an eligible track, then apply its own
+  least-rank/cyclic rule. Laser-mastered prefers Missile then Drone; Missile-mastered prefers
+  Laser then Drone; Drone-mastered prefers Laser then Missile. An offer does not change focus;
+  only accepting its upgrade does. This preserves prior Laser/Missile fallback priority.
+- If all three are mastered, keep the existing distinct ordinary Slot 1 fallback. Five
+  uncapped passives provide enough choices. Do not create a generalized priority framework.
+
+PROTOTYPE RULES — POOL / CHOICE IDENTITY / EVOLUTIONS:
+
+- Preserve exactly THREE DISTINCT options, generated once per pause and stable until
+  selection: Slot 1 focused upgrade/fallback, Slot 2 one of five repeatable passives,
+  Slot 3 existing evolution/open slot. Source pools are never mutated.
+- Ordinary eligibility now includes each uncapped Laser, Missile and Drone track plus
+  Hull, Thruster, Collector, Combat and Spatial. When no evolution is offered, Slot 3 can
+  sample a Drone upgrade after excluding earlier options; accepting it pivots Laser/Missile
+  focus to Drone. Open Laser/Missile selections retain their existing pivot effects.
+- Extend concrete LevelUpChoice with explicit Drone upgrade identity alongside Laser,
+  Missile, Passive, Prism and Cluster. No arbitrary stat keys, string property paths,
+  generic descriptors or universal Upgrade objects.
+- Prototype labels show Drone, track, next rank and concrete effect, e.g. "Drone: Bolt Power
+  Rank 1/2 / +1 bolt damage", "Drone: Firing System Rank 1/2 / -150 ms firing interval",
+  "Drone: Bolt Propulsion Rank 1/2 / +200 px/s bolt speed". No production UI work.
+- Do NOT modify GAME-032 evolution arbitration: none eligible → ordinary open/pivot;
+  sole Prism or sole Cluster → guaranteed Slot 3; both → existing deterministic Prism/Cluster
+  cursor. Preserve next-presentation prerequisite timing, sole reoffer, once-only acceptance,
+  both-evolution coexistence, launch snapshots and reset. Evolution helper still understands
+  ONLY prism / cluster; do not pre-add Twin Drone identity or any third evolution candidate.
+
+PROTOTYPE RULES — PAUSE / CALLBACKS / RESTART:
+
+- A current Drone choice applies rank/value/focus (and Firing event reset if applicable)
+  BEFORE normal resume. Preserve simulation pause/death guards for orbit, bolts and callbacks.
+  Reject double/stale/already-capped Drone callbacks. A stale callback cannot increment rank,
+  alter attack values/focus, reset the Drone timer or dismiss a later presentation.
+- Native create/restart resets Drone ranks 0/0/0, attack damage 1 / interval 1200 / speed 800,
+  Drone cursor 0, focus Laser and Laser/Missile cursors 0. Recreate exactly one Drone at
+  angle 0, player position +110 on X and normal immutable orbit configuration.
+- Preserve resets for Laser ranks/values/Prism, Missile ranks/values/Cluster, Prism-first
+  evolution cursor, all five passive levels including Spatial, HP/run values, XP/level,
+  Dash, projectiles/Missiles and choice UI. No stale objects/bolts/callbacks; exactly five
+  fresh gameplay TimerEvents after every native retry.
+- Preserve GAME-029 Laser/Prism, GAME-030 Missile progression/focused choices, GAME-031
+  Spatial and GAME-032 Cluster/offer arbitration, plus XP/pause, Dash, CCCSCT/cap, enemy
+  targeting/death/XP, Shooter-only hostile fire, incoming damage and death/retry. No Twin behavior.
+
+ARCHITECTURE / TRACKED TESTS:
+
+- Extend existing focusedUpgrade minimally with explicit DroneRanks, Drone focus identity/
+  cursor and concrete Drone track selection. Keep responsibility to minimum-rank selection,
+  capped exclusion, per-weapon cyclic tie resolution and stable mastered-focus fallback.
+  Three real consumers justify only this extension, not a progression registry, data-driven
+  weapon catalogue, category engine, upgrade planner or WeaponManager.
+- Extend tracked focus tests without weakening Laser/Missile assertions. REQUIRED cases:
+  explicit Drone focus initially selects Bolt Power; lower Drone rank beats cursor preference;
+  tied Drone tracks cycle Power → Firing → Propulsion → Power; capped exclusion; Drone cursor
+  independence from Laser/Missile; mastered Laser prefers Missile before Drone; mastered
+  Laser+Missile falls back to Drone; mastered Missile prefers Laser; mastered Drone prefers
+  Laser (and Missile when Laser is capped); all three mastered returns no weapon upgrade;
+  deterministic cursor results and input rank/cursor/source nonmutation. Offering does not
+  silently change focus, which remains scene-owned acceptance state.
+- If a small concrete Drone progression calculation helper is actually justified, test its
+  real rules. Do not extract helpers merely for test count or write Phaser rendering-only tests.
+- Allow only explicit Drone ranks/attack state/focus/cursor, minimal focusedUpgrade extension
+  and existing event reset. No WeaponStats, generic Upgrade/companion framework, universal
+  Amount/projectile-speed/fire-rate pipeline, EvolutionManager, ECS, DI or event bus.
+
+OUT OF SCOPE:
+
+Replication Matrix, Twin Drone Formation, second Drone, Drone health/destruction, orbit-radius
+or angular-speed upgrades, new evolution identities/weapons, rarity/rerolls, acquisition/
+inventory, Elite/Boss/Victory, production UI/VFX, save/meta, new dependencies and GAME-034+.
+
+ACCEPTANCE / VALIDATION:
+
+- Verify fresh Drone ranks 0/0/0, damage 1, interval 1200, speed 800, focus Laser and five
+  timers; independent rank0→1→2 effects: damage1→2→3, interval1200→1050→900, speed800→1000→1200.
+  Individual capped tracks disappear; explicit mastery2/2/2 exposes no Twin recipe/offer.
+- Verify open-slot Drone upgrades pivot BOTH Laser and Missile focus to Drone; Drone Slot 1
+  minimum-rank/ties/caps work; passives retain Drone focus; Prism → Laser and Cluster → Missile.
+  Verify three independent cursors, once-per-presentation advance/stability, every ordered
+  mastered-focus fallback, all-mastered ordinary fallback and three distinct choices.
+- Verify SAME Drone TimerEvent identity through both Firing ranks, elapsed reset0 and actual
+  Clock boundaries at1050/900 ms with five total events. Test no-target/near-zero suppression
+  without cadence changes. Stale/double/capped callbacks must not reset or duplicate timers.
+- Verify old bolt damage/velocity survive Bolt Power, Propulsion and Combat choices, later
+  bolts use new values, actual Drone-relative nearest targeting/stable ties/fixed launch aim
+  remain correct, bolt radius/lifetime/swept first-hit/death/XP unchanged. Orbit stays110/2rad,
+  follows player/Dash and retains arena-center clamp with one companion.
+- Run npm run check, git diff --check and git diff --cached --check. Later implementation
+  real-browser/runtime validation must cover the initial/rank/focus/cursor/timer/snapshot/
+  targeting/choice scenarios above, existing Prism/Cluster arbitration and weapon behavior,
+  Missile upgrades/Spatial/five-passive/XP/Dash/enemy/Shooter regressions, pause/resume/death,
+  and at least TWO native RETRY cycles resetting Drone ranks/attack/cursor and all prior
+  baselines with one fresh Drone, no stale runtime/callbacks and five fresh timers. Check
+  console for new GAME-033 errors and report executed evidence separately from tracked tests.
+- After successful implementation, update CURRENT_STATE and material PROJECT_GRAPH ownership
+  facts, mark only GAME-033 DONE and leave GAME-034+ BACKLOG. Follow AGENTS.md explicit staging/
+  architect-review workflow; generate .codex-review/GAME-033-review.txt. Do not commit.
 
 ### GAME-034 — Replication Matrix Passive
 
