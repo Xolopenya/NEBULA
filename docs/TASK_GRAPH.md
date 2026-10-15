@@ -1427,6 +1427,7 @@ DEPENDENCIES:
 
 - GAME-028
 - DESIGN-002 — Player Stats & Passive Modules
+- DESIGN-003 — Weapon Evolution Architecture
 - MILESTONE-003 — Weapon Architecture Audit
 
 GOAL:
@@ -1502,6 +1503,12 @@ ARCHITECTURE BOUNDARY:
 
 - Keep explicit Laser rank state and Prism evolved boolean/identity concrete.
   Small pure eligibility or vector/spread helpers are allowed if useful and materially testable.
+- Follow DESIGN-003: GAME-029 implements only Laser → Prism Laser; ranks/progression
+  stay Laser-specific, with no generic ranks/evolution fields on Missile or Drone.
+  Prism transforms the existing Laser runtime, not a second weapon; the existing
+  Laser TimerEvent owns its firing. No generic Amount/projectile-count stat, universal
+  evolution recipe registry/framework, WeaponManager or EvolutionManager. Future shared
+  extraction waits for actual second/third evolution consumers and demonstrated duplication.
 - MILESTONE-003 found no required weapon refactor; preserve concrete weapon ownership.
   No universal WeaponEvolution framework/class, hypothetical recipe registry, WeaponManager,
   generic Missile/Drone rank system, modifier/effect engine, inventory/acquisition framework,
