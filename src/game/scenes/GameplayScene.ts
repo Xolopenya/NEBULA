@@ -1,10 +1,13 @@
 import * as Phaser from 'phaser';
 import { segmentCircleHitTime } from '../combat/collision';
 import { prismSpread } from '../combat/prismSpread';
+import { clusterSatelliteOffsets } from '../combat/clusterSatellites';
 import { shooterMovement } from '../enemies/shooterMovement';
 import { stepDash } from '../player/dash';
 import { selectChoices } from '../progression/selectChoices';
 import { effectiveMissileExplosionRadius } from '../progression/spatialAmplifier';
+import { canEvolveClusterMissile } from '../progression/clusterMissile';
+import { selectEvolutionOffer, type Evolution } from '../progression/evolutionOffer';
 import { selectFocusedUpgrade, type MissileRanks, type WeaponFocus, type FocusCursors } from '../progression/focusedUpgrade';
 import { canEvolvePrismLaser, type LaserRanks } from '../progression/prismLaser';
 import { addExperience, xpForNextLevel, type ExperienceState } from '../progression/experience';
@@ -13,7 +16,7 @@ type LaserUpgrade = keyof LaserRanks;
 type PassiveModule = 'hull' | 'thruster' | 'collector' | 'combat' | 'spatial';
 type OrdinaryChoice = { kind: 'laser'; upgrade: LaserUpgrade }
   | { kind: 'missile'; upgrade: keyof MissileRanks } | { kind: 'passive'; module: PassiveModule };
-type LevelUpChoice = OrdinaryChoice | { kind: 'prism' };
+type LevelUpChoice = OrdinaryChoice | { kind: 'prism' } | { kind: 'cluster' };
 
 const levelUpPool: readonly OrdinaryChoice[] = [
   { kind: 'laser', upgrade: 'power' },
@@ -62,6 +65,7 @@ type ProjectileRuntime = {
 };
 
 type MissileRuntime = {
+  readonly clusterEnabled: boolean;
   readonly damage: number;
   readonly speed: number;
   readonly explosionRadius: number;
@@ -133,6 +137,8 @@ export class GameplayScene extends Phaser.Scene {
   private laser = { damage: 1, fireInterval: 600, projectileSpeed: 1200 };
   private laserRanks: LaserRanks = { power: 0, fireRate: 0, speed: 0 };
   private prismEvolved = false;
+  private clusterEvolved = false;
+  private evolutionOfferCursor: Evolution = 'prism';
   private laserTimer?: Phaser.Time.TimerEvent;
   private readonly projectileLifetime = 2000;
   private readonly projectileRadius = 6;
@@ -165,6 +171,8 @@ export class GameplayScene extends Phaser.Scene {
     this.weaponFocus = 'laser';
     this.focusCursors = { laser: 0, missile: 0 };
     this.prismEvolved = false;
+    this.clusterEvolved = false;
+    this.evolutionOfferCursor = 'prism';
     this.playerExperience = { level: 1, xp: 0 };
     this.isPlayerDead = false;
     this.isLevelUpPaused = false;
@@ -390,7 +398,10 @@ export class GameplayScene extends Phaser.Scene {
     const second = selectChoices(ordinaryPool.filter(option => option.kind === 'passive' && option !== first), 1)[0];
     // Eligibility belongs to this presentation; completing a prerequisite only affects the next one.
     const prismEligible = canEvolvePrismLaser(this.laserRanks, this.moduleLevels.combat, this.prismEvolved);
-    const third: LevelUpChoice = prismEligible ? { kind: 'prism' }
+    const clusterEligible = canEvolveClusterMissile(this.missileRanks, this.moduleLevels.spatial, this.clusterEvolved);
+    const evolution = selectEvolutionOffer(prismEligible, clusterEligible, this.evolutionOfferCursor);
+    this.evolutionOfferCursor = evolution.nextCursor;
+    const third: LevelUpChoice = evolution.offered ? { kind: evolution.offered }
       : selectChoices(ordinaryPool.filter(option => option !== first && option !== second), 1)[0];
     const choices: LevelUpChoice[] = [first, second, third];
     choices.forEach((option, index) => {
@@ -411,6 +422,7 @@ export class GameplayScene extends Phaser.Scene {
 
   private choiceLabel(choice: LevelUpChoice): string {
     if (choice.kind === 'prism') return 'EVOLVE: Prism Laser\nThree beams — full Laser damage each';
+    if (choice.kind === 'cluster') return 'EVOLVE: Cluster Missile\nPrimary blast + 6 satellite explosions';
     if (choice.kind === 'laser') {
       switch (choice.upgrade) {
         case 'power': return 'Laser Power — +1 damage';
@@ -441,9 +453,14 @@ export class GameplayScene extends Phaser.Scene {
     if (option.kind === 'laser' && this.laserRanks[option.upgrade] >= 2) return;
     if (option.kind === 'missile' && this.missileRanks[option.upgrade] >= 2) return;
     if (option.kind === 'prism' && this.prismEvolved) return;
+    if (option.kind === 'cluster' && this.clusterEvolved) return;
     if (this.dashKey) Phaser.Input.Keyboard.JustDown(this.dashKey);
     if (option.kind === 'laser') this.laserRanks[option.upgrade] += 1;
     if (option.kind === 'prism') this.prismEvolved = true;
+    if (option.kind === 'cluster') {
+      this.clusterEvolved = true;
+      this.weaponFocus = 'missile';
+    }
     if (option.kind === 'laser' || option.kind === 'prism') this.weaponFocus = 'laser';
     if (option.kind === 'missile') {
       this.weaponFocus = 'missile';
@@ -733,6 +750,7 @@ export class GameplayScene extends Phaser.Scene {
     const target = this.selectNearestEnemy();
     if (!target) return;
     const missile: MissileRuntime = {
+      clusterEnabled: this.clusterEvolved,
       damage: this.missileValues.damage * this.globalDamageMultiplier,
       speed: this.missileValues.speed,
       explosionRadius: effectiveMissileExplosionRadius(this.missileValues.explosionRadius, this.moduleLevels.spatial),
@@ -776,7 +794,10 @@ export class GameplayScene extends Phaser.Scene {
         if (hit < firstHit) firstHit = hit;
       }
       if (firstHit !== Infinity) {
-        this.explodeMissile(startX + stepX * firstHit, startY + stepY * firstHit, missile.damage, missile.explosionRadius);
+        const impactX = startX + stepX * firstHit;
+        const impactY = startY + stepY * firstHit;
+        this.explodeMissile(impactX, impactY, missile.damage, missile.explosionRadius);
+        if (missile.clusterEnabled) this.explodeClusterSatellites(impactX, impactY, missile);
       } else {
         missile.visual.x += stepX;
         missile.visual.y += stepY;
@@ -800,6 +821,21 @@ export class GameplayScene extends Phaser.Scene {
     });
     for (const enemy of affected) {
       enemy.health -= damage;
+      if (enemy.health <= 0) this.killEnemy(enemy);
+    }
+  }
+
+  private explodeClusterSatellites(x: number, y: number, missile: MissileRuntime): void {
+    const offsets = clusterSatelliteOffsets(missile.explosionRadius);
+    const radiusSquared = (missile.explosionRadius * 0.5) ** 2;
+    // The union is evaluated after primary deaths; snapshot before satellite kills splice enemies.
+    const affected = this.enemies.filter(enemy => offsets.some(offset => {
+      const dx = enemy.visual.x - (x + offset.x);
+      const dy = enemy.visual.y - (y + offset.y);
+      return dx * dx + dy * dy <= radiusSquared;
+    }));
+    for (const enemy of affected) {
+      enemy.health -= missile.damage * 0.5;
       if (enemy.health <= 0) this.killEnemy(enemy);
     }
   }

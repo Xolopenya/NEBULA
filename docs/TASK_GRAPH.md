@@ -1562,7 +1562,7 @@ ACCEPTANCE / VALIDATION:
 
 ## Future weapon-progression block
 
-GAME-030 and GAME-031 are DONE, and GAME-032 is READY below. GAME-033+ remain BACKLOG concepts scheduled from
+GAME-030 through GAME-032 are DONE below. GAME-033+ remain BACKLOG concepts scheduled from
 DESIGN-004, not implementation-ready definitions or authorization to implement them.
 GAME-029 remains DONE; later tasks each need a separate concrete definition and architect review.
 
@@ -1855,7 +1855,7 @@ ACCEPTANCE / VALIDATION:
 
 ### GAME-032 — Cluster Missile Evolution
 
-STATUS: READY
+STATUS: DONE
 
 DEPENDENCIES:
 
@@ -1870,8 +1870,9 @@ GOAL:
 Implement the second concrete run-local weapon evolution: Missile mastery + Spatial
 Amplifier → Cluster Missile. Preserve the homing Missile and primary impact explosion,
 then add a deterministic radial field of smaller satellite explosions. Define fair
-two-evolution arbitration for the one evolution/open slot. This READY definition does
-not claim Cluster Missile is implemented. Do not add Drone progression/evolution.
+two-evolution arbitration for the one evolution/open slot. Implemented and validated
+with tracked pure tests and real-browser/runtime scenarios, including two native RETRY
+cycles restoring both evolution states/cursor and five fresh timers. No Drone progression/evolution.
 
 PROTOTYPE RULES — RECIPE / TIMING:
 
