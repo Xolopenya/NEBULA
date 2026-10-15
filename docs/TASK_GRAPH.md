@@ -1464,7 +1464,7 @@ PROTOTYPE RULES — RECIPE / EVOLUTION OFFER:
   choice/resume normally; Prism is offered on the NEXT level-up pause, not an immediate
   replacement pause. Ignoring Prism leaves eligibility intact and guarantees it again
   next level-up. Selecting it marks evolved once; it is never offered again that run.
-- No chest/elite-drop acquisition, GAME-030 definition or Elite implementation.
+- No chest/elite-drop acquisition, GAME-036 definition or Elite implementation.
 
 PROTOTYPE RULES — PRISM FIRING / SNAPSHOTS:
 
@@ -1560,16 +1560,106 @@ ACCEPTANCE / VALIDATION:
 
 ---
 
-Remaining future nodes:
+## Future weapon-progression block
 
-GAME-030 — Elite Enemy Prototype
-GAME-031 — Boss Prototype
-GAME-032 — Run Victory / Result Flow
-GAME-033 — First DevTools Utilities
-GAME-034 — Mobile Movement Prototype
-GAME-035 — Production-Like HUD Pass
+The following are BACKLOG concepts scheduled from DESIGN-004, not implementation-ready
+definitions or authorization to implement them. No GAME-030+ node is READY. GAME-029
+remains DONE; each future task needs a separate concrete definition and architect review.
 
-These are BACKLOG concepts, not authorization to implement them.
+Preferred scheduling order:
+
+GAME-030 Missile upgrades → GAME-031 Spatial Amplifier → GAME-032 Cluster Missile
+→ GAME-033 Drone upgrades → GAME-034 Replication Matrix → GAME-035 Twin Drone
+→ GAME-036 Elite → GAME-037 Boss → GAME-038 Victory.
+
+Choice-pool responsibility belongs in the GAME-030 / GAME-033 implementation definitions,
+not a separate speculative task. Before expanding the runtime pool, account for DESIGN-004's
+exactly three distinct choices: focused-weapon upgrade slot, Passive Module slot, open/pivot
+slot. Focus follows the last accepted weapon upgrade; passives retain focus and an open
+weapon choice may pivot it. Fallbacks and multi-evolution offer arbitration await concrete
+definitions. Current GAME-029 runtime/offer rules remain authoritative until this is implemented.
+
+### GAME-030 — Missile Upgrade Foundation
+
+STATUS: BACKLOG
+
+Conceptual dependencies: GAME-029, DESIGN-004.
+
+Future tracks: Warhead Power, Propulsion and Blast Expansion. Mastery follows explicit
+progression through real Missile tracks, not inferred numeric values or generic WeaponLevel.
+Preserve Missile ownership, maxActiveMissiles = 1 unless a later evolution explicitly
+changes behavior, the existing Missile TimerEvent and launch-damage snapshots.
+Exact increments, rank caps, labels, balance and choice-pool integration await definition.
+
+### GAME-031 — Spatial Amplifier Passive
+
+STATUS: BACKLOG
+
+Conceptual dependencies: GAME-030, DESIGN-002, DESIGN-004.
+
+Future run-local Area/explosion-oriented Passive prerequisite for Cluster Missile;
+not currently implemented. A later definition must identify actual consumers, effect,
+stacking, numbers and level-up integration. Follow DESIGN-002's explicit-consumer rule:
+do not impose universal Area behavior on every weapon.
+
+### GAME-032 — Cluster Missile Evolution
+
+STATUS: BACKLOG
+
+Conceptual dependencies: GAME-030, GAME-031, DESIGN-003, DESIGN-004.
+
+Missile mastery + Spatial Amplifier prerequisite → Cluster Missile. Retain the primary
+homing Missile, primary impact explosion and primary maxActiveMissiles = 1; add
+Missile-specific radial satellite blasts. No recursive fragmentation or universal Amount.
+Satellite count/offsets, damage, radii, overlap-hit policy, recipe levels and secondary
+damage snapshot timing await the concrete definition. Preserve existing weapon ownership.
+
+### GAME-033 — Drone Upgrade Foundation
+
+STATUS: BACKLOG
+
+Conceptual dependencies: GAME-032, DESIGN-004.
+
+Future tracks: Bolt Power, Firing System and Bolt Propulsion. Mastery follows completion
+of real Drone progression; exact caps/increments remain deferred. Preserve persistent
+companion/orbit ownership, Drone-relative targeting, one existing Drone TimerEvent and
+launch snapshots. Account for the larger-pool policy before runtime pool expansion.
+
+### GAME-034 — Replication Matrix Passive
+
+STATUS: BACKLOG
+
+Conceptual dependencies: GAME-033, DESIGN-002, DESIGN-004.
+
+Future run-local Passive prerequisite direction for Twin Drone Formation, not implemented.
+Its concrete task must define actual effect, consumers, numbers, stacking and level-up
+integration. Do not introduce universal Amount or give every weapon extra instances.
+
+### GAME-035 — Twin Drone Evolution
+
+STATUS: BACKLOG
+
+Conceptual dependencies: GAME-033, GAME-034, DESIGN-003, DESIGN-004.
+
+Drone mastery + Replication Matrix prerequisite → Twin Drone Formation. Retain the Drone
+and add an opposite/mirrored companion within the same Drone weapon. Normally share the
+existing Drone TimerEvent with synchronized firing; each may select nearest from its own
+world position and fire fixed-aim straight bolts. No per-Drone TimerEvent or universal Amount.
+Exact balance, recipe levels and other concrete implementation rules remain deferred.
+
+Remaining future nodes, also BACKLOG concepts:
+
+GAME-036 — Elite Enemy Prototype
+GAME-037 — Boss Prototype
+GAME-038 — Run Victory / Result Flow
+GAME-039 — First DevTools Utilities
+GAME-040 — Mobile Movement Prototype
+GAME-041 — Production-Like HUD Pass
+
+Elite follows GAME-035; Boss follows Elite; Victory follows Boss. Their existing concepts
+are preserved. The later utility/mobile/HUD concepts retain their order after Victory,
+with IDs shifted to avoid collisions with the new block. No generic Weapon/Evolution
+framework is authorized. All require separate definitions before implementation.
 
 ---
 

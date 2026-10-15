@@ -645,7 +645,7 @@ modules for a meaningful build relationship, selected only in their concrete tas
 ### Extraction and task boundary
 
 GAME-029 is the first concrete evolution implementation task, limited to Laser → Prism Laser.
-DESIGN-003 does not broaden it to Missile/Drone; GAME-030 Elite remains unrelated and BACKLOG.
+DESIGN-003 does not broaden it to Missile/Drone; GAME-036 Elite remains unrelated and BACKLOG.
 Implement concrete behavior first, preserve weapon ownership and share demonstrated common rules.
 After the second/third real evolution exists, review actual duplication before extracting
 small common identity, evolved state or eligibility/offer policy representations.
