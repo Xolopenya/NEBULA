@@ -415,23 +415,116 @@ DESIGN-002 neither defines nor implements GAME-029 Evolution.
 
 Weapon Evolutions are a required feature of the eventual core game.
 
-General rule:
+### Core principle and offer policy
 
-high-level weapon
-+
-specific passive module
-> evolved weapon
+base weapon progression/mastery + required Passive Module condition + explicit
+player-accepted evolution offer → run-local evolved behavior for that weapon.
 
-Example concept:
+Evolution is not automatic. The prerequisite Passive Module is not consumed;
+evolution state resets on a fresh run/native restart. Level-up choices remain the
+acquisition surface unless a later explicit task introduces another source.
+This design does not define chest/Elite evolution acquisition.
 
-Laser V
-+
-Quantum Lens
-> Solar Lance
+Evaluate eligibility when a new level-up presentation is created. An eligible
+unevolved evolution may be guaranteed in that presentation. Accepting the final
+prerequisite finishes the current choice/resume normally; the evolution becomes
+offerable on the next level-up, without opening a second pause immediately.
+Ignoring it leaves eligibility intact; accepting it applies exactly once for the run.
+GAME-029 is authoritative for Prism's exact guarantee/choice rules, not a generic UI framework.
 
-The exact evolution content is not yet final.
+### Weapon-specific mastery and transformation
 
-Do not implement Evolutions until the base weapon and module systems are working.
+Mastery follows actual weapon progression, not one universal WeaponLevel abstraction.
+Laser has three real upgrade paths; GAME-029 introduces explicit Laser ranks for them.
+Missile and Drone currently have no corresponding tracks. Define their mastery only
+when real upgrades/progression exist; do not invent rank fields for symmetry or
+force Laser's three tracks onto other weapons.
+
+An evolution should have a recognizable mechanical identity: changed firing pattern,
+targeting, area behavior, persistent instances or another weapon-specific behavior.
+Numeric changes may support that transformation; evolution should not merely be +50% damage.
+
+### Laser — scheduled first evolution
+
+Laser + Combat Processor → Prism Laser.
+
+GAME-029 implements this one evolution only; it is scheduled, not implemented yet.
+Mastered Laser remains the numerical foundation. Prism changes one firing callback
+into a three-direction spread on the same Laser cadence/TimerEvent, retaining existing
+launch snapshots. It modifies the same weapon rather than creating a second independent
+weapon runtime. The volley does not establish a global Amount stat.
+
+### Missile — future candidate directions
+
+Missile evolution is future work, neither scheduled nor implemented by DESIGN-003.
+Preserve homing, explicit target/reacquisition, Missile-specific active cap, impact
+detonation and AoE identity. Transform these behaviors rather than default to Laser-like spread.
+
+Approved candidate examples, not implementation commitments:
+
+- fragmentation/cluster warhead after primary detonation;
+- multiple independently targeted warheads;
+- larger or chained explosions;
+- specialized target/impact behavior.
+
+maxActiveMissiles and extra missiles/warheads remain Missile-specific, not universal Amount.
+Explosion radius remains specific unless an actually implemented global Area modifier
+deliberately consumes it. Mastery must follow real Missile progression. Final recipe,
+Passive Module prerequisite and numbers wait for a concrete evolution task.
+
+### Drone — future candidate directions
+
+Drone evolution is future work, neither scheduled nor implemented by DESIGN-003.
+Preserve persistent companion identity, player-relative orbit, Drone-relative targeting,
+independent firing timer and straight bolt attack.
+
+Approved candidate examples, not implementation commitments:
+
+- multiple coordinated companions;
+- mirrored/symmetric orbit formations;
+- synchronized volleys;
+- alternate firing geometry;
+- specialist companion behavior.
+
+Multiple Drones remain a specific mechanic, not universal Amount. Orbit/range/formation
+remain Drone behavior; mastery must emerge from real Drone progression/upgrades.
+Final recipe, Passive Module prerequisite and numbers wait for a concrete evolution task.
+
+### Shared policy and concrete ownership
+
+Likely shared conceptual facts are whether a specific evolution is active, whether
+its concrete prerequisites are satisfied, offer policy and run reset semantics.
+They do not require a generic runtime EvolutionRecipe registry now.
+
+Prefer shared rules/policy + explicit per-weapon progression + explicit evolved behavior.
+Keep progression and behavior with each weapon; avoid a universal object with optional
+homing, orbit, explosion, spread, companion-count and unrelated fields.
+
+Evolution normally transforms the existing weapon runtime. A new name alone does not
+justify another independent timer: Prism uses Laser's event; future Missile and Drone
+evolutions normally retain their respective firing/runtime ownership. Any new TimerEvent
+requires explicit mechanical justification in its concrete task, protecting restart/lifecycle.
+
+Global player-weapon damage remains orthogonal: evolution does not bypass Combat Processor,
+and applicable launch-time snapshots continue. Future Area, Duration, Cooldown or Projectile
+Speed modifiers apply only when actually implemented and meaningful to that evolved weapon.
+Do not invent modifier fields here.
+
+Each concrete evolution may require a Passive Module, without one universal mapping formula.
+Prism requires Combat Processor. Future Missile/Drone recipes may use existing or future
+modules for a meaningful build relationship, selected only in their concrete tasks.
+
+### Extraction and task boundary
+
+GAME-029 is the first concrete evolution implementation task, limited to Laser → Prism Laser.
+DESIGN-003 does not broaden it to Missile/Drone; GAME-030 Elite remains unrelated and BACKLOG.
+Implement concrete behavior first, preserve weapon ownership and share demonstrated common rules.
+After the second/third real evolution exists, review actual duplication before extracting
+small common identity, evolved state or eligibility/offer policy representations.
+
+Do not pre-create EvolutionManager, WeaponManager, a universal EvolutionRecipe engine,
+generic Weapon base class, effect pipeline, universal upgrade tree, generic Amount stat,
+ECS, DI, event bus or plugin system. Second/third real consumers must justify extraction.
 
 ---
 
