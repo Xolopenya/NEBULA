@@ -302,6 +302,38 @@ game pauses
 > player chooses 1
 > run resumes
 
+### Future larger choice pool — DESIGN-004 recommendation
+
+Current Laser/Prism choices and four repeatable passives remain authoritative; this is a
+future policy for adding Missile/Drone tracks, not a change to the implemented sampler.
+Six extra tracks expand the uncapped ordinary pool from seven to thirteen. A flat
+three-of-thirteen draw offers any particular track only 3/13 of the time versus 3/7 now,
+making completion of several mastery requirements more luck-dependent. Owned-weapon
+eligibility is useful later but insufficient today: all three weapons start active.
+A random weapon-category slot alone still spreads progress across three weapons.
+
+Recommend exactly three distinct choices with a small focus/category rule:
+
+- One upgrade for the focused weapon, preferring its least-progressed eligible track
+  with stable cycling for ties. Focus follows the last weapon upgrade accepted;
+  begin with Laser and retain focus when accepting a passive.
+- One eligible Passive Module, keeping build support and recipe prerequisites visible.
+- One open choice sampled from remaining eligible options, allowing a pivot to another
+  weapon or another passive. Selecting another weapon's upgrade changes focus.
+
+Exclude previously selected options from later slot sampling. If the focused weapon is
+mastered, use its slot for another uncapped weapon upgrade; if a category has no eligible
+entries, fill from remaining ordinary options. No acquisition/inventory is needed.
+An eligible evolution uses the open slot. Multiple future eligible evolutions require an
+explicit fair offer-order rule in their concrete task; do not silently displace Prism's
+current guarantee or add slots. Existing next-pause/refusal/once-only offer rules remain.
+
+This provides recurring mastery and passive opportunities while preserving an open pivot;
+it does not guarantee a particular random passive. Validate focus switching, prerequisite
+availability and time-to-mastery when expanding the pool. A later task must implement/review
+the policy, labels and fallbacks before the full pool expansion. Keep stable presentations,
+no rarity, weighting, rerolls or generalized loot framework; current GAME rules are unchanged.
+
 ---
 
 ## Weapons
@@ -342,6 +374,63 @@ No generalized weapon-characteristics system or weapon framework exists now.
 
 These values/behaviors currently belong to GameplayScene. Future global modifiers must integrate
 deliberately with these concrete owners rather than replace them with one generic weapon structure.
+
+### Future Missile progression — DESIGN-004 recommendation
+
+Current baseline: one 1800 ms global firing timer, speed 450 px/s, lifetime 4000 ms,
+explosion damage 2/radius 120, projectile radius 8 and maxActiveMissiles = 1.
+Launch selects nearest to the player, retains a living target and reacquires nearest
+from the Missile after target loss. Direct homing, swept impact, AoE and launch-damage
+snapshots define its role. No Missile upgrade tracks/evolution are implemented.
+
+Recommend three tracks, with increments and rank caps deferred to implementation:
+
+| Track | Concrete Missile consumer and purpose |
+| --- | --- |
+| Warhead Power | Increase Missile-specific explosion damage before Combat Processor; improve each detonation's lethality. |
+| Propulsion | Increase flight speed, reducing time-to-impact against moving enemies and freeing the single active slot sooner after impact. No player movement/global projectile-speed change. |
+| Blast Expansion | Increase Missile-specific explosion radius for cluster coverage, not direct-hit damage or generic projectile size. |
+
+Speed improves delivery without adding turn-rate mechanics: current direct homing already
+supplies guidance, while travel at 450 px/s occupies the cap. Lifetime stays separate;
+speed tuning must consider the increased distance per lifetime. Cap increases/simultaneous
+Missiles are not normal first-set scalar upgrades; reserve changes in instances for evolution.
+
+Missile mastery should require all three real tracks reaching their later concrete caps:
+delivery, warhead lethality and clustered coverage together justify mastery of this area
+weapon. Track selections explicitly, never infer mastery from mutable numeric values.
+This is not Laser's 2/2/2 rule or generic WeaponLevel. Exact increments/rank counts/caps
+await the implementation/balance task.
+
+### Future Drone progression — DESIGN-004 recommendation
+
+Current baseline: one persistent companion, orbit radius 110/angular speed 2 rad/s,
+one global 1200 ms firing timer, nearest-to-Drone targeting and fixed-aim straight bolts.
+Bolt damage is 1, speed 800 px/s, lifetime 1800 ms, radius 5, with global-damage snapshots
+at launch. Orbit follows the player; no Drone health/destruction. No Drone tracks/evolution
+are implemented.
+
+Recommend three tracks, with increments and rank caps deferred to implementation:
+
+| Track | Concrete Drone consumer and purpose |
+| --- | --- |
+| Bolt Power | Increase Drone-specific bolt damage before Combat Processor, independently of Laser upgrades. |
+| Firing System | Reduce the existing Drone TimerEvent's real firing interval, without extra events. |
+| Bolt Propulsion | Increase bolt speed to reduce travel time/misses against moving targets while retaining fixed firing-time aim. |
+
+Choose bolt speed for useful hit delivery, not just implementation ease. A larger orbit
+changes launch origins/target selection but is not reliably beneficial: the opposite-side
+companion may be farther from danger, and arena clamping distorts the ring. Higher angular
+speed changes origin cadence without increasing attacks or guaranteeing hits and can make
+target switching noisy. Keep radius/angular speed as formation/behavior tuning for now.
+Bolt speed improves the actual non-homing attack, with lifetime-based reach also increasing;
+it is Drone-specific, not a global projectile-speed stat or generic companion characteristic.
+
+Drone mastery should require completion of its three real attack tracks at later concrete
+caps: lethality, attack frequency and delivery should mature before formation evolution.
+Use explicit selection progression, not numeric inference or generic WeaponLevel. This
+independently justifies all-track completion, not Laser's exact cap structure. Do not add
+Drone health, destruction or arbitrary companion stats.
 
 ### Amount / additional instances
 
@@ -394,6 +483,15 @@ Possible later/special modules:
   a universal Amount effect is not defined.
 - A knockback-related module waits until knockback exists as a real mechanic.
 
+DESIGN-004 recommends future Spatial Amplifier (Area/explosion-oriented) as the prerequisite
+direction for Cluster Missile, and future Replication Matrix / Replicator for Twin Drone
+Formation. Neither passive is implemented. Each needs its own concrete Passive task before
+the corresponding evolution; final eligibility levels/effects are not locked here.
+Spatial Amplifier needs a meaningful Area consumer, such as Missile explosion coverage,
+not invented AoE for every weapon. Replication remains weapon-specific companion behavior,
+not universal Amount. Do not substitute Combat Processor or an unrelated existing passive
+merely to avoid these dependencies.
+
 ### Run progression and implementation boundary
 
 Passive Modules belong to the current run and reset between fresh runs/restarts unless later
@@ -435,7 +533,7 @@ GAME-029 is authoritative for Prism's exact guarantee/choice rules, not a generi
 ### Weapon-specific mastery and transformation
 
 Mastery follows actual weapon progression, not one universal WeaponLevel abstraction.
-Laser has three real upgrade paths; GAME-029 introduces explicit Laser ranks for them.
+Laser has three real upgrade paths with explicit ranks introduced by GAME-029.
 Missile and Drone currently have no corresponding tracks. Define their mastery only
 when real upgrades/progression exist; do not invent rank fields for symmetry or
 force Laser's three tracks onto other weapons.
@@ -444,11 +542,11 @@ An evolution should have a recognizable mechanical identity: changed firing patt
 targeting, area behavior, persistent instances or another weapon-specific behavior.
 Numeric changes may support that transformation; evolution should not merely be +50% damage.
 
-### Laser — scheduled first evolution
+### Laser — implemented first evolution
 
 Laser + Combat Processor → Prism Laser.
 
-GAME-029 implements this one evolution only; it is scheduled, not implemented yet.
+GAME-029 implements this one evolution only; its ranks, recipe and Prism behavior remain authoritative.
 Mastered Laser remains the numerical foundation. Prism changes one firing callback
 into a three-direction spread on the same Laser cadence/TimerEvent, retaining existing
 launch snapshots. It modifies the same weapon rather than creating a second independent
@@ -472,6 +570,21 @@ Explosion radius remains specific unless an actually implemented global Area mod
 deliberately consumes it. Mastery must follow real Missile progression. Final recipe,
 Passive Module prerequisite and numbers wait for a concrete evolution task.
 
+DESIGN-004 recommends **Cluster Missile** as the first future evolution: preserve the
+homing Missile and normal primary impact explosion, then resolve a fixed radial pattern
+of smaller satellite explosions around that impact point as part of its detonation.
+This adds a readable central hit plus surrounding cluster coverage. Prefer satellite
+blasts over independently homing warheads first: detonation changes without multiplying
+target ownership, flight runtimes or simultaneous Missiles.
+
+Satellites are Missile-specific secondary blasts, not independent weapons/global Amount.
+Retain primary maxActiveMissiles = 1 and one firing event; no recursive fragmentation.
+Pattern count/offsets, damage, radii, overlapping-hit policy and secondary damage snapshot
+timing must be explicit in the concrete task. No final balance numbers or VFX are locked.
+Recommend future Spatial Amplifier as a meaningful Area prerequisite, not Combat Processor
+by analogy with Prism; its Passive implementation is a dependency, not an existing system
+or a finalized recipe/level.
+
 ### Drone — future candidate directions
 
 Drone evolution is future work, neither scheduled nor implemented by DESIGN-003.
@@ -489,6 +602,21 @@ Approved candidate examples, not implementation commitments:
 Multiple Drones remain a specific mechanic, not universal Amount. Orbit/range/formation
 remain Drone behavior; mastery must emerge from real Drone progression/upgrades.
 Final recipe, Passive Module prerequisite and numbers wait for a concrete evolution task.
+
+DESIGN-004 recommends **Twin Drone Formation** as the first future evolution: retain the
+existing companion and add one opposite/mirrored orbit position around the player.
+Both belong to the same Drone weapon and normally fire synchronously on the existing
+Drone TimerEvent, each selecting nearest from its own actual position and firing a
+fixed-aim bolt. Preserve center clamping and player-relative orbit ownership.
+
+A second launch origin makes surrounding coverage/companion identity clearer than just
+volley geometry. A specialist companion needs a new role; alternate firing geometry alone
+risks another Laser-like spread. Mirrored companions reuse actual orbit/targeting/bolt
+behavior for a distinct transformation. This is one preferred evolution, not adoption of
+all DESIGN-003 candidates. Companions remain Drone-specific, not universal Amount;
+do not add per-Drone timers. Recommend future Replication Matrix / Replicator after its
+separate Passive task, without repurposing an unrelated current passive. Exact formation
+balance and final recipe levels remain deferred.
 
 ### Shared policy and concrete ownership
 
@@ -521,6 +649,31 @@ DESIGN-003 does not broaden it to Missile/Drone; GAME-030 Elite remains unrelate
 Implement concrete behavior first, preserve weapon ownership and share demonstrated common rules.
 After the second/third real evolution exists, review actual duplication before extracting
 small common identity, evolved state or eligibility/offer policy representations.
+
+### DESIGN-004 sequencing and future ownership checkpoint
+
+Recommend, without assigning IDs/changing TASK_GRAPH: Missile upgrades; required Area-oriented
+Passive; Cluster Missile; Drone upgrades; required replication-oriented Passive; Twin Drone
+Formation; then Elite, Boss and Run Victory work. Review the larger-pool policy as tracks
+are added, before a thirteen-option flat pool makes mastery unreliable. This is sequencing
+advice only; a separate reviewed roadmap revision must schedule the work.
+
+Laser retains Laser ranks/Prism and its timer; Missile retains its progression, homing,
+targets, explosion/cap and timer; Drone retains its progression, orbit/companions/targeting
+and timer. Cadence progression must modify the real existing event without duplication.
+Evolved names do not justify timers; any extra event needs a concrete mechanical reason.
+Combat Processor remains current weapon-specific damage × global player-weapon multiplier:
+Warhead Power and Bolt Power change their own damage first. Missile explosion damage
+snapshots at launch; Drone bolt damage snapshots at each bolt launch. Secondary Cluster
+snapshot timing must be specified by its task, never silently read from live global values.
+Do not invent other global modifiers or implement their consumers here.
+
+After Missile and/or Drone evolution actually exists, inspect real duplication in progression
+ranks, eligibility, guaranteed offers, evolved state and launch/firing behavior. Only actual
+second/third consumers justify small extraction; none is prescribed now. Track/evolution/
+passive implementation, exact increments/caps, balancing and pool details remain future
+concrete work. No weapon acquisition/inventory, rarity/rerolls, production UI/VFX, save/meta
+or dependencies are introduced by this design.
 
 Do not pre-create EvolutionManager, WeaponManager, a universal EvolutionRecipe engine,
 generic Weapon base class, effect pipeline, universal upgrade tree, generic Amount stat,
