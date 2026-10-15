@@ -1562,9 +1562,9 @@ ACCEPTANCE / VALIDATION:
 
 ## Future weapon-progression block
 
-The following are BACKLOG concepts scheduled from DESIGN-004, not implementation-ready
-definitions or authorization to implement them. No GAME-030+ node is READY. GAME-029
-remains DONE; each future task needs a separate concrete definition and architect review.
+GAME-030 is defined READY below. GAME-031+ remain BACKLOG concepts scheduled from
+DESIGN-004, not implementation-ready definitions or authorization to implement them.
+GAME-029 remains DONE; later tasks each need a separate concrete definition and architect review.
 
 Preferred scheduling order:
 
@@ -1581,15 +1581,146 @@ definitions. Current GAME-029 runtime/offer rules remain authoritative until thi
 
 ### GAME-030 — Missile Upgrade Foundation
 
-STATUS: BACKLOG
+STATUS: READY
 
-Conceptual dependencies: GAME-029, DESIGN-004.
+DEPENDENCIES:
 
-Future tracks: Warhead Power, Propulsion and Blast Expansion. Mastery follows explicit
-progression through real Missile tracks, not inferred numeric values or generic WeaponLevel.
-Preserve Missile ownership, maxActiveMissiles = 1 unless a later evolution explicitly
-changes behavior, the existing Missile TimerEvent and launch-damage snapshots.
-Exact increments, rank caps, labels, balance and choice-pool integration await definition.
+- GAME-029
+- DESIGN-002 — Player Stats & Passive Modules
+- DESIGN-003 — Weapon Evolution Architecture
+- DESIGN-004 — Missile & Drone Progression
+
+GOAL:
+
+Add explicit run-local Missile upgrades and DESIGN-004's focused three-choice policy.
+Implement only Warhead Power, Propulsion and Blast Expansion; no Spatial Amplifier,
+Cluster Missile, Drone progression or extra Missile instances.
+
+PROTOTYPE RULES — MISSILE RANKS / VALUES:
+
+- Three explicit MissileRanks start at 0 on create/restart, each capped at 2. Accepting
+  a track increments only its rank by exactly 1 and applies its effect once. Its choice
+  becomes ineligible at rank 2. Mastery is explicit 2/2/2 state, not inferred numerics
+  or generic WeaponLevel; expose that progression for later GAME-032 consumption only.
+  Do not add Cluster fields, evolution offers or behavior.
+- Warhead Power: Missile-specific explosion damage 2 → 3 → 4 (+1 per rank).
+  Final damage = current Missile damage × globalDamageMultiplier, snapshotted at launch.
+  Do not modify Laser, Drone or incoming hostile/contact damage.
+- Propulsion: Missile flight speed 450 → 525 → 600 px/s (+75 per rank), without cadence,
+  player movement, global projectile speed or turn-rate physics changes. Preserve direct
+  homing, living-target retention, nearest-from-Missile reacquisition, last-heading
+  continuation, lifetime 4000 ms, collision radius 8 and explosion behavior.
+- Blast Expansion: explosion radius 120 → 150 → 180 world pixels (+30 per rank).
+  Snapshot radius at launch, not explosion; retain direct collision radius 8, no global Area.
+- Each MissileRuntime owns its launch final damage, flight speed and explosion radius.
+  Movement and detonation consume those stored values. A Missile frozen across upgrade
+  selection retains ALL three old values; subsequent launches use the new values.
+  Preserve target/reacquisition semantics, swept earliest impact, AoE center-radius rules,
+  common lethal removal/XP and expiry/world-exit cleanup.
+- Keep maxActiveMissiles = 1 and the existing 1800 ms Missile TimerEvent unchanged.
+  No Missile cadence/count upgrade or new timer. Total remains five: spawn, Laser/Prism,
+  Missile, Drone, hostile fire.
+
+PROTOTYPE RULES — FOCUS / CHOICE SLOTS:
+
+- Focus is run-local and initially Laser. Only Laser/Missile are upgradeable focus
+  identities; Drone has no tracks and is never a focus target in GAME-030.
+- Present exactly THREE DISTINCT choices, generated once per pause and stable until
+  selection. Eligible ordinary options: uncapped Laser tracks, uncapped Missile tracks,
+  Hull Plating, Thruster Module, Collector Field and Combat Processor (repeatable/uncapped).
+  Do not mutate source pools; remove earlier slot choices before later slot sampling.
+- Slot 1: deterministically choose a least-progressed eligible track of the focused
+  weapon. Break equal-rank ties using a small run-local stable cycle/cursor, not randomness.
+  Use stable track order (Laser Power/Fire Rate/Projectile Speed; Missile Warhead Power/
+  Propulsion/Blast Expansion). Start each weapon cursor at its first track; scan cyclically
+  among tied minimum-rank tracks and advance past the chosen track once per new presentation.
+  Do not advance/reselect while the same pause stays active.
+- If focus is mastered, use the other currently upgradeable weapon with the same
+  least-rank/tie-cycle rule. This offer alone does not change focus. If neither weapon
+  has an eligible track, fill Slot 1 with a distinct ordinary option via selectChoices.
+- Slot 2: sample one of the four eligible passives using selectChoices, excluding any
+  earlier choice. Do not guarantee a particular passive or introduce Spatial Amplifier.
+- Slot 3: if Prism is eligible/unevolved at presentation creation, it MUST occupy this
+  slot exactly once; never displace it with focus/passive choices. Otherwise selectChoices
+  samples one remaining ordinary option (Laser, Missile or another passive).
+- Fallbacks preserve exactly three distinct options whenever at least three eligible
+  ordinary/evolution entries exist. Four uncapped passives ensure enough entries here.
+  No rerolls, rarity, weights, generic category/loot framework or upgrade planner.
+- Accepting Laser upgrade sets focus Laser; Missile upgrade sets focus Missile; passives
+  retain current focus. Accepting Prism sets/keeps focus Laser. Open-slot weapon selections
+  can pivot in either direction. Fresh create/restart resets focus Laser and both cursors.
+
+PROTOTYPE RULES — IDENTITY / PAUSE / PRISM:
+
+- Extend explicit LevelUpChoice with concrete Missile upgrade identity alongside Laser,
+  Passive and Prism choices. No string property paths, generic stat keys/universal descriptors.
+  Missile labels identify next rank and effect, e.g. "Missile: Warhead Power Lv. 1 / +1
+  explosion damage", "Propulsion / +75 px/s Missile speed", "Blast Expansion / +30 radius".
+  Keep simple prototype presentation, no inventory/UI framework.
+- Exactly one accepted current choice applies rank/value/focus effects BEFORE resume.
+  Preserve stale/double callback rejection: an old callback cannot affect or dismiss a
+  later presentation. Simulation remains frozen during pause; no regenerated choices.
+- Preserve Laser ranks/caps/numeric effects, Prism recipe and guarantee. Final prerequisite
+  affects NEXT presentation only, ignore/reoffer continues, acceptance is once per run.
+  Prism remains same Laser TimerEvent, full-damage three-beam volley and launch snapshots.
+  Do not change GAME-029's implemented weapon behavior or its completed task definition.
+
+PROTOTYPE RULES — RESTART / REGRESSION:
+
+- Native create/restart resets Missile ranks 0/0/0, damage 2, speed 450, explosion radius
+  120, focus Laser and deterministic cursor baselines. Reset existing Laser ranks/Prism,
+  passives/run values, XP/level, Dash, weapon runtimes and choice UI as before.
+  No stale Missiles/objects/callbacks and exactly five gameplay timers after every retry.
+- Preserve Missile cap/cadence, homing/target ownership, reacquisition/continuation,
+  lifetime/radius, swept first impact, primary explosion and cleanup; no evolution.
+- Preserve Drone orbit/targeting/timer/bolts/snapshots with no Drone ranks; all four passive
+  effects/stacking; XP credit/pause, Dash, enemy CCCSCT/cap, Shooter fire, death and retry.
+
+ARCHITECTURE / TRACKED TESTS:
+
+- Allow only explicit Missile ranks, mutable Missile-specific damage/speed/radius,
+  launch-owned MissileRuntime snapshots, Laser/Missile focus and tiny cycle state.
+  Prefer a small pure focused-selection helper if it materially improves tests; it may
+  accept focus, ranks/caps and cursor and return an eligible track/next cursor.
+  Keep selection separate from Phaser UI; selectChoices remains the random-slot sampler.
+- Focused deterministic behavior REQUIRES tracked tests: initial Laser least-rank
+  selection; lower rank preferred; deterministic rotating ties; capped exclusion;
+  mastered-focus fallback; no helper-owned focus mutation unless explicitly part of its
+  contract; input ranks/source nonmutation. These requirements apply whether or not a
+  separate helper is extracted; do not add rendering-only tests.
+- If a small helper owns slot assembly, also test exactly three distinct choices,
+  focused upgrade/passive slots, guaranteed open-slot Prism, no duplicates and unchanged
+  source collections. Use runtime/harness checks for actual scene/focus/choice integration.
+- No WeaponManager, universal WeaponStats/WeaponLevel, generic Upgrade/category/loot system,
+  global Area/Projectile Speed/Amount, EvolutionManager, ECS, DI or event bus.
+
+OUT OF SCOPE:
+
+Spatial Amplifier, Cluster Missile/evolution offers, Drone upgrades/evolution, Missile
+cadence/count upgrades, new weapons, acquisition/inventory, rarity/rerolls, Elite/Boss/Victory,
+production UI/VFX, save/meta, dependencies and GAME-031+ implementation.
+
+ACCEPTANCE / VALIDATION:
+
+- Verify independent Missile 0→1→2 ranks/caps and explicit 2/2/2 mastery with no evolution;
+  Warhead 2→3→4, Propulsion 450→525→600 and Blast 120→150→180, without cross-weapon effects.
+- Verify initial Laser focus, least-rank selection/rotating ties, mastered-focus fallback,
+  no-weapon-eligible fallback, passive focus retention, open-slot Laser↔Missile pivots and
+  Prism focus Laser. Exactly three distinct stable choices, no source mutation.
+- Verify old in-flight Missile damage/radius/speed remain unchanged across selection pause;
+  later launches consume new values, Combat multiplies current damage before launch snapshot.
+- Preserve open-slot Prism guarantee, next-pause prerequisite timing and ignore/reoffer,
+  once-only selection/stale callback protection, Laser timer identity and five total timers.
+- Run all tracked tests through npm run check, git diff --check and git diff --cached --check.
+- Later implementation browser/runtime smoke must cover focus/cycling and both pivots,
+  passive retention, individual cap disappearance/full mastery, exact numeric progression,
+  old/new Missile snapshots through pause, three distinct choices/open-slot Prism and
+  ignore/reoffer, cap/homing/reacquisition, Drone, passive/XP/Dash/enemy/Shooter regressions,
+  pause/death and at least TWO native retries resetting focus/ranks/numerics/UI/runtimes
+  with exactly five timers and no new console errors. Report actual checks/limitations.
+- After successful implementation, update CURRENT_STATE and material PROJECT_GRAPH facts,
+  mark only GAME-030 DONE; GAME-031+ remain BACKLOG. Follow AGENTS.md staging/architect
+  handoff procedure and generate .codex-review/GAME-030-review.txt. Do not commit.
 
 ### GAME-031 — Spatial Amplifier Passive
 
