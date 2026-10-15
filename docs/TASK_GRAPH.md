@@ -1419,9 +1419,142 @@ ACCEPTANCE / VALIDATION:
 
 ---
 
+## GAME-029 — Weapon Evolution Foundation
+
+STATUS: READY
+
+DEPENDENCIES:
+
+- GAME-028
+- DESIGN-002 — Player Stats & Passive Modules
+- MILESTONE-003 — Weapon Architecture Audit
+
+GOAL:
+
+Introduce one concrete run-local evolution: Laser + Combat Processor → Prism Laser,
+with only the progression state needed for this recipe. Do not evolve Missile or Drone
+or build a universal weapon/evolution framework.
+
+PROTOTYPE RULES — BASE LASER RANKS:
+
+- Track explicit run-local Laser Power, Fire Rate and Projectile Speed ranks;
+  each starts at 0 on create/restart and has a maximum rank of 2.
+- Each accepted corresponding upgrade increments only its rank by exactly 1 and
+  applies its existing effect: Power +1 Laser-specific damage; Fire Rate -50 ms
+  with authoritative minimum 100 ms; Projectile Speed +200 px/s.
+- At rank 2, that individual upgrade is no longer ordinarily eligible. Fully
+  mastered Laser is 2/2/2. Do not infer ranks from numeric Laser values or add
+  generic weapon ranks/levels to Missile/Drone.
+
+PROTOTYPE RULES — RECIPE / EVOLUTION OFFER:
+
+- Prism Laser is eligible only if all three Laser ranks are >= 2, Combat Processor
+  level is >= 1, and Prism Laser has not already evolved. Higher Combat levels qualify.
+  Do not consume/remove Combat Processor. Evolution is run-local, never automatic.
+- Evaluate eligibility when creating a NEW level-up presentation. If eligible,
+  guarantee exactly one "EVOLVE: Prism Laser" option and sample two distinct ordinary
+  choices. Otherwise sample exactly three distinct ordinary choices. Total is always three.
+- Ordinary pool: Hull Plating, Thruster Module, Collector Field, Combat Processor
+  (repeatable/uncapped), plus each Laser upgrade whose own rank is below 2.
+  Use existing pure selectChoices for random sampling; do not mutate its source pool.
+  No rarity, weights or rerolls. Four passives ensure sufficient ordinary choices.
+- Generate once and keep each presentation stable until one option is accepted.
+  Completing the final recipe prerequisite through a current choice finishes that
+  choice/resume normally; Prism is offered on the NEXT level-up pause, not an immediate
+  replacement pause. Ignoring Prism leaves eligibility intact and guarantees it again
+  next level-up. Selecting it marks evolved once; it is never offered again that run.
+- No chest/elite-drop acquisition, GAME-030 definition or Elite implementation.
+
+PROTOTYPE RULES — PRISM FIRING / SNAPSHOTS:
+
+- Base Laser keeps one straight projectile per valid-target callback. Prism replaces
+  that firing pattern with exactly THREE straight Laser projectiles per callback:
+  center aim at current target, side directions rotated -12 and +12 degrees.
+- Continue using the SAME existing Laser TimerEvent. No evolution timer or sixth timer.
+- Every beam launches from the player's actual current world position, uses current
+  Laser projectile speed and existing lifetime/radius, and snapshots current
+  Laser-specific damage × globalDamageMultiplier at launch. Each beam deals full
+  normal Laser damage; do not divide/reduce damage between beams.
+- Directions are fixed at launch, non-homing and non-piercing. Reuse existing swept
+  first-hit collision, common enemy death/XP and lifetime/world-exit cleanup.
+  Near-zero target distance safely suppresses the ENTIRE volley without changing cadence.
+- Evolution changes pattern only, not damage, Fire Rate, speed, lifetime or radius
+  directly. Selecting Prism does not reset mastered rank-2 numeric values.
+  Capped Laser choices stay unavailable; passives remain eligible. No further Prism upgrades.
+- Preserve GAME-028 snapshots: existing Laser/Prism/Drone/Missile attacks retain their
+  launch damage after later module/evolution choices. Missile launch-damage snapshot,
+  damage/homing/explosion/cap and Drone damage/orbit/targeting remain unchanged.
+  Evolution does not modify hostile projectile or contact damage.
+
+PROTOTYPE RULES — PAUSE / RESTART:
+
+- Use existing level-up pause: exactly one current choice applies before resume;
+  preserve stale/double callback rejection, including callbacks from prior presentations.
+- Pause/death guards stop Laser/Prism production and freeze existing projectiles,
+  other weapons, enemies, Dash, XP and damage exactly as before. Existing scheduled
+  timer phase may continue internally under the documented guarded-callback policy.
+- Native create/restart resets all Laser ranks to 0, evolved state to false,
+  Laser numeric values and all GAME-028 module/run state to baseline; weapon runtime,
+  XP/level, Dash and presentation reset normally. No stale objects/callbacks.
+  Exactly five timers remain: spawn, Laser, Missile, Drone, hostile fire; no Prism timer.
+
+ARCHITECTURE BOUNDARY:
+
+- Keep explicit Laser rank state and Prism evolved boolean/identity concrete.
+  Small pure eligibility or vector/spread helpers are allowed if useful and materially testable.
+- MILESTONE-003 found no required weapon refactor; preserve concrete weapon ownership.
+  No universal WeaponEvolution framework/class, hypothetical recipe registry, WeaponManager,
+  generic Missile/Drone rank system, modifier/effect engine, inventory/acquisition framework,
+  evolution event bus, ECS, DI or plugin architecture.
+- Three-beam Prism is Laser-specific behavior, not a generic projectile-count/Amount stat.
+  Preserve DESIGN-002's weapon-specific Amount boundary.
+
+OUT OF SCOPE:
+
+Missile/Drone or second evolution, evolution chests/drops, Elite/Boss or GAME-030+
+definition/implementation, weapon acquisition/inventory, new weapons, additional Prism
+upgrades, rarity/weights/rerolls, generic Amount modifiers, global evolution framework/
+recipe registry, production VFX/assets, meta/save progression and new dependencies.
+
+ACCEPTANCE / VALIDATION:
+
+- All ranks start 0; each upgrade increments only its rank, caps at 2 and disappears
+  individually from ordinary eligibility at cap. Numeric effects remain exact.
+- Recipe is false for any incomplete prerequisite, true at 2/2/2 + Combat >=1,
+  false once evolved, never consumes Combat; final prerequisite affects the next pause.
+- Present exactly three choices: eligible unevolved Prism exactly once plus two distinct
+  ordinary choices, otherwise three distinct ordinary choices. Ignored Prism returns
+  next level; selecting applies once. Stale callbacks cannot evolve or dismiss a later pause.
+- Prism fires exactly three normalized center/-12/+12-degree fixed directions from
+  actual player origin, with full launch-snapshotted damage/global multiplier and existing
+  speed/radius/lifetime. Same Laser event, no extra timer, swept non-piercing behavior
+  and whole-volley near-zero suppression. Mastered values persist after evolution.
+- Prefer focused pure tracked coverage for deterministic progression/eligibility rules.
+  If an eligibility helper is introduced, test false below EACH required Laser rank,
+  false with Combat 0, true at exactly 2/2/2 + Combat 1, true with Combat >1,
+  false already evolved and input nonmutation.
+- If pure spread math is extracted, test exactly three normalized directions, center
+  equal to base aim, symmetric +/-12-degree sides and deterministic equivalent input.
+  Near-zero suppression stays in firing logic unless the helper explicitly owns it.
+  No rendering-only tests; use runtime/harness checks for scene integration.
+- Preserve Missile maxActiveMissiles=1/homing/explosion, Drone orbit/targeting/bolts,
+  passive stacking, all launch snapshots, XP pause/resume, Dash, CCCSCT spawning/cap,
+  Shooter-only hostile fire and death freeze. Repeated native retries restore ranks,
+  evolution/module state and numeric baselines with exactly five timers and no stale runtime.
+- Run npm run check, git diff --check and git diff --cached --check.
+- Later implementation browser smoke: master Laser ranks and prove each capped choice
+  disappears; no evolution at Combat 0; obtain Combat and offer Prism on next level;
+  ignore once and see it again next level; evolve once; visual/runtime three-beam volley;
+  one Laser/five gameplay timers; Combat damage; Missile/Drone coexistence; pause/resume;
+  death and at least two native retries; clean browser console. Report actual evidence.
+- After successful implementation, update CURRENT_STATE and material PROJECT_GRAPH
+  ownership facts; mark only GAME-029 DONE. GAME-030+ remain BACKLOG.
+  Follow AGENTS.md explicit staging/architect-review workflow; do not commit.
+
+---
+
 Remaining future nodes:
 
-GAME-029 — Weapon Evolution Foundation
 GAME-030 — Elite Enemy Prototype
 GAME-031 — Boss Prototype
 GAME-032 — Run Victory / Result Flow
