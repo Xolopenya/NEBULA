@@ -1562,7 +1562,7 @@ ACCEPTANCE / VALIDATION:
 
 ## Future weapon-progression block
 
-GAME-030 is defined READY below. GAME-031+ remain BACKLOG concepts scheduled from
+GAME-030 is DONE below. GAME-031+ remain BACKLOG concepts scheduled from
 DESIGN-004, not implementation-ready definitions or authorization to implement them.
 GAME-029 remains DONE; later tasks each need a separate concrete definition and architect review.
 
@@ -1581,7 +1581,7 @@ definitions. Current GAME-029 runtime/offer rules remain authoritative until thi
 
 ### GAME-030 — Missile Upgrade Foundation
 
-STATUS: READY
+STATUS: DONE
 
 DEPENDENCIES:
 

@@ -4,18 +4,23 @@ import { prismSpread } from '../combat/prismSpread';
 import { shooterMovement } from '../enemies/shooterMovement';
 import { stepDash } from '../player/dash';
 import { selectChoices } from '../progression/selectChoices';
+import { selectFocusedUpgrade, type MissileRanks, type WeaponFocus, type FocusCursors } from '../progression/focusedUpgrade';
 import { canEvolvePrismLaser, type LaserRanks } from '../progression/prismLaser';
 import { addExperience, xpForNextLevel, type ExperienceState } from '../progression/experience';
 
 type LaserUpgrade = keyof LaserRanks;
 type PassiveModule = 'hull' | 'thruster' | 'collector' | 'combat';
-type OrdinaryChoice = { kind: 'laser'; upgrade: LaserUpgrade } | { kind: 'passive'; module: PassiveModule };
+type OrdinaryChoice = { kind: 'laser'; upgrade: LaserUpgrade }
+  | { kind: 'missile'; upgrade: keyof MissileRanks } | { kind: 'passive'; module: PassiveModule };
 type LevelUpChoice = OrdinaryChoice | { kind: 'prism' };
 
 const levelUpPool: readonly OrdinaryChoice[] = [
   { kind: 'laser', upgrade: 'power' },
   { kind: 'laser', upgrade: 'fireRate' },
   { kind: 'laser', upgrade: 'speed' },
+  { kind: 'missile', upgrade: 'warheadPower' },
+  { kind: 'missile', upgrade: 'propulsion' },
+  { kind: 'missile', upgrade: 'blastExpansion' },
   { kind: 'passive', module: 'hull' },
   { kind: 'passive', module: 'thruster' },
   { kind: 'passive', module: 'collector' },
@@ -55,7 +60,9 @@ type ProjectileRuntime = {
 };
 
 type MissileRuntime = {
-  damage: number;
+  readonly damage: number;
+  readonly speed: number;
+  readonly explosionRadius: number;
   visual: Phaser.GameObjects.Arc;
   target?: EnemyRuntime;
   headingX: number;
@@ -95,8 +102,12 @@ export class GameplayScene extends Phaser.Scene {
   private missiles: MissileRuntime[] = [];
   private readonly missile = {
     maxActiveMissiles: 1,
-    fireInterval: 1800, speed: 450, lifetime: 4000, damage: 2, explosionRadius: 120, radius: 8,
+    fireInterval: 1800, lifetime: 4000, radius: 8,
   } as const;
+  private missileValues = { damage: 2, speed: 450, explosionRadius: 120 };
+  private missileRanks: MissileRanks = { warheadPower: 0, propulsion: 0, blastExpansion: 0 };
+  private weaponFocus: WeaponFocus = 'laser';
+  private focusCursors: FocusCursors = { laser: 0, missile: 0 };
   private cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
   private wasd?: Record<'up' | 'left' | 'down' | 'right', Phaser.Input.Keyboard.Key>;
   private readonly movementDirection = new Phaser.Math.Vector2();
@@ -147,6 +158,10 @@ export class GameplayScene extends Phaser.Scene {
     this.dashKey = undefined;
     this.laser = { damage: 1, fireInterval: 600, projectileSpeed: 1200 };
     this.laserRanks = { power: 0, fireRate: 0, speed: 0 };
+    this.missileRanks = { warheadPower: 0, propulsion: 0, blastExpansion: 0 };
+    this.missileValues = { damage: 2, speed: 450, explosionRadius: 120 };
+    this.weaponFocus = 'laser';
+    this.focusCursors = { laser: 0, missile: 0 };
     this.prismEvolved = false;
     this.playerExperience = { level: 1, xp: 0 };
     this.isPlayerDead = false;
@@ -362,12 +377,20 @@ export class GameplayScene extends Phaser.Scene {
     }).setOrigin(0.5).setScrollFactor(0).setDepth(1);
     this.levelUpPresentation.push(title);
     const ordinaryPool = levelUpPool.filter(option =>
-      option.kind === 'passive' || this.laserRanks[option.upgrade] < 2);
+      option.kind === 'passive' || (option.kind === 'laser'
+        ? this.laserRanks[option.upgrade] < 2 : this.missileRanks[option.upgrade] < 2));
+    const focused = selectFocusedUpgrade(this.weaponFocus, this.laserRanks, this.missileRanks, this.focusCursors);
+    // Keep canonical pool entries so later slots can exclude by identity.
+    const focusedChoice = focused && ordinaryPool.find(option =>
+      option.kind !== 'passive' && option.kind === focused.kind && option.upgrade === focused.upgrade);
+    const first = focusedChoice ?? selectChoices(ordinaryPool, 1)[0];
+    if (focused) this.focusCursors[focused.kind] = focused.nextCursor;
+    const second = selectChoices(ordinaryPool.filter(option => option.kind === 'passive' && option !== first), 1)[0];
     // Eligibility belongs to this presentation; completing a prerequisite only affects the next one.
     const prismEligible = canEvolvePrismLaser(this.laserRanks, this.moduleLevels.combat, this.prismEvolved);
-    const choices: LevelUpChoice[] = prismEligible
-      ? [{ kind: 'prism' }, ...selectChoices(ordinaryPool, 2)]
-      : selectChoices(ordinaryPool, 3);
+    const third: LevelUpChoice = prismEligible ? { kind: 'prism' }
+      : selectChoices(ordinaryPool.filter(option => option !== first && option !== second), 1)[0];
+    const choices: LevelUpChoice[] = [first, second, third];
     choices.forEach((option, index) => {
       const choice = this.add.text(this.scale.width / 2, this.scale.height / 2 - 40 + index * 110,
         this.choiceLabel(option), {
@@ -393,6 +416,14 @@ export class GameplayScene extends Phaser.Scene {
         case 'speed': return 'Laser Projectile Speed — +200 px/s';
       }
     }
+    if (choice.kind === 'missile') {
+      const rank = this.missileRanks[choice.upgrade] + 1;
+      switch (choice.upgrade) {
+        case 'warheadPower': return `Missile Warhead Power Rank ${rank}/2\n+1 explosion damage`;
+        case 'propulsion': return `Missile Propulsion Rank ${rank}/2\n+75 px/s flight speed`;
+        case 'blastExpansion': return `Missile Blast Expansion Rank ${rank}/2\n+30 px explosion radius`;
+      }
+    }
     const level = this.moduleLevels[choice.module] + 1;
     switch (choice.module) {
       case 'hull': return `Passive: Hull Plating Lv. ${level}\n+1 Max HP / Heal 1`;
@@ -405,10 +436,21 @@ export class GameplayScene extends Phaser.Scene {
   private acceptLevelUpChoice(choice: Phaser.GameObjects.Text, option: LevelUpChoice): void {
     if (this.isPlayerDead || !this.isLevelUpPaused || !this.levelUpPresentation.includes(choice)) return;
     if (option.kind === 'laser' && this.laserRanks[option.upgrade] >= 2) return;
+    if (option.kind === 'missile' && this.missileRanks[option.upgrade] >= 2) return;
     if (option.kind === 'prism' && this.prismEvolved) return;
     if (this.dashKey) Phaser.Input.Keyboard.JustDown(this.dashKey);
     if (option.kind === 'laser') this.laserRanks[option.upgrade] += 1;
     if (option.kind === 'prism') this.prismEvolved = true;
+    if (option.kind === 'laser' || option.kind === 'prism') this.weaponFocus = 'laser';
+    if (option.kind === 'missile') {
+      this.weaponFocus = 'missile';
+      this.missileRanks[option.upgrade] += 1;
+      switch (option.upgrade) {
+        case 'warheadPower': this.missileValues.damage += 1; break;
+        case 'propulsion': this.missileValues.speed += 75; break;
+        case 'blastExpansion': this.missileValues.explosionRadius += 30; break;
+      }
+    }
     if (option.kind === 'passive') {
       this.moduleLevels[option.module] += 1;
       switch (option.module) {
@@ -688,7 +730,9 @@ export class GameplayScene extends Phaser.Scene {
     const target = this.selectNearestEnemy();
     if (!target) return;
     const missile: MissileRuntime = {
-      damage: this.missile.damage * this.globalDamageMultiplier,
+      damage: this.missileValues.damage * this.globalDamageMultiplier,
+      speed: this.missileValues.speed,
+      explosionRadius: this.missileValues.explosionRadius,
       visual: this.add.circle(this.player.x, this.player.y, this.missile.radius, 0xfacc15),
       target,
       headingX: 0,
@@ -720,8 +764,8 @@ export class GameplayScene extends Phaser.Scene {
       const seconds = Math.min(delta, missile.remainingLifetime) / 1000;
       const startX = missile.visual.x;
       const startY = missile.visual.y;
-      const stepX = missile.headingX * this.missile.speed * seconds;
-      const stepY = missile.headingY * this.missile.speed * seconds;
+      const stepX = missile.headingX * missile.speed * seconds;
+      const stepY = missile.headingY * missile.speed * seconds;
       let firstHit = Infinity;
       for (const enemy of this.enemies) {
         const hit = segmentCircleHitTime(startX, startY, stepX, stepY,
@@ -729,7 +773,7 @@ export class GameplayScene extends Phaser.Scene {
         if (hit < firstHit) firstHit = hit;
       }
       if (firstHit !== Infinity) {
-        this.explodeMissile(startX + stepX * firstHit, startY + stepY * firstHit, missile.damage);
+        this.explodeMissile(startX + stepX * firstHit, startY + stepY * firstHit, missile.damage, missile.explosionRadius);
       } else {
         missile.visual.x += stepX;
         missile.visual.y += stepY;
@@ -744,12 +788,12 @@ export class GameplayScene extends Phaser.Scene {
     }
   }
 
-  private explodeMissile(x: number, y: number, damage: number): void {
+  private explodeMissile(x: number, y: number, damage: number, explosionRadius: number): void {
     // Snapshot before lethal removals mutate the shared enemy collection.
     const affected = this.enemies.filter(enemy => {
       const dx = enemy.visual.x - x;
       const dy = enemy.visual.y - y;
-      return dx * dx + dy * dy <= this.missile.explosionRadius ** 2;
+      return dx * dx + dy * dy <= explosionRadius ** 2;
     });
     for (const enemy of affected) {
       enemy.health -= damage;
