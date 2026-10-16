@@ -3009,17 +3009,215 @@ ACCEPTANCE / VALIDATION:
   explicit staging/review with ignored .codex-review/GAME-037-review.txt/full staged diff.
   Do not commit.
 
-Remaining future nodes, also BACKLOG concepts:
+### GAME-038 — Run Victory / Result Flow
 
-GAME-038 — Run Victory / Result Flow
+STATUS: READY
+
+DEPENDENCIES:
+
+- GAME-037 — Warden common death, bossSpawned/bossDefeated, XP10 and five timers
+- GAME-015 — native death / RETRY / scene.restart lifecycle
+- GAME-019 / GAME-020 — simulation pause and presentation identity guards
+- GAME-032 / GAME-035 — atomic Cluster detonation and current Drone/Twin runtime
+
+GOAL:
+
+Complete the prototype run loop with terminal Victory after Warden defeat, a simple
+screen-fixed result overlay and native NEW RUN. This definition authorizes later
+implementation only; current GAME-037 still resumes ordinary spawning after Boss death.
+
+PROTOTYPE RULES — EXPLICIT VICTORY / FIRST TERMINAL OUTCOME:
+
+- GameplayScene owns isRunVictorious=false, an explicit enterRunVictory transition and
+  concrete result text references. Fresh create/native restart resets false; once true,
+  Victory cannot clear except through native restart. No separate VictoryScene or mode system.
+- Victory requires actual Warden removal through common killEnemy and bossDefeated===true.
+  bossSpawned, spawn count30, Phase2, HP<=0 before common removal, elapsed time or pickup
+  collection cannot trigger it. Keep duplicate-removal protection and normal target clearing.
+- Death and Victory are mutually exclusive: isPlayerDead && isRunVictorious must never
+  occur. The first terminal transition in existing production processing order wins.
+  enterRunVictory rejects an already-dead/already-victorious run; player death/damage
+  rejects Victory. Do not reorder the complete update or prioritize by hypothetical hit time.
+- If a lethal hostile/contact hit is processed first, existing death freezes later attacks:
+  Warden remains active and Victory stays false. If Warden's lethal attack completes first,
+  enter Victory before later incoming damage; player remains alive and only Victory UI exists.
+
+PROTOTYPE RULES — ATOMIC ATTACK BOUNDARY:
+
+- Do NOT enter Victory inside killEnemy, midway through an explosion damage loop or by
+  merely extending a pause guard before the lethal attack has finished its own semantics.
+  Common killEnemy still records bossDefeated/removes Warden/creates its pickup; the owning
+  attack operation then reaches its terminal boundary.
+- Straight Laser/Prism/Drone/Twin projectile: finish that projectile's first hit, damage,
+  common enemy death and normal projectile visual/runtime removal; THEN evaluate Victory,
+  before processing the next unrelated projectile. A Prism volley is not a reason to finish
+  every other active projectile after the lethal projectile's boundary.
+- Missile: complete the current primary affected-reference snapshot and all its damage/
+  deaths, then normal Missile cleanup. Cluster: finish that SAME primary explosion first,
+  then its existing survivor-based satellite union, at most one satellite hit per survivor,
+  normal deaths/rewards and Missile cleanup; only then enter Victory. Warden killed in
+  primary must not cause satellites to be skipped; Warden killed by a satellite must not
+  skip the remaining affected-reference snapshot. No direct-hit bonus or duplicate XP.
+- Stop unrelated later attack iterations and subsequent Missile/contact/XP work in that
+  frame once Victory begins. Keep existing processing order, including reverse straight-
+  projectile iteration, and use minimal explicit transition checks at completed operations.
+  Do not allow later collection to turn frozen Boss XP into a level-up presentation.
+
+PROTOTYPE RULES — PAUSE / FROZEN WORLD / INPUT:
+
+- Extend isSimulationPaused to isPlayerDead || isLevelUpPaused || isRunVictorious.
+  Victory is distinct from level-up pause and death. Combat is already frozen during a
+  normal level-up; Victory never opens an upgrade presentation.
+- Victory freezes player movement, Dash activation/advancement/cooldown, Drone/Twin shared
+  angle/positions, enemies, targeting, straight/hostile projectiles, Missiles/homing,
+  lifetimes, protection countdown, contact damage and XP magnet/collection. Guard every
+  spawn/Laser/Missile/Drone/hostile callback. Consuming rejected fresh Dash input may remain
+  consistent with current behavior, but no gameplay effect or queued Dash is allowed.
+- Preserve visible runtime behind the result: other enemies, Drone/Twin, unrelated player/
+  hostile projectiles, Missiles and XP pickups remain frozen. Do not destroy them merely
+  for Victory; only the lethal attack's normal cleanup and normal deaths have completed.
+- Warden is already removed; currentTarget clears normally if it referenced Warden and
+  no active Boss highlight remains. Other visible enemies are not cleared for presentation.
+- Do not heal or change HP/protection, movement, Dash, passives, ranks, evolutions, focus,
+  any cursor or XP/level on entry. Freeze the state at the terminal boundary, without
+  undoing work that legitimately occurred earlier in that frame. Existing fixed HUD may remain.
+- Reject stale/double level-up callbacks after Victory: no upgrade application, clearing
+  victory, resuming simulation, dismissing the result or changing focus/cursors. Preserve
+  normal current-choice identity checks and the separate death RETRY flow.
+- Only NEW RUN pointer interaction is meaningful during Victory. No new keyboard navigation,
+  confirmation shortcuts, attacks or movement effects.
+
+PROTOTYPE RULES — FIVE RETAINED TIMERS / POST-BOSS SPAWNS:
+
+- Add ZERO TimerEvents. Keep the SAME five scheduled objects: spawn, Laser/Prism,
+  Missile/Cluster, Drone/Twin and hostile attacks. Victory does not destroy, pause, replace,
+  reset elapsed or recreate them; guarded callbacks have no gameplay effects. No result timer.
+  The Phaser Clock may keep advancing scheduled event phase; freeze gameplay, not the Clock.
+- GAME-038 replaces GAME-037's temporary post-Boss spawn31 behavior through the terminal
+  guard, not by removing ordinary spawn logic. In a normal run successfulTimedSpawns stays30:
+  repeated spawn callbacks cannot create31, an ordinary/Elite enemy or another Warden.
+  All player/hostile firing callbacks are likewise inert after Victory.
+- Native NEW RUN shutdown destroys old timers normally and create installs five fresh events.
+
+PROTOTYPE RULES — BOSS XP / RESULT LEVEL:
+
+- Preserve ONE normal value10 pickup at Warden's death position through common killEnemy.
+  Victory does not wait for magnet arrival, auto-collect, convert it into direct XP or
+  synthesize levels. The pickup may remain visible/frozen until native restart clears it.
+- LEVEL REACHED reads the existing current playerExperience.level at Victory entry.
+  It excludes uncollected Boss XP10; no new statistics model or counter.
+
+PROTOTYPE RULES — RESULT OVERLAY / NEW RUN:
+
+- Simple readable centered screen-fixed prototype text, using existing scene UI style:
+  VICTORY; WARDEN DESTROYED; LEVEL REACHED: <current player level>; NEW RUN.
+  Concrete scene-owned references (e.g. victoryTitle/victorySubtitle/victoryLevelText/
+  newRunText) are sufficient. Set screen-fixed positioning/depth and let native restart
+  destroy old UI; clear references on create. No art, VFX or generic overlay framework.
+- Victory shows no SHIP DESTROYED/RETRY. Ordinary death still shows SHIP DESTROYED/RETRY,
+  with no VICTORY/NEW RUN. Do not rename RETRY or pretend Victory is death to reuse it.
+- NEW RUN exists only during Victory. One accepted pointer activation calls scene.restart().
+  Guard duplicate activation and stale old control callbacks so they cannot restart a
+  later run. Do not reload the page, switch scenes, manually call create or reset every
+  field inside the callback. Existing Phaser lifecycle owns cleanup.
+- Display only existing level data. No animated score, kill count, run duration, currency,
+  rewards, save, leaderboard or production result layout. HUD redesign is out of scope.
+
+PROTOTYPE RULES — NATIVE RESTART BASELINE:
+
+- create/native restart restores isRunVictorious=false, isPlayerDead=false,
+  isLevelUpPaused=false, bossSpawned=false, bossDefeated=false; no Warden/result/death UI,
+  successfulTimedSpawns0 and exactly one normal initial Chaser. Reset schedule remains
+  regular Tank6/Elite12/regular18/Elite24/Warden30.
+- HP5/5/protection0; Laser ranks0/0/0 and damage1/interval600/speed1200; Missile ranks0/0/0
+  and damage2/speed450/radius120; Drone ranks0/0/0 and damage1/interval1200/speed800,
+  exactly one fresh primary at angle0/player+110 X with normal clamp and no Twin.
+- Prism/Cluster/Twin false; evolution cursor Prism; all six passive levels0, including
+  Spatial/Replication; focus Laser and all three track cursors0; movement300, magnet180,
+  multiplier1, level1/xp0, baseline Dash/no queued input; clear projectile/Missile/pickup
+  collections and presentation references. Exactly FIVE fresh active gameplay events.
+- Old result/death/choice UI, enemies/Boss, Drone/Twin, projectiles/Missiles, XP pickups,
+  timers and pointer callbacks lose old scene ownership. No manual reset service.
+
+ARCHITECTURE / TRACKED TESTING:
+
+- Allowed: one isRunVictorious boolean, enterRunVictory, explicit result text fields,
+  guarded native NEW RUN and small first-terminal/atomic-boundary checks in current scene.
+  Preserve all existing weapon/progression ownership; no combat mechanic or dependency added.
+- No RunManager, GameStateManager, ResultManager, generic finite state machine, event bus,
+  scene stack/router, VictoryScene, modal framework, score/statistics service, ECS or DI.
+  A single terminal feature does not justify those extractions.
+- Baseline146 tests/16 files. This is scene/lifecycle integration: report actual final totals
+  even if unchanged. Do not extract fake pure helpers for test counts or add rendering-only
+  Vitest tests. A genuinely useful pure terminal-outcome helper may have focused tests if
+  it owns a real rule, but extraction is not required. Do not weaken existing assertions.
+
+OUT OF SCOPE:
+
+Production result screen/art/HUD redesign, statistics beyond existing level, score/run timer,
+currency/meta rewards/save/leaderboard/achievements, Boss loot, portal/telegraph, second Boss,
+difficulty scaling, DevTools/mobile movement, Yandex SDK/ads, new dependencies and GAME-039+.
+
+ACCEPTANCE / LATER IMPLEMENTATION VALIDATION:
+
+- Initial state: Victory/death/boss flags false, no result UI, five timers. Before common
+  Boss death no Victory: spawn30/cap/Phase1/Phase2 and Shooter coexistence remain GAME-037.
+- Kill Warden through an actual production player attack, not only a direct flag assignment.
+  Verify common removal/cleared target/oneXP10, bossDefeated true, Victory once and correct
+  result texts/current level, without death UI or Boss XP auto-collection.
+- Atomic straight-hit case: lethal projectile cleanup completes before Victory and an
+  unrelated later projectile does not step. Missile completes its affected enemies/cleanup.
+  Cluster primary-kill and satellite-kill cases finish that full detonation's primary-first
+  satellite union, surviving hits, all appropriate kills/rewards/no duplicates and cleanup;
+  unrelated subsequent attacks/contact/collection do not run after the terminal boundary.
+- Deterministic Victory-first race: actual lethal player attack finishes before later
+  hostile/contact opportunity in production order; Victory true/player alive/no later damage.
+  Deterministic death-first race: actual lethal hostile/contact processing precedes potential
+  Boss kill; death true/Victory false, later attack frozen and Warden remains active. Only
+  the winning UI/control exists; never both terminal flags true. Preserve update ordering.
+- With substantial dirty state, verify Victory freezes movement, Dash/input effects,
+  Drone/Twin/enemies/targeting, projectiles/Missiles/homing/lifetimes, protection and XP.
+  Snapshot gameplay values/visible objects through repeated updates and all five actual
+  callbacks. Same scheduled TimerEvent references remain, no entry-time elapsed reset or
+  pause/new timer; repeated real spawn boundaries cannot advance30->31 or fire anything.
+- Boss XP10 remains a normal frozen pickup, Victory independent of collection distance;
+  result level excludes it. Stale level-up callbacks cannot upgrade/resume/dismiss result.
+- Perform TWO actual Victory -> click NEW RUN -> native scene.restart cycles. Before EACH,
+  dirty upgraded Laser/Missile/Drone, all evolutions, six passives, focus/cursors, HP/protection,
+  XP/level/Dash, live regular/Elite enemies/projectiles/Missiles/pickups; spawn Warden/count30,
+  exercise its phase/projectiles, then kill normally. Verify dirty state freezes at Victory.
+  After EACH actual NEW RUN, verify the complete baseline above, Boss due again at30,
+  exactly five fresh timers, old scene ownership destroyed and no stale result callbacks.
+  Guard repeated pointer activation so it cannot schedule multiple restarts.
+- In addition perform at least ONE ordinary death -> actual RETRY -> native scene.restart.
+  Verify existing SHIP DESTROYED/RETRY and full baseline, no Victory UI/state. No manual
+  create call, page reload or fixture reset counts as native restart evidence.
+- Regress Warden pre-death spawn/cap/phases/bursts/physical radius, Shooter coexistence,
+  Chaser/Shooter/Tank/Elite, all six player attack paths, three evolutions, six passives,
+  three-weapon focus/cursors, XP/pause/Dash and contact/hostile damage. GAME-037 post-Boss
+  spawn31 is the deliberate replaced behavior; all other current mechanics stay authoritative.
+- Later implementation must use actual GameplayScene/production methods, real Phaser
+  Clock/TimerEvents/lifecycle and separate normal root boot. Ignored deterministic browser
+  harness may arrange fixtures, not duplicate production attack/terminal algorithms.
+  Distinguish tracked tests, runtime harness, normal boot, two NEW RUN cycles and death RETRY.
+  Report new GAME-038 console errors/warnings separately from existing favicon404/build-size warning.
+- Run npm run check, git diff --check and git diff --cached --check. After implementation
+  corrections rerun full quality and affected runtime validation. This definition changes
+  only TASK_GRAPH: GAME-038 BACKLOG->READY, GAME-037 remains DONE, GAME-039+ remain BACKLOG;
+  runtime/CURRENT_STATE/PROJECT_GRAPH unchanged. Later successful implementation updates
+  factual docs and marks GAME-038 DONE only after required validation. Explicitly stage only
+  active-task files; generate ignored .codex-review/GAME-038-review.txt with complete staged
+  diff under AGENTS.md protocol. Do not commit.
+
+Remaining future nodes, still BACKLOG concepts:
+
 GAME-039 — First DevTools Utilities
 GAME-040 — Mobile Movement Prototype
 GAME-041 — Production-Like HUD Pass
 
-Elite follows GAME-035; Boss follows Elite; Victory follows Boss. Their existing concepts
-are preserved. The later utility/mobile/HUD concepts retain their order after Victory,
-with IDs shifted to avoid collisions with the new block. No generic Weapon/Evolution
-framework is authorized. All require separate definitions before implementation.
+The later utility/mobile/HUD concepts retain their order after Victory. No generic
+Weapon/Evolution framework is authorized. These BACKLOG nodes require separate definitions
+before implementation.
 
 ---
 
