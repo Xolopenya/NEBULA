@@ -113,6 +113,8 @@ export class GameplayScene extends Phaser.Scene {
   private hud?: Phaser.GameObjects.Text;
   private playerExperience: ExperienceState = { level: 1, xp: 0 };
   private isPlayerDead = false;
+  private isRunVictorious = false;
+  private victoryPresentation: Phaser.GameObjects.Text[] = [];
   private isLevelUpPaused = false;
   private levelUpPresentation: Phaser.GameObjects.Text[] = [];
   private moduleLevels: Record<PassiveModule, number> = { hull: 0, thruster: 0, collector: 0, combat: 0, spatial: 0, replication: 0 };
@@ -182,6 +184,8 @@ export class GameplayScene extends Phaser.Scene {
   }
 
   create(): void {
+    this.isRunVictorious = false;
+    this.victoryPresentation = [];
     this.moduleLevels = { hull: 0, thruster: 0, collector: 0, combat: 0, spatial: 0, replication: 0 };
     this.playerMaxHealth = 5;
     this.movementSpeed = 300;
@@ -403,7 +407,7 @@ export class GameplayScene extends Phaser.Scene {
   }
 
   private isSimulationPaused(): boolean {
-    return this.isPlayerDead || this.isLevelUpPaused;
+    return this.isPlayerDead || this.isLevelUpPaused || this.isRunVictorious;
   }
 
   private restoreEnemyOutline(enemy: EnemyRuntime): void {
@@ -509,7 +513,7 @@ export class GameplayScene extends Phaser.Scene {
   }
 
   private acceptLevelUpChoice(choice: Phaser.GameObjects.Text, option: LevelUpChoice): void {
-    if (this.isPlayerDead || !this.isLevelUpPaused || !this.levelUpPresentation.includes(choice)) return;
+    if (this.isPlayerDead || this.isRunVictorious || !this.isLevelUpPaused || !this.levelUpPresentation.includes(choice)) return;
     if (option.kind === 'laser' && this.laserRanks[option.upgrade] >= 2) return;
     if (option.kind === 'missile' && this.missileRanks[option.upgrade] >= 2) return;
     if (option.kind === 'drone' && this.droneRanks[option.upgrade] >= 2) return;
@@ -651,7 +655,7 @@ export class GameplayScene extends Phaser.Scene {
   }
 
   private enterPlayerDeath(): void {
-    if (this.isPlayerDead) return;
+    if (this.isPlayerDead || this.isRunVictorious) return;
     this.isPlayerDead = true;
     this.player?.setAlpha(0.25);
     this.add.text(this.scale.width / 2, this.scale.height / 2, 'SHIP DESTROYED', {
@@ -672,6 +676,39 @@ export class GameplayScene extends Phaser.Scene {
       .once('pointerdown', () => {
         if (this.isPlayerDead) this.scene.restart();
       });
+  }
+
+  private enterRunVictory(): void {
+    if (!this.bossDefeated || this.isPlayerDead || this.isRunVictorious) return;
+    this.isRunVictorious = true;
+    const centerX = this.scale.width / 2;
+    const centerY = this.scale.height / 2;
+    this.victoryPresentation = [
+      this.add.text(centerX, centerY - 140, 'VICTORY', {
+        fontFamily: 'Arial, sans-serif', fontSize: '64px', color: '#a3e635',
+        backgroundColor: '#050816', padding: { x: 24, y: 16 },
+      }),
+      this.add.text(centerX, centerY - 40, 'WARDEN DESTROYED', {
+        fontFamily: 'Arial, sans-serif', fontSize: '40px', color: '#e0f2fe',
+        backgroundColor: '#050816', padding: { x: 24, y: 12 },
+      }),
+      this.add.text(centerX, centerY + 40, `LEVEL REACHED: ${this.playerExperience.level}`, {
+        fontFamily: 'Arial, sans-serif', fontSize: '32px', color: '#e0f2fe',
+        backgroundColor: '#050816', padding: { x: 24, y: 12 },
+      }),
+    ];
+    const newRun = this.add.text(centerX, centerY + 140, 'NEW RUN', {
+      fontFamily: 'Arial, sans-serif', fontSize: '40px', color: '#e0f2fe',
+      backgroundColor: '#1e3a5f', padding: { x: 24, y: 12 },
+    }).setInteractive({ useHandCursor: true });
+    this.victoryPresentation.push(newRun);
+    for (const text of this.victoryPresentation) text.setOrigin(0.5).setScrollFactor(0).setDepth(2);
+    let restartRequested = false;
+    newRun.once('pointerdown', () => {
+      if (restartRequested || !this.isRunVictorious || !this.victoryPresentation.includes(newRun)) return;
+      restartRequested = true;
+      this.scene.restart();
+    });
   }
 
   private fireLaser(): void {
@@ -809,12 +846,16 @@ export class GameplayScene extends Phaser.Scene {
         }
       }
       if (hitEnemy) {
+        const bossWasDefeated = this.bossDefeated;
         hitEnemy.health -= projectile.damage;
         if (hitEnemy.health <= 0) {
           this.killEnemy(hitEnemy);
         }
         projectile.visual.destroy();
         this.projectiles.splice(i, 1);
+        // Finish this hit's cleanup before the terminal boundary, not inside killEnemy.
+        if (!bossWasDefeated && this.bossDefeated) this.enterRunVictory();
+        if (this.isRunVictorious) return;
         continue;
       }
       projectile.visual.x = startX + stepX;
@@ -895,6 +936,7 @@ export class GameplayScene extends Phaser.Scene {
       const stepX = missile.headingX * missile.speed * seconds;
       const stepY = missile.headingY * missile.speed * seconds;
       let firstHit = Infinity;
+      let defeatedBoss = false;
       for (const enemy of this.enemies) {
         const hit = segmentCircleHitTime(startX, startY, stepX, stepY,
           enemy.visual.x, enemy.visual.y, enemy.collisionRadius + this.missile.radius);
@@ -903,8 +945,10 @@ export class GameplayScene extends Phaser.Scene {
       if (firstHit !== Infinity) {
         const impactX = startX + stepX * firstHit;
         const impactY = startY + stepY * firstHit;
+        const bossWasDefeated = this.bossDefeated;
         this.explodeMissile(impactX, impactY, missile.damage, missile.explosionRadius);
         if (missile.clusterEnabled) this.explodeClusterSatellites(impactX, impactY, missile);
+        defeatedBoss = !bossWasDefeated && this.bossDefeated;
       } else {
         missile.visual.x += stepX;
         missile.visual.y += stepY;
@@ -916,6 +960,9 @@ export class GameplayScene extends Phaser.Scene {
       }
       missile.visual.destroy();
       this.missiles.splice(i, 1);
+      // Primary, the full satellite union and Missile cleanup are one atomic detonation.
+      if (defeatedBoss) this.enterRunVictory();
+      if (this.isRunVictorious) return;
     }
   }
 

@@ -3011,7 +3011,9 @@ ACCEPTANCE / VALIDATION:
 
 ### GAME-038 — Run Victory / Result Flow
 
-STATUS: READY
+STATUS: DONE
+
+VALIDATION: TypeScript, 146 tests / 16 files, production build and diff checks PASS. Separate normal root boot and ignored real-GameplayScene/Phaser Clock harness PASS: all pre-terminal regressions, atomic straight/Missile/Cluster cleanup, both terminal races, frozen XP10/world, same five timer objects, two actual Victory NEW RUN cycles and one ordinary native death RETRY with full baseline/old ownership cleanup.
 
 DEPENDENCIES:
 
@@ -3023,8 +3025,8 @@ DEPENDENCIES:
 GOAL:
 
 Complete the prototype run loop with terminal Victory after Warden defeat, a simple
-screen-fixed result overlay and native NEW RUN. This definition authorizes later
-implementation only; current GAME-037 still resumes ordinary spawning after Boss death.
+screen-fixed result overlay and native NEW RUN. The implemented terminal guard replaces GAME-037 post-Boss spawn31;
+ordinary spawn logic is retained for nonterminal simulation.
 
 PROTOTYPE RULES — EXPLICIT VICTORY / FIRST TERMINAL OUTCOME:
 

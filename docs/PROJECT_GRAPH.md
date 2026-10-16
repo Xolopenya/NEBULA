@@ -4,8 +4,8 @@
 
 - Project: NEBULA.
 - Milestone: First Playable / GAME-015 complete.
-- Source baseline HEAD: `26463ba3d2aee14fd710524ffb3fc7ed064c1078`.
-- This map reflects that source baseline plus GAME-037 Warden spawn/phase/body-radius/shared-hostile-fire ownership.
+- Source baseline HEAD: `8ef99ca97489672d097e073c203d75ddf17a0fa6`.
+- This map reflects that source baseline plus GAME-038 atomic terminal Victory, result UI and native NEW RUN ownership.
 - Active task request defines task-specific requirements.
 - AGENTS.md defines repository policy.
 - TASK_GRAPH.md defines task scope, dependencies and status.
@@ -165,9 +165,10 @@ All private names below are navigation anchors, not exported symbol nodes.
 | Dash | dashKey, dashDirection, dashRemaining, dashCooldownRemaining; update → stepDash / movePlayer | Fresh Space; scene-owned lock, 900 px/s, 200 ms, 3000 ms cooldown; active-time-only and segment clamping; create resets |
 | Player health | playerHealth, playerMaxHealth; damagePlayer | Current/max HP and clamping |
 | Damage protection | playerDamageProtectionRemaining; updatePlayerProtection | Global 500 ms protection, temporary alpha |
-| Level-up pause | isLevelUpPaused; enterLevelUpPause; isSimulationPaused | Distinct from death; level increase freezes update/callbacks; fixed title and three distinct focused/passive/open choices; one selection resumes |
-| Choice UI/resume | levelUpPresentation; enterLevelUpPause; acceptLevelUpChoice | Current text identity guard; applies one Laser/Missile/passive effect or Prism, destroys title/options then resumes |
-| Death/retry | isPlayerDead; enterPlayerDeath | Idempotent freeze; death-only clickable retry |
+| Level-up pause | isLevelUpPaused; enterLevelUpPause; isSimulationPaused | Distinct from death/Victory; level increase freezes update/callbacks; fixed title and three distinct focused/passive/open choices; one selection resumes |
+| Choice UI/resume | levelUpPresentation; enterLevelUpPause; acceptLevelUpChoice | Current text identity and terminal guard; applies one Laser/Missile/passive effect or Prism, destroys title/options then resumes |
+| Death/retry | isPlayerDead; enterPlayerDeath | Idempotent freeze; death-only clickable retry; rejects Victory |
+| Victory/result | isRunVictorious, victoryPresentation; enterRunVictory | Atomic attack completion after new common Boss defeat, first terminal wins; fixed current-level result and identity/duplicate-guarded native NEW RUN; create clears state/UI references |
 | Enemy runtime | enemies; EnemyRuntime; createEnemy | One collection of archetype/isElite + visual/health + readonly contactDamage/xpValue/collisionRadius; enemyData and concrete eliteTankData own regular/Elite/Boss values/presentation; Warden phase styles are concrete |
 | Spawning | spawnEnemy; timedSpawnSequence, successfulTimedSpawns, spawnInterval, maximumEnemies | Same2000ms timer/successful CCCSCT mix; shouldSpawnEliteTank promotes Tank12/24; Warden replaces30, active Boss suppresses spawns/count only; blocked cap10 callbacks retain pending count; create resets0 |
 | Enemy movement | update; chaseDirection; shooterMovement | Shared Chaser/Tank pursuit (regular100/Elite120) / Shooter350–500 inclusive band; Warden70/100 current-HP pursuit; scene clamp max(25, collisionRadius), pure Shooter step |
@@ -177,7 +178,7 @@ All private names below are navigation anchors, not exported symbol nodes.
 | XP magnet/collection | updateXpPickups | Stationary outside range; accelerated approach; arrival credits pickup.value then destroys/removes |
 | Player XP/levels | playerExperience; create; updateXpPickups → addExperience | Scene owns state/reset/collection; pure module owns thresholds and carry |
 | Shared projectiles | projectiles; ProjectileRuntime | source, damage, required radius, visual, velocity, remainingLifetime |
-| Projectile stepping | updateProjectiles | Lifetime-clipped motion; swept impact; reverse removal |
+| Projectile stepping | updateProjectiles | Lifetime-clipped motion; swept impact; reverse removal; lethal Boss projectile cleanup precedes Victory and stops later shots |
 | Projectile cleanup | updateProjectiles | Impact, lifetime and world-exit destruction |
 | Player Laser | laser; laserTimer; fireLaser | Mutable Laser-only damage/interval/speed, baseline 600 ms; existing timer reset for cadence upgrades |
 | Drone / Twin | drone, twinDrone, twinDroneEvolved, droneAngle, droneConfig; updateDrone, positionDrone, fireDrone, fireDroneFrom | One initial companion; Twin adds exactly one mirrored visual at shared angle+PI; same active-time 110px / 2rad orbit, independent center clamp, one shared firing event and per-origin targets/suppression |
@@ -186,7 +187,7 @@ All private names below are navigation anchors, not exported symbol nodes.
 | Straight player-shot creation | firePlayerProjectile → launchPlayerProjectile; fireLaser, fireDrone | Existing target aim wrapper and shared direction-based launch snapshot; Prism directions enter launch directly; weapon damage multiplied by globalDamageMultiplier at launch; Laser radius 6, Drone baseline 5 + Replication level |
 | Missile | missile, missileValues, missiles; MissileRuntime; fireMissile, aimMissile, updateMissiles | Separate concrete homing target/heading/lifetime and readonly launch clusterEnabled/damage/speed/explosionRadius; immutable maxActiveMissiles = 1; cap blocks launch without resetting the one 1800 ms timer |
 | Spatial Amplifier | moduleLevels.spatial; fireMissile → effectiveMissileExplosionRadius | Repeatable +15 px per level added to Missile-specific radius at launch; stored MissileRuntime radius owns later explosion; no focus/cursor mutation or other consumers |
-| Missile explosion | updateMissiles → explodeMissile → killEnemy | Earliest swept hit point, center-radius snapshot damage once, common XP/death; no direct hit |
+| Missile explosion | updateMissiles → explodeMissile → killEnemy | Earliest swept hit point, center-radius snapshot damage once, common XP/death; primary and optional satellites plus Missile cleanup finish before Victory; no direct hit |
 | Laser upgrades | laserRanks, LaserUpgrade; acceptLevelUpChoice | Explicit independent ranks 0..2; capped upgrades filtered out, numeric effects and same timer reset retained; create resets ranks |
 | Prism Laser | prismEvolved; enterLevelUpPause → canEvolvePrismLaser; fireLaser → prismSpread | New-presentation eligibility only; sole-eligible Slot 3 guarantee or three-evolution arbitration after focused/passive slots; same Laser timer/runtime, three full-damage shots; create resets evolved state |
 | Cluster Missile | clusterEvolved; fireMissile → MissileRuntime.clusterEnabled; updateMissiles → explodeMissile then explodeClusterSatellites | Explicit mastery/Spatial eligibility; primary-first union of six launch-derived satellite circles, one satellite hit per surviving enemy; no extra timer/child projectile |
@@ -214,16 +215,20 @@ update: consume fresh Dash press → simulation pause guard → player movement/
 Lethal player damage → damagePlayer → enterPlayerDeath → frozen simulation
 → RETRY pointerdown (once) → scene.restart → fresh create.
 
+Common Warden removal during a player hit → complete that projectile or full Missile/Cluster
+detonation and cleanup → enterRunVictory → frozen gameplay / fixed result
+→ guarded NEW RUN pointerdown → native scene.restart → fresh create.
+
 - Dash presses are consumed before pause guards and on choice acceptance; native repeat events are rejected, so rejected presses do not queue.
 - create resets Dash clocks/direction and reacquires input; keyboard shutdown clears old keys on retry.
 - create resets health/protection/death, arrays, target and successfulTimedSpawns0 (no Elite/Boss), bossSpawned/bossDefeated false; constructs one initial Chaser outside the timed CCCSCT sequence.
-- Spawn, Laser, Missile, Drone and hostile callbacks return while dead or level-up paused; timer events remain scheduled.
+- Spawn, Laser, Missile, Drone and hostile callbacks return while dead, level-up paused or victorious; same timer events remain scheduled without Victory reset/pause/recreation.
 - Level-increasing collection removes its pickup then pauses; subsequent pickups remain frozen.
 - One current choice applies its Laser/Missile/Drone upgrade, Passive Module or Prism/Cluster/Twin evolution then destroys levelUpPresentation and clears pause; stale choices cannot close a new pause.
 - Final recipe prerequisite resumes normally; only the next presentation can offer an evolution. Offers use the separate three-evolution cursor; accepting Prism sets prismEvolved without consuming Combat or changing numeric Laser values/timer.
 - create resets all three evolution flags and evolutionOfferCursor to false/Prism-first. Active Missiles own clusterEnabled at launch; satellite resolution derives only from readonly launch damage/radius after primary deaths.
 - create resets missileRanks, missileValues, weaponFocus and focusCursors as well as laserRanks and prismEvolved. Prism uses the same straight-shot collection and five existing gameplay timers.
-- Projectile iteration stops after cleaning the lethal hostile impact; remaining objects freeze.
+- Projectile iteration stops after cleaning the lethal hostile impact or lethal Boss player impact; remaining objects freeze. Missile/Cluster finishes its current primary/satellite affected snapshots and Missile removal before terminal entry. First terminal outcome in existing order wins; no unrelated later contact/XP work.
 - create empties missiles; native Phaser restart shuts down old display objects/UI and five timer events before create. Missile position/target/heading/lifetime freeze under existing simulation guard.
 - create resets droneRanks/droneAttackValues and all three focus cursors; Firing System resets the existing droneTimer in place only on accepted current choice. create restores one Drone at angle 0; Twin reference/flag clear; both orbit visuals/bolts freeze under simulation guard. Shared straight projectiles use each launch radius for collision/cleanup.
 - Retry exists only in death presentation; no manual per-object reset service.
@@ -272,7 +277,8 @@ GameplayScene Dash state / player/dash.ts IMPLEMENTS_TASK GAME-023 — Initial S
 GameplayScene enemyData / EnemyRuntime / spawnEnemy / hostile fire + enemies/shooterMovement.ts IMPLEMENTS_TASK GAME-024 — Chaser/Shooter.
 GameplayScene enemyData / shared direct pursuit / timedSpawnSequence IMPLEMENTS_TASK GAME-025 — Tank.
 GameplayScene eliteTankData / EnemyRuntime.isElite/contactDamage/xpValue / spawnEnemy / killEnemy / highlight; enemies/eliteTank.ts IMPLEMENTS_TASK GAME-036 — Elite Enemy Prototype. Same Tank pursuit, common collision/XP, five unchanged gameplay timers; no portal/affix framework.
-GameplayScene bossSpawned / public bossDefeated / EnemyRuntime.collisionRadius / spawnEnemy / restoreEnemyOutline / fireHostileProjectile / launchHostileProjectile; enemies/warden.ts IMPLEMENTS_TASK GAME-037 — Warden Boss. Successful30 replacement, current-HP phases, common physical collision/death/XP10, same hostile event. Boss death resumes spawn31; no victory flow.
+GameplayScene bossSpawned / public bossDefeated / EnemyRuntime.collisionRadius / spawnEnemy / restoreEnemyOutline / fireHostileProjectile / launchHostileProjectile; enemies/warden.ts IMPLEMENTS_TASK GAME-037 — Warden Boss. Successful30 replacement, current-HP phases, common physical collision/death/XP10, same hostile event. Boss death supplies the flag consumed by GAME-038 after atomic attack completion; terminal Victory now blocks spawn31.
+GameplayScene.isRunVictorious / victoryPresentation / enterRunVictory; updateProjectiles / updateMissiles atomic boundaries / isSimulationPaused / acceptLevelUpChoice / enterPlayerDeath IMPLEMENTS_TASK GAME-038 — Run Victory / Result Flow. Common XP10 remains frozen; current-level result and native NEW RUN; no new timer/Scene/manager.
 GameplayScene MissileRuntime / missile / fireMissile / updateMissiles / explodeMissile IMPLEMENTS_TASK GAME-026 — Missile.
 GameplayScene drone / droneAngle / updateDrone / fireDrone / firePlayerProjectile IMPLEMENTS_TASK GAME-027 — Drone.
 GameplayScene.moduleLevels / mutable run values / LevelUpChoice / progression/selectChoices.ts IMPLEMENTS_TASK GAME-028 — Passive Module Foundation.
@@ -312,7 +318,8 @@ Statuses and dependencies remain in TASK_GRAPH.md, not duplicated here.
 | What guards callbacks while dead or level-up paused? | GameplayScene.ts → isSimulationPaused checks in spawn/fire helpers |
 | Who owns Laser firing configuration? | GameplayScene.ts → laser, laserTimer, fireLaser; create/acceptLevelUpChoice |
 | Where are Prism prerequisites, ranks and spread owned? | GameplayScene.ts → laserRanks, prismEvolved, enterLevelUpPause, fireLaser; progression/prismLaser.ts; combat/prismSpread.ts |
-| Where does restart cleanup occur? | GameplayScene.ts → enterPlayerDeath → Phaser scene.restart lifecycle |
+| Where does restart cleanup occur? | GameplayScene.ts → enterPlayerDeath RETRY or enterRunVictory NEW RUN → Phaser scene.restart lifecycle |
+| Where does Victory start? | GameplayScene.ts → updateProjectiles / updateMissiles completed lethal Boss operation → enterRunVictory; killEnemy only records defeat/reward/removal |
 | Where are repository/task rules? | AGENTS.md; docs/TASK_GRAPH.md; active user task |
 
 ## Update policy
