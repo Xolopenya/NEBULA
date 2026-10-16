@@ -1562,7 +1562,7 @@ ACCEPTANCE / VALIDATION:
 
 ## Future weapon-progression block
 
-GAME-030 through GAME-033 are DONE below. GAME-034+ remain BACKLOG concepts scheduled from
+GAME-030 through GAME-033 are DONE, and GAME-034 is READY below. GAME-035+ remain BACKLOG concepts scheduled from
 DESIGN-004, not implementation-ready definitions or authorization to implement them.
 GAME-029 remains DONE; later tasks each need a separate concrete definition and architect review.
 
@@ -2221,13 +2221,143 @@ ACCEPTANCE / VALIDATION:
 
 ### GAME-034 — Replication Matrix Passive
 
-STATUS: BACKLOG
+STATUS: READY
 
-Conceptual dependencies: GAME-033, DESIGN-002, DESIGN-004.
+DEPENDENCIES:
 
-Future run-local Passive prerequisite direction for Twin Drone Formation, not implemented.
-Its concrete task must define actual effect, consumers, numbers, stacking and level-up
-integration. Do not introduce universal Amount or give every weapon extra instances.
+- GAME-033
+- DESIGN-002 — Player Stats & Passive Modules
+- DESIGN-003 — Weapon Evolution Architecture
+- DESIGN-004 — Missile & Drone Progression
+
+GOAL:
+
+Implement Replication Matrix as one repeatable run-local Passive Module with one real
+current consumer: +1 world pixel of Drone bolt collision radius per level. For this
+prototype it represents improved replicated Drone projectile projection and supplies
+explicit future Twin Drone prerequisite state without adding companions or universal Amount.
+This READY task is a future implementation definition, not a claim that the module works now.
+
+PROTOTYPE RULES — PASSIVE STATE / CONCRETE EFFECT:
+
+- Extend the existing explicit PassiveModule identity/moduleLevels with Replication Matrix.
+  Its level starts at 0, is uncapped/repeatable and resets to 0 on fresh create/restart.
+  Each accepted selection increments ONLY its module level by exactly 1. Preserve explicit
+  state ownership; no inventory, equipment slots, passive registry or modifier dictionary.
+- Effective Drone bolt radius = baseline Drone bolt radius 5 + Replication Matrix level × 1
+  world pixel. Required examples: level0 → 5, level1 → 6, level2 → 7, level5 → 10.
+  Keep baseline radius separate from the module level; do not mutate Drone progression.
+- Drone bolts are the ONLY consumer. Do not affect Laser/Prism projectile radius, Missile
+  direct collision radius, Missile/Cluster explosion radius, hostile shots, player contact
+  geometry, Drone companion visual radius or orbit radius. This is not global projectile size.
+- Replication does not change Bolt Power rank/damage, Firing System rank/interval, Bolt
+  Propulsion rank/speed or explicit Drone mastery. Launch properties remain current Drone
+  damage × globalDamageMultiplier, current bolt speed, effective radius above, lifetime1800 ms.
+  Combat multiplies damage only; never multiply radius by Combat Processor.
+- Expose explicit Replication Matrix level for later GAME-035 inspection. Do not define a
+  Twin eligibility rule, required prerequisite level, second/mirrored companion, Twin offer
+  or new evolution identity. GAME-035 owns exact recipe and evolved behavior.
+
+PROTOTYPE RULES — BOLT LAUNCH SNAPSHOT / PROJECTILE OWNERSHIP:
+
+- Compute effective radius in the Drone launch path and pass it into the existing concrete
+  straight-player-projectile creation path. ProjectileRuntime already owns its launch radius;
+  reuse that field/launch argument rather than mutable global radius or a new runtime system.
+- A bolt launched at Replication0 snapshots radius5. Selecting level1 leaves that old bolt
+  radius5; a later bolt snapshots radius6. Further selections never mutate in-flight bolts.
+  Existing swept first-hit/nonpiercing collision and cleanup consume stored runtime radius
+  exactly as today. No live Replication lookup in projectile update/collision code.
+- Preserve launch damage and velocity snapshots, fixed firing-time aim, Drone-relative nearest
+  targeting/stable ties and no-target/near-zero suppression. Replication introduces no homing,
+  reacquisition, projectile count or timer behavior.
+
+PROTOTYPE RULES — SIX PASSIVES / CHOICES / FOCUS:
+
+- Replication becomes the SIXTH repeatable passive alongside Hull Plating, Thruster Module,
+  Collector Field, Combat Processor and Spatial Amplifier. All remain uncapped/run-local.
+- Keep exactly THREE DISTINCT choices, generated once and stable throughout each pause:
+  Slot 1 focused Laser/Missile/Drone upgrade or existing fallback; Slot 2 samples a remaining
+  passive from the six; Slot 3 existing Prism/Cluster evolution or ordinary open/pivot choice.
+  Replication is eligible in Slot 2 and in open Slot 3 when no evolution occupies it, after
+  distinct-choice exclusion. It also follows existing ordinary fallback eligibility. Never
+  duplicate Replication within a presentation or mutate source pools.
+- Accepting Replication increments its level once BEFORE resume and leaves weapon focus,
+  all three focused-track cursors and evolution offer cursor unchanged. Verify separately
+  from Laser, Missile and Drone focus. Presentation-time cursor advancement remains existing
+  behavior; acceptance itself does not advance any cursor.
+- Label next level and actual consumer, e.g. "Passive: Replication Matrix Lv. 1 / +1 Drone
+  bolt radius". Do not imply an extra Drone/projectile, universal Amount or all-weapon size.
+- Preserve current identity guards: stale/double callbacks cannot increment level, affect
+  bolt radius, change focus/any cursor or dismiss a newer presentation. Exactly one current
+  accepted choice applies before normal resume; simulation remains frozen during pause.
+- Preserve GAME-033 minimum-rank selection, independent Laser/Missile/Drone cyclic cursors,
+  stable mastered-focus fallback and focus pivots. Preserve GAME-032 none/sole/both Prism/
+  Cluster Slot 3 arbitration, timing/reoffer/once-only/coexistence and cursor reset. Do not
+  add Twin to evolutionOffer or alter either existing evolution's behavior.
+
+PROTOTYPE RULES — RESTART / REGRESSION:
+
+- Native create/restart resets Replication level0; a newly fired Drone bolt has radius5.
+  Restore Drone ranks0/0/0, attack damage1/interval1200/speed800, cursor0, one fresh angle0
+  companion at player+110X and normal immutable orbit configuration. No stale Drone bolts.
+- Preserve focusLaser/all three focused cursors0, Prismfalse, Clusterfalse, evolution cursor
+  Prism-first, all other passives0 including Spatial, Missile/Laser baselines, HP5/5,
+  movement300, magnet180, multiplier1, XPlevel1/xp0, Dash, UI and runtime collection resets.
+- Exactly FIVE fresh gameplay TimerEvents remain: spawn, Laser/Prism, Missile/Cluster, Drone,
+  hostile fire. Replication adds/resets/replaces NO event; keep SAME Drone event identity
+  through GAME-033 Firing upgrades and existing real cadence1200/1050/900.
+- Preserve Drone damage1/2/3, speed800/1000/1200, explicit mastery2/2/2, orbit110/2rad, one
+  persistent companion, lifetime1800, baseline bolt radius5 before this bonus, fixed aim,
+  launch damage/speed snapshots, shared swept first-hit/death/XP and no Drone health.
+  Preserve Laser/Prism, Missile/Cluster/Spatial, other five passives, three-weapon focus,
+  XP/pause, Dash, CCCSCT/cap, Shooter-only fire, incoming damage, death and native retry.
+
+ARCHITECTURE / TRACKED TESTS:
+
+- Allow explicit Replication module level, direct Drone-bolt radius consumer and a tiny
+  pure effectiveDroneBoltRadius(baseDroneBoltRadius, replicationMatrixLevel) helper if it
+  improves clarity. Keep it Drone/Replication-specific, not a generic ProjectileSize stat,
+  Passive effect pipeline or stat modifier engine.
+- If extracted, add tracked numeric tests: 5/0 → 5, 5/1 → 6, 5/2 → 7, 5/5 → 10,
+  deterministic repeated results and unchanged numeric inputs. Do not create a generic
+  helper solely for coverage or write Phaser rendering-only tests. Runtime integration
+  checks below apply whether the trivial formula is extracted or scene-local.
+- No universal Amount, second Drone, generic projectile-size/companion system, PlayerStats,
+  modifier registry/dictionary, effect pipeline, WeaponManager, EvolutionManager changes,
+  ECS, DI or event bus. Preserve demonstrated concrete weapon/projectile ownership.
+
+OUT OF SCOPE:
+
+Twin Drone Formation/recipe/eligibility/required Replication level, second or mirrored Drone,
+third evolution candidate, additional projectile count, orbit upgrades, new timer/weapon,
+rarity/rerolls, acquisition/inventory, Elite/Boss/Victory, production VFX, save/meta,
+new dependencies and GAME-035+ definition or implementation.
+
+ACCEPTANCE / VALIDATION:
+
+- Verify initial Replication0 and actual new bolt radius5, six eligible passives and five
+  timers. Show Replication in Passive Slot 2 and open Slot 3 without evolution, no duplicate
+  entry, exactly three distinct stable choices and no source mutation.
+- Verify one-level selection/repeated stacking to radii5/6/7/10 for levels0/1/2/5. Labels
+  show next level and Drone-only effect. From EACH Laser/Missile/Drone focus, acceptance
+  preserves focus and all track/evolution cursors. Test stale/double callbacks across pauses.
+- Launch old Bolt A at radius5, accept Replication and launch Bolt B at6, then a later bolt
+  at7. Old objects retain their launch radius; actual swept collision must demonstrate the
+  different stored collision envelopes. Verify unrelated weapon/hostile/contact geometries
+  stay unchanged and no live module lookup changes old bolts.
+- Verify Replication changes no damage/speed/interval/Drone rank/mastery/orbit/visual radius;
+  retain Combat damage and all prior attack snapshots. Check Drone progression/same-timer
+  cadence, Prism/Cluster offer/behavior, Missile/Spatial, other five passives, focus/fallback,
+  XP/Dash/enemies/Shooter and pause/resume/death regressions.
+- Run npm run check, git diff --check and git diff --cached --check. Later implementation
+  real-browser/runtime validation must cover ALL state/choice/focus/stacking/snapshot/
+  actual-collision/independence/regression scenarios above and at least TWO native RETRY
+  cycles proving Replication0, fresh bolt radius5, full prior baselines, one fresh Drone,
+  no stale runtime/callbacks and five fresh timers. Check console for new GAME-034 errors;
+  distinguish executed runtime evidence from tracked pure tests and report limitations.
+- After successful implementation, update CURRENT_STATE and material PROJECT_GRAPH facts,
+  mark only GAME-034 DONE and leave GAME-035+ BACKLOG. Follow AGENTS.md explicit staging/
+  architect-review workflow; generate .codex-review/GAME-034-review.txt. Do not commit.
 
 ### GAME-035 — Twin Drone Evolution
 
