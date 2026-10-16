@@ -1562,7 +1562,7 @@ ACCEPTANCE / VALIDATION:
 
 ## Future weapon-progression block
 
-GAME-030 through GAME-033 are DONE, and GAME-034 is READY below. GAME-035+ remain BACKLOG concepts scheduled from
+GAME-030 through GAME-034 are DONE below. GAME-035+ remain BACKLOG concepts scheduled from
 DESIGN-004, not implementation-ready definitions or authorization to implement them.
 GAME-029 remains DONE; later tasks each need a separate concrete definition and architect review.
 
@@ -2221,7 +2221,7 @@ ACCEPTANCE / VALIDATION:
 
 ### GAME-034 — Replication Matrix Passive
 
-STATUS: READY
+STATUS: DONE
 
 DEPENDENCIES:
 
@@ -2236,7 +2236,9 @@ Implement Replication Matrix as one repeatable run-local Passive Module with one
 current consumer: +1 world pixel of Drone bolt collision radius per level. For this
 prototype it represents improved replicated Drone projectile projection and supplies
 explicit future Twin Drone prerequisite state without adding companions or universal Amount.
-This READY task is a future implementation definition, not a claim that the module works now.
+Implemented and validated with a concrete radius helper/tests and real-runtime choice,
+stored-radius collision and regression checks, including two native retries restoring
+Replication0, fresh bolt radius5 and five gameplay timers. No Twin Drone behavior.
 
 PROTOTYPE RULES — PASSIVE STATE / CONCRETE EFFECT:
 

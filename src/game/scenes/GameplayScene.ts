@@ -6,6 +6,7 @@ import { shooterMovement } from '../enemies/shooterMovement';
 import { stepDash } from '../player/dash';
 import { selectChoices } from '../progression/selectChoices';
 import { effectiveMissileExplosionRadius } from '../progression/spatialAmplifier';
+import { effectiveDroneBoltRadius } from '../progression/replicationMatrix';
 import { canEvolveClusterMissile } from '../progression/clusterMissile';
 import { selectEvolutionOffer, type Evolution } from '../progression/evolutionOffer';
 import { selectFocusedUpgrade, type MissileRanks, type DroneRanks, type WeaponFocus, type FocusCursors } from '../progression/focusedUpgrade';
@@ -13,7 +14,7 @@ import { canEvolvePrismLaser, type LaserRanks } from '../progression/prismLaser'
 import { addExperience, xpForNextLevel, type ExperienceState } from '../progression/experience';
 
 type LaserUpgrade = keyof LaserRanks;
-type PassiveModule = 'hull' | 'thruster' | 'collector' | 'combat' | 'spatial';
+type PassiveModule = 'hull' | 'thruster' | 'collector' | 'combat' | 'spatial' | 'replication';
 type OrdinaryChoice = { kind: 'laser'; upgrade: LaserUpgrade }
   | { kind: 'missile'; upgrade: keyof MissileRanks }
   | { kind: 'drone'; upgrade: keyof DroneRanks } | { kind: 'passive'; module: PassiveModule };
@@ -34,6 +35,7 @@ const levelUpPool: readonly OrdinaryChoice[] = [
   { kind: 'passive', module: 'collector' },
   { kind: 'passive', module: 'combat' },
   { kind: 'passive', module: 'spatial' },
+  { kind: 'passive', module: 'replication' },
 ];
 
 type EnemyArchetype = 'chaser' | 'shooter' | 'tank';
@@ -96,7 +98,7 @@ export class GameplayScene extends Phaser.Scene {
   private isPlayerDead = false;
   private isLevelUpPaused = false;
   private levelUpPresentation: Phaser.GameObjects.Text[] = [];
-  private moduleLevels: Record<PassiveModule, number> = { hull: 0, thruster: 0, collector: 0, combat: 0, spatial: 0 };
+  private moduleLevels: Record<PassiveModule, number> = { hull: 0, thruster: 0, collector: 0, combat: 0, spatial: 0, replication: 0 };
   private globalDamageMultiplier = 1;
   private playerMaxHealth = 5;
   private playerHealth = this.playerMaxHealth;
@@ -161,7 +163,7 @@ export class GameplayScene extends Phaser.Scene {
   }
 
   create(): void {
-    this.moduleLevels = { hull: 0, thruster: 0, collector: 0, combat: 0, spatial: 0 };
+    this.moduleLevels = { hull: 0, thruster: 0, collector: 0, combat: 0, spatial: 0, replication: 0 };
     this.playerMaxHealth = 5;
     this.movementSpeed = 300;
     this.xpMagnetRadius = 180;
@@ -463,6 +465,7 @@ export class GameplayScene extends Phaser.Scene {
       case 'collector': return `Passive: Collector Field Lv. ${level}\n+40 px magnet radius`;
       case 'combat': return `Passive: Combat Processor Lv. ${level}\n+0.25x player weapon damage`;
       case 'spatial': return `Passive: Spatial Amplifier Lv. ${level}\n+15 Missile explosion radius`;
+      case 'replication': return `Passive: Replication Matrix Lv. ${level}\n+1 Drone bolt radius`;
     }
   }
 
@@ -655,7 +658,7 @@ export class GameplayScene extends Phaser.Scene {
     const target = this.selectNearestEnemy(undefined, this.drone);
     if (!target) return;
     this.firePlayerProjectile(this.drone, target, this.droneAttackValues.damage, this.droneAttackValues.projectileSpeed,
-      this.droneConfig.lifetime, this.droneConfig.boltRadius, 0xc084fc);
+      this.droneConfig.lifetime, effectiveDroneBoltRadius(this.droneConfig.boltRadius, this.moduleLevels.replication), 0xc084fc);
   }
 
   private firePlayerProjectile(

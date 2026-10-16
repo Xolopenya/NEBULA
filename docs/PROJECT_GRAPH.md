@@ -4,8 +4,8 @@
 
 - Project: NEBULA.
 - Milestone: First Playable / GAME-015 complete.
-- Source baseline HEAD: `9a46e8ea9c8e460577c651fdba07fbba81350186`.
-- This map reflects that source baseline plus GAME-033 Drone ranks/attack/timer ownership and concrete three-weapon focus extension.
+- Source baseline HEAD: `b9e7085a1881522782711f60849aba8eb86ceb48`.
+- This map reflects that source baseline plus GAME-034 Replication level and Drone-only launch-radius ownership.
 - Active task request defines task-specific requirements.
 - AGENTS.md defines repository policy.
 - TASK_GRAPH.md defines task scope, dependencies and status.
@@ -37,6 +37,8 @@ IDs are repository-relative paths; symbols use `path#export`.
 | `src/game/progression/evolutionOffer.test.ts` | Nine tracked two-evolution offer tests |
 | `src/game/combat/clusterSatellites.ts` | Pure six-angle satellite relative offsets |
 | `src/game/combat/clusterSatellites.test.ts` | Six tracked Cluster geometry tests |
+| `src/game/progression/replicationMatrix.ts` | Pure Drone-specific launch radius from baseline and Replication level |
+| `src/game/progression/replicationMatrix.test.ts` | Five tracked numeric radius tests |
 | `src/game/progression/focusedUpgrade.ts` | Concrete MissileRanks/DroneRanks, three-weapon WeaponFocus/FocusCursors and pure least-rank/cyclic fallback selection |
 | `src/game/progression/focusedUpgrade.test.ts` | Seventeen tracked focused deterministic tests |
 | `src/game/progression/prismLaser.ts` | Explicit LaserRanks and pure Prism recipe eligibility |
@@ -118,6 +120,8 @@ Runtime labels below describe scene-owned concepts, not separate modules/classes
 | `src/game/progression/clusterMissile.ts#canEvolveClusterMissile` | TESTED_BY | `src/game/progression/clusterMissile.test.ts` |
 | `src/game/progression/evolutionOffer.ts#selectEvolutionOffer` | TESTED_BY | `src/game/progression/evolutionOffer.test.ts` |
 | `src/game/combat/clusterSatellites.ts#clusterSatelliteOffsets` | TESTED_BY | `src/game/combat/clusterSatellites.test.ts` |
+| `src/game/scenes/GameplayScene.ts` | IMPORTS | `src/game/progression/replicationMatrix.ts#effectiveDroneBoltRadius` |
+| `src/game/progression/replicationMatrix.ts#effectiveDroneBoltRadius` | TESTED_BY | `src/game/progression/replicationMatrix.test.ts` |
 | Player Laser | TARGETS | currentTarget from active enemies |
 | Drone bolt | TARGETS | Nearest active enemy from actual Drone position; fixed launch aim |
 | Player projectile | DAMAGES | First intersected active enemy |
@@ -160,8 +164,9 @@ All private names below are navigation anchors, not exported symbol nodes.
 | Projectile cleanup | updateProjectiles | Impact, lifetime and world-exit destruction |
 | Player Laser | laser; laserTimer; fireLaser | Mutable Laser-only damage/interval/speed, baseline 600 ms; existing timer reset for cadence upgrades |
 | Drone | drone, droneAngle, droneConfig; updateDrone, fireDrone | One world-space companion; immutable active-time 110 px / 2 rad/s orbit, center clamp, bolt lifetime/radius |
+| Replication Matrix | moduleLevels.replication; fireDrone → effectiveDroneBoltRadius | +1 px per level added to baseline Drone bolt radius5 at launch; existing runtime radius owns swept collision/cleanup; acceptance does not change focus/cursors/timers; create resets0 |
 | Drone upgrades | droneRanks, droneAttackValues, droneTimer; acceptLevelUpChoice / fireDrone | Explicit ranks0..2, damage1/2/3, interval1200/1050/900, speed800/1000/1200; same event reset/elapsed0; launch snapshots; create resets |
-| Straight player-shot creation | firePlayerProjectile → launchPlayerProjectile; fireLaser, fireDrone | Existing target aim wrapper and shared direction-based launch snapshot; Prism directions enter launch directly; weapon damage multiplied by globalDamageMultiplier at launch; Laser radius 6, Drone 5 |
+| Straight player-shot creation | firePlayerProjectile → launchPlayerProjectile; fireLaser, fireDrone | Existing target aim wrapper and shared direction-based launch snapshot; Prism directions enter launch directly; weapon damage multiplied by globalDamageMultiplier at launch; Laser radius 6, Drone baseline 5 + Replication level |
 | Missile | missile, missileValues, missiles; MissileRuntime; fireMissile, aimMissile, updateMissiles | Separate concrete homing target/heading/lifetime and readonly launch clusterEnabled/damage/speed/explosionRadius; immutable maxActiveMissiles = 1; cap blocks launch without resetting the one 1800 ms timer |
 | Spatial Amplifier | moduleLevels.spatial; fireMissile → effectiveMissileExplosionRadius | Repeatable +15 px per level added to Missile-specific radius at launch; stored MissileRuntime radius owns later explosion; no focus/cursor mutation or other consumers |
 | Missile explosion | updateMissiles → explodeMissile → killEnemy | Earliest swept hit point, center-radius snapshot damage once, common XP/death; no direct hit |
@@ -171,9 +176,9 @@ All private names below are navigation anchors, not exported symbol nodes.
 | Evolution offer | evolutionOfferCursor; enterLevelUpPause → selectEvolutionOffer | Separate Prism-first cursor advances once per new presentation, sole eligible guaranteed, both alternate; acceptance never advances |
 | Missile upgrades | missileRanks, missileValues; acceptLevelUpChoice | Explicit ranks 0..2 and mutable damage/speed/explosion radius; snapshots isolate active Missiles; create resets |
 | Weapon focus | weaponFocus, focusCursors; enterLevelUpPause → selectFocusedUpgrade | Laser baseline; three independent track cursors, least-rank cyclic offers; mastered focus scans remaining Laser/Missile/Drone order; offered cursor advances once per presentation, focus changes only on accepted weapon/evolution |
-| Passive Modules | PassiveModule, moduleLevels; acceptLevelUpChoice | Explicit Hull/Thruster/Collector/Combat/Spatial levels and effects; create resets levels and mutable values |
+| Passive Modules | PassiveModule, moduleLevels; acceptLevelUpChoice | Explicit Hull/Thruster/Collector/Combat/Spatial/Replication levels and effects; create resets levels and mutable values |
 | Mutable run values | playerMaxHealth, movementSpeed, xpMagnetRadius, globalDamageMultiplier | Consumed by HP/HUD, normal movement, pickup activation and player weapon launch damage respectively |
-| Mixed choice pool | OrdinaryChoice, LevelUpChoice, levelUpPool, choiceLabel; enterLevelUpPause → selectChoices | Five repeatable passives plus uncapped Laser/Missile/Drone tracks; focused least-rank slot, passive slot, open/evolution slot; existing text identity rejects stale callbacks |
+| Mixed choice pool | OrdinaryChoice, LevelUpChoice, levelUpPool, choiceLabel; enterLevelUpPause → selectChoices | Six repeatable passives plus uncapped Laser/Missile/Drone tracks; focused least-rank slot, passive slot, open/evolution slot; existing text identity rejects stale callbacks |
 | Hostile fire | fireHostileProjectile; hostileFireInterval | 1500 ms global timer; selectNearestEnemy('shooter') filters nearest active Shooter only; no per-enemy timers |
 | Collision inputs | updateProjectiles; player/enemy/projectile radii | Scene supplies positions and combined radii |
 | Collision calculation | collision.ts; segmentCircleHitTime | Pure numeric math, no Phaser/runtime records |
@@ -217,6 +222,7 @@ Lethal player damage → damagePlayer → enterPlayerDeath → frozen simulation
 | TRACKED TESTS | clusterMissile.test.ts → canEvolveClusterMissile | Eight cases: each missing rank, Spatial0/exact/higher, evolved exclusion, nonmutation |
 | TRACKED TESTS | evolutionOffer.test.ts → selectEvolutionOffer | Nine cases: none/each cursor, sole repeats, both alternation/reset, remaining offer, nonmutation |
 | TRACKED TESTS | clusterSatellites.test.ts → clusterSatelliteOffsets | Six cases: angles/count/radii120/195/195.5, explicit centers, deterministic inputs and independent results |
+| TRACKED TESTS | replicationMatrix.test.ts → effectiveDroneBoltRadius | Five cases: levels0/1/2/5, supplied baseline/repeatability/input stability |
 | TRACKED TESTS | focusedUpgrade.test.ts → selectFocusedUpgrade | Seventeen cases: original Laser/Missile rules plus Drone minimum/ties/caps/cursor independence, ordered three-weapon fallbacks, all-mastered and nonmutation |
 | TRACKED TESTS | prismLaser.test.ts → canEvolvePrismLaser | 8 cases: each missing rank, Combat 0/exact/higher, already evolved, nonmutation |
 | TRACKED TESTS | prismSpread.test.ts → prismSpread | 7 cases: three unit directions, center aim, symmetric sides, deterministic equivalent aim, near-zero suppression |
@@ -254,6 +260,8 @@ GameplayScene.moduleLevels.spatial / fireMissile / progression/spatialAmplifier.
 Spatial affects only final Missile launch explosion radius; Blast Expansion remains separate. create resets Spatial0; existing choice slots/focus and five timers remain authoritative.
 GameplayScene.clusterEvolved / evolutionOfferCursor / explodeClusterSatellites; progression/clusterMissile.ts / evolutionOffer.ts and combat/clusterSatellites.ts IMPLEMENTS_TASK GAME-032 — Cluster Missile Evolution.
 GameplayScene.droneRanks / droneAttackValues / droneTimer; progression/focusedUpgrade.ts three-weapon policy IMPLEMENTS_TASK GAME-033 — Drone Upgrade Foundation.
+GameplayScene.moduleLevels.replication / fireDrone / progression/replicationMatrix.ts IMPLEMENTS_TASK GAME-034 — Replication Matrix Passive.
+Only fireDrone consumes Replication at launch; updateProjectiles continues using per-shot stored radius with no live module lookup. No Twin state/identity is implemented.
 Combat Processor is applied in launchPlayerProjectile and fireMissile; explodeMissile consumes MissileRuntime.damage and explosionRadius, never current run values; updateMissiles consumes MissileRuntime.speed.
 create resets all module levels and run values before constructing the HUD. Existing native shutdown still owns object/timer cleanup.
 No generalized weapon stats framework is implemented.
