@@ -1562,7 +1562,7 @@ ACCEPTANCE / VALIDATION:
 
 ## Future weapon-progression block
 
-GAME-030 through GAME-034 are DONE below. GAME-035+ remain BACKLOG concepts scheduled from
+GAME-030 through GAME-034 are DONE, and GAME-035 is READY below. GAME-036+ remain BACKLOG concepts scheduled from
 DESIGN-004, not implementation-ready definitions or authorization to implement them.
 GAME-029 remains DONE; later tasks each need a separate concrete definition and architect review.
 
@@ -2361,17 +2361,227 @@ ACCEPTANCE / VALIDATION:
   mark only GAME-034 DONE and leave GAME-035+ BACKLOG. Follow AGENTS.md explicit staging/
   architect-review workflow; generate .codex-review/GAME-034-review.txt. Do not commit.
 
-### GAME-035 — Twin Drone Evolution
+### GAME-035 — Twin Drone Formation
 
-STATUS: BACKLOG
+STATUS: READY
 
-Conceptual dependencies: GAME-033, GAME-034, DESIGN-003, DESIGN-004.
+DEPENDENCIES:
 
-Drone mastery + Replication Matrix prerequisite → Twin Drone Formation. Retain the Drone
-and add an opposite/mirrored companion within the same Drone weapon. Normally share the
-existing Drone TimerEvent with synchronized firing; each may select nearest from its own
-world position and fire fixed-aim straight bolts. No per-Drone TimerEvent or universal Amount.
-Exact balance, recipe levels and other concrete implementation rules remain deferred.
+- GAME-032 — Cluster Missile Evolution / concrete evolution-offer arbitration
+- GAME-033 — Drone Upgrade Foundation
+- GAME-034 — Replication Matrix Passive
+- DESIGN-003 — Weapon Evolution Architecture
+- DESIGN-004 — Missile & Drone Progression
+
+GOAL:
+
+Implement Drone mastery + Replication Matrix prerequisite → Twin Drone Formation. Retain
+the primary Drone and add exactly one mirrored companion within the same Drone weapon.
+Both fire synchronously through the SAME existing Drone TimerEvent, independently aiming
+from their own actual world positions. Extend concrete evolution arbitration from two
+to three identities. This READY node defines future implementation; Twin is not implemented.
+
+PROTOTYPE RULES — RECIPE / NEXT-PRESENTATION TIMING:
+
+- Twin eligibility requires Drone boltPower, firingSystem and boltPropulsion ranks each
+  >= 2, Replication Matrix level >= 1, and Twin not already evolved. Higher Replication
+  qualifies. Mastery remains explicit capped 2/2/2 state, never inferred from damage3,
+  interval900 or speed1200; no generic WeaponLevel. Replication is NOT consumed.
+- Evaluate eligibility only when creating a NEW level-up presentation. Accepting the
+  final Drone rank or Replication0→1 applies that choice, closes the current pause and
+  resumes normally. Do not immediately open another presentation; Twin becomes offerable
+  only on the NEXT later level-up. Evolution requires explicit player acceptance.
+- Add explicit run-local twinDroneEvolved, initially/reset false. Accepting Twin sets it
+  true exactly once, preserves Drone ranks/current attack values and Replication level,
+  sets focus Drone and immediately creates/enables the second companion before resume.
+  Do not create an immediate volley or duplicate/convert existing active bolts.
+- Twin is never offered again that run. Prism, Cluster and Twin may all coexist.
+  Label the choice explicitly, e.g. "EVOLVE: Twin Drone Formation / Mirrored companion,
+  synchronized Drone bolts", without implying a global Amount or arbitrary companion count.
+
+PROTOTYPE RULES — THREE-EVOLUTION OFFER CURSOR:
+
+- Minimally extend the existing concrete evolutionOffer helper and Evolution identity to
+  exactly prism / cluster / twin. Stable cyclic order is Prism → Cluster → Twin → Prism;
+  initial/native-reset cursor is Prism. Keep weapon-specific eligibility concrete.
+- If none is eligible, offer no evolution, preserve the cursor and use the existing
+  ordinary open/pivot Slot 3. If exactly one qualifies, guarantee it in Slot 3 every NEW
+  presentation until accepted, regardless of cursor position.
+- For any nonempty eligible set, scan cyclically from the current cursor in the stable
+  order and offer the FIRST eligible identity. After creating that presentation, set
+  cursor to the identity immediately AFTER the offered identity in the stable order.
+  This concrete next-cursor rule applies to sole offers too: Prism→Cluster, Cluster→Twin,
+  Twin→Prism. Sole-offer guarantees remain unchanged; ineligible entries are skipped on
+  the next scan. This explicitly extends the old two-identity successor contract.
+- Advance ONCE per NEW presentation, never during update, hover, re-entry while the same
+  pause remains open, acceptance or stale callbacks. Ignoring leaves eligibility intact.
+  Acceptance removes only that evolution from eligibility; continue scanning the remaining
+  eligible identities deterministically. Never select randomly or add another choice slot.
+- From reset: Prism+Cluster gives Prism/Cluster/Prism/Cluster; Prism+Twin gives
+  Prism/Twin/Prism/Twin; Cluster+Twin gives Cluster/Twin/Cluster/Twin; all three give
+  Prism/Cluster/Twin/Prism/Cluster/Twin. Non-Prism cursors use the same scan rule.
+  Removing one preserves deterministic remaining offers; a sole remaining one is guaranteed.
+- Preserve exactly THREE DISTINCT choices, generated once and stable until acceptance:
+  Slot 1 existing focused Laser/Missile/Drone upgrade or ordinary fallback; Slot 2 one of
+  SIX repeatable passives; Slot 3 the selected evolution, otherwise ordinary open/pivot.
+  Never show two evolutions in one presentation or mutate canonical source pools.
+- Accepting Prism sets focus Laser, Cluster sets Missile, Twin sets Drone. Offering or
+  ignoring does not change focus; passives retain focus. All three focused-track cursors
+  remain separate from the evolution cursor, with existing least-rank/fallback behavior.
+
+PROTOTYPE RULES — COMPANIONS / SHARED ORBIT:
+
+- Before evolution exactly ONE persistent primary Drone exists; after acceptance exactly
+  TWO exist. Keep the original visual/reference and add one explicit second scene-owned
+  Drone reference, preferably without a generic companion collection. No arbitrary count.
+- Retain one shared droneAngle advancing clockwise at 2 rad/s during active simulation.
+  Primary uses droneAngle; Twin uses droneAngle + PI; both use orbit radius110 and visual
+  radius10. Do not add a second orbit state/clock. Before clamping they remain diametrically
+  opposite around the player's current position, including player movement and Dash.
+- Compute each intended player-relative position independently, then apply the existing
+  center clamp independently on each axis (0..arenaWidth / 0..arenaHeight). Edge clamping
+  may break the visible exact opposition; that is expected. Do not change arena/player bounds.
+- At acceptance position the new companion immediately from current player position,
+  current shared angle + PI and orbit radius, with the same clamp. Retain the primary's
+  current orbit/angle; do not wait for another timer tick or reset orbit progression.
+- Reuse the existing teal circle style; no different color/art/VFX is required. Neither
+  companion has health, destruction, collision or contact damage. No Drone count upgrades.
+
+PROTOTYPE RULES — ONE SYNCHRONIZED FIRING EVENT / TARGETING:
+
+- Preserve the SAME pre-existing Drone TimerEvent object and its phase on Twin acceptance.
+  Before Twin its callback attempts one primary shot. After Twin the SAME callback attempts
+  primary first, then Twin, each independently. No second/offset/alternating/per-Drone event.
+- Twin changes no cadence: retain GAME-033 interval1200→1050→900 ms. Firing System upgrades
+  still reset/reschedule this SAME event in place with elapsed0; no replacement or extra event.
+- Each origin independently queries the nearest active enemy from its ACTUAL current world
+  position using existing stable collection-order ties. Targets may differ or be the same.
+  Do not query once from the player/primary and reuse that target for the other Drone.
+- No-target/near-zero suppression is PER DRONE. A suppressed primary shot must not return
+  from/cancel the Twin attempt, and a suppressed Twin must not cancel primary. Keep timer
+  phase unchanged by suppression. Normal simulation guards suppress both while paused/dead.
+
+PROTOTYPE RULES — NORMAL BOLTS / LAUNCH SNAPSHOTS:
+
+- Each firing origin launches one normal fixed-aim straight bolt through the existing
+  projectile path. Snapshot normalized aim from that origin; full damage = current Drone
+  damage × globalDamageMultiplier; speed = current Drone projectileSpeed; radius = baseline5
+  + Replication level; lifetime1800 ms. Both bolts deal FULL current Drone damage; never
+  halve it or introduce a Twin damage multiplier. Combat affects damage only.
+- Retain shared swept first-hit/nonpiercing collision, normal killEnemy/one XP per death
+  and cleanup. No homing, reacquisition or live mutable bolt properties after launch.
+- Already-fired bolts from either origin retain damage, velocity, radius and lifetime
+  snapshots after later Power/Propulsion/Combat/Replication changes. Newly fired bolts use
+  new values. Firing interval changes only the shared event; Twin acceptance creates only
+  the companion, with the next NORMAL callback responsible for firing from both origins.
+- Preserve GAME-033 ranks/caps/mastery and damage1/2/3, interval1200/1050/900, speed800/1000/1200.
+  Acceptance changes none of them. Do not add post-mastery ordinary Drone tracks.
+- Preserve GAME-034 uncapped repeatable Replication and +1 px per level. It remains unconsumed
+  and applies to BOTH origins: Replication2 gives each new bolt radius7. Old bolts keep
+  prior radii. Drone visual/orbit geometry and other weapons' radii remain unchanged.
+
+PROTOTYPE RULES — PAUSE / CALLBACK GUARDS / TIMERS:
+
+- Level-up pause/death freeze shared droneAngle, both orbit positions and existing bolts;
+  firing callbacks create no shots. Twin acceptance creates its visual while paused and
+  resumes through existing one-choice flow. Death remains separate from level-up.
+- Preserve presentation identity guards. One current Twin choice applies once before resume.
+  Reject stale/double/already-evolved callbacks: they cannot set the flag again, create a
+  companion, change focus/evolution cursor or dismiss a newer presentation.
+- Twin adds ZERO TimerEvents. Exactly FIVE gameplay events remain: spawn, Laser/Prism,
+  Missile/Cluster, Drone/Twin Drone, hostile fire. There is exactly one Drone timer object.
+
+PROTOTYPE RULES — NATIVE RESTART / REGRESSION:
+
+- Native create/restart resets twinDroneEvolved false; destroys old Twin visual/bolts and
+  clears the second reference. Recreate exactly ONE fresh primary at angle0, player+110X
+  with existing clamp. No stale companion, shot, callback or TimerEvent ownership survives.
+- Reset all three evolution flags false and evolution cursor Prism-first; Drone ranks0/0/0,
+  attack1/1200/800 and Drone cursor0; Replication0; focusLaser/all three focused cursors0.
+  Preserve Spatial0/all six passive levels0, Laser/Missile baseline ranks/values, HP5/5,
+  movement300, magnet180, multiplier1, level1/xp0, Dash baseline, runtime collections and UI.
+  Exactly five fresh active gameplay timers remain after each restart.
+- Preserve Prism recipe/spread/full damage/snapshots/same Laser event, Cluster recipe/
+  primary-first satellite union/overlap/XP/snapshots/same Missile event, Missile progression/
+  cap1/cadence1800/homing and Spatial. Only the explicit three-evolution offer extension
+  above changes existing arbitration. Preserve Drone upgrades/Replication, six passives,
+  three-weapon focus, XP/pause, Dash, enemy spawn/target/kill paths, Shooter fire and damage.
+
+ARCHITECTURE / TRACKED TESTS:
+
+- Allow explicit twinDroneEvolved, explicit second visual/reference, shared droneAngle,
+  retained droneTimer, a small concrete Twin eligibility helper and minimal three-identity
+  evolutionOffer extension. Third-consumer extraction is limited to demonstrated policy;
+  no generalized weapon/companion architecture is justified by this task.
+- Prefer canEvolveTwinDrone(droneRanks, replicationLevel, twinEvolved). Tracked eligibility
+  tests are REQUIRED: false below EACH Drone rank, false Replication0, true exact2/2/2 +
+  Replication1, true higher Replication, false evolved and input nonmutation. Do not infer
+  mastery from numeric attack values or introduce generic WeaponLevel.
+- Extend existing tracked evolutionOffer tests without weakening prior behavioral coverage:
+  none from EVERY cursor → none/unchanged; EACH sole identity guaranteed from EVERY cursor;
+  each pair alternation; all-three Prism/Cluster/Twin cycle from reset and non-Prism cursors;
+  accepting/removing each identity leaves the correct remaining sequence; exact next-cursor
+  transitions, Prism-first reset, determinism and input nonmutation. Update successor-state
+  expectations only for the explicit three-identity contract above; retain Prism/Cluster
+  alternation, sole guarantees, stable-pause and once-per-presentation assertions.
+- A tiny Twin-specific angle/offset helper is optional only if actual code clarity benefits;
+  no generic orbit extraction is required. Actual scene positions must be runtime-verified.
+  Do not write rendering-only tracked tests or helpers solely to increase test count.
+- No EvolutionManager, generic recipe/evolution registry/catalogue/plugin architecture,
+  DroneManager, companion collection framework, universal Amount, generic weapon instances,
+  per-Drone timers, ECS, DI or event bus.
+
+OUT OF SCOPE:
+
+More than two Drones, companion-count upgrades, independent cadences, Drone health, new
+orbit upgrades, fourth evolution, new weapons, rarity/rerolls, acquisition/inventory,
+Elite/Boss/Victory, production VFX/art, save/meta, new dependencies and GAME-036+.
+
+ACCEPTANCE / VALIDATION:
+
+- Verify each missing Drone rank/Replication0 excludes Twin; exact2/2/2 + Replication1 and
+  higher levels qualify; evolved Twin excluded. Test BOTH final-prerequisite categories
+  through normal acceptance/resume: Twin appears only on the NEXT presentation.
+- Verify none, each sole evolution, EACH pair and all-three offer sequences above, including
+  non-baseline cursor, removal of each accepted identity and all three coexisting in one run.
+  Exactly three distinct stable choices, six-passive Slot2 and only one evolution in Slot3;
+  no source mutation. Cursor changes once at presentation creation, never during pause,
+  acceptance or stale callbacks. Verify Prism→Laser, Cluster→Missile, Twin→Drone focus.
+- Verify exactly one companion before acceptance and exactly two immediately afterward,
+  mirrored current angle+PI position without immediate attack/bolt duplication, shared orbit
+  opposite before independent clamp, edge cases and Dash-follow. Stale/double/already-evolved
+  callbacks cannot add another visual, change state/focus/cursor or dismiss a later pause.
+- Save the actual pre-evolution Drone TimerEvent reference and phase. Verify identical object,
+  unchanged cadence/phase through acceptance, one synchronized callback with two independent
+  shot attempts and five total events. Verify same-event Firing System resets and actual
+  Phaser Clock cadence boundaries, accounting for no-target suppression.
+- Verify actual per-origin targeting when each has a different nearest enemy, both share a
+  nearest enemy and collection-order ties occur. Independently suppress each near-zero shot
+  while the other fires; cover no-target suppression without timer phase changes. Inspect
+  actual firing origins, full damage, current speed/Replication radius, lifetime and fixed aim.
+- Verify bolts from BOTH origins retain launch damage/velocity/radius/lifetime across later
+  Power/Propulsion/Combat/Replication changes, while later bolts use updated values. Cover
+  those launch paths even though normal Twin eligibility requires mastered Drone tracks;
+  fixture-arranged transitions must not introduce post-mastery production upgrades.
+- Regression-check Prism, Cluster/overlap/XP, Missile/Spatial, Drone upgrades/Replication,
+  six passives, focused selection/cursors/fallback, XP/Dash/enemies/Shooter, hostile/contact
+  damage, pause/resume and death freeze for BOTH companions/shared angle/bolts/callbacks.
+- Later implementation must use real current GameplayScene/production helpers, actual Phaser
+  Clock/TimerEvents/lifecycle and normal application boot. An ignored deterministic harness
+  may arrange fixtures but must not duplicate production algorithms. No Computer Use dependency.
+  Perform TWO actual native RETRY cycles after dirtying all evolution flags/cursor, both
+  companions/active upgraded bolts, ranks/values, passives, focus/cursors and XP/Dash. After
+  EACH verify Twinfalse, exactly one fresh angle0 primary/no Twin, all evolution flags false,
+  Prism-first cursor, full baseline state listed above, destroyed old objects/timers and
+  exactly FIVE fresh active gameplay timers. Check console for new GAME-035 errors.
+- Run npm run check, git diff --check and git diff --cached --check; after implementation
+  fixes rerun affected runtime checks and full quality validation. Distinguish tracked tests,
+  ignored runtime harness, normal boot and native retry evidence; report limitations honestly.
+- This definition changes only TASK_GRAPH: GAME-035 BACKLOG→READY, GAME-034 stays DONE and
+  GAME-036+ stay BACKLOG. Runtime/CURRENT_STATE/PROJECT_GRAPH remain unchanged. A later
+  successful implementation updates factual docs, marks only GAME-035 DONE and leaves
+  GAME-036+ BACKLOG, following explicit staging/architect review with ignored
+  .codex-review/GAME-035-review.txt. Do not commit.
 
 Remaining future nodes, also BACKLOG concepts:
 
