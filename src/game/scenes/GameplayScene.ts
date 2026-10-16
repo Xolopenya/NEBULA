@@ -4,6 +4,7 @@ import { prismSpread } from '../combat/prismSpread';
 import { clusterSatelliteOffsets } from '../combat/clusterSatellites';
 import { shooterMovement } from '../enemies/shooterMovement';
 import { shouldSpawnEliteTank } from '../enemies/eliteTank';
+import { shouldSpawnWarden, wardenPhase, wardenBurstDirections } from '../enemies/warden';
 import { stepDash } from '../player/dash';
 import { selectChoices } from '../progression/selectChoices';
 import { effectiveMissileExplosionRadius } from '../progression/spatialAmplifier';
@@ -40,12 +41,13 @@ const levelUpPool: readonly OrdinaryChoice[] = [
   { kind: 'passive', module: 'replication' },
 ];
 
-type EnemyArchetype = 'chaser' | 'shooter' | 'tank';
+type EnemyArchetype = 'chaser' | 'shooter' | 'tank' | 'boss';
 
 const enemyData = {
   chaser: { health: 3, speed: 180, points: [24, 0, 48, 24, 24, 48, 0, 24], color: 0xf43f5e, outline: 0xffcdd2 },
   shooter: { health: 2, speed: 140, points: [8, 8, 40, 8, 40, 40, 8, 40], color: 0xa855f7, outline: 0xe9d5ff },
   tank: { health: 6, speed: 100, points: [12, 4, 36, 4, 48, 24, 36, 44, 12, 44, 0, 24], color: 0xf59e0b, outline: 0xfef3c7 },
+  boss: { health: 60, speed: 70, points: [40, 0, 68, 12, 80, 40, 68, 68, 40, 80, 12, 68, 0, 40, 12, 12], color: 0xd946ef, outline: 0xfae8ff },
 } satisfies Record<EnemyArchetype, { health: number; speed: number; points: number[]; color: number; outline: number }>;
 
 const eliteTankData = {
@@ -53,13 +55,16 @@ const eliteTankData = {
   color: 0xfacc15, outline: 0xfffbeb,
 } as const;
 
-const timedSpawnSequence: readonly EnemyArchetype[] = ['chaser', 'chaser', 'chaser', 'shooter', 'chaser', 'tank'];
+const wardenPhaseTwo = { speed: 100, color: 0xdc2626, outline: 0xfb923c } as const;
+
+const timedSpawnSequence: readonly Exclude<EnemyArchetype, 'boss'>[] = ['chaser', 'chaser', 'chaser', 'shooter', 'chaser', 'tank'];
 
 type EnemyRuntime = {
   archetype: EnemyArchetype;
   readonly isElite: boolean;
   readonly contactDamage: number;
   readonly xpValue: number;
+  readonly collisionRadius: number;
   visual: Phaser.GameObjects.Polygon;
   health: number;
 };
@@ -150,6 +155,8 @@ export class GameplayScene extends Phaser.Scene {
   private readonly shooterMinimumRange = 350;
   private readonly shooterMaximumRange = 500;
   private successfulTimedSpawns = 0;
+  private bossSpawned = false;
+  bossDefeated = false;
   private readonly enemyRadius = 24;
   private readonly hostileFireInterval = 1500;
   private readonly hostileSpeed = 600;
@@ -206,6 +213,8 @@ export class GameplayScene extends Phaser.Scene {
     this.playerDamageProtectionRemaining = 0;
     this.enemies = [];
     this.successfulTimedSpawns = 0;
+    this.bossSpawned = false;
+    this.bossDefeated = false;
     this.xpPickups = [];
     this.currentTarget = undefined;
     this.projectiles = [];
@@ -353,7 +362,14 @@ export class GameplayScene extends Phaser.Scene {
 
     for (const enemy of this.enemies) {
       this.chaseDirection.set(this.player.x - enemy.visual.x, this.player.y - enemy.visual.y);
-      const speed = enemy.isElite ? eliteTankData.speed : enemyData[enemy.archetype].speed;
+      let speed = enemy.isElite ? eliteTankData.speed : enemyData[enemy.archetype].speed;
+      if (enemy.archetype === 'boss') {
+        const phase = wardenPhase(enemy.health);
+        if (!phase) continue;
+        speed = phase === 2 ? wardenPhaseTwo.speed : enemyData.boss.speed;
+        enemy.visual.setFillStyle(phase === 2 ? wardenPhaseTwo.color : enemyData.boss.color);
+        if (enemy !== this.currentTarget) this.restoreEnemyOutline(enemy);
+      }
       if (enemy.archetype === 'shooter') {
         const step = shooterMovement(this.chaseDirection.x, this.chaseDirection.y, speed, delta,
           this.shooterMinimumRange, this.shooterMaximumRange);
@@ -365,15 +381,15 @@ export class GameplayScene extends Phaser.Scene {
       }
       enemy.visual.x += this.chaseDirection.x;
       enemy.visual.y += this.chaseDirection.y;
-      enemy.visual.x = Phaser.Math.Clamp(enemy.visual.x, this.enemyMargin, this.arenaWidth - this.enemyMargin);
-      enemy.visual.y = Phaser.Math.Clamp(enemy.visual.y, this.enemyMargin, this.arenaHeight - this.enemyMargin);
+      const margin = Math.max(this.enemyMargin, enemy.collisionRadius);
+      enemy.visual.x = Phaser.Math.Clamp(enemy.visual.x, margin, this.arenaWidth - margin);
+      enemy.visual.y = Phaser.Math.Clamp(enemy.visual.y, margin, this.arenaHeight - margin);
     }
 
     const target = this.selectNearestEnemy();
     if (target !== this.currentTarget) {
       if (this.currentTarget) {
-        this.currentTarget.visual.setStrokeStyle(this.currentTarget.isElite ? 3 : 2,
-          this.currentTarget.isElite ? eliteTankData.outline : enemyData[this.currentTarget.archetype].outline);
+        this.restoreEnemyOutline(this.currentTarget);
       }
       this.currentTarget = target;
       this.currentTarget?.visual.setStrokeStyle(4, 0xfde047);
@@ -388,6 +404,12 @@ export class GameplayScene extends Phaser.Scene {
 
   private isSimulationPaused(): boolean {
     return this.isPlayerDead || this.isLevelUpPaused;
+  }
+
+  private restoreEnemyOutline(enemy: EnemyRuntime): void {
+    const outline = enemy.archetype === 'boss' && wardenPhase(enemy.health) === 2
+      ? wardenPhaseTwo.outline : enemy.isElite ? eliteTankData.outline : enemyData[enemy.archetype].outline;
+    enemy.visual.setStrokeStyle(enemy.isElite || enemy.archetype === 'boss' ? 3 : 2, outline);
   }
 
   private movePlayer(direction: Phaser.Math.Vector2, distance: number): void {
@@ -607,8 +629,8 @@ export class GameplayScene extends Phaser.Scene {
     if (this.isSimulationPaused()) return;
     if (!this.player || this.playerHealth === 0 || this.playerDamageProtectionRemaining > 0) return;
 
-    const radius = this.playerRadius + this.enemyRadius;
     for (const enemy of this.enemies) {
+      const radius = this.playerRadius + enemy.collisionRadius;
       const dx = enemy.visual.x - this.player.x;
       const dy = enemy.visual.y - this.player.y;
       if (dx * dx + dy * dy <= radius * radius) {
@@ -729,18 +751,29 @@ export class GameplayScene extends Phaser.Scene {
     if (this.isSimulationPaused()) return;
     if (!this.player) return;
     const enemy = this.selectNearestEnemy('shooter');
-    if (!enemy) return;
-    const dx = this.player.x - enemy.visual.x;
-    const dy = this.player.y - enemy.visual.y;
-    const distance = Math.hypot(dx, dy);
-    if (distance < 0.001) return;
+    if (enemy) {
+      const dx = this.player.x - enemy.visual.x;
+      const dy = this.player.y - enemy.visual.y;
+      const distance = Math.hypot(dx, dy);
+      if (distance >= 0.001) this.launchHostileProjectile(enemy.visual, dx / distance, dy / distance);
+    }
+    const boss = this.enemies.find(candidate => candidate.archetype === 'boss' && candidate.health > 0);
+    if (boss) {
+      const phase = wardenPhase(boss.health);
+      if (phase) for (const direction of wardenBurstDirections(phase)) {
+        this.launchHostileProjectile(boss.visual, direction.x, direction.y);
+      }
+    }
+  }
+
+  private launchHostileProjectile(origin: { x: number; y: number }, directionX: number, directionY: number): void {
     this.projectiles.push({
       source: 'enemy',
       damage: this.hostileDamage,
       radius: this.projectileRadius,
-      visual: this.add.circle(enemy.visual.x, enemy.visual.y, this.projectileRadius, 0xfb923c),
-      velocityX: dx / distance * this.hostileSpeed,
-      velocityY: dy / distance * this.hostileSpeed,
+      visual: this.add.circle(origin.x, origin.y, this.projectileRadius, 0xfb923c),
+      velocityX: directionX * this.hostileSpeed,
+      velocityY: directionY * this.hostileSpeed,
       remainingLifetime: this.hostileLifetime,
     });
   }
@@ -768,7 +801,7 @@ export class GameplayScene extends Phaser.Scene {
       for (const enemy of projectile.source === 'player' ? this.enemies : []) {
         const hit = segmentCircleHitTime(
           startX, startY, stepX, stepY,
-          enemy.visual.x, enemy.visual.y, this.enemyRadius + projectile.radius,
+          enemy.visual.x, enemy.visual.y, enemy.collisionRadius + projectile.radius,
         );
         if (hit < firstHit) {
           firstHit = hit;
@@ -864,7 +897,7 @@ export class GameplayScene extends Phaser.Scene {
       let firstHit = Infinity;
       for (const enemy of this.enemies) {
         const hit = segmentCircleHitTime(startX, startY, stepX, stepY,
-          enemy.visual.x, enemy.visual.y, this.enemyRadius + this.missile.radius);
+          enemy.visual.x, enemy.visual.y, enemy.collisionRadius + this.missile.radius);
         if (hit < firstHit) firstHit = hit;
       }
       if (firstHit !== Infinity) {
@@ -917,6 +950,7 @@ export class GameplayScene extends Phaser.Scene {
   private killEnemy(enemy: EnemyRuntime): void {
     const index = this.enemies.indexOf(enemy);
     if (index === -1) return;
+    if (enemy.archetype === 'boss') this.bossDefeated = true;
     this.xpPickups.push({
       visual: this.add.circle(enemy.visual.x, enemy.visual.y, 10, 0xa3e635)
         .setStrokeStyle(2, 0xecfccb),
@@ -932,15 +966,22 @@ export class GameplayScene extends Phaser.Scene {
     const isElite = archetype === 'tank' && eliteTank;
     const data = isElite ? eliteTankData : enemyData[archetype];
     const enemy = this.add.polygon(x, y, data.points, data.color);
-    enemy.setStrokeStyle(isElite ? 3 : 2, data.outline);
+    enemy.setStrokeStyle(isElite || archetype === 'boss' ? 3 : 2, data.outline);
     this.enemies.push({ archetype, isElite, visual: enemy, health: data.health,
-      contactDamage: isElite ? eliteTankData.contactDamage : this.contactDamage,
-      xpValue: isElite ? eliteTankData.xpValue : 1 });
+      contactDamage: archetype === 'boss' ? 2 : isElite ? eliteTankData.contactDamage : this.contactDamage,
+      xpValue: archetype === 'boss' ? 10 : isElite ? eliteTankData.xpValue : 1,
+      collisionRadius: archetype === 'boss' ? 40 : this.enemyRadius });
+    if (archetype === 'boss') this.bossSpawned = true;
   }
 
   private spawnEnemy(): void {
     if (this.isSimulationPaused()) return;
     if (!this.player || this.enemies.length >= this.maximumEnemies) return;
+    if (this.enemies.some(enemy => enemy.archetype === 'boss' && enemy.health > 0)) return;
+
+    const nextTimedSpawnNumber = this.successfulTimedSpawns + 1;
+    const spawnBoss = shouldSpawnWarden(nextTimedSpawnNumber, this.bossSpawned);
+    const margin = spawnBoss ? Math.max(this.enemyMargin, 40) : this.enemyMargin;
 
     const view = this.cameras.main.worldView;
     const side = Phaser.Math.Between(0, 3);
@@ -951,18 +992,20 @@ export class GameplayScene extends Phaser.Scene {
     let y = side < 2
       ? Phaser.Math.FloatBetween(view.top, view.bottom)
       : (side === 2 ? view.top - 48 : view.bottom + 48);
-    x = Phaser.Math.Clamp(x, this.enemyMargin, this.arenaWidth - this.enemyMargin);
-    y = Phaser.Math.Clamp(y, this.enemyMargin, this.arenaHeight - this.enemyMargin);
+    x = Phaser.Math.Clamp(x, margin, this.arenaWidth - margin);
+    y = Phaser.Math.Clamp(y, margin, this.arenaHeight - margin);
 
     if (Phaser.Math.Distance.Between(x, y, this.player.x, this.player.y) < this.minimumSpawnDistance) {
       // At arena edges the chosen side may be too close; the opposite corner is safely distant.
-      x = this.player.x < this.arenaWidth / 2 ? this.arenaWidth - this.enemyMargin : this.enemyMargin;
-      y = this.player.y < this.arenaHeight / 2 ? this.arenaHeight - this.enemyMargin : this.enemyMargin;
+      x = this.player.x < this.arenaWidth / 2 ? this.arenaWidth - margin : margin;
+      y = this.player.y < this.arenaHeight / 2 ? this.arenaHeight - margin : margin;
     }
 
-    const archetype = timedSpawnSequence[this.successfulTimedSpawns % timedSpawnSequence.length];
-    const nextTimedSpawnNumber = this.successfulTimedSpawns + 1;
-    this.createEnemy(x, y, archetype, shouldSpawnEliteTank(archetype, nextTimedSpawnNumber));
+    if (spawnBoss) this.createEnemy(x, y, 'boss');
+    else {
+      const archetype = timedSpawnSequence[this.successfulTimedSpawns % timedSpawnSequence.length];
+      this.createEnemy(x, y, archetype, shouldSpawnEliteTank(archetype, nextTimedSpawnNumber));
+    }
     this.successfulTimedSpawns += 1;
   }
 }

@@ -2775,7 +2775,9 @@ ACCEPTANCE / VALIDATION:
 
 ### GAME-037 — Boss Prototype
 
-STATUS: READY
+STATUS: DONE
+
+VALIDATION: TypeScript, 146 tracked tests / 16 files and production build PASS. Separate normal application boot and ignored real-GameplayScene/Phaser Clock harness PASS: spawn30/cap/active guard, both Warden phases, shared hostile cadence/Shooter coexistence, per-enemy body collision versus center-only AoE, all six weapon kill paths/XP10, post-Boss spawn31 and two actual native RETRY cycles with full reset and five fresh timers. No victory/result flow implemented.
 
 DEPENDENCIES:
 
