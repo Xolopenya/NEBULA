@@ -1562,7 +1562,7 @@ ACCEPTANCE / VALIDATION:
 
 ## Future weapon-progression block
 
-GAME-030 through GAME-034 are DONE, and GAME-035 is READY below. GAME-036+ remain BACKLOG concepts scheduled from
+GAME-030 through GAME-035 are DONE below. GAME-036+ remain BACKLOG concepts scheduled from
 DESIGN-004, not implementation-ready definitions or authorization to implement them.
 GAME-029 remains DONE; later tasks each need a separate concrete definition and architect review.
 
@@ -2363,7 +2363,7 @@ ACCEPTANCE / VALIDATION:
 
 ### GAME-035 — Twin Drone Formation
 
-STATUS: READY
+STATUS: DONE
 
 DEPENDENCIES:
 
@@ -2379,7 +2379,9 @@ Implement Drone mastery + Replication Matrix prerequisite → Twin Drone Formati
 the primary Drone and add exactly one mirrored companion within the same Drone weapon.
 Both fire synchronously through the SAME existing Drone TimerEvent, independently aiming
 from their own actual world positions. Extend concrete evolution arbitration from two
-to three identities. This READY node defines future implementation; Twin is not implemented.
+to three identities. Implemented and validated with tracked eligibility/offer tests, real
+Phaser companion/timer/bolt checks and two native RETRY cycles restoring one Drone and
+five fresh timers.
 
 PROTOTYPE RULES — RECIPE / NEXT-PRESENTATION TIMING:
 

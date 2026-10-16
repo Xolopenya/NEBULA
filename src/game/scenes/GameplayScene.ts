@@ -8,6 +8,7 @@ import { selectChoices } from '../progression/selectChoices';
 import { effectiveMissileExplosionRadius } from '../progression/spatialAmplifier';
 import { effectiveDroneBoltRadius } from '../progression/replicationMatrix';
 import { canEvolveClusterMissile } from '../progression/clusterMissile';
+import { canEvolveTwinDrone } from '../progression/twinDrone';
 import { selectEvolutionOffer, type Evolution } from '../progression/evolutionOffer';
 import { selectFocusedUpgrade, type MissileRanks, type DroneRanks, type WeaponFocus, type FocusCursors } from '../progression/focusedUpgrade';
 import { canEvolvePrismLaser, type LaserRanks } from '../progression/prismLaser';
@@ -18,7 +19,7 @@ type PassiveModule = 'hull' | 'thruster' | 'collector' | 'combat' | 'spatial' | 
 type OrdinaryChoice = { kind: 'laser'; upgrade: LaserUpgrade }
   | { kind: 'missile'; upgrade: keyof MissileRanks }
   | { kind: 'drone'; upgrade: keyof DroneRanks } | { kind: 'passive'; module: PassiveModule };
-type LevelUpChoice = OrdinaryChoice | { kind: 'prism' } | { kind: 'cluster' };
+type LevelUpChoice = OrdinaryChoice | { kind: 'prism' } | { kind: 'cluster' } | { kind: 'twin' };
 
 const levelUpPool: readonly OrdinaryChoice[] = [
   { kind: 'laser', upgrade: 'power' },
@@ -85,6 +86,8 @@ type MissileRuntime = {
 export class GameplayScene extends Phaser.Scene {
   private player?: Phaser.GameObjects.Polygon;
   private drone?: Phaser.GameObjects.Arc;
+  private twinDrone?: Phaser.GameObjects.Arc;
+  private twinDroneEvolved = false;
   private droneAngle = 0;
   private readonly droneConfig = {
     orbitRadius: 110, angularSpeed: 2, visualRadius: 10,
@@ -169,6 +172,8 @@ export class GameplayScene extends Phaser.Scene {
     this.xpMagnetRadius = 180;
     this.globalDamageMultiplier = 1;
     this.droneAngle = 0;
+    this.twinDrone = undefined;
+    this.twinDroneEvolved = false;
     this.droneAttackValues = { damage: 1, fireInterval: 1200, projectileSpeed: 800 };
     this.droneRanks = { boltPower: 0, firingSystem: 0, boltPropulsion: 0 };
     this.dashRemaining = 0;
@@ -411,7 +416,8 @@ export class GameplayScene extends Phaser.Scene {
     // Eligibility belongs to this presentation; completing a prerequisite only affects the next one.
     const prismEligible = canEvolvePrismLaser(this.laserRanks, this.moduleLevels.combat, this.prismEvolved);
     const clusterEligible = canEvolveClusterMissile(this.missileRanks, this.moduleLevels.spatial, this.clusterEvolved);
-    const evolution = selectEvolutionOffer(prismEligible, clusterEligible, this.evolutionOfferCursor);
+    const twinEligible = canEvolveTwinDrone(this.droneRanks, this.moduleLevels.replication, this.twinDroneEvolved);
+    const evolution = selectEvolutionOffer(prismEligible, clusterEligible, twinEligible, this.evolutionOfferCursor);
     this.evolutionOfferCursor = evolution.nextCursor;
     const third: LevelUpChoice = evolution.offered ? { kind: evolution.offered }
       : selectChoices(ordinaryPool.filter(option => option !== first && option !== second), 1)[0];
@@ -435,6 +441,7 @@ export class GameplayScene extends Phaser.Scene {
   private choiceLabel(choice: LevelUpChoice): string {
     if (choice.kind === 'prism') return 'EVOLVE: Prism Laser\nThree beams — full Laser damage each';
     if (choice.kind === 'cluster') return 'EVOLVE: Cluster Missile\nPrimary blast + 6 satellite explosions';
+    if (choice.kind === 'twin') return 'EVOLVE: Twin Drone Formation\nMirrored companion, synchronized Drone bolts';
     if (choice.kind === 'drone') {
       const rank = this.droneRanks[choice.upgrade] + 1;
       switch (choice.upgrade) {
@@ -476,12 +483,20 @@ export class GameplayScene extends Phaser.Scene {
     if (option.kind === 'drone' && this.droneRanks[option.upgrade] >= 2) return;
     if (option.kind === 'prism' && this.prismEvolved) return;
     if (option.kind === 'cluster' && this.clusterEvolved) return;
+    if (option.kind === 'twin' && this.twinDroneEvolved) return;
     if (this.dashKey) Phaser.Input.Keyboard.JustDown(this.dashKey);
     if (option.kind === 'laser') this.laserRanks[option.upgrade] += 1;
     if (option.kind === 'prism') this.prismEvolved = true;
     if (option.kind === 'cluster') {
       this.clusterEvolved = true;
       this.weaponFocus = 'missile';
+    }
+    if (option.kind === 'twin') {
+      this.twinDroneEvolved = true;
+      this.weaponFocus = 'drone';
+      this.twinDrone = this.add.circle(0, 0, this.droneConfig.visualRadius, 0x2dd4bf)
+        .setStrokeStyle(2, 0xccfbf1);
+      this.positionDrone(this.twinDrone, this.droneAngle + Math.PI);
     }
     if (option.kind === 'laser' || option.kind === 'prism') this.weaponFocus = 'laser';
     if (option.kind === 'drone') {
@@ -647,17 +662,28 @@ export class GameplayScene extends Phaser.Scene {
   private updateDrone(delta: number): void {
     if (this.isSimulationPaused() || !this.player || !this.drone) return;
     this.droneAngle = (this.droneAngle + this.droneConfig.angularSpeed * delta / 1000) % (Math.PI * 2);
-    this.drone.x = Phaser.Math.Clamp(this.player.x + Math.cos(this.droneAngle) * this.droneConfig.orbitRadius,
+    this.positionDrone(this.drone, this.droneAngle);
+    if (this.twinDrone) this.positionDrone(this.twinDrone, this.droneAngle + Math.PI);
+  }
+
+  private positionDrone(drone: Phaser.GameObjects.Arc, angle: number): void {
+    if (!this.player) return;
+    drone.x = Phaser.Math.Clamp(this.player.x + Math.cos(angle) * this.droneConfig.orbitRadius,
       0, this.arenaWidth);
-    this.drone.y = Phaser.Math.Clamp(this.player.y + Math.sin(this.droneAngle) * this.droneConfig.orbitRadius,
+    drone.y = Phaser.Math.Clamp(this.player.y + Math.sin(angle) * this.droneConfig.orbitRadius,
       0, this.arenaHeight);
   }
 
   private fireDrone(): void {
     if (this.isSimulationPaused() || !this.drone) return;
-    const target = this.selectNearestEnemy(undefined, this.drone);
+    this.fireDroneFrom(this.drone);
+    if (this.twinDrone) this.fireDroneFrom(this.twinDrone);
+  }
+
+  private fireDroneFrom(origin: Phaser.GameObjects.Arc): void {
+    const target = this.selectNearestEnemy(undefined, origin);
     if (!target) return;
-    this.firePlayerProjectile(this.drone, target, this.droneAttackValues.damage, this.droneAttackValues.projectileSpeed,
+    this.firePlayerProjectile(origin, target, this.droneAttackValues.damage, this.droneAttackValues.projectileSpeed,
       this.droneConfig.lifetime, effectiveDroneBoltRadius(this.droneConfig.boltRadius, this.moduleLevels.replication), 0xc084fc);
   }
 
