@@ -1562,7 +1562,7 @@ ACCEPTANCE / VALIDATION:
 
 ## Future weapon-progression block
 
-GAME-030 through GAME-032 are DONE, and GAME-033 is READY below. GAME-034+ remain BACKLOG concepts scheduled from
+GAME-030 through GAME-033 are DONE below. GAME-034+ remain BACKLOG concepts scheduled from
 DESIGN-004, not implementation-ready definitions or authorization to implement them.
 GAME-029 remains DONE; later tasks each need a separate concrete definition and architect review.
 
@@ -2052,7 +2052,7 @@ ACCEPTANCE / VALIDATION:
 
 ### GAME-033 — Drone Upgrade Foundation
 
-STATUS: READY
+STATUS: DONE
 
 DEPENDENCIES:
 
@@ -2064,9 +2064,10 @@ GOAL:
 
 Add explicit run-local progression to the existing Drone: Bolt Power, Firing System and
 Bolt Propulsion. Extend the existing concrete Laser/Missile focused-choice policy to
-Laser/Missile/Drone without changing evolution arbitration. This READY definition is
-future implementation work, not a claim that Drone upgrades already exist. No Replication
-Matrix, Twin Drone Formation or additional Drone instance.
+Laser/Missile/Drone without changing evolution arbitration. Implemented and validated
+with tracked focus tests, real Phaser timer/bolt snapshot checks and two native retries
+restoring baseline Drone state and five fresh timers. No Replication Matrix, Twin Drone
+Formation or additional Drone instance.
 
 PROTOTYPE RULES — DRONE RANKS / ATTACK VALUES:
 

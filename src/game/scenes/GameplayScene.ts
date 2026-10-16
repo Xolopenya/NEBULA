@@ -8,14 +8,15 @@ import { selectChoices } from '../progression/selectChoices';
 import { effectiveMissileExplosionRadius } from '../progression/spatialAmplifier';
 import { canEvolveClusterMissile } from '../progression/clusterMissile';
 import { selectEvolutionOffer, type Evolution } from '../progression/evolutionOffer';
-import { selectFocusedUpgrade, type MissileRanks, type WeaponFocus, type FocusCursors } from '../progression/focusedUpgrade';
+import { selectFocusedUpgrade, type MissileRanks, type DroneRanks, type WeaponFocus, type FocusCursors } from '../progression/focusedUpgrade';
 import { canEvolvePrismLaser, type LaserRanks } from '../progression/prismLaser';
 import { addExperience, xpForNextLevel, type ExperienceState } from '../progression/experience';
 
 type LaserUpgrade = keyof LaserRanks;
 type PassiveModule = 'hull' | 'thruster' | 'collector' | 'combat' | 'spatial';
 type OrdinaryChoice = { kind: 'laser'; upgrade: LaserUpgrade }
-  | { kind: 'missile'; upgrade: keyof MissileRanks } | { kind: 'passive'; module: PassiveModule };
+  | { kind: 'missile'; upgrade: keyof MissileRanks }
+  | { kind: 'drone'; upgrade: keyof DroneRanks } | { kind: 'passive'; module: PassiveModule };
 type LevelUpChoice = OrdinaryChoice | { kind: 'prism' } | { kind: 'cluster' };
 
 const levelUpPool: readonly OrdinaryChoice[] = [
@@ -25,6 +26,9 @@ const levelUpPool: readonly OrdinaryChoice[] = [
   { kind: 'missile', upgrade: 'warheadPower' },
   { kind: 'missile', upgrade: 'propulsion' },
   { kind: 'missile', upgrade: 'blastExpansion' },
+  { kind: 'drone', upgrade: 'boltPower' },
+  { kind: 'drone', upgrade: 'firingSystem' },
+  { kind: 'drone', upgrade: 'boltPropulsion' },
   { kind: 'passive', module: 'hull' },
   { kind: 'passive', module: 'thruster' },
   { kind: 'passive', module: 'collector' },
@@ -82,8 +86,11 @@ export class GameplayScene extends Phaser.Scene {
   private droneAngle = 0;
   private readonly droneConfig = {
     orbitRadius: 110, angularSpeed: 2, visualRadius: 10,
-    fireInterval: 1200, damage: 1, speed: 800, lifetime: 1800, boltRadius: 5,
+    lifetime: 1800, boltRadius: 5,
   } as const;
+  private droneAttackValues = { damage: 1, fireInterval: 1200, projectileSpeed: 800 };
+  private droneRanks: DroneRanks = { boltPower: 0, firingSystem: 0, boltPropulsion: 0 };
+  private droneTimer?: Phaser.Time.TimerEvent;
   private hud?: Phaser.GameObjects.Text;
   private playerExperience: ExperienceState = { level: 1, xp: 0 };
   private isPlayerDead = false;
@@ -113,7 +120,7 @@ export class GameplayScene extends Phaser.Scene {
   private missileValues = { damage: 2, speed: 450, explosionRadius: 120 };
   private missileRanks: MissileRanks = { warheadPower: 0, propulsion: 0, blastExpansion: 0 };
   private weaponFocus: WeaponFocus = 'laser';
-  private focusCursors: FocusCursors = { laser: 0, missile: 0 };
+  private focusCursors: FocusCursors = { laser: 0, missile: 0, drone: 0 };
   private cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
   private wasd?: Record<'up' | 'left' | 'down' | 'right', Phaser.Input.Keyboard.Key>;
   private readonly movementDirection = new Phaser.Math.Vector2();
@@ -160,6 +167,8 @@ export class GameplayScene extends Phaser.Scene {
     this.xpMagnetRadius = 180;
     this.globalDamageMultiplier = 1;
     this.droneAngle = 0;
+    this.droneAttackValues = { damage: 1, fireInterval: 1200, projectileSpeed: 800 };
+    this.droneRanks = { boltPower: 0, firingSystem: 0, boltPropulsion: 0 };
     this.dashRemaining = 0;
     this.dashCooldownRemaining = 0;
     this.dashDirection.set(0, 0);
@@ -169,7 +178,7 @@ export class GameplayScene extends Phaser.Scene {
     this.missileRanks = { warheadPower: 0, propulsion: 0, blastExpansion: 0 };
     this.missileValues = { damage: 2, speed: 450, explosionRadius: 120 };
     this.weaponFocus = 'laser';
-    this.focusCursors = { laser: 0, missile: 0 };
+    this.focusCursors = { laser: 0, missile: 0, drone: 0 };
     this.prismEvolved = false;
     this.clusterEvolved = false;
     this.evolutionOfferCursor = 'prism';
@@ -242,8 +251,8 @@ export class GameplayScene extends Phaser.Scene {
       callback: () => this.fireMissile(),
     });
 
-    this.time.addEvent({
-      delay: this.droneConfig.fireInterval,
+    this.droneTimer = this.time.addEvent({
+      delay: this.droneAttackValues.fireInterval,
       loop: true,
       callback: () => this.fireDrone(),
     });
@@ -388,8 +397,9 @@ export class GameplayScene extends Phaser.Scene {
     this.levelUpPresentation.push(title);
     const ordinaryPool = levelUpPool.filter(option =>
       option.kind === 'passive' || (option.kind === 'laser'
-        ? this.laserRanks[option.upgrade] < 2 : this.missileRanks[option.upgrade] < 2));
-    const focused = selectFocusedUpgrade(this.weaponFocus, this.laserRanks, this.missileRanks, this.focusCursors);
+        ? this.laserRanks[option.upgrade] < 2 : option.kind === 'missile'
+          ? this.missileRanks[option.upgrade] < 2 : this.droneRanks[option.upgrade] < 2));
+    const focused = selectFocusedUpgrade(this.weaponFocus, this.laserRanks, this.missileRanks, this.droneRanks, this.focusCursors);
     // Keep canonical pool entries so later slots can exclude by identity.
     const focusedChoice = focused && ordinaryPool.find(option =>
       option.kind !== 'passive' && option.kind === focused.kind && option.upgrade === focused.upgrade);
@@ -423,6 +433,14 @@ export class GameplayScene extends Phaser.Scene {
   private choiceLabel(choice: LevelUpChoice): string {
     if (choice.kind === 'prism') return 'EVOLVE: Prism Laser\nThree beams — full Laser damage each';
     if (choice.kind === 'cluster') return 'EVOLVE: Cluster Missile\nPrimary blast + 6 satellite explosions';
+    if (choice.kind === 'drone') {
+      const rank = this.droneRanks[choice.upgrade] + 1;
+      switch (choice.upgrade) {
+        case 'boltPower': return `Drone: Bolt Power Rank ${rank}/2\n+1 bolt damage`;
+        case 'firingSystem': return `Drone: Firing System Rank ${rank}/2\n-150 ms firing interval`;
+        case 'boltPropulsion': return `Drone: Bolt Propulsion Rank ${rank}/2\n+200 px/s bolt speed`;
+      }
+    }
     if (choice.kind === 'laser') {
       switch (choice.upgrade) {
         case 'power': return 'Laser Power — +1 damage';
@@ -452,6 +470,7 @@ export class GameplayScene extends Phaser.Scene {
     if (this.isPlayerDead || !this.isLevelUpPaused || !this.levelUpPresentation.includes(choice)) return;
     if (option.kind === 'laser' && this.laserRanks[option.upgrade] >= 2) return;
     if (option.kind === 'missile' && this.missileRanks[option.upgrade] >= 2) return;
+    if (option.kind === 'drone' && this.droneRanks[option.upgrade] >= 2) return;
     if (option.kind === 'prism' && this.prismEvolved) return;
     if (option.kind === 'cluster' && this.clusterEvolved) return;
     if (this.dashKey) Phaser.Input.Keyboard.JustDown(this.dashKey);
@@ -462,6 +481,22 @@ export class GameplayScene extends Phaser.Scene {
       this.weaponFocus = 'missile';
     }
     if (option.kind === 'laser' || option.kind === 'prism') this.weaponFocus = 'laser';
+    if (option.kind === 'drone') {
+      this.weaponFocus = 'drone';
+      this.droneRanks[option.upgrade] += 1;
+      switch (option.upgrade) {
+        case 'boltPower': this.droneAttackValues.damage += 1; break;
+        case 'boltPropulsion': this.droneAttackValues.projectileSpeed += 200; break;
+        case 'firingSystem':
+          this.droneAttackValues.fireInterval -= 150;
+          this.droneTimer?.reset({
+            delay: this.droneAttackValues.fireInterval,
+            loop: true,
+            callback: () => this.fireDrone(),
+          });
+          break;
+      }
+    }
     if (option.kind === 'missile') {
       this.weaponFocus = 'missile';
       this.missileRanks[option.upgrade] += 1;
@@ -619,7 +654,7 @@ export class GameplayScene extends Phaser.Scene {
     if (this.isSimulationPaused() || !this.drone) return;
     const target = this.selectNearestEnemy(undefined, this.drone);
     if (!target) return;
-    this.firePlayerProjectile(this.drone, target, this.droneConfig.damage, this.droneConfig.speed,
+    this.firePlayerProjectile(this.drone, target, this.droneAttackValues.damage, this.droneAttackValues.projectileSpeed,
       this.droneConfig.lifetime, this.droneConfig.boltRadius, 0xc084fc);
   }
 
