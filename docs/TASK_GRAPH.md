@@ -1562,7 +1562,7 @@ ACCEPTANCE / VALIDATION:
 
 ## Future weapon-progression block
 
-GAME-030 through GAME-036 are DONE below. GAME-037+ remain BACKLOG concepts scheduled from
+GAME-030 through GAME-036 are DONE, and GAME-037 is READY below. GAME-038+ remain BACKLOG concepts scheduled from
 DESIGN-004, not implementation-ready definitions or authorization to implement them.
 GAME-029 remains DONE; later tasks each need a separate concrete definition and architect review.
 
@@ -2773,9 +2773,242 @@ ACCEPTANCE / VALIDATION:
   AGENTS.md explicit staging/review, generate ignored .codex-review/GAME-036-review.txt
   with complete staged diff, and do not commit.
 
+### GAME-037 — Boss Prototype
+
+STATUS: READY
+
+DEPENDENCIES:
+
+- GAME-036 — Elite Enemy Prototype / successful spawn, contact and reward ownership
+- GAME-035 — Twin Drone Formation / completed player weapons and evolutions
+- GAME_DESIGN — enemy data, Boss and future spawn-telegraph direction (DESIGN-001)
+
+GOAL:
+
+Add WARDEN, one explicit run-local Boss with direct pursuit, two health phases and radial
+hostile bursts. Keep normal player-weapon targeting/damage and common killEnemy/XP ownership.
+Expose bossSpawned/bossDefeated for later GAME-038; no victory flow here. This READY node
+defines future implementation and does not claim that a Boss is implemented.
+
+PROTOTYPE RULES — WARDEN IDENTITY / BALANCE / PHASE:
+
+- Add one concrete Boss identity, e.g. EnemyArchetype chaser / shooter / tank / boss.
+  Warden is NOT Elite, NOT Shooter, not a CCCSCT entry and never an Elite promotion.
+  Keep the existing shared enemy runtime; do not rewrite all enemies into classes.
+- Maximum/initial health60, contactDamage2, xpValue10, collisionRadius40 world pixels.
+  Phase1 is current health >30: speed70 px/s and FOUR radial projectiles. Phase2 is
+  0 < health <=30: speed100 px/s and EIGHT projectiles. No time/player-level scaling,
+  armor, invulnerability, regeneration, summons, charge, teleport or homing attacks.
+- Read phase from CURRENT health. Threshold crossing does not heal, fire immediately,
+  reset the hostile event or create a transition timer. Next movement update and next
+  normal hostile callback use Phase2. Nonregenerating health makes transition one-way.
+  A dead/removed Warden neither moves nor fires.
+
+PROTOTYPE RULES — RUN FLAGS / SUCCESSFUL SPAWN30:
+
+- Add explicit run-local bossSpawned=false and bossDefeated=false; fresh create/native
+  restart resets both. Set bossSpawned=true ONLY when Warden is actually created.
+  Common lethal killEnemy sets bossDefeated=true; bossSpawned stays true for that run.
+- Keep existing2000 ms spawn TimerEvent, successfulTimedSpawns and cap10. Compute
+  nextTimedSpawnNumber = successfulTimedSpawns + 1. If next number ===30 AND
+  bossSpawned===false, create Warden INSTEAD OF the ordinary scheduled enemy. Boss30
+  overrides the CCCSCT choice BEFORE Elite promotion; never create both Tank and Boss.
+  Increment successfulTimedSpawns only AFTER successful creation, so Warden counts as30.
+- Before Boss preserve GAME-036 landmarks:6regular Tank,12Elite,18regular,24Elite.
+  All other numbers follow existing CCCSCT; Elite remains scheduled Tank with count
+  divisible by12. Initial normal Chaser is excluded from the successful timed count.
+- Warden counts as ONE active enemy. At counter29/cap10, create nothing, leave counter29
+  and bossSpawned=false. Free a slot and next successful callback still creates Warden30.
+  Pause/death/missing-player rejection cannot consume this spawn; no callback-count policy.
+- While an ACTIVE Warden exists, spawn callbacks create NO enemy and advance NO count,
+  including no second Boss. Existing enemies remain alive and continue their simulation;
+  weapons and hostile attacks continue. This spawn-only guard is not a global pause.
+- After common Warden death normal timed spawning resumes in GAME-037: next successful
+  spawn31 uses ordinary CCCSCT, with Elite promotion at later applicable numbers. Retain
+  bossSpawned=true so Warden cannot respawn. GAME-038 alone owns later victory/freeze changes.
+- Use current immediate off-camera valid-location mechanism, minimum player distance600,
+  arena bounds and opposite-corner fallback. Keep Warden's radius40 body inside bounds
+  while preserving regular/Elite placement margins; no player/arena redesign. Future
+  prominent portal/space-rift arrival remains deferred: no portal, warning delay, pending
+  queue, arrival cutscene, SpawnDirector or DifficultyDirector.
+
+PROTOTYPE RULES — PER-ENEMY BODY RADIUS / MOVEMENT:
+
+- A second real body size now justifies explicit EnemyRuntime.collisionRadius: regular
+  Chaser/Shooter/Tank and Elite Tank24, Warden40. Extend concrete creation/data minimally.
+  Use each contacted/hit enemy's runtime radius in straight-projectile swept collision,
+  Missile swept impact and player-enemy contact. Contact uses player20 + body radius
+  (Warden total60); keep regular total44. No Boss-specific player-weapon hit branches.
+- Enemy arena-center clamping must keep the Boss radius40 body inside. Preserve existing
+  regular/Elite margin25 despite body radius24; using max(existingMargin, collisionRadius)
+  is a valid minimal rule for placement and movement. Do not shrink regular margins.
+- Missile/Cluster EXPLOSION coverage remains inclusive ENEMY CENTER distance to blast
+  center, without adding body collisionRadius. Warden40 changes physical body impacts,
+  not primary/satellite AoE semantics, satellite overlap policy or launch snapshots.
+- Reuse normalized delta-based Chaser/Tank pursuit mathematics: current player position,
+  Phase1 speed70 / Phase2 speed100, step capped at remaining distance, safe coincident
+  centers, active simulation delta and radius-aware clamp. No special steering/pathfinding.
+
+PROTOTYPE RULES — PRESENTATION / CURRENT-PHASE HIGHLIGHT:
+
+- Use a large octagon or similarly heavy placeholder consistent with radius40, clearly
+  distinct from regular/Elite enemies. Phase1 direction: magenta/purple fill with strong
+  pale/white outline. Phase2 clearly changes, e.g. crimson fill and/or orange outline.
+  No animation framework, production art or health-bar UI is required.
+- Target highlight temporarily overrides outline; restoration must use CURRENT Warden
+  phase, including when health crosses30 while highlighted. Do not restore Tank/Elite
+  styling or stale Phase1 styling. Phase presentation updates with current health without
+  a transition timer or attack. Preserve regular/Elite highlight/restoration behavior.
+- Small per-runtime normal fill/outline ownership is allowed only if it materially
+  simplifies these actual regular/Elite/Boss consumers; no skin/presentation framework.
+
+PROTOTYPE RULES — ONE RETAINED HOSTILE TIMER / TWO INDEPENDENT SOURCES:
+
+- GAME-037 adds ZERO TimerEvents. Retain SAME global hostile event object,1500 ms delay
+  and elapsed phase across Warden spawn and threshold transition. Exactly FIVE gameplay
+  events remain: spawn, Laser/Prism, Missile/Cluster, Drone/Twin, hostile attacks.
+  No bossTimer, phase timer, radial timer or transition event.
+- Each normal hostile callback independently attempts (A) existing nearest active Shooter's
+  one aimed shot and (B) active Warden's current radial burst. A missing/near-zero Shooter
+  must not return before the Boss attempt; Boss absence/suppression cannot cancel Shooter.
+  With both valid, one Shooter shot PLUS4/8 Warden shots may launch in the SAME callback.
+- Shooter retains nearest-active-Shooter-only query, stable ties, no-Shooter/near-zero
+  suppression and existing aimed projectile values. Boss/Elite Tank are never Shooter
+  sources. Warden burst uses no player aim, target selection, randomness or homing.
+- Warden creation and Phase2 threshold crossing create NO immediate attack and reset NO
+  event phase. Only the next normal retained callback may launch the appropriate burst.
+
+PROTOTYPE RULES — DETERMINISTIC RADIAL HOSTILE PROJECTILES:
+
+- Phase1 directions at0/90/180/270 degrees; Phase2 at0/45/90/135/180/225/270/315.
+  Each vector is normalized, world-relative, fixed at launch, and originates from actual
+  current Warden position. No rotation/random spread, homing or player-directed aim.
+- Every Boss projectile uses existing hostile ProjectileRuntime values/behavior:
+  source enemy, damage1, speed600 px/s, lifetime3000 ms, radius6; same swept player hit,
+  protection, removal and world/lifetime cleanup. Phase2 projectiles are individually
+  unchanged; increased movement speed and eight-way count supply its added difficulty.
+- A small scene-private launchHostileProjectile(origin/direction) extraction is allowed
+  for fields genuinely shared by Shooter and Warden. Preserve normalized Shooter aim
+  and existing source/runtime ownership. No EnemyWeapon, attack registry, weapon class
+  or generic projectile-pattern engine.
+- Contact2 and projectile1 use existing damagePlayer/HP clamp/HUD/death/global500 ms
+  protection. Multiple radial intersections during protection cannot stack accepted hits
+  beyond current rules. Keep collection-order contact semantics and Dash's lack of immunity.
+
+PROTOTYPE RULES — ALL PLAYER WEAPONS / COMMON DEATH / XP:
+
+- Warden participates normally in Laser/Prism, Missile/Cluster and primary/Twin Drone
+  targeting/damage/kill paths. No Boss target-priority bonus: nearest distance/stable ties
+  remain authoritative, with each Drone querying its own actual origin. Preserve Missile
+  target retention/reacquisition, swept impacts, Cluster primary-first union/one secondary
+  hit per survivor, all attack launch snapshots and shared lethal removal.
+- Common killEnemy first rejects duplicate removed references, then sets bossDefeated
+  when removing Warden, destroys/removes it and clears dead target ownership normally.
+  After death bossSpawned=true, bossDefeated=true, no active Warden and ONE XP pickup
+  worth10 at death position. No ten-pickup burst, loot/chest/evolution/reward UI or separate
+  Boss death pipeline. Normal enemies retain XP1 and Elite Tank XP5.
+- Value10 uses normal pickup visual/magnet/Collector/collection and addExperience with
+  threshold subtraction/carry-over. Example level1/xp0 +10 → level2/xp5. Triggering pickup
+  is credited/removed before normal level-up pause; later pickup in that update stays
+  untouched. Do not special-case Boss XP or implement victory/result/run completion.
+
+PROTOTYPE RULES — PAUSE / NATIVE RESTART:
+
+- Level-up pause/player death freeze Warden movement and projectiles, prevent BOTH hostile
+  sources firing, and guard spawn/count changes through existing isSimulationPaused.
+  Resume continues the same Boss health/phase and retained timer phase; no Boss pause state.
+- Native create/restart resets bossSpawned=false/bossDefeated=false, no Boss or old Boss
+  shot, successfulTimedSpawns0 and exactly one normal Chaser. Landmark schedule restarts:
+  regular6/Elite12/regular18/Elite24/Boss30. Regular/Elite body radii remain24.
+- Preserve full baseline: HP5/5/protection0; Laser ranks0/0/0 values1/600/1200; Missile
+  ranks0/0/0 values2/450/120; Drone ranks0/0/0 values1/1200/800, one primary/no Twin;
+  Prism/Cluster/Twin false, evolution cursorPrism; six passives0; focusLaser/all track
+  cursors0; movement300/magnet180/multiplier1/level1xp0/Dash baseline, runtime arrays/UI
+  clear. No old Boss target/object/callback/timer ownership; FIVE fresh active events.
+
+ARCHITECTURE / TRACKED TESTS:
+
+- Allow one explicit Warden identity, two run flags, concrete balance/presentation,
+  per-enemy collisionRadius, tiny Warden spawn/phase/burst helpers, shared local hostile
+  launcher where useful and retained global event. Only demonstrated consumers justify
+  these changes; no broad enemy or Boss architecture extraction.
+- Prefer shouldSpawnWarden(nextSuccessfulTimedSpawnNumber, bossSpawned):29false→false,
+  30false→true,31false→false,30true→false; deterministic/repeatable and input nonmutating.
+  Keep it Warden-specific, not a general milestone encounter scheduler.
+- Prefer wardenPhase(health), with60/31→phase1 and30/1→phase2. Explicit dead-input
+  contract: health<=0 returns no active phase (e.g. undefined), never an attack-capable
+  phase. Common removal remains authoritative; no generic BossPhase framework.
+- Prefer wardenBurstDirections(phase). Tracked tests REQUIRED for Phase1 count4/cardinal
+  angles/unit vectors and Phase2 count8/45-degree spacing/cardinals/unit vectors; repeated
+  deterministic results, independent returned arrays/vectors and no mutable shared state.
+  Add focused pure spawn/phase tests for all boundaries/dead input above as well. No
+  Phaser rendering-only tests or helper/framework extraction merely for test coverage.
+- No BossManager/base class/phase framework/registry, generic attack-pattern engine,
+  EnemyManager/universal EnemyDefinition, SpawnDirector/DifficultyDirector, portal framework,
+  extra TimerEvent, ECS, DI or event bus.
+
+OUT OF SCOPE:
+
+Victory/result screen, automatic run completion, second/randomized Boss, Boss loot/reward UI,
+production health bar, summons/invulnerability phases/transition cutscene, space-rift telegraph,
+difficulty scaling, enemy archetypes beyond Warden, new weapons/upgrades, production art/VFX,
+save/meta, new dependencies and GAME-038+.
+
+ACCEPTANCE / VALIDATION:
+
+- Verify fresh flagsfalse/no Warden, counter0, one normal Chaser and five timers. Exercise
+  actual successful spawns through30, preserving6/12/18/24 and creating ONLY Warden at30.
+  Counter29/cap10 blocks creation without flag/count changes; free one slot and verify
+  due Warden30. Pause/death/missing-player rejection likewise cannot consume Boss spawn.
+- While Boss active, repeated spawn callbacks create nothing/count stays30/no second Boss.
+  Existing enemies, movement, player weapons and hostile fire continue (not global pause).
+  Kill through common path and verify bossSpawned stays true/bossDefeated true, next normal
+  spawn31 and no Boss respawn; no victory/result behavior.
+- Verify actual Warden HP60/radius40/contact2/XP10, phase boundaries60/31 vs30/1, chase70/100,
+  normalized cardinal/diagonal motion, delta partitions/large-step stop/coincident safety,
+  radius40 arena containment and unchanged regular/Elite24 bodies/margin25.
+- Save actual hostile TimerEvent object/delay/elapsed before spawn and phase change;
+  both preserve them with no immediate shots. Verify real1500 ms Clock boundaries and
+  FIVE total events. Trigger actual Phase1 four-shot and Phase2 eight-shot callbacks;
+  inspect exact angles/unit directions/current Boss origin, damage1/speed600/radius6/
+  lifetime3000/fixed aim and normal collision/world/expiry cleanup.
+- With farther Shooter and nearer Boss, verify Shooter-only source selection plus Boss
+  burst on SAME callback (5/9 total shots). No/missing/near-zero Shooter must not cancel
+  Boss; missing/dead Boss must not cancel Shooter. Verify contact2/shot1/global500 ms
+  protection, multiple radial hits during protection and Dash's lack of immunity.
+- Use actual projectile/Missile sweeps to distinguish Boss40 from regular/Elite24;
+  contact uses player20+Boss40. Test Missile/Cluster AoE at inclusive center-distance
+  boundaries and just outside, proving body radius is NOT added to explosion coverage.
+- Through EACH Laser, Prism, Missile, Cluster, primary Drone and Twin production path,
+  damage/kill Warden; fixture HP may isolate hits. Check snapshots/homing/reacquisition/
+  overlap, common once-only removal and one value10 pickup with no duplicate death/XP.
+- Verify nearest-target/no-priority/stable ties and both Drone origins; Shooter query
+  excludes Boss. Check Phase1 normal→highlight→restored Phase1 and Phase2 normal→highlight
+  →restored CURRENT Phase2, including crossing threshold while highlighted. Preserve Elite
+  and ordinary target styles. Verify value10 collection level1/xp0→level2/xp5, magnet and
+  normal pickup-credit/removal/pause ordering.
+- Regress Chaser/Shooter/regular Tank/Elite, CCCSCT/Elite schedule/cap10/current placement,
+  all weapons/three evolutions/six passives/focus/cursors, XP/pause, Dash, contact/hostile
+  damage and player death. During level-up/death verify Boss/bolts freeze, both hostile
+  sources and spawn/count guarded; resume preserves health/phase/timer phase.
+- Later implementation must use actual GameplayScene/production helpers, real Phaser
+  Clock/TimerEvents/native lifecycle and separate normal app boot. Ignored deterministic
+  harness may arrange fixtures, never duplicate gameplay algorithms. Perform TWO actual
+  native RETRY cycles after dirty Boss/flags/projectiles/spawn and prior run state; after
+  EACH verify no Boss, flagsfalse, counter0/initial normal Chaser, restored Boss30 schedule,
+  full baseline above, destroyed old objects/timers and exactly FIVE fresh active events.
+  Check console for new GAME-037 errors; distinguish tracked tests/runtime harness/normal
+  boot/native retry evidence and report limitations honestly.
+- Run npm run check, git diff --check and git diff --cached --check; after implementation
+  fixes rerun affected runtime checks and full quality validation. This definition changes
+  only TASK_GRAPH: GAME-037 BACKLOG→READY, GAME-036 remainsDONE, GAME-038+ remainBACKLOG;
+  runtime/CURRENT_STATE/PROJECT_GRAPH unchanged. A later successful implementation updates
+  factual docs, marks only GAME-037 DONE and leaves GAME-038+ BACKLOG. Follow AGENTS.md
+  explicit staging/review with ignored .codex-review/GAME-037-review.txt/full staged diff.
+  Do not commit.
+
 Remaining future nodes, also BACKLOG concepts:
 
-GAME-037 — Boss Prototype
 GAME-038 — Run Victory / Result Flow
 GAME-039 — First DevTools Utilities
 GAME-040 — Mobile Movement Prototype
