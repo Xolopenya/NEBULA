@@ -4,8 +4,8 @@
 
 - Project: NEBULA.
 - Milestone: First Playable / GAME-015 complete.
-- Source baseline HEAD: `0cf2cae930ca45119a4ee4358bf19988a53576a9`.
-- This map reflects that source baseline plus GAME-035 Twin companion/shared orbit-timer ownership and three-evolution policy.
+- Source baseline HEAD: `ca3bf0f04353c803c370f1c39eb5cea0feac0a1d`.
+- This map reflects that source baseline plus GAME-036 concrete Elite Tank spawn/contact/reward/presentation ownership.
 - Active task request defines task-specific requirements.
 - AGENTS.md defines repository policy.
 - TASK_GRAPH.md defines task scope, dependencies and status.
@@ -47,6 +47,8 @@ IDs are repository-relative paths; symbols use `path#export`.
 | `src/game/progression/prismLaser.test.ts` | Tracked pure eligibility tests |
 | `src/game/combat/prismSpread.ts` | Pure center/-12/+12 direction calculation and whole-volley near-zero suppression |
 | `src/game/combat/prismSpread.test.ts` | Tracked pure spread tests |
+| `src/game/enemies/eliteTank.ts` | Pure scheduled-Tank / successful-count Elite predicate |
+| `src/game/enemies/eliteTank.test.ts` | Seven tracked Elite schedule tests |
 | `src/game/enemies/shooterMovement.ts` | Pure inclusive distance-band movement step |
 | `src/game/enemies/shooterMovement.test.ts` | Tracked Shooter movement tests |
 | `src/game/player/dash.ts` | Pure Dash frame timing split |
@@ -126,6 +128,8 @@ Runtime labels below describe scene-owned concepts, not separate modules/classes
 | `src/game/progression/replicationMatrix.ts#effectiveDroneBoltRadius` | TESTED_BY | `src/game/progression/replicationMatrix.test.ts` |
 | `src/game/scenes/GameplayScene.ts` | IMPORTS | `src/game/progression/twinDrone.ts#canEvolveTwinDrone` |
 | `src/game/progression/twinDrone.ts#canEvolveTwinDrone` | TESTED_BY | `src/game/progression/twinDrone.test.ts` |
+| `src/game/scenes/GameplayScene.ts` | IMPORTS | `src/game/enemies/eliteTank.ts#shouldSpawnEliteTank` |
+| `src/game/enemies/eliteTank.ts#shouldSpawnEliteTank` | TESTED_BY | `src/game/enemies/eliteTank.test.ts` |
 | Player Laser | TARGETS | currentTarget from active enemies |
 | Drone bolt | TARGETS | Nearest active enemy independently from each actual primary/Twin position; fixed launch aim |
 | Player projectile | DAMAGES | First intersected active enemy |
@@ -155,12 +159,12 @@ All private names below are navigation anchors, not exported symbol nodes.
 | Level-up pause | isLevelUpPaused; enterLevelUpPause; isSimulationPaused | Distinct from death; level increase freezes update/callbacks; fixed title and three distinct focused/passive/open choices; one selection resumes |
 | Choice UI/resume | levelUpPresentation; enterLevelUpPause; acceptLevelUpChoice | Current text identity guard; applies one Laser/Missile/passive effect or Prism, destroys title/options then resumes |
 | Death/retry | isPlayerDead; enterPlayerDeath | Idempotent freeze; death-only clickable retry |
-| Enemy runtime | enemies; EnemyRuntime; createEnemy | One collection of archetype identity + visual + health; scene-local enemyData holds Chaser/Shooter/Tank HP/speed/presentation |
-| Spawning | spawnEnemy; timedSpawnSequence, successfulTimedSpawns, spawnInterval, maximumEnemies | Global timer, successful CCCSCT mix, placement, shared active-count cap; create resets sequence |
-| Enemy movement | update; chaseDirection; shooterMovement | Shared Chaser/Tank pursuit / Shooter 350–500 inclusive band; scene arena clamp, pure Shooter step |
-| Target/highlight | selectNearestEnemy, currentTarget; update | Nearest active enemy; optional origin/archetype filter reused by Missile/Shooter; temporary outline |
-| Enemy death | updateProjectiles / updateMissiles → killEnemy | Create one XP drop, destroy visual, splice enemy, clear dead target |
-| XP drops | xpPickups; XpPickup; killEnemy | World-space visual + value 1 + speed; create resets collection |
+| Enemy runtime | enemies; EnemyRuntime; createEnemy | One collection of archetype/isElite + visual/health + readonly contactDamage/xpValue; enemyData and concrete eliteTankData own regular/Elite values/presentation |
+| Spawning | spawnEnemy; timedSpawnSequence, successfulTimedSpawns, spawnInterval, maximumEnemies | Same2000ms timer/successful CCCSCT mix; shouldSpawnEliteTank promotes Tank12/24; blocked cap10 callbacks retain pending count; create resets0 |
+| Enemy movement | update; chaseDirection; shooterMovement | Shared Chaser/Tank pursuit (regular100/Elite120) / Shooter350–500 inclusive band; scene arena clamp, pure Shooter step |
+| Target/highlight | selectNearestEnemy, currentTarget; update | Nearest active enemy; optional origin/archetype filter reused by Missile/Shooter; temporary outline restores Elite3px/regular2px style |
+| Enemy death | updateProjectiles / updateMissiles → killEnemy | Create one pickup with runtime xpValue (regular1/Elite5), destroy visual, splice enemy, clear dead target |
+| XP drops | xpPickups; XpPickup; killEnemy | World-space visual + per-kill value1 or5 + speed; common magnet/collection, create resets collection |
 | XP magnet/collection | updateXpPickups | Stationary outside range; accelerated approach; arrival credits pickup.value then destroys/removes |
 | Player XP/levels | playerExperience; create; updateXpPickups → addExperience | Scene owns state/reset/collection; pure module owns thresholds and carry |
 | Shared projectiles | projectiles; ProjectileRuntime | source, damage, required radius, visual, velocity, remainingLifetime |
@@ -203,7 +207,7 @@ Lethal player damage → damagePlayer → enterPlayerDeath → frozen simulation
 
 - Dash presses are consumed before pause guards and on choice acceptance; native repeat events are rejected, so rejected presses do not queue.
 - create resets Dash clocks/direction and reacquires input; keyboard shutdown clears old keys on retry.
-- create resets health/protection/death, arrays, target and successfulTimedSpawns; constructs one initial Chaser outside the timed CCCSCT sequence.
+- create resets health/protection/death, arrays, target and successfulTimedSpawns0 (no Elite); constructs one initial Chaser outside the timed CCCSCT sequence.
 - Spawn, Laser, Missile, Drone and hostile callbacks return while dead or level-up paused; timer events remain scheduled.
 - Level-increasing collection removes its pickup then pauses; subsequent pickups remain frozen.
 - One current choice applies its Laser/Missile/Drone upgrade, Passive Module or Prism/Cluster/Twin evolution then destroys levelUpPresentation and clears pause; stale choices cannot close a new pause.
@@ -232,6 +236,7 @@ Lethal player damage → damagePlayer → enterPlayerDeath → frozen simulation
 | TRACKED TESTS | prismLaser.test.ts → canEvolvePrismLaser | 8 cases: each missing rank, Combat 0/exact/higher, already evolved, nonmutation |
 | TRACKED TESTS | prismSpread.test.ts → prismSpread | 7 cases: three unit directions, center aim, symmetric sides, deterministic equivalent aim, near-zero suppression |
 | TRACKED TESTS | dash.test.ts → stepDash | 6 tests: active burst, expiry split/boundary, delta partitions, zero time, large frame |
+| TRACKED TESTS | eliteTank.test.ts → shouldSpawnEliteTank | Seven cases: Tank6/12/18/24, Chaser/Shooter12 exclusion, deterministic input stability |
 | TRACKED TESTS | shooterMovement.test.ts → shooterMovement | 7 tests: speed/diagonal, inclusive edges, retreat, large steps, coincident center, zero time, partitions |
 | RUNTIME / MANUAL EVIDENCE | GameplayScene combat/death/restart | Browser smoke and ignored validation harnesses; not tracked Vitest coverage |
 
@@ -256,6 +261,7 @@ GameplayScene.hud / updateHud IMPLEMENTS_TASK GAME-022 — Basic HUD.
 GameplayScene Dash state / player/dash.ts IMPLEMENTS_TASK GAME-023 — Initial Ship Active Ability: Dash.
 GameplayScene enemyData / EnemyRuntime / spawnEnemy / hostile fire + enemies/shooterMovement.ts IMPLEMENTS_TASK GAME-024 — Chaser/Shooter.
 GameplayScene enemyData / shared direct pursuit / timedSpawnSequence IMPLEMENTS_TASK GAME-025 — Tank.
+GameplayScene eliteTankData / EnemyRuntime.isElite/contactDamage/xpValue / spawnEnemy / killEnemy / highlight; enemies/eliteTank.ts IMPLEMENTS_TASK GAME-036 — Elite Enemy Prototype. Same Tank pursuit, common collision/XP, five unchanged gameplay timers; no portal/Boss/affix framework.
 GameplayScene MissileRuntime / missile / fireMissile / updateMissiles / explodeMissile IMPLEMENTS_TASK GAME-026 — Missile.
 GameplayScene drone / droneAngle / updateDrone / fireDrone / firePlayerProjectile IMPLEMENTS_TASK GAME-027 — Drone.
 GameplayScene.moduleLevels / mutable run values / LevelUpChoice / progression/selectChoices.ts IMPLEMENTS_TASK GAME-028 — Passive Module Foundation.
@@ -289,7 +295,7 @@ Statuses and dependencies remain in TASK_GRAPH.md, not duplicated here.
 | Where are Missile homing/explosion owned? | GameplayScene.ts → fireMissile, aimMissile, updateMissiles, explodeMissile; collision.ts sweep |
 | Where is collision math implemented? | collision.ts#segmentCircleHitTime |
 | Where is collision math tested? | src/game/combat/collision.test.ts |
-| Where are enemy archetypes/movement owned? | GameplayScene.ts → EnemyArchetype, enemyData, update; enemies/shooterMovement.ts |
+| Where are enemy archetypes/movement owned? | GameplayScene.ts → EnemyArchetype, enemyData, update; enemies/shooterMovement.ts; eliteTankData / enemies/eliteTank.ts |
 | Where are enemy spawn callbacks? | GameplayScene.ts → create timer / spawnEnemy / timedSpawnSequence / successfulTimedSpawns |
 | Where are player/hostile fire callbacks? | GameplayScene.ts → create timers / fireLaser / fireMissile / fireDrone / fireHostileProjectile → selectNearestEnemy('shooter') |
 | What guards callbacks while dead or level-up paused? | GameplayScene.ts → isSimulationPaused checks in spawn/fire helpers |

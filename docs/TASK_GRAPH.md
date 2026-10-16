@@ -1562,7 +1562,7 @@ ACCEPTANCE / VALIDATION:
 
 ## Future weapon-progression block
 
-GAME-030 through GAME-035 are DONE, and GAME-036 is READY below. GAME-037+ remain BACKLOG concepts scheduled from
+GAME-030 through GAME-036 are DONE below. GAME-037+ remain BACKLOG concepts scheduled from
 DESIGN-004, not implementation-ready definitions or authorization to implement them.
 GAME-029 remains DONE; later tasks each need a separate concrete definition and architect review.
 
@@ -2587,7 +2587,7 @@ ACCEPTANCE / VALIDATION:
 
 ### GAME-036 — Elite Enemy Prototype
 
-STATUS: READY
+STATUS: DONE
 
 DEPENDENCIES:
 
@@ -2599,7 +2599,9 @@ GOAL:
 
 Add Elite Tank as the first concrete Elite prototype: a visibly stronger variant of
 existing Tank pursuit, integrated into normal successful timed spawns and the same
-enemy/damage/death/XP runtime. This READY definition does not implement an Elite.
+enemy/damage/death/XP runtime. Implemented and validated with tracked schedule tests,
+real Phaser spawn/contact/weapon/XP checks and two native retries restoring no Elite,
+initial Chaser/counter0 and five fresh timers.
 It is not a new movement archetype, Boss, special ability or generic Elite system.
 
 PROTOTYPE RULES — IDENTITY / BALANCE / PRESENTATION:
