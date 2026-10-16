@@ -1562,7 +1562,7 @@ ACCEPTANCE / VALIDATION:
 
 ## Future weapon-progression block
 
-GAME-030 through GAME-035 are DONE below. GAME-036+ remain BACKLOG concepts scheduled from
+GAME-030 through GAME-035 are DONE, and GAME-036 is READY below. GAME-037+ remain BACKLOG concepts scheduled from
 DESIGN-004, not implementation-ready definitions or authorization to implement them.
 GAME-029 remains DONE; later tasks each need a separate concrete definition and architect review.
 
@@ -2585,9 +2585,194 @@ ACCEPTANCE / VALIDATION:
   GAME-036+ BACKLOG, following explicit staging/architect review with ignored
   .codex-review/GAME-035-review.txt. Do not commit.
 
+### GAME-036 — Elite Enemy Prototype
+
+STATUS: READY
+
+DEPENDENCIES:
+
+- GAME-025 — Third Enemy Archetype: Tank (including shared Chaser/Shooter runtime)
+- GAME-035 — Twin Drone Formation / completed weapon-progression block
+- GAME_DESIGN — enemy archetype/data and spawn-telegraph direction (DESIGN-001)
+
+GOAL:
+
+Add Elite Tank as the first concrete Elite prototype: a visibly stronger variant of
+existing Tank pursuit, integrated into normal successful timed spawns and the same
+enemy/damage/death/XP runtime. This READY definition does not implement an Elite.
+It is not a new movement archetype, Boss, special ability or generic Elite system.
+
+PROTOTYPE RULES — IDENTITY / BALANCE / PRESENTATION:
+
+- Elite Tank keeps Tank archetype/behavior: direct player chase, no ranged attack,
+  special ability, summoning or phases. Concrete values: health18, movement120 px/s,
+  contact damage2, XP reward5 and collision radius24 world pixels.
+- Regular Tank remains health6, movement100 px/s, contact damage1, XP reward1 and
+  collision radius24. Preserve Chaser health3/speed180 and Shooter health2/speed140
+  with its inclusive350–500 distance band; all regular enemies retain contact1/XP1.
+- Keep the Tank hexagonal identity with an immediately distinguishable Elite treatment,
+  e.g. bright gold/yellow fill and stronger contrasting stroke. Reuse simple prototype
+  geometry; visual size must not silently change collision radius24 or existing margins.
+  Preserve the Elite's readable treatment when normal target highlighting is applied
+  and restored. No production art/animation, health bars, nameplates or rarity UI.
+
+PROTOTYPE RULES — SUCCESSFUL TIMED SPAWN SCHEDULE / CAP:
+
+- Preserve the SAME existing spawn TimerEvent, cadence2000 ms, current off-camera
+  placement, arena margin/clamp, minimum player distance600 and opposite-corner fallback.
+  The repeating sequence remains Chaser/Chaser/Chaser/Shooter/Chaser/Tank (CCCSCT).
+- Compute nextTimedSpawnNumber = successfulTimedSpawns + 1. If the scheduled archetype
+  is Tank AND nextTimedSpawnNumber % 12 === 0, create Elite Tank; otherwise create the
+  ordinary scheduled archetype. Every SECOND scheduled Tank is Elite: successful timed
+  spawns6/12/18/24 yield regular Tank / Elite Tank / regular Tank / Elite Tank, repeating.
+- Initial create-time enemy remains exactly one NORMAL Chaser and is excluded from
+  this timed count. Increment successfulTimedSpawns only AFTER a timed enemy is created.
+  Kills free capacity without rewinding the count; timer callbacks are not spawn numbers.
+- Keep shared active enemy cap10. Elite counts as exactly ONE active enemy, never bypasses
+  or increases the cap. Cap-blocked callbacks create nothing and advance nothing; the next
+  successful callback uses the SAME pending sequence number, including an Elite due at12.
+  Pause/death/missing-player rejection likewise leaves the progression unchanged.
+- GAME_DESIGN records future portal/space-rift warning presentation, potentially stronger
+  for Elite/group/Boss arrivals. GAME-036 uses CURRENT immediate spawn-location behavior.
+  Do not implement a telegraph, portal, warning delay, pending-spawn accounting, queue,
+  SpawnDirector, DifficultyDirector or Boss arrival behavior here.
+
+PROTOTYPE RULES — CONCRETE ENEMY OWNERSHIP / MOVEMENT:
+
+- Extend existing scene-local enemyData/EnemyRuntime only as needed. Keep Elite Tank
+  within Tank behavior ownership; explicit isElite and per-instance contactDamage/xpValue
+  are allowed where needed. Retain archetype, health and visual in the shared collection.
+  A small concrete Elite Tank config is allowed; reuse existing data organization rather
+  than duplicating values or rewriting every enemy into a new definition system.
+- Movement must consume Elite speed120 without mutating regular Tank speed100. Reuse
+  SAME normalized, delta-based Tank chase, capped at remaining player distance, including
+  coincident-center safety and existing arena margin/clamp. Only values/presentation differ.
+  No charge, Dash, knockback, pathfinding, steering change, armor, ranged fire or immunity.
+- DESIGN-001's data-driven direction supports these concrete varying values; it does not
+  authorize a generic affix/property bag, rarity/modifier pipeline or broad enemy refactor.
+
+PROTOTYPE RULES — CONTACT DAMAGE / PROTECTION:
+
+- Contact reads the ACTUAL contacting enemy's concrete damage: Elite Tank2, regular
+  enemies1. Preserve existing center-based player20 + enemy24 contact geometry and
+  collection-order processing: at most one accepted hit before the protection guard.
+  Elite status adds no contact priority or stacked simultaneous damage.
+- Route through existing damagePlayer, health clamp/HUD/death and500 ms global protection.
+  One Elite contact removes exactly2 HP, then ordinary protection prevents immediate
+  repeated contact/hostile hits. Preserve baseline HP5, protection duration/visual feedback,
+  hostile projectile damage1 and Dash's lack of immunity. No separate Elite damage path.
+
+PROTOTYPE RULES — SHARED DEATH / ONE VALUE-5 XP PICKUP:
+
+- All lethal Elite damage uses existing killEnemy. Remove the active reference/visual once,
+  clear currentTarget when needed and free one cap slot. Duplicate kill/removal attempts
+  must create no extra pickup. No separate death pipeline, chest, loot, evolution drop,
+  guaranteed upgrade or reward pause.
+- Elite death creates exactly ONE XP pickup worth5 at its death position, not five pickups.
+  Regular enemies still create one pickup worth1. Extend concrete reward ownership only
+  as needed so common killEnemy supplies XpPickup.value from the killed enemy.
+- Use the normal XP visual and existing magnet/collection path: baseline activation180,
+  collection20, acceleration900 px/s² and max attraction600 px/s, including current
+  Collector effects. Preserve addExperience threshold subtraction/carry-over, pickup
+  removal/credit exactly once and level-triggering pause stopping later pickups in update.
+  Elite reward changes only pickup value; no XP calculation or multi-level UI redesign.
+
+PROTOTYPE RULES — ALL WEAPONS / TARGETING / SHOOTER FIRE:
+
+- Elite is a normal active target for Laser, Prism, Missile, Cluster satellites and bolts
+  from primary/Twin Drones. No Elite-specific weapon branches or priority bonus. Keep
+  nearest-player Laser/Missile launch targeting, per-origin Drone/Twin nearest targeting
+  and stable collection-order ties. Preserve temporary highlighting without losing Elite
+  presentation on restoration.
+- Preserve swept first-hit/nonpiercing collision, Missile AoE, primary-first Cluster
+  satellite union/one satellite hit per survivor, one death/one XP pickup and all attack
+  launch snapshots. Mixed regular/Elite lethal removals must not skip entries or duplicate XP.
+- Elite Tank is NOT a Shooter. Existing nearest-active-Shooter-only hostile fire must
+  ignore it even when it is nearer than a Shooter. Preserve one1500 ms hostile-fire event,
+  projectile damage/speed/lifetime/radius and no-Shooter suppression. Elite never shoots.
+
+PROTOTYPE RULES — PAUSE / NATIVE RESTART / TIMER OWNERSHIP:
+
+- Existing simulation pause/death guards freeze Elite movement/contact and prevent spawn
+  callbacks from creating an Elite or advancing successfulTimedSpawns. Resume continues
+  the same run normally; death remains separate from level-up.
+- Native create/restart resets successfulTimedSpawns0, one normal initial Chaser and no
+  Elite. CCCSCT begins again: first regular Tank at successful timed spawn6, first Elite
+  at12. No old Elite visual/runtime/target/pickup or callback survives scene shutdown.
+- Preserve all prior baseline resets: Laser ranks0/0/0 and values1/600/1200, Missile
+  ranks0/0/0 and values2/450/120, Drone ranks0/0/0 and attack1/1200/800, one primary Drone
+  angle0/player+110X and no Twin, Prism/Cluster/Twin flagsfalse, evolution cursorPrism,
+  focusLaser/all focused cursors0, six passives0 including Spatial/Replication, HP5/5,
+  protection0, movement300, magnet180, multiplier1, level1/xp0, Dash, runtime arrays and UI.
+- GAME-036 adds ZERO TimerEvents. Exactly FIVE fresh gameplay events remain: spawn,
+  Laser/Prism, Missile/Cluster, Drone/Twin, hostile fire. Elite scheduling belongs inside
+  the existing spawn callback; no per-enemy/Elite/spawn-warning timer.
+
+ARCHITECTURE / TRACKED TESTS:
+
+- Prefer tiny pure shouldSpawnEliteTank(scheduledArchetype, nextSuccessfulTimedSpawnNumber)
+  returning true ONLY for Tank with number divisible by12. If extracted, tracked tests
+  cover Tank6false/12true/18false/24true, non-Tank12false (Chaser and Shooter), repeated
+  deterministic results and input nonmutation. Inputs are the actual positive next
+  successful timed count; do not introduce a generalized scheduler or rarity weights.
+- A small pure concrete enemy-value helper is allowed only if actual GAME-036 code needs
+  it; test real rules, not rendering. Do not extract a framework merely to unit-test it.
+- Allow concrete Elite identity/flag, balance config and per-enemy contactDamage/xpValue
+  where required by current ownership. No EliteManager, EnemyManager, deep inheritance,
+  universal EnemyDefinition, affix list, rarity tiers, arbitrary stat modifier pipeline,
+  portal framework, SpawnDirector/DifficultyDirector, event bus, ECS or DI.
+
+OUT OF SCOPE:
+
+Elite Chaser/Shooter, other Elite affixes, random Elite chance, additional enemy archetypes,
+special abilities/phases/summoning, Elite loot/chests/evolution acquisition, spawn telegraph/
+space rift/pending queue, Boss/Victory, difficulty scaling, rarity, production VFX/art,
+health-bar/nameplate systems, save/meta, new dependencies and GAME-037+.
+
+ACCEPTANCE / VALIDATION:
+
+- Verify fresh run: one normal Chaser, no Elite, successfulTimedSpawns0 and five timers.
+  Exercise actual successful timed spawns through24 with freed cap slots:1..5 follow
+  CCCSC,6regular Tank,12Elite,18regular Tank,24Elite; other archetypes remain unchanged.
+  At cap10, including Elite as one entry, callbacks create nothing/advance nothing.
+  Free a slot and prove the delayed success still uses its pending ordinary/Elite number.
+- Verify actual Elite HP18/speed120/contact2/reward5/radius24 and clear hex/gold treatment,
+  including target-highlight restoration. Regular Tank retains6/100/1/1/radius24. Check
+  shared normalized chase with cardinal/diagonal motion, delta partitions, large steps,
+  coincident centers and arena clamp; no special movement or ranged behavior.
+- Verify Elite contact removes2 HP and normal500 ms protection blocks immediate repeated
+  hits; regular contact remains1, hostile projectiles remain1 and Dash grants no immunity.
+  Check mixed overlaps use existing one-hit/collection-order protection behavior and death.
+- Through EACH existing Laser, Prism, Missile, Cluster satellite, primary Drone and Twin
+  attack path, damage/kill Elite with normal collision/launch snapshots and common removal.
+  Test mixed lethal AoE/Cluster overlap: exactly one pickup worth5 per Elite, one worth1
+  per regular enemy, no skipped removals or duplicate XP on repeated kill attempts.
+- Verify Elite pickup death position, one visual/value5, normal magnet and exact once-only
+  collection. Test threshold equality (level1/xp0 +5 → level2/xp0) and carry-over (level1/xp3
+  +5 → level2/xp3), correct pause/removal and later pickup left untouched after pause begins.
+- Verify normal nearest-player/per-Drone targeting/ties/no Elite priority. A nearer Elite
+  must not displace Shooter-only hostile fire; with no Shooter, no hostile shot is created.
+  Regress Chaser/Shooter/regular Tank, CCCSCT/cap/placement, hostile fire, all weapons and
+  three evolutions, six passives, focus/cursors, XP/pause, Dash and incoming damage/death.
+- Later implementation must verify normal real application boot and actual GameplayScene,
+  production helpers, Phaser Clock/TimerEvents and native lifecycle. An ignored deterministic
+  harness may arrange fixtures but must not replace production algorithms. Check pause/death
+  freeze and spawn-counter guards, resume, actual Elite behavior and clean GAME-036 console.
+  Distinguish tracked tests, ignored runtime/browser evidence and normal boot.
+- Perform TWO actual native RETRY cycles after dirtying Elite/spawn progression and prior
+  run state. After EACH prove no Elite survives, initial normal Chaser/counter0, regular
+  Tank6/Elite12 schedule restarts, full prior baseline above, destroyed old objects/timers
+  and exactly FIVE fresh active events. Report native retry evidence and any limitations.
+- Run npm run check, git diff --check and git diff --cached --check; after implementation
+  fixes rerun affected runtime checks and full quality validation. Definition changes only
+  TASK_GRAPH: GAME-036 BACKLOG→READY, GAME-035 remainsDONE, GAME-037+ remainBACKLOG;
+  runtime/CURRENT_STATE/PROJECT_GRAPH stay unchanged. A later successful implementation
+  updates factual docs, marks only GAME-036 DONE and leaves GAME-037+ BACKLOG. Follow
+  AGENTS.md explicit staging/review, generate ignored .codex-review/GAME-036-review.txt
+  with complete staged diff, and do not commit.
+
 Remaining future nodes, also BACKLOG concepts:
 
-GAME-036 — Elite Enemy Prototype
 GAME-037 — Boss Prototype
 GAME-038 — Run Victory / Result Flow
 GAME-039 — First DevTools Utilities
