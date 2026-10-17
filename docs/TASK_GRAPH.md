@@ -339,7 +339,7 @@ Never reuse these IDs for unrelated tasks.
 
 ## Mechanical Vertical Slice roadmap
 
-GAME-042 is DONE, GAME-043 is READY; later roadmap nodes remain BACKLOG. Each row gives phase membership, exact dependencies and a
+GAME-042 and GAME-043 are DONE; GAME-044 is READY; GAME-045+ remain BACKLOG. Each row gives phase membership, exact dependencies and a
 short capability; gates are review checkpoints, not automatic authorization.
 Dependency ranges are inclusive.
 
@@ -348,8 +348,8 @@ Dependency ranges are inclusive.
 | ID | Title | Depends on | Capability | Status |
 | --- | --- | --- | --- | --- |
 | GAME-042 | Run Lifecycle & Fresh Run Boundary | DESIGN-005, GAME-039 | Run lifecycle, terminal and fresh-restart authority; preserve GAME-038 first-terminal semantics. | DONE |
-| GAME-043 | Seeded RNG Streams | GAME-042 | runSeed and independent Encounter/Reward/World/Boss RNG streams. | READY |
-| GAME-044 | Authoritative Pause & Input Boundary | GAME-042 | Single gameplay pause authority, movement/Active/Pause intents and focus-loss semantics. | BACKLOG |
+| GAME-043 | Seeded RNG Streams | GAME-042 | runSeed and independent Encounter/Reward/World/Boss RNG streams. | DONE |
+| GAME-044 | Authoritative Pause & Input Boundary | GAME-042 | Single gameplay pause authority, movement/Active/Pause intents and focus-loss semantics. | READY |
 | GAME-045 | Telemetry & Diagnostics Foundation | GAME-042 | Run timeline, aggregates and diagnostics foundation. | BACKLOG |
 
 #### GAME-042 — Run Lifecycle & Fresh Run Boundary
@@ -547,7 +547,7 @@ Production preview boots with DEV API absent. Known favicon404 and Vite bundle-s
 no new pageerrors observed.
 
 CURRENT_STATE and real PROJECT_GRAPH ownership are updated. DESIGN-005/GAME-039 stay DONE,
-GAME-040/041 SUPERSEDED; GAME-043 DONE; GAME-044+ BACKLOG. GATE A remains incomplete. Explicit staging
+GAME-040/041 SUPERSEDED; GAME-043 DONE; GAME-044 READY; GAME-045+ BACKLOG. GATE A remains incomplete. Explicit staging
 and ignored .codex-review/GAME-042-review.txt follow AGENTS.md; no commit is created.
 
 #### GAME-043 — Seeded RNG Streams
@@ -769,7 +769,7 @@ fixed-seed spawn/offer sequences and cross-stream isolation. Two actual Victory 
 cycles and one Death RETRY (plus nonterminal/Missile/Cluster native restarts) dispose old
 streams and retain fresh RNG/lifecycle/API/five events with inert stale callbacks.
 Production canvas boots with DEV API absent; only known favicon404 and build chunk-size
-warnings remain. GAME-044+ BACKLOG; GAME-040/041 SUPERSEDED; GATE A incomplete.
+warnings remain. GAME-044 READY; GAME-045+ BACKLOG; GAME-040/041 SUPERSEDED; GATE A incomplete.
 
 **Definition validation and documentation (historical definition-only instructions)**
 
@@ -783,7 +783,288 @@ After successful later implementation and tracked/native checks, GAME-043 may be
 CURRENT_STATE describes actual seed/streams/consumers/determinism and PROJECT_GRAPH maps
 real files/exports/consumers. ARCHITECTURE normally stays unchanged except a factual stale
 implementation-status correction if necessary. Keep DESIGN-005/GAME-039/GAME-042 DONE,
-GAME-040/041 SUPERSEDED and GAME-044+ BACKLOG. GATE A still needs GAME-044 and GAME-045.
+GAME-040/041 SUPERSEDED; GAME-044 READY; GAME-045+ BACKLOG. GATE A still needs GAME-044 and GAME-045.
+
+#### GAME-044 — Authoritative Pause & Input Boundary
+
+STATUS: READY
+
+**Dependencies:** GAME-042 DONE. Preserve the implemented GAME-043 RNG contract (DONE).
+Definition only: runtime implementation requires a separate task. Extend the focused
+RunLifecycle with authoritative PAUSED state/reasons and compose one concrete desktop
+input adapter in GameplayScene. Scene remains the Phaser composition/presentation root;
+do not create RunManager, a second PauseManager or a RunContext service bag.
+
+**Current source-grounded pause/input ownership inventory**
+
+Audited tracked src at HEAD 214b668a39ba3a9e4418132bc633e7b7d2f40716 after GAME-043,
+including tests, for cursors/wasd/keyboard/Keyboard.Key/JustDown/Space/ESC/Escape,
+input.keyboard, pointer/touch, blur/focus/visibility, isLevelUpPaused/isSimulationPaused
+and direct owning-run state guards. Reinspect these actual anchors before implementation.
+
+| Current source / anchor | Current ownership and required migration |
+| --- | --- |
+| `src/game/run/RunLifecycle.ts`, `.test.ts` | PREPARING/RUNNING/TERMINAL/DISPOSED only; start once, terminal accepted only from RUNNING, immutable first outcome and exact-owner idempotent disposal. Add PAUSED/reasons here, preserving existing guarantees |
+| `GameplayScene.create`, `cursors`, `wasd`, `dashKey` | Scene owns arrow/WASD/Space Phaser Keys; no Escape binding or gameplay-input adapter. Replace raw bindings/reads with the concrete adapter; retain fresh baseline |
+| `GameplayScene.update` | JustDown(Space) + isDown + originalEvent.repeat check is consumed before pause guard; WASD/arrows isDown feed normalized movement and scene-owned Dash. Consume sampled intents instead; preserve normalization/clamping and stepDash |
+| `isSimulationPaused` | Currently combines independent Scene isLevelUpPaused with run.state !== RUNNING. Make lifecycle state the sole simulation authority |
+| `creditExperience`, `updateXpPickups`, `enterLevelUpPause` | Credit/remove triggering pickup before one current offer; Scene flag freezes while lifecycle stays RUNNING. Acquire REWARD, reset input, then generate existing Reward-backed choices |
+| `acceptLevelUpChoice`, `levelUpPresentation` | Current RUNNING + flag + text-identity guard, direct JustDown discard, upgrade/cursor/timer effects, text destruction and flag clear. Accept the current REWARD transaction while PAUSED; replace raw input discard with adapter reset and release only REWARD |
+| `gameplayTimers`, `laserTimer`, `droneTimer` | Five addEvent callbacks capture run and check RUNNING; Fire Rate/Firing System reset existing events with captured-run callbacks. Helpers additionally guard simulation; Clock currently advances during Level-Up/terminal despite no callback effects |
+| `update`, spawn/fire helpers, `updateDrone`, `updateProjectiles`, `updateMissiles`, `updateXpPickups`, damage/contact helpers | Scene owns simulation and non-RUNNING/Level-Up guards; retain all freezes with one lifecycle-derived predicate, including mid-loop stops |
+| `enterPlayerDeath`, `enterRunVictory`, `updateProjectiles`, `updateMissiles` | Terminal authority plus concrete UI; straight hit/cleanup and full Missile/Cluster work precede Victory. Keep atomicity/order; reset input and remove pause UI on accepted terminal |
+| `choice.once('pointerdown')`, RETRY and NEW RUN handlers | Pointer input exists only for current choice/result UI. Keep native UI interaction; no pointer/touch gameplay movement/aiming or mobile adapter exists |
+| `publishDevTools`, `src/game/devTools.ts` | Five commands; mutation availability uses isSimulationPaused; detached snapshot includes runSeed and transaction flag. Keep five commands; add detached lifecycle diagnostics only |
+| `RunRandom.ts`, `spawnEnemy`, `enterLevelUpPause`/`selectChoices` | Separate exact-create RNG; two Encounter draws per accepted placement, explicit Reward samples at three sites; World/Boss dormant. No new pause/input draws |
+| `create` disposeRun/disposeRandom, DEV invalidate, guarded RETRY/NEW RUN | Exact owner captured for shutdown/destroy; native restart reuses Scene. Bind adapter/focus cleanup to its original authority and listener identities too |
+| Remaining tracked src / tests | No current Escape/manual pause, gameplay focus/visibility listeners, touch controls, input intent framework or extra scheduler. focusedUpgrade focusCursors/cursors are reward arbitration, not physical input; spatial and space-label matches are unrelated. Existing tests cover lifecycle, Scene guards, Dash and RNG, including Level-Up staying RUNNING; adapt that specific expectation to PAUSED while preserving behavioral assertions |
+
+Installed Phaser 4.2.1 sources were inspected, not inferred from a future architecture:
+`node_modules/phaser/src/core/VisibilityHandler.js` forwards window blur/focus and
+document visibilitychange as Game BLUR/FOCUS/HIDDEN/VISIBLE. KeyboardPlugin registers
+BLUR -> resetKeys and Scene pause/sleep reset, but these resets do not enforce held-input
+suppression or gameplay pause. Key.reset clears isDown/edge flags; onDown can treat a later
+OS repeat as newly down after reset. Adapter-owned release/repress gating is therefore
+required. `src/game/config.ts` has no custom focus/pause integration.
+
+**One lifecycle authority and concrete pause reasons**
+
+Extend RunState to PREPARING -> RUNNING <-> PAUSED -> TERMINAL -> DISPOSED.
+POST_RUN remains deferred to GAME-093; dispose is also legal from PREPARING/RUNNING/PAUSED.
+Exactly the concrete PauseReason union REWARD | MANUAL | FOCUS_LOSS is authorized.
+No arbitrary string, BUILD/CUTSCENE/EVENT/SHOP/DEBUG reason or publicly mutable Set.
+Equivalent requestPause(reason), releasePause(reason), hasPauseReason(reason) operations
+and a detached ordered diagnostic view are sufficient; keep RunLifecycle Phaser-free.
+
+| Operation / state | Required result |
+| --- | --- |
+| Fresh / start | PREPARING, null outcome, zero reasons; successful start once enters RUNNING |
+| requestPause from RUNNING or PAUSED | Add that reason once; first reason enters PAUSED; duplicate does not create another owner or reset input/timer phase repeatedly |
+| releasePause from PAUSED | Remove only the specified reason; remain PAUSED while any reason remains, enter RUNNING only after the last is removed |
+| Absent release / illegal-state pause or release | Return false, no change; absent reason cannot resume another owner. Pause/release rejected from PREPARING/TERMINAL/DISPOSED |
+| Mutation return values | True only for a new accepted reason addition/removal; duplicate request returns false. hasPauseReason is read-only |
+| tryEnterTerminal from RUNNING or PAUSED | First DEATH/VICTORY wins; clear all reasons and enter TERMINAL, preserving immutable outcome through disposal |
+| TERMINAL / DISPOSED | Cannot start/pause/release/accept another terminal or revive. dispose is idempotent, clears reasons and retains prior outcome |
+
+RunLifecycle owns reasons/state, not Phaser Clock, DOM focus, keyboard, UI or RNG.
+Scene projects accepted authority changes synchronously into clock/input/UI effects;
+do not add a generic event bus or a second mutable pause authority. isSimulationPaused
+derives only from run absent or state !== RUNNING. The Level-Up flag may remain solely
+transaction/presentation identity state, never an independent simulation-freeze source.
+
+**Level-Up as the REWARD consumer**
+
+On a valid current RUNNING XP/DEV Level-Up, preserve XP credit and triggering-pickup removal
+before UI. Acquire REWARD once, clear gameplay input, set the transaction flag and build
+exactly the current three choices using existing Reward RNG. This synchronous pause-creating
+transaction is the sole permitted paused offer-generation exception; do not temporarily
+resume RUNNING to sample. Preserve pools, eligibility, focus/evolution cursors, budgets and
+stable presentation. Reject duplicate entry/forceLevelUp before any RNG or reason changes.
+
+Update the current acceptance RUNNING guard explicitly: a choice is legal for the exact
+owning current run in PAUSED with REWARD, active transaction and current presentation/text
+identity, plus unchanged eligibility/rank checks. FOCUS_LOSS or MANUAL does not by itself
+invalidate this owned reward selection. Apply the existing upgrade exactly once, destroy
+the presentation, clear the transaction flag, reset input and release REWARD only.
+Resume solely if no reason remains. Old/double callbacks cannot upgrade, clear a different
+presentation's REWARD or resume any unrelated reason; terminal/disposed callbacks are inert.
+
+**Manual/focus precedence and minimal presentation**
+
+Escape edge produces PauseRequest. Process it before the non-RUNNING gameplay early return
+so PAUSED can receive explicit resume; keep Scene/input/rendering active. No request queues.
+
+| Current reasons / state | PauseRequest / focus behavior |
+| --- | --- |
+| RUNNING | Acquire MANUAL, reset gameplay input and freeze current cadence |
+| MANUAL and/or FOCUS_LOSS, no REWARD | If focus/visibility restored, explicitly release MANUAL if present, then FOCUS_LOSS if present; this one documented user-resume action releases those two user-resumable reasons only |
+| REWARD, with any other reasons | Ignore PauseRequest completely: no extra MANUAL, release, reward accept/decline or queued resume |
+| Focus lost in RUNNING or PAUSED | Add FOCUS_LOSS idempotently without replacing REWARD/MANUAL; reset gameplay input immediately; zero RNG |
+| Focus regained | Update focus bookkeeping only; never release FOCUS_LOSS or resume automatically |
+| PREPARING/TERMINAL/DISPOSED | Gameplay pause/input requests have no effect; terminal presentation overrides pause |
+
+Subscribe per create to `this.game.events` Phaser.Core.Events.BLUR and HIDDEN for loss,
+FOCUS and VISIBLE for restoration bookkeeping. Track focused and visible separately,
+initialized from document.hasFocus() and !document.hidden; update on their respective
+events. Before explicit user resume require both plus current document.hasFocus() and
+!document.hidden (synchronous check, no polling). VISIBLE alone is insufficient to prove
+focus; FOCUS alone is insufficient while hidden. Duplicate/out-of-order loss signals are
+idempotent; restoration cannot clear authority. Ignore pause effects after terminal/disposal.
+Use supported Phaser forwarding; do not replace window.onblur/onfocus, add a polling timer
+or pause the entire Scene/Game. Phaser's own hidden-loop suspend/resume may still occur;
+gameplay remains PAUSED after it returns until explicit legal resume.
+
+REWARD only stays PAUSED until valid choice. REWARD + FOCUS_LOSS accepts the choice but
+stays PAUSED; show ordinary pause UI after choice UI closes and require explicit focused
+Escape resume. MANUAL + FOCUS_LOSS uses the explicit two-reason release rule above.
+No consumer releases another domain's reason; only this explicit user-resume path may
+release both user-resumable reasons, never REWARD.
+
+Authorize only screen-fixed PAUSED / ESC to resume text for non-reward manual/focus pause.
+Do not overlay it on an active reward presentation (including combined focus/reward).
+Remove on resume/terminal/shutdown; Death/Victory always takes precedence. No separate Pause
+Scene, Settings/Build menu, rebinding screen or required animation.
+
+**Concrete intent adapter and held-control reset**
+
+One small typed sampled-frame contract provides moveX/moveY, activatePressed and pausePressed,
+equivalent to MoveVector / ActivateCurrentAbility / PauseRequest. A focused desktop adapter
+(for example src/game/input/KeyboardInput.ts plus tests) owns Phaser keyboard bindings;
+exact filenames follow current style. Mappings: WASD + arrows, Space, Escape. Opposing
+directions cancel; aliases OR together. Gameplay retains normalization, current movement
+speed/clamp and Dash logic, consuming intents without KeyboardEvent, Key, isDown, JustDown
+or pointer reads. Remove direct JustDown from choice acceptance too. No generic action map,
+arbitrary string actions, rebinding, command bus, ECS or platform SDK abstraction.
+
+Adapter emits press edges once, rejects OS repeat, consumes rejected Active requests without
+queuing and continues release/edge bookkeeping during pause. Paused gameplay intents are
+zero movement/no activation; Escape remains observable only to the pause boundary. Pointer
+choice/RETRY/NEW RUN UI stays separate from gameplay intent sampling; no touch adapter now.
+
+Reset on first REWARD/MANUAL pause, focus loss, accepted terminal, fresh run and actual resume;
+clear sampled movement and pending activation/pause edges. A reset must disarm held physical
+controls until release then fresh non-repeat press. Presses made during pause must also be
+discarded/disarmed, never replayed on resume. Keep release/suppression bookkeeping even if
+Phaser resetKeys already cleared logical key state; merely setting isDown=false or calling
+resetKeys is insufficient. Do not require extra release for an already neutral control's
+first fresh physical press; consume edges within one sampled frame. Held Escape/repeats
+cannot toggle repeatedly or resume the pause it just created. Lost keyup on blur must not
+turn autorepeat into fresh intent; conservatively require release/repress for that control.
+Fresh adapters reject inherited repeat events as new presses. No artificial delays/timers.
+
+Compatibility bridge only: ActivateCurrentAbility drives current innate Dash; adapter has
+no Dash knowledge. Preserve 900px/s, 200ms, 3000ms cooldown, nonzero-movement requirement,
+direction lock, expiry partitions, normal speed modifiers, no immunity/new damage. Paused,
+terminal, idle, active-Dash and cooldown activation is rejected with no queue. Pause freezes
+an already active burst/cooldown; resume continues that existing burst with locked direction,
+without treating a held Space as a new activation. Normal held W movement resumes only after
+release/repress. Real Active runtime remains GAME-070+, specializations GAME-072.
+
+**Simulation and the five existing TimerEvent phases**
+
+PAUSED must freeze movement, Dash start/duration/cooldown, Drone/Twin orbit, enemies,
+targeting, straight/hostile projectiles, Missile/Cluster, lifetimes, damage/protection/contact,
+XP attraction/collection, timed spawning and all weapon/hostile firing. Keep current terminal
+freeze and mid-operation ordering. Pause UI/input stays responsive; do not Scene.pause().
+
+Pin the installed supported mechanism: set the existing Scene Clock `this.time.paused = true`
+on authoritative entry to PAUSED; keep it true while any reason remains, and false on legal
+return to RUNNING. No individual-event pause alternative is selected. Phaser4.2.1
+`node_modules/phaser/src/time/Clock.js#update` sets now then returns before event.elapsed
+advancement when paused; events accumulate delta only when active. Clock.now itself may
+advance and must not be treated as frozen gameplay elapsed time. Input/Scene update/render
+remain active because only the Clock is paused. Retain guarded callbacks as protection
+against already-dispatched/stale calls; discarded callbacks alone do not satisfy phase freeze.
+
+Exactly five events remain: spawn, Laser/Prism, Missile/Cluster, Drone/Twin, hostile fire.
+If one has Xms remaining at pause, arbitrary paused wall time leaves Xms; resume continues
+its same object/elapsed phase with no catch-up volley, reset, recreation or timeScale=0.
+The installed Clock.start/shutdown do not reset its paused flag: fresh create must explicitly
+initialize it false for the new run, without stale cleanup writing to a reused fresh Clock.
+Terminal clears reasons without resuming gameplay; remove the PAUSED Clock projection on
+terminal entry to retain existing terminal guarded-callback/advancing-Clock behavior, with
+no elapsed reset. Existing selected Fire Rate/Firing System effects may still reset their
+same owned event exactly as now; that deliberate upgrade effect is not a pause/resume reset.
+No sixth timer, separate scheduler, compensation clock, timer polling or wall-time mechanism.
+
+**RNG, terminal, DEV and exact fresh-run lifetime**
+
+MANUAL/focus entry, pause UI, snapshots, paused frames, repeated requests and resume consume
+zero Encounter/Reward/World/Boss draws. Callbacks cannot reach Encounter while PAUSED.
+Only creation of one real Level-Up offer uses its existing Reward budget: focused Slot1=0
+or fallback1; passive Slot2=1; evolution Slot3=0 or ordinary1. Afterward no further draws
+from reads, duplicate/stale callbacks or acceptance. Keep World/Boss dormant, runSeed and
+Mulberry32 unchanged; no reseeding or additional consumers.
+
+Accepted terminal from RUNNING or PAUSED clears reasons, resets adapter, removes pause UI
+and invalidates reward acceptance/resumability. Preserve first-terminal-wins and current
+Death/Victory UI: lethal straight hit/death/projectile cleanup or full Missile/Cluster
+detonation/removal precedes Victory, never change killEnemy into the terminal boundary.
+No pause/input/focus/reward callback can revive TERMINAL or reorder completed attacks.
+
+Native scene.restart remains physical reset. Each create has a fresh RunLifecycle, RunRandom
+and input adapter/binding, zero reasons and clean intents; start RUNNING with current baseline.
+Preserve entropy only after successful start. Focus/input callbacks and shutdown/destroy
+cleanup capture their exact run/adapter and listener identities; remove listeners or render
+them permanently inert. Old code cannot dereference this.currentInput to drive a fresh
+adapter, release fresh reasons, flip the fresh Clock, consume fresh RNG or restart twice.
+Old lifecycle remains DISPOSED and old captured RNG streams throw; fresh identity required,
+numerically different random seed not required. Fresh God Mode false and five fresh events.
+
+Keep exactly the five DEV commands; mutations reject all PAUSED/terminal states via authority.
+Authorize only detached runState and pauseReasons diagnostic fields in existing DevSnapshot,
+alongside runSeed/current fields. pauseReasons is a copied plain array in fixed order
+REWARD, MANUAL, FOCUS_LOSS, filtered by membership (not insertion order). Old API stays
+null/false, snapshot consumes zero RNG, no mutable Set/lifecycle/input object leaks.
+No pause/resume/input/focus/reseed DEV command; production still has no DEV API.
+
+**Required tracked tests for later implementation**
+
+Preserve all current223 tests/19 files and GAME-039/042/043 contracts. Change obsolete
+Level-Up RUNNING/independent-boolean setup expectations to authoritative PAUSED/REWARD,
+retaining freeze, identity, deterministic offers and atomicity assertions; do not weaken them.
+
+| Boundary | Required evidence |
+| --- | --- |
+| RunLifecycle | RUNNING->PAUSED->RUNNING; duplicate reason; all three concrete reasons; mixed reasons; release one/last/absent; illegal PREPARING/TERMINAL/DISPOSED mutations; terminal from RUNNING and PAUSED; reason clearing, first-terminal immutability, idempotent disposal from PAUSED and old/fresh independence |
+| Input adapter | WASD/arrows/alias/opposing/diagonal intents; Space/Escape fresh edges; repeat suppression; held movement/Space/Escape reset; keys pressed during pause; release/repress; blur reset/lost keyup and inherited repeat; fresh neutral control works; no pending edges; fresh adapter clean and disposed adapter/captured callbacks inert |
+| Level-Up | Real credit/pickup-before-pause path acquires REWARD/PAUSED; unchanged three choices/budget; repeated entry/DEV/snapshot stable; Escape ignored; valid once-only choice releases REWARD only; old/double/terminal choice cannot apply or release current reason |
+| Manual/focus composition | Escape opens MANUAL; focused explicit resume removes only documented MANUAL/FOCUS_LOSS; blur and hidden add loss in RUNNING or PAUSED; focus/visible alone never resume; visibility alone insufficient; REWARD+FOCUS_LOSS choice leaves PAUSED; MANUAL+FOCUS_LOSS, duplicate events, terminal no-ops |
+| Simulation/Dash | All listed gameplay paths frozen; intents alone drive unchanged Dash; mid-burst duration/cooldown frozen and resumed at prior phase; held/paused/unavailable Active never queues movement or a new Dash |
+| Actual Phaser Clock | Exactly five same TimerEvents; captured elapsed/remaining and callback counts unchanged over paused updates/wall time; final-reason release continues same phase, intermediate release cannot unpause; no catch-up/reset/recreation; fresh Clock paused flag restored; explicit upgrade cadence resets preserved |
+| RNG/DEV | Zero draws all streams for manual/focus/pause UI/read/resume; zero Encounter on guarded callbacks; exact existing real-offer Reward budget; World/Boss dormant; stable seed; five commands; detached deterministic ordered reason array, mutation cannot affect owner |
+| Terminal/ownership | Current death-first/victory-first and straight/Missile/Cluster atomic boundaries retained; terminal clears reasons/input/UI and never resumes; native fresh authority/adapter/RNG/API/five events; captured old input/focus/shutdown/reward/control callbacks cannot mutate fresh state or draw fresh RNG |
+
+Use actual Scene production methods with focused renderer/input fixtures, plus pure authority/
+adapter tests where practical. Do not build alternate fake pause/gameplay algorithms. Installed
+Phaser Clock behavior requires real Phaser validation as well as tracked integration checks.
+
+**Required real browser/native validation for later implementation**
+
+1. Normal DEV boot: RUNNING/null, no reasons, clean adapter, valid stable seed, five events,
+   exact five-command API, current movement and fresh Space Dash unchanged.
+2. Real Escape manual pause: minimal fixed UI, all listed simulation frozen, zero four-stream
+   draws; record all five TimerEvent objects/elapsed/remaining, wait real wall time, verify
+   unchanged phase; Escape resume continues remaining gameplay delay without a catch-up burst.
+3. Hold W across pause/resume: no normal movement until release/repress. Repeat for Space:
+   no queued Dash; verify fresh edge works when eligible. Hold Escape: no repeated toggles.
+   Pause mid-Dash: remaining duration/cooldown freeze, existing locked burst resumes correctly.
+4. Real XP/forceLevelUp: PAUSED/REWARD, three stable production offers, unchanged Reward
+   budget, Escape cannot dismiss, real choice resumes only if no other reason remains.
+5. Trigger actual browser focus/visibility loss via tab/window focus change where reliable,
+   observe Phaser forwarded events, auto PAUSED/reset and no auto-resume on return. Explicit
+   focused Escape resumes; also test loss while Level-Up is shown, accept reward, remain
+   PAUSED for FOCUS_LOSS, then explicitly resume. Synthetic emitter tests are supplemental,
+   not a claimed actual browser focus-loss check; report any automation limitation honestly.
+6. Preserve real death-first/victory-first, straight/Missile/Cluster atomic boundaries and
+   terminal UI. PauseRequest/focus/stale reward cannot revive terminal.
+7. At least TWO actual Victory NEW RUN native restarts and ONE Death RETRY; additionally
+   exercise a nonterminal restart while PAUSED to verify reused Clock/input cleanup. Each:
+   old lifecycle DISPOSED, all old RNG handles throw, old input/focus/listener/control callbacks
+   inert; fresh RUNNING/no reasons, adapter/RNG/API identities, God Mode false, current baseline,
+   five fresh events and no held-input leak. Reload/manual create is not native evidence.
+8. Production preview: canvas/gameplay/keyboard/Space/Escape pause work, DEV API absent,
+   no seed/debug controls. Inspect console; distinguish existing favicon404/bundle-size
+   warnings from new errors. Keep tracked, normal boot, synthetic and actual native evidence
+   separate; no browser behavior is claimed implemented by this definition task.
+
+**Scope and definition handoff**
+
+No mobile/touch controls (GAME-098), production HUD (GAME-096), Settings (GAME-099), Build
+Screen (GAME-097), real Active/Shield/Decoy runtime (GAME-070), Dash specializations (GAME-072),
+PlayerBuild (GAME-046), telemetry (GAME-045), generalized gameplay clock/RunContext, new
+scheduler/timers/dependencies, rebinding/controller/gamepad/mouse aiming, accessibility
+settings or input recording/replay. No implementation is authorized in this definition task.
+
+Now change only TASK_GRAPH: GAME-044 BACKLOG->READY, source-grounded definition and necessary
+roadmap/status consistency. GAME-042/043 DONE; GAME-040/041 SUPERSEDED; GAME-045+ BACKLOG.
+Run npm run check and git diff --check; stage only docs/TASK_GRAPH.md, inspect complete
+git diff --cached, run cached check/stat, create ignored .codex-review/GAME-044-review.txt
+with branch/base, complete ownership inventory/contracts/validation and full staged diff.
+Never stage that packet or commit. CURRENT_STATE/PROJECT_GRAPH/ARCHITECTURE and runtime/tests
+remain unchanged now. Only successful later implementation with tracked/native validation
+may set GAME-044 DONE and update actual runtime docs/map. GATE A remains incomplete until
+GAME-044 implementation and GAME-045 are done/reviewed; GAME-045+ are not unlocked here.
 
 **GATE A — Runtime Foundation** — review the preceding phase capabilities before its cutover/next proof.
 
