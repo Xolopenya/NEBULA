@@ -4,8 +4,8 @@
 
 - Project: NEBULA.
 - Milestone: First Playable / GAME-015 complete.
-- Source baseline HEAD: `7e5bf975d3cf13b016146ebeb99be5e7eb518961`.
-- This map reflects that source baseline plus the staged GAME-045 diagnostics ownership; current Scene retains combat/presentation and GAME-039 DEV wiring.
+- Source baseline HEAD: `8d487858f3ce9fd37e6f6906c38032f6acc5a294`.
+- This map reflects that source baseline plus the staged GAME-046 PlayerBuild ownership; current Scene retains combat/presentation and GAME-039 DEV wiring.
 - Active task request defines task-specific requirements.
 - AGENTS.md defines repository policy.
 - TASK_GRAPH.md defines task scope, dependencies and status.
@@ -34,8 +34,10 @@ IDs are repository-relative paths; symbols use `path#export`.
 | `src/game/run/RunRandom.test.ts` | 21 pure seed/golden/range/independence/disposal cases |
 | `src/game/run/RunDiagnostics.ts` | Phaser-free run observation: seed identity, active elapsed, aggregates, bounded semantic timeline and exact-owner disposal |
 | `src/game/run/RunDiagnostics.test.ts` | 35 pure seed/lifetime/numeric/identity/atomicity/copy/eviction/terminal cases |
-| `src/game/devTools.ts` | DevSnapshot with numeric runSeed/runState/copied ordered pauseReasons and detached nested diagnostics; five-command DevTools types, no runtime registry |
-| `src/game/scenes/GameplayScene.devTools.test.ts` | 71 tracked Scene/DevTools/lifecycle/RNG/pause/input/diagnostics cases, including installed Phaser Clock phase integration |
+| `src/game/player/PlayerBuild.ts` | Phaser-free run Build: exact3/1/6 slots, ten bases, explicit modifiers, validated effective cache and captured disposal |
+| `src/game/player/PlayerBuild.test.ts` | 34 pure slot/base/percentage/flat/Analyzer/copy/atomicity/lifetime cases |
+| `src/game/devTools.ts` | DevSnapshot with numeric runSeed/runState/copied ordered pauseReasons and detached nested diagnostics/build; five-command DevTools types, no runtime registry |
+| `src/game/scenes/GameplayScene.devTools.test.ts` | 95 tracked Scene/DevTools/lifecycle/RNG/pause/input/diagnostics/Build cases, including installed Phaser Clock phase integration |
 | `src/game/combat/collision.ts` | Pure numeric collision math |
 | `src/game/combat/collision.test.ts` | Tracked geometry tests |
 | `src/game/progression/experience.ts` | Pure XP threshold/award arithmetic and state type |
@@ -94,6 +96,9 @@ IDs are repository-relative paths; symbols use `path#export`.
 | `src/game/run/RunDiagnostics.ts#DiagnosticArchetype` | chaser/shooter/tank/boss; Elite valid only for tank |
 | `src/game/run/RunDiagnostics.ts#DiagnosticRecord` | Six semantic timeline variants, timestamped with active elapsed |
 | `src/game/run/RunDiagnostics.ts#RunDiagnosticsSnapshot` | Detached plain seed/elapsed/aggregates/timeline/evictions/terminal view |
+| `src/game/player/PlayerBuild.ts#PlayerBuild` | Owns fixed slots, immutable BaseStats, explicit RunModifiers and derived EffectiveStats; detached reads and disposed invariants |
+| `src/game/player/PlayerBuild.ts#PlayerBuildReadModel` | Slots/baseStats/runModifiers/effectiveStats only; no Tags or full GAME-047 BuildSnapshot |
+| `src/game/player/PlayerBuild.ts#BaseStats` | Exact ten shared fields; PercentStatKey excludes Analyzer, CombatSystemId has only three current identities |
 | `src/game/combat/collision.ts#segmentCircleHitTime` | First segment-circle hit in [0,1], else Infinity |
 | `src/game/progression/experience.ts#ExperienceState` | Numeric level and XP toward next level |
 | `src/game/progression/experience.ts#xpForNextLevel` | Prototype threshold calculation |
@@ -145,6 +150,9 @@ Runtime labels below describe scene-owned concepts, not separate modules/classes
 | `src/game/scenes/GameplayScene.ts` | CREATES | `src/game/run/RunDiagnostics.ts#RunDiagnostics` after RunRandom; captures exact shutdown/destroy disposal |
 | `src/game/scenes/GameplayScene.ts` | RECORDS | RunDiagnostics at accepted create/update/spawn/kill/damage/XP/reward/pause/terminal boundaries |
 | `src/game/devTools.ts` | IMPORTS_TYPE | `src/game/run/RunDiagnostics.ts#RunDiagnosticsSnapshot` |
+| `src/game/scenes/GameplayScene.ts` | CREATES | `src/game/player/PlayerBuild.ts#PlayerBuild` during PREPARING, before HP/HUD; exact captured disposal |
+| `src/game/devTools.ts` | IMPORTS_TYPE | `src/game/player/PlayerBuild.ts#PlayerBuildReadModel` for detached snapshot.build |
+| `src/game/player/PlayerBuild.ts#PlayerBuild` | TESTED_BY | `src/game/player/PlayerBuild.test.ts` and actual Scene integration |
 | `src/game/run/RunDiagnostics.ts#RunDiagnostics` | TESTED_BY | `src/game/run/RunDiagnostics.test.ts` and actual Scene integration tests |
 | `src/game/progression/selectChoices.ts#selectChoices` | TESTED_BY | `src/game/progression/selectChoices.test.ts` |
 | `src/game/scenes/GameplayScene.ts` | IMPORTS | `src/game/progression/prismLaser.ts` (LaserRanks, canEvolvePrismLaser) |
@@ -195,7 +203,8 @@ All private names below are navigation anchors, not exported symbol nodes.
 | Player visual/input | player, inputAdapter; create / bindRunInput | Polygon and exact-create KeyboardInput; raw keys remain in adapter |
 | Movement/bounds/camera | update; movementDirection; create camera setup | Normalized delta movement, arena clamp/follow |
 | Dash | inputAdapter.sample / intent.activatePressed, dashDirection, dashRemaining, dashCooldownRemaining; update → stepDash / movePlayer | Space intent; scene-owned lock, 900 px/s, 200 ms, 3000 ms cooldown; PAUSED freezes burst/cooldown; create resets |
-| Player health | playerHealth, playerMaxHealth; damagePlayer | Current/max HP and clamping |
+| Player health | playerHealth, derived playerMaxHealth; damagePlayer | Scene current HP; max reads Build Hull, no mutable duplicate |
+| PlayerBuild | playerBuild; create/disposeBuild; applyBuildChange | Fixed [LASER,MISSILE,COMBAT_DRONE], Active/Core empty; cached ten effective stats; private exact-run/choice mutation bridge |
 | Damage protection | playerDamageProtectionRemaining; updatePlayerProtection | Global 500 ms protection, temporary alpha |
 | Level-up pause | isLevelUpPaused; enterLevelUpPause; RunLifecycle REWARD | Flag is transaction identity only; REWARD owns PAUSED; current choice releases only REWARD, other reasons retain pause |
 | Choice UI/resume | levelUpPresentation; enterLevelUpPause; acceptLevelUpChoice | Exact run/text/REWARD identity; applies one current upgrade/evolution, destroys UI, releases REWARD only; resumes if no other reason remains |
@@ -222,9 +231,9 @@ All private names below are navigation anchors, not exported symbol nodes.
 | Drone / Twin | drone, twinDrone, twinDroneEvolved, droneAngle, droneConfig; updateDrone, positionDrone, fireDrone, fireDroneFrom | One initial companion; Twin adds exactly one mirrored visual at shared angle+PI; same active-time 110px / 2rad orbit, independent center clamp, one shared firing event and per-origin targets/suppression |
 | Replication Matrix | moduleLevels.replication; fireDroneFrom → effectiveDroneBoltRadius | +1 px per level added to baseline Drone bolt radius5 at launch; existing runtime radius owns swept collision/cleanup; acceptance does not change focus/cursors/timers; create resets0 |
 | Drone upgrades | droneRanks, droneAttackValues, droneTimer; acceptLevelUpChoice / fireDrone | Explicit ranks0..2, damage1/2/3, interval1200/1050/900, speed800/1000/1200; same event reset/elapsed0; launch snapshots; create resets |
-| Straight player-shot creation | firePlayerProjectile → launchPlayerProjectile; fireLaser, fireDrone | Existing target aim wrapper and shared direction-based launch snapshot; Prism directions enter launch directly; weapon damage multiplied by globalDamageMultiplier at launch; Laser radius 6, Drone baseline 5 + Replication level |
-| Missile | missile, missileValues, missiles; MissileRuntime; fireMissile, aimMissile, updateMissiles | Separate concrete homing target/heading/lifetime and readonly launch clusterEnabled/damage/speed/explosionRadius; immutable maxActiveMissiles = 1; cap blocks launch without resetting the one 1800 ms timer |
-| Spatial Amplifier | moduleLevels.spatial; fireMissile → effectiveMissileExplosionRadius | Repeatable +15 px per level added to Missile-specific radius at launch; stored MissileRuntime radius owns later explosion; no focus/cursor mutation or other consumers |
+| Straight player-shot creation | firePlayerProjectile → launchPlayerProjectile; fireLaser, fireDrone | Existing target aim wrapper and shared direction-based launch snapshot; Prism directions enter launch directly; fireLaser/fireDroneFrom compose local*C*Reactor (Drone adds Engineering), Velocity and physical Scale before this helper stores final values; local radii Laser6/Drone5+Replication |
+| Missile | missile, missileValues, missiles; MissileRuntime; fireMissile, aimMissile, updateMissiles | Separate concrete homing target/heading/lifetime and readonly launch clusterEnabled/damage/speed/explosionRadius/radius; immutable maxActiveMissiles = 1; cap blocks launch without resetting the one 1800 ms timer |
+| Spatial Amplifier | moduleLevels.spatial; fireMissile → effectiveMissileExplosionRadius | Repeatable +15 px per level added to Missile-specific radius at launch; stored MissileRuntime.explosionRadius owns later explosion; no focus/cursor mutation or other consumers |
 | Missile explosion | updateMissiles → explodeMissile → killEnemy | Earliest swept hit point, center-radius snapshot damage once, common XP/death; primary and optional satellites plus Missile cleanup finish before Victory; no direct hit |
 | Laser upgrades | laserRanks, LaserUpgrade; acceptLevelUpChoice | Explicit independent ranks 0..2; capped upgrades filtered out, numeric effects and same timer reset retained; create resets ranks |
 | Prism Laser | prismEvolved; enterLevelUpPause → canEvolvePrismLaser; fireLaser → prismSpread | New-presentation eligibility only; sole-eligible Slot 3 guarantee or three-evolution arbitration after focused/passive slots; same Laser timer/runtime, three full-damage shots; create resets evolved state |
@@ -233,7 +242,8 @@ All private names below are navigation anchors, not exported symbol nodes.
 | Missile upgrades | missileRanks, missileValues; acceptLevelUpChoice | Explicit ranks 0..2 and mutable damage/speed/explosion radius; snapshots isolate active Missiles; create resets |
 | Weapon focus | weaponFocus, focusCursors; enterLevelUpPause → selectFocusedUpgrade | Laser baseline; three independent track cursors, least-rank cyclic offers; mastered focus scans remaining Laser/Missile/Drone order; offered cursor advances once per presentation, focus changes only on accepted weapon/evolution |
 | Passive Modules | PassiveModule, moduleLevels; acceptLevelUpChoice | Explicit Hull/Thruster/Collector/Combat/Spatial/Replication levels and effects; create resets levels and mutable values |
-| Mutable run values | playerMaxHealth, movementSpeed, xpMagnetRadius, globalDamageMultiplier | Consumed by HP/HUD, normal movement, pickup activation and player weapon launch damage respectively |
+| Shared stat consumers | derived playerMaxHealth/movementSpeed; fireLaser/fireMissile/fireDroneFrom; weaponInterval/resetWeaponTimer | Build Hull/Thrust, Reactor, Drone-only Engineering, Velocity/Scale and local interval/FireControl; retained Missile body radius; no Shield/Impact/Analyzer effects |
+| Local compatibility | xpMagnetRadius, globalDamageMultiplier, moduleLevels | Collector activation radius, legacy Combat Processor, Spatial explosion and Replication bolt addition; Hull/Thruster levels are label/history, Build owns flat bonuses |
 | Mixed choice pool | OrdinaryChoice, LevelUpChoice, levelUpPool, choiceLabel; enterLevelUpPause → selectChoices | Six repeatable passives plus uncapped Laser/Missile/Drone tracks; focused least-rank slot, passive slot, open/evolution slot; existing text identity rejects stale callbacks |
 | Hostile fire | fireHostileProjectile; hostileFireInterval | Same1500 ms global timer independently attempts nearest Shooter aimed shot and active Warden phase4/8 radial burst via launchHostileProjectile; no per-enemy timers or phase resets |
 | Collision inputs | updateProjectiles; player/enemy/projectile radii | Scene supplies per-enemy body radius24/40 + projectile/Missile/player radius; explosion coverage stays center-only |
@@ -292,6 +302,7 @@ detonation and cleanup → enterRunVictory → frozen gameplay / fixed result
 | TRACKED TESTS | eliteTank.test.ts → shouldSpawnEliteTank | Seven cases: Tank6/12/18/24, Chaser/Shooter12 exclusion, deterministic input stability |
 | TRACKED TESTS | shooterMovement.test.ts → shooterMovement | 7 tests: speed/diagonal, inclusive edges, retreat, large steps, coincident center, zero time, partitions |
 | TRACKED TESTS | RunDiagnostics.test.ts / GameplayScene.devTools.test.ts | 35 pure observer cases plus 10 Scene cases; total 309 across 21 files, preserving 264 prior tests |
+| TRACKED TESTS | PlayerBuild.test.ts / GameplayScene.devTools.test.ts | 34 pure Build +24 new Scene cases; total367 tests/22 files, all309 prior preserved |
 | RUNTIME / MANUAL EVIDENCE | GameplayScene combat/death/restart | Browser smoke and ignored validation harnesses; not tracked Vitest coverage |
 
 Ignored harnesses are not graph nodes and do not run in npm run check.
@@ -330,7 +341,7 @@ GameplayScene.droneRanks / droneAttackValues / droneTimer; progression/focusedUp
 GameplayScene.moduleLevels.replication / fireDrone / progression/replicationMatrix.ts IMPLEMENTS_TASK GAME-034 — Replication Matrix Passive.
 GameplayScene.twinDroneEvolved / twinDrone / positionDrone / fireDroneFrom; progression/twinDrone.ts and evolutionOffer.ts three-identity policy IMPLEMENTS_TASK GAME-035 — Twin Drone Formation.
 Only fireDroneFrom consumes Replication at each origin launch; updateProjectiles uses per-shot stored radius with no live module lookup. Twin preserves full current damage/speed/radius/lifetime snapshots.
-Combat Processor is applied in launchPlayerProjectile and fireMissile; explodeMissile consumes MissileRuntime.damage and explosionRadius, never current run values; updateMissiles consumes MissileRuntime.speed.
+Combat Processor is applied once in fireLaser/fireDroneFrom/fireMissile before final launch storage; explodeMissile consumes MissileRuntime.damage and explosionRadius, never current run values; updateMissiles consumes MissileRuntime.speed.
 create resets all module levels and run values before constructing the HUD. Existing native shutdown still owns object/timer cleanup.
 No generalized weapon stats framework is implemented.
 Statuses and dependencies remain in TASK_GRAPH.md, not duplicated here.
@@ -355,6 +366,15 @@ enterRunVictory record only accepted authority outcomes after existing attack bo
 publishDevTools adds detached diagnostics only; exact captured cleanup disposes old history.
 Tracked invariants and real browser aggregate/elapsed/focus/native restart checks verify no added
 RNG draws, Clock/input authority, events, persistence or network transport.
+
+PlayerBuild + GameplayScene.playerBuild/applyBuildChange/weaponInterval/resetWeaponTimer IMPLEMENT_TASK GAME-046.
+Build is created in PREPARING before HP/HUD, disposed by exact captured const. Hull/Thrust getters
+read its cache; guarded Hull Plating/Thruster apply exact flat compatibility bonuses before Scene
+level/HP mutation. R/F/V/S/E compose current firing values, C stays separate; Missile stores body
+radius for consistent visual/collision/world exit. Shared FireControl resets only the three same
+player events; local cadence resets stay weapon-specific. snapshot.build is detached, reads do not
+alter RNG/diagnostics. Real pointer/modifier/collision/evolution/focus/native/production checks
+cover the boundary; Tags/defense/Attack architecture and later gameplay remain absent.
 
 ## Common navigation queries
 

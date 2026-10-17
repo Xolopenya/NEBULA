@@ -14,7 +14,7 @@ Do not place future plans or speculative features here.
 
 Current phase:
 
-FIRST PLAYABLE CORE LOOP COMPLETE / GAME-045 COMPLETE
+FIRST PLAYABLE CORE LOOP COMPLETE / GAME-046 COMPLETE
 
 The project has a working browser application, development toolchain and placeholder gameplay scene.
 
@@ -237,7 +237,7 @@ This is intentional.
 In Vite development runtime, the current GameplayScene publishes `window.__NEBULA_DEV__`
 with exactly snapshot(), forceLevelUp(), spawnWarden(), setWardenHealth(health) and
 setGodMode(enabled). Production preview boots without this property.
-snapshot() returns detached numeric runSeed, nested diagnostics, runState and ordered pauseReasons, plain terminal/God Mode, HP/protection, nested level/XP/threshold,
+snapshot() returns detached numeric runSeed, nested build and diagnostics, runState and ordered pauseReasons, plain terminal/God Mode, HP/protection, nested level/XP/threshold,
 Boss flags/current Warden HP/derived phase, timed-spawn count, enemy count and actual
 owned TimerEvent count. It changes no gameplay state or offers.
 
@@ -263,6 +263,52 @@ real choice acceptance, Warden phase movement/bursts and attack-triggered Victor
 projectile/contact behavior, two actual Victory NEW RUN native restarts and one ordinary
 Death RETRY. Each restart has baseline flags/XP/God Mode, fresh API, five fresh events and
 inert old captured API.
+
+## PlayerBuild and effective ship stats
+
+Every create constructs one fresh Phaser-free PlayerBuild during PREPARING, before current
+HP/HUD initialization. Combat slots are exactly [LASER, MISSILE, COMBAT_DRONE]; Active is
+null and all six Core slots are null. All three prototype weapons remain active. Innate
+Dash remains outside Active; no equip API, Tags, Core catalog or Active runtime is added.
+
+Exactly ten base/effective fields exist: hull5 HP, thrust300 px/s, reactorPower1,
+fireControl1, projectileVelocity1, projectileScale1, engineering1, shieldSystems1, impact1,
+combatAnalyzer0. Nine fractional percentage totals add normally (0.10=+10%); Analyzer adds
+integer levels. Effective values are cached derived data, recomputed only on accepted
+mutations. Hull/Thrust use base*(1+percent)+their explicit prototype flat bonus; the other
+seven scales use base*(1+percent), Analyzer uses base+levels. The two flat bonuses preserve
+exact Hull Plating+1 / Thruster+30 arithmetic without percentage accumulation drift.
+
+Hull maximum and normal speed have no separate mutable Scene authority: compatibility
+getters read effective Hull/Thrust. Current HP remains physical Scene state. Hull Plating
+still heals exactly1 capped at the new max; ordinary max increases do not heal, reductions
+cap current HP. Dash stays900px/s,200ms,3000ms, with unchanged normalization/expiry/bounds.
+Collector/Combat/Spatial/Replication, weapon ranks/local tuning, offers and recipes remain
+prototype/local. Combat Processor is separate from Reactor and multiplies damage once.
+
+Current Laser/Missile/Drone damage consumes Reactor; Drone additionally consumes Engineering.
+Player weapon intervals divide local tuned intervals by Fire Control; player projectile
+velocity multiplies Velocity, physical visual/collision radii multiply Scale. Missile stores
+its scaled launch body radius as well as its existing launch values. Straight shots also
+retain their launch values. Shared Scale never changes explosions, Cluster centers/radii,
+Prism spread/count, Drone body/orbit, player/enemy bodies or XP. Replication's local bolt
+addition occurs before Scale. Shield Systems, Impact and Analyzer have no gameplay consumers.
+
+Exactly five events remain. A changed shared Fire Control resets the same three player
+weapon events in place to composed delays/elapsed0, retaining callbacks and Clock pause;
+local Laser/Drone cadence choices reset only their own event. No-op/other stats/reads/pause/
+resume never reset cadence. The private bridge permits shared percentage changes only in
+RUNNING; exact current REWARD Hull/Thruster choices have their concrete guarded path.
+No public DEV mutation controls were added. snapshot.build contains detached slots,
+baseStats/runModifiers/effectiveStats; repeated reads draw0 and do not alter diagnostics.
+
+Exact captured shutdown/destroy disposal makes old Build reads/mutations throw; fresh
+native restart restores slots/defaults/zero modifiers/full HP. Real Chrome pointer checks
+verify full/damaged/fractional Hull, Thruster, legacy composition, shared R/F/V/S/E and
+scaled collisions, plus Prism/Cluster/Twin. Genuine BLUR, two Victory NEW RUN cycles,
+Death RETRY and paused nonterminal restart retain fresh Build/lifecycle/RNG/input/
+diagnostics/API and five fresh events, with inert old callbacks. Unmodified production
+preview retains keyboard/Dash/pause/current combat and omits DEV/debug UI.
 
 ## Run diagnostics
 
@@ -412,7 +458,7 @@ Gameplay prototypes will initially use placeholders and simple geometry.
 
 Nine unit tests cover collision.ts, eight cover progression/experience.ts, six cover player/dash.ts timing/expiry partitions, seven cover enemies/shooterMovement.ts band rules, and six cover progression/selectChoices.ts size, distinctness, membership, nonmutation, controlled randomness, repeated offers and input boundaries.
 
-Eight pure Prism eligibility cases, seven pure spread cases and seventeen focused-upgrade cases also pass, for 309 tracked tests across twenty-one files. GAME-045 preserves all 264 prior cases and adds 35 pure diagnostics plus 10 actual Scene integration cases. All 223 pre-GAME-044 cases remain, including 21 pure RunRandom and 17 Scene RNG cases; GAME-044 adds 11 lifecycle, 17 keyboard and 13 Scene integration cases. Coverage includes five Replication radius cases, six Spatial radius cases, eight Cluster eligibility cases, six Cluster geometry cases, eight Twin eligibility cases and twenty-four evolution-offer cases. Fourteen Warden schedule/phase/burst cases cover spawn30, HP60/31/30/1/0, normalized world-angle bursts and deterministic independent outputs. Seven Elite schedule cases cover Tank6/12/18/24, non-Tanks and deterministic input stability. Real-browser scene validation covers rank caps, next-pause offers, volley/snapshot behavior and two native RETRY cycles restoring five gameplay timers.
+Eight pure Prism eligibility cases, seven pure spread cases and seventeen focused-upgrade cases also pass, for 367 tracked tests across twenty-two files. GAME-046 preserves all309 prior cases and adds34 pure PlayerBuild plus24 Scene cases (95 Scene cases total). GAME-045 preserves all 264 prior cases and adds 35 pure diagnostics plus 10 actual Scene integration cases. All 223 pre-GAME-044 cases remain, including 21 pure RunRandom and 17 Scene RNG cases; GAME-044 adds 11 lifecycle, 17 keyboard and 13 Scene integration cases. Coverage includes five Replication radius cases, six Spatial radius cases, eight Cluster eligibility cases, six Cluster geometry cases, eight Twin eligibility cases and twenty-four evolution-offer cases. Fourteen Warden schedule/phase/burst cases cover spawn30, HP60/31/30/1/0, normalized world-angle bursts and deterministic independent outputs. Seven Elite schedule cases cover Tank6/12/18/24, non-Tanks and deterministic input stability. Real-browser scene validation covers rank caps, next-pause offers, volley/snapshot behavior and two native RETRY cycles restoring five gameplay timers.
 
 Vitest is installed and configured.
 
@@ -466,7 +512,7 @@ These should only be introduced when real project requirements justify them.
 
 The placeholder arena, bounded desktop movement, camera follow, repeated enemy spawning/chase, nearest-enemy targeting and Laser projectile impacts with enemy damage/death are implemented and browser-verified.
 
-GAME-001 through GAME-039 and GAME-042/043/044/045 are complete. GAME-040/041 are SUPERSEDED; GAME-046+ remain BACKLOG. GATE A PASSED — Runtime Foundation approved; GAME-046+ remain BACKLOG pending separate definition.
+GAME-001 through GAME-039 and GAME-042/043/044/045/046 are complete. GAME-040/041 are SUPERSEDED. GATE A PASSED — Runtime Foundation approved; GAME-047+ remain BACKLOG pending separate definition.
 
 ---
 

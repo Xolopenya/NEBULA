@@ -3,6 +3,7 @@ import { GameplayScene } from './GameplayScene';
 import { RunLifecycle } from '../run/RunLifecycle';
 import { RunRandom } from '../run/RunRandom';
 import { RunDiagnostics } from '../run/RunDiagnostics';
+import { PlayerBuild } from '../player/PlayerBuild';
 
 class EventEmitter {
   private callbacks = new Map<string, Set<(...args: unknown[]) => void>>();
@@ -15,10 +16,10 @@ class EventEmitter {
   listeners(event: string) { return [...this.callbacks.get(event) ?? []]; }
 }
 
-function visual(x = 0, y = 0) {
+function visual(x = 0, y = 0, radius = 0) {
   const callbacks = new Map<string, () => void>();
   const object = {
-    x, y, width: 40, height: 48, lineWidth: 2, text: '', active: true,
+    x, y, radius, width: 40, height: 48, lineWidth: 2, text: '', active: true,
     setStrokeStyle() { return this; }, setFillStyle() { return this; },
     setAlpha() { return this; }, setScrollFactor() { return this; }, setDepth() { return this; },
     setText(text: string) { this.text = text; return this; },
@@ -56,6 +57,7 @@ function fixture() {
   Object.assign(scene, {
     run,
     runDiagnostics,
+    playerBuild: new PlayerBuild(), playerHealth: 5,
     time: { paused: false }, input: {}, game: { events: new EventEmitter() },
     runRandom: new RunRandom(0),
     cameras: { main: { worldView: { left: 1440, right: 3360, top: 810, bottom: 1890 } } },
@@ -64,7 +66,7 @@ function fixture() {
       text: (_x: number, _y: number, text: string) => {
         const item = Object.assign(visual(), { text }); created.push(item); return item;
       },
-      circle: (x: number, y: number) => visual(x, y),
+      circle: (x: number, y: number, radius: number) => visual(x, y, radius),
       polygon: (x: number, y: number) => visual(x, y),
     },
     events: {
@@ -404,7 +406,7 @@ describe('GAME-042 real Scene terminal integration', () => {
     expect(oldApi.snapshot()).toBeNull();
     expect(scene['gameplayTimers']).toHaveLength(5);
     expect(scene['gameplayTimers'].every(t => !timers.includes(t))).toBe(true);
-    for (const callback of lifecycleCallbacks.slice(0, 5)) callback();
+    for (const callback of lifecycleCallbacks.slice(0, 6)) callback();
     for (const callback of callbacks) callback();
     expect(encounter).not.toHaveBeenCalled();
     expect(reward).not.toHaveBeenCalled();
@@ -846,7 +848,177 @@ describe('GAME-045 concrete diagnostics production observations', () => {
     s.create(); const old = s['runDiagnostics']!, callbacks = s['gameplayTimers'].map(t => t.callback);
     s['handlePauseRequest'](); shutdown(); s.create(); const fresh = s['runDiagnostics']!, before = fresh.snapshot();
     expect(fresh).not.toBe(old); expect(() => old.advance(1)).toThrow('disposed'); expect(() => old.snapshot()).toThrow('disposed');
-    for (const callback of cleanups.slice(0, 5)) callback(); for (const callback of callbacks) callback();
+    for (const callback of cleanups.slice(0, 6)) callback(); for (const callback of callbacks) callback();
     expect(fresh.snapshot()).toEqual(before); expect(before.aggregates.spawned.total).toBe(1); expect(before.timeline).toHaveLength(1);
+  });
+});
+
+
+describe('GAME-046 PlayerBuild production consumers', () => {
+  function armed() {
+    const f = fixture(), s = f.scene;
+    s['createEnemy'](3000, 1350, 'chaser'); s['currentTarget'] = s['enemies'][0];
+    Object.assign(s, { drone: visual(2510, 1350, 10) }); return f;
+  }
+  function passive(f: ReturnType<typeof fixture>, module: 'hull' | 'thruster' | 'collector' | 'combat' | 'spatial' | 'replication') {
+    const index = ['hull', 'thruster', 'collector', 'combat', 'spatial', 'replication'].indexOf(module);
+    const draw = vi.spyOn(f.scene['runRandom']!.reward, 'next').mockReturnValue((index + 0.1) / 6);
+    expect(f.api.forceLevelUp()).toBe(true);
+    const label = { hull: 'Hull Plating', thruster: 'Thruster Module', collector: 'Collector Field', combat: 'Combat Processor', spatial: 'Spatial Amplifier', replication: 'Replication Matrix' }[module];
+    const pick = f.scene['levelUpPresentation'].find(p => p.text.startsWith('Passive: ' + label))!; expect(pick).toBeDefined(); pick.emit('pointerdown'); draw.mockRestore();
+  }
+  function weaponChoice(f: ReturnType<typeof fixture>, weapon: 'laser' | 'missile' | 'drone', cursor: number) {
+    f.scene['weaponFocus'] = weapon; f.scene['focusCursors'][weapon] = cursor;
+    expect(f.api.forceLevelUp()).toBe(true); f.scene['levelUpPresentation'][1].emit('pointerdown');
+  }
+  it('constructs Build during PREPARING before HP/HUD, then preserves diagnostic/seed/five-command boot', () => {
+    const { scene: s } = fixture(); allowCreate(s);
+    const hud = s['updateHud'].bind(s), preparing = vi.spyOn(s as unknown as { updateHud(): void }, 'updateHud').mockImplementation(() => {
+      expect(s['run']!.state).toBe('PREPARING'); expect(s['playerBuild']!.getEffectiveStats().hull).toBe(5); hud();
+    });
+    s.create(); preparing.mockRestore(); const api = window.__NEBULA_DEV__!, before = api.snapshot()!, draws = spyStreams(s);
+    expect(before.build).toEqual(new PlayerBuild().snapshot()); expect(s['playerHealth']).toBe(5); expect(s['movementSpeed']).toBe(300);
+    expect(before.diagnostics).toMatchObject({ gameplayElapsedMs: 0, aggregates: { spawned: { total: 1 } }, timeline: [{ type: 'RUN_STARTED', gameplayElapsedMs: 0 }] });
+    const copy = api.snapshot()!; copy.build.slots.combat.pop(); copy.build.runModifiers.percent.hull = 100; copy.build.effectiveStats.hull = 0;
+    expect(api.snapshot()).toEqual(before); expect(Object.keys(api)).toHaveLength(5); expect(before.gameplayTimerCount).toBe(5);
+    for (const draw of draws) expect(draw).not.toHaveBeenCalled();
+  });
+  it.each([5, 2, 2.5])('real Hull choice preserves max+1 / capped Heal1 from HP%s and repeats exactly', hp => {
+    const f = fixture(), s = f.scene; s['playerHealth'] = hp;
+    passive(f, 'hull'); expect(s['playerMaxHealth']).toBe(6); expect(s['playerHealth']).toBe(hp + 1);
+    for (let n = 2; n <= 20; n++) { passive(f, 'hull'); expect(s['playerMaxHealth']).toBe(5 + n); expect(s['playerHealth']).toBe(hp + n); }
+    expect(s['moduleLevels'].hull).toBe(20); expect(s['playerBuild']!.getBaseStats().hull).toBe(5);
+    expect(f.api.snapshot()!.diagnostics.timeline.slice(-2).map(r => r.type)).toEqual(['LEVEL_UP_SELECTED', 'PAUSE_RESUMED']);
+  });
+  it('shared Hull changes cap only on reduction, never heal on increase; failed choice mutation is atomic', () => {
+    const f = fixture(), s = f.scene;
+    s['applyBuildChange']({ kind: 'percent', stat: 'hull', delta: 1 }); expect(s['playerMaxHealth']).toBe(10); expect(s['playerHealth']).toBe(5);
+    s['applyBuildChange']({ kind: 'percent', stat: 'hull', delta: -1.5 }); expect(s['playerMaxHealth']).toBe(2.5); expect(s['playerHealth']).toBe(2.5);
+    passive(f, 'hull'); expect([s['playerMaxHealth'], s['playerHealth']]).toEqual([3.5, 3.5]);
+    f.api.forceLevelUp(); const pick = s['levelUpPresentation'][1], before = f.api.snapshot()!.diagnostics;
+    s['playerBuild']!.dispose(); expect(() => s['acceptLevelUpChoice'](pick, { kind: 'passive', module: 'hull' })).toThrow('disposed PlayerBuild');
+    expect(s['moduleLevels'].hull).toBe(1); expect(s['playerHealth']).toBe(3.5); expect(s['isLevelUpPaused']).toBe(true);
+    expect(s['runDiagnostics']!.snapshot()).toEqual(before);
+  });
+  it('Thruster remains exact +30 with normal/diagonal/bounds and fixed Dash', () => {
+    const f = inputFixture(), s = f.scene;
+    for (let n = 1; n <= 20; n++) { passive(f, 'thruster'); expect(s['movementSpeed']).toBe(300 + n * 30); }
+    f.down('W'); f.down('D'); const x = s['player']!.x, y = s['player']!.y; s.update(0, 100);
+    expect(Math.hypot(s['player']!.x - x, s['player']!.y - y)).toBeCloseTo(90);
+    s['applyBuildChange']({ kind: 'percent', stat: 'thrust', delta: 1 }); f.down('SPACE'); s.update(0, 200);
+    expect(s['dashRemaining']).toBe(0); expect(s['dashCooldownRemaining']).toBe(2800);
+    expect(Math.hypot(s['player']!.x - x, s['player']!.y - y)).toBeCloseTo(270);
+    s['player']!.x = 4790; s['player']!.y = 10; s.update(0, 1000);
+    expect(s['player']!.x).toBe(4779); expect(s['player']!.y).toBe(25);
+  });
+  it.each(['laser', 'missile', 'drone'] as const)('%s composes Reactor/Velocity/Scale with C once; Engineering is Drone-only', weapon => {
+    const f = armed(), s = f.scene; passive(f, 'combat');
+    for (const [key, delta] of [['reactorPower', 1], ['engineering', 2], ['projectileVelocity', 1], ['projectileScale', 1]] as const) s['applyBuildChange']({ kind: 'percent', stat: key, delta: delta });
+    if (weapon === 'laser') s['fireLaser'](); else if (weapon === 'missile') s['fireMissile'](); else s['fireDrone']();
+    const projectile = weapon === 'missile' ? s['missiles'][0] : s['projectiles'][0];
+    expect(projectile.damage).toBe(weapon === 'drone' ? 7.5 : weapon === 'missile' ? 5 : 2.5);
+    expect(projectile.radius).toBe(weapon === 'laser' ? 12 : weapon === 'missile' ? 16 : 10);
+    expect(projectile.visual.radius).toBe(projectile.radius);
+    if ('speed' in projectile) { expect(projectile.speed).toBe(900); expect(projectile.explosionRadius).toBe(120); }
+    else expect(Math.hypot(projectile.velocityX, projectile.velocityY)).toBe(weapon === 'laser' ? 2400 : 1600);
+  });
+  it.each([0, 1, 2])('actual local Laser track%s preserves tuning under shared composition', cursor => {
+    const f = armed(), s = f.scene; s['applyBuildChange']({ kind: 'percent', stat: 'reactorPower', delta: 1 }); s['applyBuildChange']({ kind: 'percent', stat: 'projectileVelocity', delta: 1 });
+    weaponChoice(f, 'laser', cursor); s['fireLaser'](); const p = s['projectiles'][0];
+    expect(s['laserRanks']).toEqual({ power: Number(cursor === 0), fireRate: Number(cursor === 1), speed: Number(cursor === 2) });
+    expect(p.damage).toBe(cursor === 0 ? 4 : 2); expect(Math.hypot(p.velocityX, p.velocityY)).toBe(cursor === 2 ? 2800 : 2400);
+    expect(s['laser'].fireInterval).toBe(cursor === 1 ? 550 : 600);
+  });
+  it.each([0, 1, 2])('actual local Missile track%s preserves local explosion and shared values', cursor => {
+    const f = armed(), s = f.scene; weaponChoice(f, 'missile', cursor); s['fireMissile']();
+    expect(s['missiles'][0]).toMatchObject({ damage: cursor === 0 ? 3 : 2, speed: cursor === 1 ? 525 : 450, explosionRadius: cursor === 2 ? 150 : 120, radius: 8 });
+  });
+  it.each([0, 1, 2])('actual local Drone track%s and Replication-before-Scale remain local', cursor => {
+    const f = armed(), s = f.scene; passive(f, 'replication'); s['applyBuildChange']({ kind: 'percent', stat: 'projectileScale', delta: 1 });
+    weaponChoice(f, 'drone', cursor); s['fireDrone'](); const p = s['projectiles'][0];
+    expect(p.radius).toBe(12); expect(p.damage).toBe(cursor === 0 ? 2 : 1);
+    expect(Math.hypot(p.velocityX, p.velocityY)).toBe(cursor === 2 ? 1000 : 800);
+    expect(s['droneAttackValues'].fireInterval).toBe(cursor === 1 ? 1050 : 1200);
+    expect(s['droneConfig']).toMatchObject({ orbitRadius: 110, angularSpeed: 2, visualRadius: 10 });
+  });
+  it('retains launched values and Missile radius in swept collision/world-exit after Build changes', () => {
+    const f = armed(), s = f.scene; s['applyBuildChange']({ kind: 'percent', stat: 'projectileScale', delta: 1 }); s['fireLaser'](); s['fireMissile']();
+    const p = s['projectiles'][0], m = s['missiles'][0], launch = { damage: m.damage, speed: m.speed, radius: m.radius, explosionRadius: m.explosionRadius };
+    s['applyBuildChange']({ kind: 'percent', stat: 'projectileScale', delta: 1 }); s['applyBuildChange']({ kind: 'percent', stat: 'reactorPower', delta: 1 }); s['applyBuildChange']({ kind: 'percent', stat: 'projectileVelocity', delta: 1 });
+    expect(p).toMatchObject({ damage: 1, radius: 12, velocityX: 1200 }); expect(m).toMatchObject(launch);
+    s['fireMissile'](); expect(s['missiles']).toHaveLength(1); // Existing cap still applies.
+    m.visual.x = -12; m.visual.y = 100; m.target = undefined; m.headingX = 0; m.headingY = 0; s['enemies'] = [];
+    s['updateMissiles'](0); expect(s['missiles']).toHaveLength(1); // Stored16, not fixed8 or new24.
+    m.visual.x = -17; s['updateMissiles'](0); expect(s['missiles']).toHaveLength(0);
+    s['createEnemy'](3000, 1350, 'tank'); s['fireMissile'](); const next = s['missiles'][0];
+    next.visual.x = 3000 - 24 - next.radius; next.visual.y = 1350; s['updateMissiles'](0);
+    expect(s['missiles']).toHaveLength(0); expect(s['enemies'][0].health).toBe(2); // Inclusive physical contact, damage4.
+  });
+  it('actual evolution pointer callbacks keep Prism/Cluster/Twin recipes, slots and attack behavior', () => {
+    const f = armed(), s = f.scene;
+    s['laserRanks'] = { power: 2, fireRate: 2, speed: 2 }; s['moduleLevels'].combat = 1;
+    f.api.forceLevelUp(); expect(offer(s)[2]).toContain('Prism'); s['levelUpPresentation'][3].emit('pointerdown'); s['fireLaser']();
+    expect(s['projectiles']).toHaveLength(3); expect(s['projectiles'].every(p => p.damage === 1)).toBe(true);
+    s['projectiles'] = []; s['missileRanks'] = { warheadPower: 2, propulsion: 2, blastExpansion: 2 }; passive(f, 'spatial');
+    f.api.forceLevelUp(); expect(offer(s)[2]).toContain('Cluster'); s['levelUpPresentation'][3].emit('pointerdown'); s['fireMissile']();
+    expect(s['missiles'][0]).toMatchObject({ clusterEnabled: true, explosionRadius: 135 });
+    s['droneRanks'] = { boltPower: 2, firingSystem: 2, boltPropulsion: 2 }; passive(f, 'replication');
+    f.api.forceLevelUp(); expect(offer(s)[2]).toContain('Twin'); s['levelUpPresentation'][3].emit('pointerdown'); s['fireDrone']();
+    expect(s['projectiles']).toHaveLength(2); expect(s['twinDroneEvolved']).toBe(true);
+    expect(f.api.snapshot()!.build.slots.combat).toEqual(['LASER', 'MISSILE', 'COMBAT_DRONE']);
+  });
+  it('unused stats have no gameplay consumer, and no shared Scale leaks into hostile/XP/blast/orbit', () => {
+    const f = armed(), s = f.scene, before = f.api.snapshot()!.diagnostics;
+    s['applyBuildChange']({ kind: 'percent', stat: 'shieldSystems', delta: 1 }); s['applyBuildChange']({ kind: 'percent', stat: 'impact', delta: 1 }); s['playerBuild']!.addCombatAnalyzerLevels(3);
+    s['applyBuildChange']({ kind: 'percent', stat: 'projectileScale', delta: 1 }); s['applyBuildChange']({ kind: 'percent', stat: 'projectileVelocity', delta: 1 });
+    s['launchHostileProjectile']({ x: 100, y: 100 }, 1, 0); expect(s['projectiles'][0]).toMatchObject({ damage: 1, radius: 6, velocityX: 600 });
+    expect(s['xpMagnetRadius']).toBe(180); expect(s['playerRadius']).toBe(20); expect(s['missileValues'].explosionRadius).toBe(120);
+    expect(s['droneConfig']).toMatchObject({ orbitRadius: 110, visualRadius: 10 });
+    expect(f.api.snapshot()!.diagnostics).toEqual(before);
+  });
+  it('rejects unsafe composed damage before any projectile or visual mutation', () => {
+    const f = armed(), s = f.scene; passive(f, 'combat');
+    s['applyBuildChange']({ kind: 'percent', stat: 'reactorPower', delta: Number.MAX_SAFE_INTEGER - 1 });
+    const circle = vi.spyOn(s.add, 'circle');
+    for (const fire of [() => s['fireLaser'](), () => s['fireMissile'](), () => s['fireDrone']()]) {
+      expect(fire).toThrow('Invalid composed'); expect(s['projectiles']).toHaveLength(0); expect(s['missiles']).toHaveLength(0);
+    }
+    expect(circle).not.toHaveBeenCalled();
+  });
+  it('real installed Clock keeps five event identities; FC resets only three, local choices only their own', async () => {
+    const { default: Clock } = await vi.importActual<{ default: typeof import('phaser').Time.Clock }>('../../../node_modules/phaser/src/time/Clock.js');
+    const f = fixture(), s = f.scene; allowCreate(s); Object.assign(s, { sys: { events: { once() {}, on() {} } } });
+    const clock = new Clock(s); Object.assign(s, { time: clock }); s.create(); clock.preUpdate(); clock.update(100, 100);
+    const events = [...s['gameplayTimers']], callbacks = events.map(e => e.callback), resets = events.map(e => vi.spyOn(e, 'reset'));
+    const current = { ...f, api: window.__NEBULA_DEV__! };
+    expect(events.map(e => e.delay)).toEqual([2000, 600, 1800, 1200, 1500]);
+    s['applyBuildChange']({ kind: 'percent', stat: 'fireControl', delta: 1 });
+    expect(events.map(e => e.delay)).toEqual([2000, 300, 900, 600, 1500]);
+    expect(events.map(e => e.elapsed)).toEqual([100, 0, 0, 0, 100]); expect(events.map(e => e.callback)).toEqual(callbacks);
+    expect(s['projectiles']).toHaveLength(0); expect(s['missiles']).toHaveLength(0);
+    s['applyBuildChange']({ kind: 'percent', stat: 'fireControl', delta: 0 }); s['applyBuildChange']({ kind: 'percent', stat: 'thrust', delta: 0.1 });
+    expect(resets.map(e => e.mock.calls.length)).toEqual([0, 1, 1, 1, 0]);
+    weaponChoice(current, 'laser', 1); expect(events[1].delay).toBe(275);
+    weaponChoice(current, 'drone', 1); expect(events[3].delay).toBe(525);
+    weaponChoice(current, 'missile', 0); expect(resets.map(e => e.mock.calls.length)).toEqual([0, 2, 1, 2, 0]);
+    expect(s['gameplayTimers']).toEqual(events); s['handlePauseRequest'](); const phases = events.map(e => e.elapsed), build = s['playerBuild']!.snapshot();
+    expect(s['applyBuildChange']({ kind: 'percent', stat: 'fireControl', delta: 1 })).toBe(false); clock.update(10000, 5000);
+    expect(clock.paused).toBe(true); expect(events.map(e => e.elapsed)).toEqual(phases); expect(s['playerBuild']!.snapshot()).toEqual(build);
+  });
+  it('rejects paused/terminal/stale bridges and exact old cleanup cannot change fresh Build/HP/timers', () => {
+    const f = fixture(), s = f.scene; allowCreate(s);
+    const cleanups: Array<() => void> = [];
+    const once = s.events.once.bind(s.events); vi.spyOn(s.events, 'once').mockImplementation((key, fn, ctx) => {
+      if (key === 'shutdown') cleanups.push(fn as () => void); return once(key, fn, ctx);
+    });
+    s.create(); const old = s['playerBuild']!, oldRun = s['run']!;
+    s['handlePauseRequest'](); expect(s['applyBuildChange']({ kind: 'percent', stat: 'hull', delta: 1 })).toBe(false);
+    f.shutdown(); expect(() => old.snapshot()).toThrow('disposed'); expect(() => old.applyPrototypeHullPlating()).toThrow('disposed');
+    s.create(); const fresh = s['playerBuild']!, before = window.__NEBULA_DEV__!.snapshot(), draws = spyStreams(s);
+    expect(s['applyBuildChange']({ kind: 'percent', stat: 'hull', delta: 1 }, oldRun, old)).toBe(false);
+    for (const cleanup of cleanups.slice(0, 6)) cleanup();
+    expect(fresh).not.toBe(old); expect(fresh.getEffectiveStats()).toEqual(new PlayerBuild().getEffectiveStats());
+    expect(window.__NEBULA_DEV__!.snapshot()).toEqual(before); for (const draw of draws) expect(draw).not.toHaveBeenCalled();
+    s['enterPlayerDeath'](); expect(s['applyBuildChange']({ kind: 'percent', stat: 'hull', delta: 1 })).toBe(false);
   });
 });

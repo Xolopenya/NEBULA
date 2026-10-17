@@ -11,6 +11,7 @@ import { shooterMovement } from '../enemies/shooterMovement';
 import { shouldSpawnEliteTank } from '../enemies/eliteTank';
 import { shouldSpawnWarden, wardenPhase, wardenBurstDirections } from '../enemies/warden';
 import { stepDash } from '../player/dash';
+import { PlayerBuild, type PercentStatKey } from '../player/PlayerBuild';
 import { selectChoices } from '../progression/selectChoices';
 import { effectiveMissileExplosionRadius } from '../progression/spatialAmplifier';
 import { effectiveDroneBoltRadius } from '../progression/replicationMatrix';
@@ -27,6 +28,15 @@ type OrdinaryChoice = { kind: 'laser'; upgrade: LaserUpgrade }
   | { kind: 'missile'; upgrade: keyof MissileRanks }
   | { kind: 'drone'; upgrade: keyof DroneRanks } | { kind: 'passive'; module: PassiveModule };
 type LevelUpChoice = OrdinaryChoice | { kind: 'prism' } | { kind: 'cluster' } | { kind: 'twin' };
+type BuildChange = { kind: 'percent'; stat: PercentStatKey; delta: number }
+  | { kind: 'hullPlating' } | { kind: 'thruster' };
+
+function combatValue(value: number, minimum = Number.MIN_VALUE): number {
+  if (!Number.isFinite(value) || value < minimum || value > Number.MAX_SAFE_INTEGER) {
+    throw new RangeError('Invalid composed player combat value');
+  }
+  return value;
+}
 
 function choiceIdentity(option: LevelUpChoice): ChoiceIdentity {
   switch (option.kind) {
@@ -102,6 +112,7 @@ type ProjectileRuntime = {
 };
 
 type MissileRuntime = {
+  readonly radius: number;
   readonly clusterEnabled: boolean;
   readonly damage: number;
   readonly speed: number;
@@ -133,6 +144,7 @@ export class GameplayScene extends Phaser.Scene {
   private run?: RunLifecycle;
   private runRandom?: RunRandom;
   private runDiagnostics?: RunDiagnostics;
+  private playerBuild?: PlayerBuild;
   private get isPlayerDead(): boolean { return this.run?.outcome === 'DEATH'; }
   private get isRunVictorious(): boolean { return this.run?.outcome === 'VICTORY'; }
   private victoryPresentation: Phaser.GameObjects.Text[] = [];
@@ -140,8 +152,8 @@ export class GameplayScene extends Phaser.Scene {
   private levelUpPresentation: Phaser.GameObjects.Text[] = [];
   private moduleLevels: Record<PassiveModule, number> = { hull: 0, thruster: 0, collector: 0, combat: 0, spatial: 0, replication: 0 };
   private globalDamageMultiplier = 1;
-  private playerMaxHealth = 5;
-  private playerHealth = this.playerMaxHealth;
+  private get playerMaxHealth(): number { return this.playerBuild!.getEffectiveStats().hull; }
+  private playerHealth!: number;
   private readonly playerRadius = 20;
   private readonly contactDamage = 1;
   private readonly playerDamageProtectionDuration = 500;
@@ -161,13 +173,14 @@ export class GameplayScene extends Phaser.Scene {
   } as const;
   private missileValues = { damage: 2, speed: 450, explosionRadius: 120 };
   private missileRanks: MissileRanks = { warheadPower: 0, propulsion: 0, blastExpansion: 0 };
+  private missileTimer?: Phaser.Time.TimerEvent;
   private weaponFocus: WeaponFocus = 'laser';
   private focusCursors: FocusCursors = { laser: 0, missile: 0, drone: 0 };
   private inputAdapter?: KeyboardInput;
   private canResume?: () => boolean;
   private pausePresentation?: Phaser.GameObjects.Text;
   private readonly movementDirection = new Phaser.Math.Vector2();
-  private movementSpeed = 300;
+  private get movementSpeed(): number { return this.playerBuild!.getEffectiveStats().thrust; }
   private readonly dashDirection = new Phaser.Math.Vector2();
   private readonly dashSpeed = 900;
   private readonly dashDuration = 200;
@@ -217,12 +230,19 @@ export class GameplayScene extends Phaser.Scene {
     };
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, disposeRun);
     this.events.once(Phaser.Scenes.Events.DESTROY, disposeRun);
+    const build = new PlayerBuild();
+    this.playerBuild = build;
+    const disposeBuild = () => {
+      build.dispose();
+      this.events.off(Phaser.Scenes.Events.SHUTDOWN, disposeBuild);
+      this.events.off(Phaser.Scenes.Events.DESTROY, disposeBuild);
+    };
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, disposeBuild);
+    this.events.once(Phaser.Scenes.Events.DESTROY, disposeBuild);
     this.godMode = false;
     this.gameplayTimers = [];
     this.victoryPresentation = [];
     this.moduleLevels = { hull: 0, thruster: 0, collector: 0, combat: 0, spatial: 0, replication: 0 };
-    this.playerMaxHealth = 5;
-    this.movementSpeed = 300;
     this.xpMagnetRadius = 180;
     this.globalDamageMultiplier = 1;
     this.droneAngle = 0;
@@ -300,17 +320,17 @@ export class GameplayScene extends Phaser.Scene {
       callback: () => { if (run.state === 'RUNNING') this.spawnEnemy(); },
     }));
     this.gameplayTimers.push(this.laserTimer = this.time.addEvent({
-      delay: this.laser.fireInterval,
+      delay: this.weaponInterval(this.laser.fireInterval),
       loop: true,
       callback: () => { if (run.state === 'RUNNING') this.fireLaser(); },
     }));
-    this.gameplayTimers.push(this.time.addEvent({
-      delay: this.missile.fireInterval,
+    this.gameplayTimers.push(this.missileTimer = this.time.addEvent({
+      delay: this.weaponInterval(this.missile.fireInterval),
       loop: true,
       callback: () => { if (run.state === 'RUNNING') this.fireMissile(); },
     }));
     this.gameplayTimers.push(this.droneTimer = this.time.addEvent({
-      delay: this.droneAttackValues.fireInterval,
+      delay: this.weaponInterval(this.droneAttackValues.fireInterval),
       loop: true,
       callback: () => { if (run.state === 'RUNNING') this.fireDrone(); },
     }));
@@ -442,6 +462,42 @@ export class GameplayScene extends Phaser.Scene {
 
   private isSimulationPaused(): boolean {
     return this.run?.state !== 'RUNNING';
+  }
+
+  private weaponInterval(localInterval: number): number {
+    return combatValue(localInterval / this.playerBuild!.getEffectiveStats().fireControl, 1);
+  }
+
+  private resetWeaponTimer(timer: Phaser.Time.TimerEvent | undefined, delay: number): void {
+    timer?.reset({ delay, loop: true, callback: timer.callback,
+      callbackScope: timer.callbackScope, args: timer.args });
+  }
+
+  // Only the two concrete legacy choices may mutate while their exact REWARD presentation is current.
+  private applyBuildChange(change: BuildChange, run = this.run, build = this.playerBuild, choice?: Phaser.GameObjects.Text): boolean {
+    if (!run || this.run !== run || !build || this.playerBuild !== build) return false;
+    if (change.kind === 'percent') {
+      if (run.state !== 'RUNNING') return false;
+    } else if (run.state !== 'PAUSED' || !run.hasPauseReason('REWARD') || !this.isLevelUpPaused
+      || !choice || !this.levelUpPresentation.includes(choice)) return false;
+    const before = build.getEffectiveStats();
+    const changed = change.kind === 'percent' ? build.applyStatPercent(change.stat, change.delta)
+      : change.kind === 'hullPlating' ? build.applyPrototypeHullPlating() : build.applyPrototypeThruster();
+    if (!changed) return false;
+    const after = build.getEffectiveStats();
+    if (change.kind === 'percent' && change.stat === 'hull') {
+      this.playerHealth = Math.min(this.playerHealth, after.hull);
+      this.updateHud();
+    }
+    if (after.fireControl !== before.fireControl) {
+      const laser = this.weaponInterval(this.laser.fireInterval);
+      const missile = this.weaponInterval(this.missile.fireInterval);
+      const drone = this.weaponInterval(this.droneAttackValues.fireInterval);
+      this.resetWeaponTimer(this.laserTimer, laser);
+      this.resetWeaponTimer(this.missileTimer, missile);
+      this.resetWeaponTimer(this.droneTimer, drone);
+    }
+    return true;
   }
 
   private bindRunInput(run: RunLifecycle): void {
@@ -663,11 +719,7 @@ export class GameplayScene extends Phaser.Scene {
         case 'boltPropulsion': this.droneAttackValues.projectileSpeed += 200; break;
         case 'firingSystem':
           this.droneAttackValues.fireInterval -= 150;
-          this.droneTimer?.reset({
-            delay: this.droneAttackValues.fireInterval,
-            loop: true,
-            callback: () => { if (run.state === 'RUNNING') this.fireDrone(); },
-          });
+          this.resetWeaponTimer(this.droneTimer, this.weaponInterval(this.droneAttackValues.fireInterval));
           break;
       }
     }
@@ -681,14 +733,15 @@ export class GameplayScene extends Phaser.Scene {
       }
     }
     if (option.kind === 'passive') {
+      // Build validates first: a failed mutation must not change level, current HP or selection.
+      if (option.module === 'hull' && !this.applyBuildChange({ kind: 'hullPlating' }, run, this.playerBuild, choice)) return;
+      if (option.module === 'thruster' && !this.applyBuildChange({ kind: 'thruster' }, run, this.playerBuild, choice)) return;
       this.moduleLevels[option.module] += 1;
       switch (option.module) {
         case 'hull':
-          this.playerMaxHealth += 1;
           this.playerHealth = Math.min(this.playerMaxHealth, this.playerHealth + 1);
           this.updateHud();
           break;
-        case 'thruster': this.movementSpeed += 30; break;
         case 'collector': this.xpMagnetRadius += 40; break;
         case 'combat': this.globalDamageMultiplier += 0.25; break;
       }
@@ -697,11 +750,7 @@ export class GameplayScene extends Phaser.Scene {
     if (option.kind === 'laser' && option.upgrade === 'speed') this.laser.projectileSpeed += 200;
     if (option.kind === 'laser' && option.upgrade === 'fireRate') {
       this.laser.fireInterval = Math.max(100, this.laser.fireInterval - 50);
-      this.laserTimer?.reset({
-        delay: this.laser.fireInterval,
-        loop: true,
-        callback: () => { if (run.state === 'RUNNING') this.fireLaser(); },
-      });
+      this.resetWeaponTimer(this.laserTimer, this.weaponInterval(this.laser.fireInterval));
     }
     this.runDiagnostics!.recordLevelUpSelected(choiceIdentity(option));
     this.isLevelUpPaused = false;
@@ -848,18 +897,23 @@ export class GameplayScene extends Phaser.Scene {
   private fireLaser(): void {
     if (this.isSimulationPaused()) return;
     if (!this.player || !this.currentTarget) return;
+    if (!this.playerBuild!.getSlots().combat.includes('LASER')) return;
+    const stats = this.playerBuild!.getEffectiveStats();
+    const damage = this.laser.damage * this.globalDamageMultiplier * stats.reactorPower;
+    const speed = this.laser.projectileSpeed * stats.projectileVelocity;
+    const radius = this.projectileRadius * stats.projectileScale;
 
     if (this.prismEvolved) {
       const directions = prismSpread(this.currentTarget.visual.x - this.player.x,
         this.currentTarget.visual.y - this.player.y);
       for (const direction of directions) {
-        this.launchPlayerProjectile(this.player, direction, this.laser.damage,
-          this.laser.projectileSpeed, this.projectileLifetime, this.projectileRadius, 0x67e8f9);
+        this.launchPlayerProjectile(this.player, direction, damage,
+          speed, this.projectileLifetime, radius, 0x67e8f9);
       }
       return;
     }
-    this.firePlayerProjectile(this.player, this.currentTarget, this.laser.damage,
-      this.laser.projectileSpeed, this.projectileLifetime, this.projectileRadius, 0x67e8f9);
+    this.firePlayerProjectile(this.player, this.currentTarget, damage,
+      speed, this.projectileLifetime, radius, 0x67e8f9);
   }
 
   private updateDrone(delta: number): void {
@@ -879,6 +933,7 @@ export class GameplayScene extends Phaser.Scene {
 
   private fireDrone(): void {
     if (this.isSimulationPaused() || !this.drone) return;
+    if (!this.playerBuild!.getSlots().combat.includes('COMBAT_DRONE')) return;
     this.fireDroneFrom(this.drone);
     if (this.twinDrone) this.fireDroneFrom(this.twinDrone);
   }
@@ -886,8 +941,11 @@ export class GameplayScene extends Phaser.Scene {
   private fireDroneFrom(origin: Phaser.GameObjects.Arc): void {
     const target = this.selectNearestEnemy(undefined, origin);
     if (!target) return;
-    this.firePlayerProjectile(origin, target, this.droneAttackValues.damage, this.droneAttackValues.projectileSpeed,
-      this.droneConfig.lifetime, effectiveDroneBoltRadius(this.droneConfig.boltRadius, this.moduleLevels.replication), 0xc084fc);
+    const stats = this.playerBuild!.getEffectiveStats();
+    this.firePlayerProjectile(origin, target,
+      this.droneAttackValues.damage * this.globalDamageMultiplier * stats.reactorPower * stats.engineering,
+      this.droneAttackValues.projectileSpeed * stats.projectileVelocity, this.droneConfig.lifetime,
+      effectiveDroneBoltRadius(this.droneConfig.boltRadius, this.moduleLevels.replication) * stats.projectileScale, 0xc084fc);
   }
 
   private firePlayerProjectile(
@@ -907,9 +965,10 @@ export class GameplayScene extends Phaser.Scene {
     origin: { x: number; y: number }, direction: { x: number; y: number },
     damage: number, speed: number, lifetime: number, radius: number, color: number,
   ): void {
+    combatValue(damage); combatValue(speed); combatValue(radius);
     this.projectiles.push({
       source: 'player',
-      damage: damage * this.globalDamageMultiplier,
+      damage,
       radius,
       visual: this.add.circle(origin.x, origin.y, radius, color),
       velocityX: direction.x * speed,
@@ -1028,15 +1087,19 @@ export class GameplayScene extends Phaser.Scene {
 
   private fireMissile(): void {
     if (this.isSimulationPaused() || !this.player) return;
+    if (!this.playerBuild!.getSlots().combat.includes('MISSILE')) return;
     if (this.missiles.length >= this.missile.maxActiveMissiles) return;
     const target = this.selectNearestEnemy();
     if (!target) return;
+    const stats = this.playerBuild!.getEffectiveStats();
+    const damage = combatValue(this.missileValues.damage * this.globalDamageMultiplier * stats.reactorPower);
+    const speed = combatValue(this.missileValues.speed * stats.projectileVelocity);
+    const radius = combatValue(this.missile.radius * stats.projectileScale);
+    const explosionRadius = combatValue(effectiveMissileExplosionRadius(this.missileValues.explosionRadius, this.moduleLevels.spatial));
     const missile: MissileRuntime = {
       clusterEnabled: this.clusterEvolved,
-      damage: this.missileValues.damage * this.globalDamageMultiplier,
-      speed: this.missileValues.speed,
-      explosionRadius: effectiveMissileExplosionRadius(this.missileValues.explosionRadius, this.moduleLevels.spatial),
-      visual: this.add.circle(this.player.x, this.player.y, this.missile.radius, 0xfacc15),
+      damage, speed, radius, explosionRadius,
+      visual: this.add.circle(this.player.x, this.player.y, radius, 0xfacc15),
       target,
       headingX: 0,
       headingY: 0,
@@ -1073,7 +1136,7 @@ export class GameplayScene extends Phaser.Scene {
       let defeatedBoss = false;
       for (const enemy of this.enemies) {
         const hit = segmentCircleHitTime(startX, startY, stepX, stepY,
-          enemy.visual.x, enemy.visual.y, enemy.collisionRadius + this.missile.radius);
+          enemy.visual.x, enemy.visual.y, enemy.collisionRadius + missile.radius);
         if (hit < firstHit) firstHit = hit;
       }
       if (firstHit !== Infinity) {
@@ -1088,8 +1151,8 @@ export class GameplayScene extends Phaser.Scene {
         missile.visual.y += stepY;
         missile.remainingLifetime -= delta;
         const { x, y } = missile.visual;
-        const outside = x < -this.missile.radius || x > this.arenaWidth + this.missile.radius
-          || y < -this.missile.radius || y > this.arenaHeight + this.missile.radius;
+        const outside = x < -missile.radius || x > this.arenaWidth + missile.radius
+          || y < -missile.radius || y > this.arenaHeight + missile.radius;
         if (missile.remainingLifetime > 0 && !outside) continue;
       }
       missile.visual.destroy();
@@ -1182,6 +1245,7 @@ export class GameplayScene extends Phaser.Scene {
         return {
           runSeed: this.runRandom!.runSeed,
           diagnostics: this.runDiagnostics!.snapshot(),
+          build: this.playerBuild!.snapshot(),
           runState: this.run!.state, pauseReasons: this.run!.pauseReasons,
           isPlayerDead: this.isPlayerDead, isRunVictorious: this.isRunVictorious,
           isLevelUpPaused: this.isLevelUpPaused, godMode: this.godMode,
