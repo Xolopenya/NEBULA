@@ -4,8 +4,8 @@
 
 - Project: NEBULA.
 - Milestone: First Playable / GAME-015 complete.
-- Source baseline HEAD: `fd96a22e3d84fbd1bf90569d7c78d6d4126b32ef`.
-- This map reflects that source baseline plus GAME-042 lifecycle/terminal/disposal ownership; current Scene retains combat/presentation and GAME-039 DEV wiring.
+- Source baseline HEAD: `d688127d346c3fb6ccbc8b933c2e391eb69ed310`.
+- This map reflects that source baseline plus the staged GAME-043 seeded RNG ownership; current Scene retains combat/presentation and GAME-039 DEV wiring.
 - Active task request defines task-specific requirements.
 - AGENTS.md defines repository policy.
 - TASK_GRAPH.md defines task scope, dependencies and status.
@@ -28,13 +28,15 @@ IDs are repository-relative paths; symbols use `path#export`.
 | `src/game/scenes/GameplayScene.ts` | Owns current run simulation, presentation and DEV API per-create binding |
 | `src/game/run/RunLifecycle.ts` | Focused lifecycle authority: RunState, TerminalOutcome, RunLifecycle; no Phaser dependency |
 | `src/game/run/RunLifecycle.test.ts` | Eight pure lifecycle start/terminal/disposal/independence/read-only cases |
-| `src/game/devTools.ts` | DevSnapshot / DevTools types and optional Window declaration; no runtime registry |
-| `src/game/scenes/GameplayScene.devTools.test.ts` | 31 tracked Scene/DevTools integration contracts with rendering/lifecycle fixtures |
+| `src/game/run/RunRandom.ts` | Phaser-free uint32 seed, four independent explicit Mulberry32 streams, exact-owner disposal |
+| `src/game/run/RunRandom.test.ts` | 21 pure seed/golden/range/independence/disposal cases |
+| `src/game/devTools.ts` | DevSnapshot with detached numeric runSeed / five-command DevTools types and optional Window declaration; no runtime registry |
+| `src/game/scenes/GameplayScene.devTools.test.ts` | 48 tracked Scene/DevTools/lifecycle/RNG integration cases with rendering fixtures |
 | `src/game/combat/collision.ts` | Pure numeric collision math |
 | `src/game/combat/collision.test.ts` | Tracked geometry tests |
 | `src/game/progression/experience.ts` | Pure XP threshold/award arithmetic and state type |
 | `src/game/progression/experience.test.ts` | Tracked progression tests |
-| `src/game/progression/selectChoices.ts` | Pure supplied-pool selection without replacement; injectable RNG |
+| `src/game/progression/selectChoices.ts` | Pure supplied-pool selection without replacement; required explicit random source |
 | `src/game/progression/selectChoices.test.ts` | Tracked deterministic selection tests |
 | `src/game/progression/spatialAmplifier.ts` | Pure Missile-specific effective explosion radius from Missile radius and Spatial level |
 | `src/game/progression/spatialAmplifier.test.ts` | Six tracked numeric radius tests |
@@ -79,6 +81,7 @@ IDs are repository-relative paths; symbols use `path#export`.
 | `src/game/config.ts#gameConfig` | Registers BootScene/GameplayScene; 1920x1080 FIT |
 | `src/game/scenes/BootScene.ts#BootScene` | Scene startup transition |
 | `src/game/scenes/GameplayScene.ts#GameplayScene` | Scene/run owner |
+| `src/game/run/RunRandom.ts#RunRandom` | Immutable runSeed; encounter/reward/world/boss next(); dispose invalidates captured handles |
 | `src/game/combat/collision.ts#segmentCircleHitTime` | First segment-circle hit in [0,1], else Infinity |
 | `src/game/progression/experience.ts#ExperienceState` | Numeric level and XP toward next level |
 | `src/game/progression/experience.ts#xpForNextLevel` | Prototype threshold calculation |
@@ -123,6 +126,8 @@ Runtime labels below describe scene-owned concepts, not separate modules/classes
 | `src/game/enemies/shooterMovement.test.ts` | IMPORTS | `src/game/enemies/shooterMovement.ts#shooterMovement` |
 | `src/game/enemies/shooterMovement.ts#shooterMovement` | TESTED_BY | `src/game/enemies/shooterMovement.test.ts` |
 | `src/game/scenes/GameplayScene.ts` | IMPORTS | `src/game/progression/selectChoices.ts#selectChoices` |
+| `src/game/scenes/GameplayScene.ts` | CREATES | `src/game/run/RunRandom.ts#RunRandom` after successful RunLifecycle.start, from crypto uint32 entropy |
+| `src/game/run/RunRandom.ts#RunRandom` | TESTED_BY | `src/game/run/RunRandom.test.ts` |
 | `src/game/progression/selectChoices.ts#selectChoices` | TESTED_BY | `src/game/progression/selectChoices.test.ts` |
 | `src/game/scenes/GameplayScene.ts` | IMPORTS | `src/game/progression/prismLaser.ts` (LaserRanks, canEvolvePrismLaser) |
 | `src/game/scenes/GameplayScene.ts` | IMPORTS | `src/game/combat/prismSpread.ts#prismSpread` |
@@ -177,6 +182,9 @@ All private names below are navigation anchors, not exported symbol nodes.
 | Level-up pause | isLevelUpPaused; enterLevelUpPause; isSimulationPaused | Distinct from death/Victory; level increase freezes update/callbacks; fixed title and three distinct focused/passive/open choices; one selection resumes |
 | Choice UI/resume | levelUpPresentation; enterLevelUpPause; acceptLevelUpChoice | Current text identity and terminal guard; applies one Laser/Missile/passive effect or Prism, destroys title/options then resumes |
 | Run lifecycle | run; RunLifecycle; create | Fresh PREPARING to RUNNING; exact captured shutdown/destroy disposal; immutable first terminal outcome |
+| Run RNG | runRandom; RunRandom; create | Fresh owner after successful RUNNING; crypto uint32 seed; exact captured shutdown/destroy disposal; old handles throw; World/Boss dormant |
+| Spawn randomness | spawnEnemy → runRandom.encounter.next | Two draws after guards: fixed side mapping then varying coordinate; deterministic fallback adds none |
+| Choice randomness | enterLevelUpPause → selectChoices → runRandom.reward.next | Explicit source at three sampling sites; one draw per sampled slot, none for focus/evolution/stable UI/acceptance |
 | Death/retry | derived isPlayerDead; enterPlayerDeath | Accepted DEATH precedes existing UI; RETRY bound to owning run; rejects Victory |
 | Victory/result | derived isRunVictorious, victoryPresentation; enterRunVictory | Atomic attack completion after new common Boss defeat, first terminal wins; fixed current-level result and identity/duplicate-guarded native NEW RUN; create clears state/UI references |
 | Enemy runtime | enemies; EnemyRuntime; createEnemy | One collection of archetype/isElite + visual/health + readonly contactDamage/xpValue/collisionRadius; enemyData and concrete eliteTankData own regular/Elite/Boss values/presentation; Warden phase styles are concrete |
@@ -309,6 +317,8 @@ Statuses and dependencies remain in TASK_GRAPH.md, not duplicated here.
 GameplayScene.publishDevTools / creditExperience / godMode / gameplayTimers IMPLEMENTS_TASK GAME-039. Vite DEV-only publication owns per-create shutdown/destroy invalidation; old captured API is inert after native restart. Shared creditExperience preserves pickup credit/removal/choice order; God Mode guards damagePlayer; five existing TimerEvent references supply snapshot counts, including pending insertion. DevTools types are exported from src/game/devTools.ts; runtime ownership remains in GameplayScene.
 
 RunLifecycle IMPLEMENTS_TASK GAME-042: PREPARING/RUNNING/TERMINAL/DISPOSED, immutable outcome, start/tryEnterTerminal/dispose. GameplayScene owns its per-create construction/captured disposal and derives terminal getters; concrete UI and attack boundaries stay in Scene. Existing timer and cadence-reset callbacks plus retry controls capture their owning run; Level-Up remains separate. Tracked pure lifecycle and Scene integration tests plus real Phaser native restart evidence validate the boundary.
+
+RunRandom IMPLEMENTS_TASK GAME-043: fixed Mulberry32 and root-XOR-salt avalanche, independent Encounter/Reward/World/Boss state, immutable uint32 seed and disposed-handle errors. GameplayScene owns creation after RUNNING and captured exact-owner cleanup; spawnEnemy consumes Encounter and Level-Up sampling consumes Reward. World/Boss have no current consumers. DevSnapshot exposes only numeric runSeed; no seed controls, service registry or new timers. Pure golden/independence tests, actual Scene tests and real Phaser fixed-seed/native restart checks cover the boundary.
 
 ## Common navigation queries
 

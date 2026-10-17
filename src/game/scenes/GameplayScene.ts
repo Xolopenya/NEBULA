@@ -1,5 +1,6 @@
 import type { DevTools } from '../devTools';
 import { RunLifecycle } from '../run/RunLifecycle';
+import { RunRandom } from '../run/RunRandom';
 import * as Phaser from 'phaser';
 import { segmentCircleHitTime } from '../combat/collision';
 import { prismSpread } from '../combat/prismSpread';
@@ -117,6 +118,7 @@ export class GameplayScene extends Phaser.Scene {
   private hud?: Phaser.GameObjects.Text;
   private playerExperience: ExperienceState = { level: 1, xp: 0 };
   private run?: RunLifecycle;
+  private runRandom?: RunRandom;
   private get isPlayerDead(): boolean { return this.run?.outcome === 'DEATH'; }
   private get isRunVictorious(): boolean { return this.run?.outcome === 'VICTORY'; }
   private victoryPresentation: Phaser.GameObjects.Text[] = [];
@@ -301,7 +303,6 @@ export class GameplayScene extends Phaser.Scene {
       loop: true,
       callback: () => { if (run.state === 'RUNNING') this.fireHostileProjectile(); },
     }));
-    if (import.meta.env.DEV) this.publishDevTools();
 
     const keyboard = this.input.keyboard;
     if (keyboard) {
@@ -332,7 +333,17 @@ export class GameplayScene extends Phaser.Scene {
       })
       .setOrigin(0.5)
       .setScrollFactor(0);
-    run.start();
+    if (!run.start()) throw new Error('Gameplay run failed to enter RUNNING');
+    const random = new RunRandom(crypto.getRandomValues(new Uint32Array(1))[0]);
+    this.runRandom = random;
+    const disposeRandom = () => {
+      random.dispose();
+      this.events.off(Phaser.Scenes.Events.SHUTDOWN, disposeRandom);
+      this.events.off(Phaser.Scenes.Events.DESTROY, disposeRandom);
+    };
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, disposeRandom);
+    this.events.once(Phaser.Scenes.Events.DESTROY, disposeRandom);
+    if (import.meta.env.DEV) this.publishDevTools();
   }
 
   private updateHud(): void {
@@ -458,9 +469,10 @@ export class GameplayScene extends Phaser.Scene {
     // Keep canonical pool entries so later slots can exclude by identity.
     const focusedChoice = focused && ordinaryPool.find(option =>
       option.kind !== 'passive' && option.kind === focused.kind && option.upgrade === focused.upgrade);
-    const first = focusedChoice ?? selectChoices(ordinaryPool, 1)[0];
+    const reward = this.runRandom!.reward.next;
+    const first = focusedChoice ?? selectChoices(ordinaryPool, 1, reward)[0];
     if (focused) this.focusCursors[focused.kind] = focused.nextCursor;
-    const second = selectChoices(ordinaryPool.filter(option => option.kind === 'passive' && option !== first), 1)[0];
+    const second = selectChoices(ordinaryPool.filter(option => option.kind === 'passive' && option !== first), 1, reward)[0];
     // Eligibility belongs to this presentation; completing a prerequisite only affects the next one.
     const prismEligible = canEvolvePrismLaser(this.laserRanks, this.moduleLevels.combat, this.prismEvolved);
     const clusterEligible = canEvolveClusterMissile(this.missileRanks, this.moduleLevels.spatial, this.clusterEvolved);
@@ -468,7 +480,7 @@ export class GameplayScene extends Phaser.Scene {
     const evolution = selectEvolutionOffer(prismEligible, clusterEligible, twinEligible, this.evolutionOfferCursor);
     this.evolutionOfferCursor = evolution.nextCursor;
     const third: LevelUpChoice = evolution.offered ? { kind: evolution.offered }
-      : selectChoices(ordinaryPool.filter(option => option !== first && option !== second), 1)[0];
+      : selectChoices(ordinaryPool.filter(option => option !== first && option !== second), 1, reward)[0];
     const choices: LevelUpChoice[] = [first, second, third];
     choices.forEach((option, index) => {
       const choice = this.add.text(this.scale.width / 2, this.scale.height / 2 - 40 + index * 110,
@@ -1056,6 +1068,7 @@ export class GameplayScene extends Phaser.Scene {
         if (!valid) return null;
         const boss = activeWarden();
         return {
+          runSeed: this.runRandom!.runSeed,
           isPlayerDead: this.isPlayerDead, isRunVictorious: this.isRunVictorious,
           isLevelUpPaused: this.isLevelUpPaused, godMode: this.godMode,
           playerHealth: this.playerHealth,
@@ -1119,13 +1132,14 @@ export class GameplayScene extends Phaser.Scene {
     const margin = spawnBoss ? Math.max(this.enemyMargin, 40) : this.enemyMargin;
 
     const view = this.cameras.main.worldView;
-    const side = Phaser.Math.Between(0, 3);
+    const encounter = this.runRandom!.encounter.next;
+    const side = Math.floor(encounter() * 4);
     // One enemy width beyond a camera edge, then keep the whole polygon in the arena.
     let x = side < 2
       ? (side === 0 ? view.left - 48 : view.right + 48)
-      : Phaser.Math.FloatBetween(view.left, view.right);
+      : view.left + encounter() * (view.right - view.left);
     let y = side < 2
-      ? Phaser.Math.FloatBetween(view.top, view.bottom)
+      ? view.top + encounter() * (view.bottom - view.top)
       : (side === 2 ? view.top - 48 : view.bottom + 48);
     x = Phaser.Math.Clamp(x, margin, this.arenaWidth - margin);
     y = Phaser.Math.Clamp(y, margin, this.arenaHeight - margin);

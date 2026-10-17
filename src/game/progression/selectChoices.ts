@@ -1,5 +1,5 @@
 /** Select distinct pool entries without replacement. Random must return [0, 1). */
-export function selectChoices<T>(pool: readonly T[], count: number, random: () => number = Math.random): T[] {
+export function selectChoices<T>(pool: readonly T[], count: number, random: () => number): T[] {
   const remaining = [...new Set(pool)];
   if (!Number.isInteger(count) || count < 0 || count > remaining.length) {
     throw new RangeError('Choice count must fit the distinct pool');

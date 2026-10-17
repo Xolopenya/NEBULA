@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { selectChoices } from './selectChoices';
 
 const pool = ['power', 'fireRate', 'speed', 'hull', 'thruster', 'collector', 'combat'] as const;
@@ -24,14 +24,16 @@ describe('selectChoices', () => {
   });
 
   it('supports empty and full selections', () => {
-    expect(selectChoices(pool, 0)).toEqual([]);
+    const random = vi.fn(() => 0);
+    expect(selectChoices(pool, 0, random)).toEqual([]);
+    expect(random).not.toHaveBeenCalled();
     expect(selectChoices(pool, pool.length, () => 0)).toEqual(pool);
   });
 
   it('rejects impossible counts and does not repeat duplicate pool entries', () => {
-    for (const count of [-1, 1.5, 8]) expect(() => selectChoices(pool, count)).toThrow(RangeError);
+    for (const count of [-1, 1.5, 8]) expect(() => selectChoices(pool, count, () => 0)).toThrow(RangeError);
     expect(selectChoices(['a', 'a', 'b'], 2, () => 0)).toEqual(['a', 'b']);
-    expect(() => selectChoices(['a', 'a'], 2)).toThrow(RangeError);
+    expect(() => selectChoices(['a', 'a'], 2, () => 0)).toThrow(RangeError);
   });
 
   it('rejects random values outside the documented range', () => {

@@ -1,4 +1,5 @@
 export type DevSnapshot = {
+  runSeed: number;
   isPlayerDead: boolean;
   isRunVictorious: boolean;
   isLevelUpPaused: boolean;

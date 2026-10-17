@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { GameplayScene } from './GameplayScene';
 import { RunLifecycle } from '../run/RunLifecycle';
+import { RunRandom } from '../run/RunRandom';
 
 function visual(x = 0, y = 0) {
   const callbacks = new Map<string, () => void>();
@@ -18,7 +19,8 @@ function visual(x = 0, y = 0) {
 }
 vi.mock('phaser', () => ({
   Scene: class {},
-  Math: { Vector2: class { set() { return this; } }, Clamp: (n: number, a: number, b: number) => Math.max(a, Math.min(b, n)) },
+  Math: { Vector2: class { set() { return this; } }, Clamp: (n: number, a: number, b: number) => Math.max(a, Math.min(b, n)),
+    Distance: { Between: (x: number, y: number, a: number, b: number) => Math.hypot(x - a, y - b) } },
   Scenes: { Events: { SHUTDOWN: 'shutdown', DESTROY: 'destroy' } },
 }));
 
@@ -30,6 +32,8 @@ function fixture() {
   run.start();
   Object.assign(scene, {
     run,
+    runRandom: new RunRandom(0),
+    cameras: { main: { worldView: { left: 1440, right: 3360, top: 810, bottom: 1890 } } },
     player: visual(2400, 1350), scale: { width: 1920, height: 1080 },
     add: {
       text: (_x: number, _y: number, text: string) => {
@@ -348,6 +352,8 @@ describe('GAME-042 real Scene terminal integration', () => {
     Object.assign(scene.add, { graphics: () => ({ fillStyle() {}, fillCircle() {}, lineStyle() {}, strokeRect() {} }) });
     scene.create();
     const old = scene['run']!;
+    const oldRandom = scene['runRandom']!;
+    const oldStream = oldRandom.encounter;
     const oldApi = window.__NEBULA_DEV__!;
     expect([old.state, old.outcome]).toEqual(['RUNNING', null]);
     expect([scene['drone']!.x, scene['drone']!.y]).toEqual([scene['player']!.x + 110, scene['player']!.y]);
@@ -356,19 +362,27 @@ describe('GAME-042 real Scene terminal integration', () => {
     const timers = [...scene['gameplayTimers']];
     const callbacks = timers.map(t => t.callback);
     shutdown();
+    expect(() => oldStream.next()).toThrow('disposed RunRandom');
     expect(old.state).toBe('DISPOSED');
     expect(old.start()).toBe(false);
     expect(old.tryEnterTerminal('VICTORY')).toBe(false);
     scene.create();
     const fresh = scene['run']!;
+    const freshRandom = scene['runRandom']!;
+    expect(freshRandom).not.toBe(oldRandom);
+    const encounter = vi.spyOn(freshRandom.encounter, 'next');
+    const reward = vi.spyOn(freshRandom.reward, 'next');
     expect(fresh).not.toBe(old);
     expect([fresh.state, fresh.outcome]).toEqual(['RUNNING', null]);
     expect(window.__NEBULA_DEV__).not.toBe(oldApi);
     expect(oldApi.snapshot()).toBeNull();
     expect(scene['gameplayTimers']).toHaveLength(5);
     expect(scene['gameplayTimers'].every(t => !timers.includes(t))).toBe(true);
-    lifecycleCallbacks[0]();
+    for (const callback of lifecycleCallbacks.slice(0, 3)) callback();
     for (const callback of callbacks) callback();
+    expect(encounter).not.toHaveBeenCalled();
+    expect(reward).not.toHaveBeenCalled();
+    expect(() => freshRandom.world.next()).not.toThrow();
     expect(scene['enemies']).toHaveLength(1);
     expect(scene['projectiles']).toHaveLength(0);
     expect(fresh.state).toBe('RUNNING');
@@ -376,5 +390,161 @@ describe('GAME-042 real Scene terminal integration', () => {
     scene['damagePlayer'](100);
     retry.emit('pointerdown');
     expect(restart).not.toHaveBeenCalled();
+  });
+});
+
+function allowCreate(scene: GameplayScene) {
+  Object.assign(scene, {
+    cameras: { main: { setBackgroundColor() {}, setBounds() {}, startFollow() {}, centerOn() {} } },
+    input: {}, time: { addEvent: (config: object) => ({ ...config, elapsed: 0 }) },
+  });
+  Object.assign(scene.add, { graphics: () => ({ fillStyle() {}, fillCircle() {}, lineStyle() {}, strokeRect() {} }) });
+}
+const streams = ['encounter', 'reward', 'world', 'boss'] as const;
+function spyStreams(scene: GameplayScene) {
+  return streams.map(name => vi.spyOn(scene['runRandom']![name], 'next'));
+}
+function offer(scene: GameplayScene) {
+  return scene['levelUpPresentation'].slice(1).map(text => text.text);
+}
+
+describe('Scene run-scoped randomness production boundaries', () => {
+  it('creates crypto entropy only after successful RUNNING and five timers, before DEV publication', () => {
+    const { scene } = fixture(); allowCreate(scene);
+    const oldApi = window.__NEBULA_DEV__;
+    const entropy = vi.spyOn(crypto, 'getRandomValues').mockImplementation(array => {
+      expect(scene['run']!.state).toBe('RUNNING');
+      expect(scene['gameplayTimers']).toHaveLength(5);
+      expect(window.__NEBULA_DEV__).toBe(oldApi);
+      (array as Uint32Array)[0] = 0xffffffff;
+      return array;
+    });
+    try {
+      scene.create();
+      expect(entropy).toHaveBeenCalledTimes(1);
+      expect(window.__NEBULA_DEV__!.snapshot()!.runSeed).toBe(0xffffffff);
+    } finally { entropy.mockRestore(); }
+  });
+  it('throws without entropy/publication when lifecycle start unexpectedly fails', () => {
+    const { scene, api } = fixture(); allowCreate(scene);
+    const start = vi.spyOn(RunLifecycle.prototype, 'start').mockReturnValue(false);
+    const entropy = vi.spyOn(crypto, 'getRandomValues');
+    try {
+      expect(() => scene.create()).toThrow('failed to enter RUNNING');
+      expect(entropy).not.toHaveBeenCalled();
+      expect(window.__NEBULA_DEV__).toBe(api);
+    } finally { start.mockRestore(); entropy.mockRestore(); }
+  });
+  it('fixed seed pins all four side mappings and coordinates through actual spawnEnemy', () => {
+    const a = fixture().scene, b = fixture().scene;
+    for (let i = 0; i < 100; i++) a['runRandom']!.reward.next();
+    const draw = vi.spyOn(a['runRandom']!.encounter, 'next');
+    for (let i = 0; i < 4; i++) { a['spawnEnemy'](); b['spawnEnemy'](); }
+    const placements = (s: GameplayScene) => s['enemies'].map(e => [e.visual.x, e.visual.y, e.archetype]);
+    expect(placements(a)).toEqual([
+      [2121.9062224030495, 762, 'chaser'], [3408, 1083.566029239446, 'chaser'],
+      [1392, 1410.6810470949858, 'chaser'], [3342.1704053878784, 1938, 'shooter'],
+    ]);
+    expect(placements(a)).toEqual(placements(b));
+    expect(draw).toHaveBeenCalledTimes(8);
+    expect(a['successfulTimedSpawns']).toBe(4);
+  });
+  it.each(['cap', 'pause', 'PREPARING', 'TERMINAL', 'DISPOSED', 'no player', 'Warden'])('%s rejects timed spawn with zero draws/count mutation', guard => {
+    const { scene } = fixture();
+    if (guard === 'cap') for (let i = 0; i < 10; i++) scene['createEnemy'](100, 100, 'chaser');
+    if (guard === 'pause') scene['isLevelUpPaused'] = true;
+    if (guard === 'PREPARING') scene['run'] = new RunLifecycle();
+    if (guard === 'TERMINAL') scene['run']!.tryEnterTerminal('VICTORY');
+    if (guard === 'DISPOSED') scene['run']!.dispose();
+    if (guard === 'no player') scene['player'] = undefined;
+    if (guard === 'Warden') scene['createEnemy'](100, 100, 'boss');
+    const count = scene['enemies'].length, draws = spyStreams(scene);
+    scene['spawnEnemy']();
+    expect(scene['enemies']).toHaveLength(count);
+    expect(scene['successfulTimedSpawns']).toBe(0);
+    for (const draw of draws) expect(draw).not.toHaveBeenCalled();
+  });
+  it('close candidate falls back without a third draw, preserves normal/Warden margins and schedule30', () => {
+    const { scene } = fixture();
+    Object.assign(scene.cameras.main, { worldView: { left: 2380, right: 2420, top: 1330, bottom: 1370 } });
+    const draw = vi.spyOn(scene['runRandom']!.encounter, 'next');
+    const schedule = [];
+    for (let i = 1; i <= 30; i++) {
+      scene['enemies'] = []; scene['spawnEnemy']();
+      const e = scene['enemies'][0];
+      schedule.push([e.archetype, e.isElite]);
+      expect([e.visual.x, e.visual.y]).toEqual(i === 30 ? [40, 40] : [25, 25]);
+    }
+    expect(schedule.slice(0, 6).map(e => e[0])).toEqual(['chaser', 'chaser', 'chaser', 'shooter', 'chaser', 'tank']);
+    expect([schedule[5], schedule[11], schedule[17], schedule[23], schedule[29]])
+      .toEqual([['tank', false], ['tank', true], ['tank', false], ['tank', true], ['boss', false]]);
+    expect(scene['successfulTimedSpawns']).toBe(30);
+    expect(scene['bossSpawned']).toBe(true);
+    expect(draw).toHaveBeenCalledTimes(60);
+    scene['spawnEnemy'](); expect(draw).toHaveBeenCalledTimes(60);
+  });
+  it('clamps accepted normal and Warden placements at their existing arena margins', () => {
+    const { scene } = fixture();
+    Object.assign(scene.cameras.main, { worldView: { left: -200, right: -100, top: -200, bottom: -100 } });
+    scene['spawnEnemy']();
+    expect([scene['enemies'][0].visual.x, scene['enemies'][0].visual.y]).toEqual([25, 25]);
+    scene['enemies'] = []; scene['successfulTimedSpawns'] = 29; scene['spawnEnemy']();
+    expect([scene['enemies'][0].visual.x, scene['enemies'][0].visual.y]).toEqual([40, 40]);
+  });
+  it('pins consecutive real offers and isolates Reward from Encounter/snapshot/duplicate/accepted/stale callbacks', () => {
+    const a = fixture(), b = fixture();
+    for (let i = 0; i < 100; i++) a.scene['runRandom']!.encounter.next();
+    const reward = vi.spyOn(a.scene['runRandom']!.reward, 'next');
+    const golden = [
+      ['Laser Power — +1 damage', 'Passive: Combat Processor Lv. 1\n+0.25x player weapon damage', 'Laser Projectile Speed — +200 px/s'],
+      ['Laser Fire Rate — -50 ms (min 100 ms)', 'Passive: Combat Processor Lv. 1\n+0.25x player weapon damage', 'Laser Power — +1 damage'],
+      ['Laser Projectile Speed — +200 px/s', 'Passive: Replication Matrix Lv. 1\n+1 Drone bolt radius', 'Laser Fire Rate — -50 ms (min 100 ms)'],
+    ];
+    for (let i = 0; i < golden.length; i++) {
+      expect(a.api.forceLevelUp()).toBe(true); expect(b.api.forceLevelUp()).toBe(true);
+      expect(offer(a.scene)).toEqual(golden[i]); expect(offer(a.scene)).toEqual(offer(b.scene));
+      const before = reward.mock.calls.length;
+      for (let n = 0; n < 10; n++) a.api.snapshot();
+      expect(a.api.forceLevelUp()).toBe(false); a.scene['enterLevelUpPause']();
+      expect(offer(a.scene)).toEqual(golden[i]);
+      const choice = a.scene['levelUpPresentation'][1];
+      choice.emit('pointerdown'); b.scene['levelUpPresentation'][1].emit('pointerdown');
+      a.scene['acceptLevelUpChoice'](choice, { kind: 'laser', upgrade: 'power' });
+      expect(reward).toHaveBeenCalledTimes(before);
+    }
+    expect(reward).toHaveBeenCalledTimes(6);
+  });
+  it.each([false, true])('fully mastered fallback Slot1 uses one draw; eligible evolution=%s removes Slot3 draw', evolution => {
+    const { scene, api } = fixture();
+    scene['laserRanks'] = { power: 2, fireRate: 2, speed: 2 };
+    scene['missileRanks'] = { warheadPower: 2, propulsion: 2, blastExpansion: 2 };
+    scene['droneRanks'] = { boltPower: 2, firingSystem: 2, boltPropulsion: 2 };
+    if (evolution) scene['moduleLevels'].combat = 1;
+    const draw = vi.spyOn(scene['runRandom']!.reward, 'next'); api.forceLevelUp();
+    expect(draw).toHaveBeenCalledTimes(evolution ? 2 : 3);
+    expect(new Set(offer(scene)).size).toBe(3);
+    if (evolution) expect(offer(scene)[2]).toContain('EVOLVE: Prism Laser');
+  });
+  it('deterministic focus plus guaranteed evolution consumes only passive Slot2', () => {
+    const { scene, api } = fixture();
+    scene['laserRanks'] = { power: 2, fireRate: 2, speed: 2 }; scene['moduleLevels'].combat = 1;
+    const draw = vi.spyOn(scene['runRandom']!.reward, 'next'); api.forceLevelUp();
+    expect(draw).toHaveBeenCalledTimes(1); expect(offer(scene)[2]).toContain('EVOLVE: Prism Laser');
+  });
+  it('snapshot seed is detached/stable with zero draws; World/Boss stay dormant through actual Warden/Level-Up/terminal paths', () => {
+    const { scene, api } = fixture(); const draws = spyStreams(scene);
+    const snapshot = api.snapshot()!; expect(snapshot.runSeed).toBe(0); snapshot.runSeed = 123;
+    expect(api.snapshot()!.runSeed).toBe(0);
+    expect(Object.keys(api)).toEqual(['snapshot', 'forceLevelUp', 'spawnWarden', 'setWardenHealth', 'setGodMode']);
+    expect(Object.values(api.snapshot()!).every(v => typeof v !== 'function')).toBe(true);
+    api.spawnWarden(); api.setWardenHealth(30); scene['fireHostileProjectile']();
+    scene['damagePlayer'](1); scene['updateHud']();
+    for (const draw of draws) expect(draw).not.toHaveBeenCalled();
+    api.forceLevelUp(); scene['levelUpPresentation'][1].emit('pointerdown');
+    const before = draws.map(draw => draw.mock.calls.length);
+    scene['killEnemy'](scene['enemies'].find(e => e.archetype === 'boss')!);
+    scene['enterRunVictory'](); scene['spawnEnemy'](); scene['enterLevelUpPause'](); api.snapshot();
+    expect(draws.map(draw => draw.mock.calls.length)).toEqual(before);
+    expect(draws[2]).not.toHaveBeenCalled(); expect(draws[3]).not.toHaveBeenCalled();
   });
 });

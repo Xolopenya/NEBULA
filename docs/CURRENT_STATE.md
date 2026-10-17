@@ -14,7 +14,7 @@ Do not place future plans or speculative features here.
 
 Current phase:
 
-FIRST PLAYABLE CORE LOOP COMPLETE / GAME-042 COMPLETE
+FIRST PLAYABLE CORE LOOP COMPLETE / GAME-043 COMPLETE
 
 The project has a working browser application, development toolchain and placeholder gameplay scene.
 
@@ -237,7 +237,7 @@ This is intentional.
 In Vite development runtime, the current GameplayScene publishes `window.__NEBULA_DEV__`
 with exactly snapshot(), forceLevelUp(), spawnWarden(), setWardenHealth(health) and
 setGodMode(enabled). Production preview boots without this property.
-snapshot() returns detached plain terminal/God Mode, HP/protection, nested level/XP/threshold,
+snapshot() returns detached numeric runSeed, plain terminal/God Mode, HP/protection, nested level/XP/threshold,
 Boss flags/current Warden HP/derived phase, timed-spawn count, enemy count and actual
 owned TimerEvent count. It changes no gameplay state or offers.
 
@@ -271,7 +271,8 @@ initialization, then starts it at the end. The authority has PREPARING, RUNNING,
 and DISPOSED states and read-only state/outcome; start succeeds once, terminal requests
 are accepted only from RUNNING, and the first DEATH/VICTORY is immutable through disposal.
 Idempotent dispose cannot revive the authority or clear its outcome.
-No PAUSED, POST_RUN, RNG, new clock or later domain migration is implemented.
+No PAUSED, POST_RUN, new clock or later domain migration is implemented. RNG ownership is
+separate from RunLifecycle as described below.
 
 isPlayerDead and isRunVictorious are derived getters, without separate mutable flags.
 Only an accepted terminal request produces the existing concrete Death/Victory overlay.
@@ -294,6 +295,38 @@ Level-Up freeze/resume, two Victory NEW RUN cycles, ordinary Death RETRY and non
 native restart. Each restart disposes old authority and creates independent RUNNING/null
 authority/API plus five fresh events. Production preview boots without DEV API.
 
+## Seeded run randomness
+
+GameplayScene creates a separate Phaser-free RunRandom only after successful run.start(),
+using crypto.getRandomValues(new Uint32Array(1)) for an immutable uint32 runSeed (zero valid).
+The owner exposes exactly four independent streams: encounter, reward, world and boss.
+Each uses Mulberry32 after a fixed root-XOR-salt avalanche; literal golden tests pin the
+algorithm/derivation for seeds 0 and 123456789. Invalid explicit seeds are rejected.
+
+Timed spawn placement consumes exactly two Encounter draws after its existing guards:
+side0/1/2/3 = left/right/top/bottom, then that edge's varying coordinate. Camera ranges,
+48px origin offset, margins25/40, distance600 and deterministic opposite-corner fallback
+are preserved. Blocked spawns and DEV spawnWarden consume none; schedules/counts are unchanged.
+Level-Up passes Reward explicitly into all three selectChoices sampling sites. Each sampled
+slot consumes one draw; focused/evolution decisions consume none. Ordinary focused offers
+use two; mastered fallback adds one and guaranteed evolution removes one. Stable presentation,
+snapshot, duplicate/stale callbacks and acceptance consume no further draws.
+World and Boss remain dormant: stars, Warden phases/bursts and DEV placement are deterministic.
+
+Same seed, code/content and relevant state/decision history reproduce procedural decisions;
+different inputs, timing or physics are not a replay guarantee. There is no player seed control.
+DEV snapshot adds only detached runSeed; its five commands remain unchanged and absent in production.
+Each native create owns a fresh RNG identity; entropy may numerically repeat. Captured exact-owner
+shutdown/destroy cleanup invalidates all old stream handles, which throw on direct stale draws.
+Existing owning-lifecycle guards keep stale callbacks from drawing or affecting a fresh run.
+No timers were added; the same five gameplay events remain.
+
+Tracked tests and real Chrome/Phaser checks verify fixed-seed spawn/offer sequences across
+independent setups, cross-stream independence, actual Clock spawning and real choice resume.
+Two Victory NEW RUN cycles, one Death RETRY and additional nonterminal/Missile/Cluster native
+restarts verify disposed old streams, fresh owners/APIs/five events and inert old callbacks.
+Production canvas boots without DEV API or seed controls; no new runtime errors were observed.
+
 ## Assets
 
 No production game assets are currently integrated.
@@ -308,7 +341,7 @@ Gameplay prototypes will initially use placeholders and simple geometry.
 
 Nine unit tests cover collision.ts, eight cover progression/experience.ts, six cover player/dash.ts timing/expiry partitions, seven cover enemies/shooterMovement.ts band rules, and six cover progression/selectChoices.ts size, distinctness, membership, nonmutation, controlled randomness, repeated offers and input boundaries.
 
-Eight pure Prism eligibility cases, seven pure spread cases and seventeen focused-upgrade cases also pass, for 185 tracked tests across eighteen files, including five Replication radius cases, six Spatial radius cases, eight Cluster eligibility cases, six Cluster geometry cases, eight Twin eligibility cases and twenty-four evolution-offer cases. Fourteen Warden schedule/phase/burst cases cover spawn30, HP60/31/30/1/0, normalized world-angle bursts and deterministic independent outputs. Seven Elite schedule cases cover Tank6/12/18/24, non-Tanks and deterministic input stability. Real-browser scene validation covers rank caps, next-pause offers, volley/snapshot behavior and two native RETRY cycles restoring five gameplay timers.
+Eight pure Prism eligibility cases, seven pure spread cases and seventeen focused-upgrade cases also pass, for 223 tracked tests across nineteen files. All 185 previous cases remain, plus 21 pure RunRandom and 17 Scene RNG cases. Coverage includes five Replication radius cases, six Spatial radius cases, eight Cluster eligibility cases, six Cluster geometry cases, eight Twin eligibility cases and twenty-four evolution-offer cases. Fourteen Warden schedule/phase/burst cases cover spawn30, HP60/31/30/1/0, normalized world-angle bursts and deterministic independent outputs. Seven Elite schedule cases cover Tank6/12/18/24, non-Tanks and deterministic input stability. Real-browser scene validation covers rank caps, next-pause offers, volley/snapshot behavior and two native RETRY cycles restoring five gameplay timers.
 
 Vitest is installed and configured.
 
@@ -362,7 +395,7 @@ These should only be introduced when real project requirements justify them.
 
 The placeholder arena, bounded desktop movement, camera follow, repeated enemy spawning/chase, nearest-enemy targeting and Laser projectile impacts with enemy damage/death are implemented and browser-verified.
 
-GAME-001 through GAME-039 and GAME-042 are complete. GAME-040/041 are SUPERSEDED; GAME-043+ remain BACKLOG. GATE A remains incomplete.
+GAME-001 through GAME-039 and GAME-042/043 are complete. GAME-040/041 are SUPERSEDED; GAME-044+ remain BACKLOG. GATE A remains incomplete.
 
 ---
 

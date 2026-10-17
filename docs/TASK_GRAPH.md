@@ -547,14 +547,14 @@ Production preview boots with DEV API absent. Known favicon404 and Vite bundle-s
 no new pageerrors observed.
 
 CURRENT_STATE and real PROJECT_GRAPH ownership are updated. DESIGN-005/GAME-039 stay DONE,
-GAME-040/041 SUPERSEDED; GAME-043 READY; GAME-044+ BACKLOG. GATE A remains incomplete. Explicit staging
+GAME-040/041 SUPERSEDED; GAME-043 DONE; GAME-044+ BACKLOG. GATE A remains incomplete. Explicit staging
 and ignored .codex-review/GAME-042-review.txt follow AGENTS.md; no commit is created.
 
 #### GAME-043 — Seeded RNG Streams
 
-STATUS: READY
+STATUS: DONE
 
-**Dependencies:** GAME-042 DONE. Definition only; implementation requires its own task.
+**Dependencies:** GAME-042 DONE. Implemented and validated as a separate scoped task.
 Introduce deterministic run-scoped procedural randomness without a replay system or future
 Director/Reward/World/Boss architecture. RunLifecycle stays lifecycle/terminal/disposal only.
 GameplayScene composes a separate focused RunRandom (or equivalent) with immutable uint32
@@ -562,7 +562,7 @@ runSeed and exactly four explicit independent streams: Encounter, Reward, World,
 That owner holds their mutable PRNG states and invalidation; no global singleton, exposed
 string-keyed registry, arbitrary stream creation/forking or universal RunContext/service bag.
 
-**Current tracked-source randomness inventory**
+**Pre-implementation tracked-source randomness inventory (definition audit)**
 
 Audited all tracked src files at this definition's HEAD, including test files, for
 Math.random, Phaser.Math.Between/FloatBetween/RND, random/rng/shuffle/pick and helper
@@ -751,7 +751,27 @@ World Scheduler/events, BossController/Juggernaut, RunResult/RunReport, replay r
 daily seeds, seed entry/query/settings/reseed DEV command, save/meta/profile, arbitrary
 named/forkable RNG framework, service locator or new dependency. GATE A stays incomplete.
 
-**Definition validation and future documentation**
+**Implementation completion evidence**
+
+RunRandom.ts owns immutable uint32 seed and four independent concrete streams. Fixed
+Mulberry32 uses increment 0x6d2b79f5; root XOR salts 0x9e3779b9/0x243f6a88/0xb7e15162/0xdeadbeef
+for Encounter/Reward/World/Boss is avalanched with shifts 16/13/16 and Math.imul
+constants 0x85ebca6b/0xc2b2ae35. Literal all-stream goldens cover seeds 0 and 123456789.
+Crypto entropy is created only after successful RUNNING; captured exact-owner disposal
+invalidates retained handles. spawnEnemy uses two Encounter draws after guards and
+all three Level-Up sampling sites require Reward; World/Boss stay dormant.
+DevSnapshot adds detached runSeed with five unchanged commands and no player seed control.
+
+npm run check passes 223 tests/19 files, preserving all 185 previous tests. Source audit
+finds no production ambient Math.random or Phaser global random dependency. Real Chrome/
+Phaser checks pass normal DEV boot, actual Clock spawn, stable Level-Up/resume, equivalent
+fixed-seed spawn/offer sequences and cross-stream isolation. Two actual Victory NEW RUN
+cycles and one Death RETRY (plus nonterminal/Missile/Cluster native restarts) dispose old
+streams and retain fresh RNG/lifecycle/API/five events with inert stale callbacks.
+Production canvas boots with DEV API absent; only known favicon404 and build chunk-size
+warnings remain. GAME-044+ BACKLOG; GAME-040/041 SUPERSEDED; GATE A incomplete.
+
+**Definition validation and documentation (historical definition-only instructions)**
 
 Now change only TASK_GRAPH, GAME-043 BACKLOG→READY plus accurate roadmap introduction.
 Run npm run check and git diff --check, verify scope/statuses, explicitly stage only
