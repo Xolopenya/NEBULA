@@ -14,7 +14,7 @@ Do not place future plans or speculative features here.
 
 Current phase:
 
-FIRST PLAYABLE CORE LOOP COMPLETE / GAME-046 COMPLETE
+FIRST PLAYABLE CORE LOOP COMPLETE / GAME-047 COMPLETE
 
 The project has a working browser application, development toolchain and placeholder gameplay scene.
 
@@ -269,7 +269,7 @@ inert old captured API.
 Every create constructs one fresh Phaser-free PlayerBuild during PREPARING, before current
 HP/HUD initialization. Combat slots are exactly [LASER, MISSILE, COMBAT_DRONE]; Active is
 null and all six Core slots are null. All three prototype weapons remain active. Innate
-Dash remains outside Active; no equip API, Tags, Core catalog or Active runtime is added.
+Dash remains outside Active; no equip API, Core catalog or Active runtime is added.
 
 Exactly ten base/effective fields exist: hull5 HP, thrust300 px/s, reactorPower1,
 fireControl1, projectileVelocity1, projectileScale1, engineering1, shieldSystems1, impact1,
@@ -300,7 +300,8 @@ local Laser/Drone cadence choices reset only their own event. No-op/other stats/
 resume never reset cadence. The private bridge permits shared percentage changes only in
 RUNNING; exact current REWARD Hull/Thruster choices have their concrete guarded path.
 No public DEV mutation controls were added. snapshot.build contains detached slots,
-baseStats/runModifiers/effectiveStats; repeated reads draw0 and do not alter diagnostics.
+baseStats/runModifiers/effectiveStats plus Tags/identity as described below; repeated reads
+draw0 and do not alter diagnostics.
 
 Exact captured shutdown/destroy disposal makes old Build reads/mutations throw; fresh
 native restart restores slots/defaults/zero modifiers/full HP. Real Chrome pointer checks
@@ -309,6 +310,50 @@ scaled collisions, plus Prism/Cluster/Twin. Genuine BLUR, two Victory NEW RUN cy
 Death RETRY and paused nonterminal restart retain fresh Build/lifecycle/RNG/input/
 diagnostics/API and five fresh events, with inert old callbacks. Unmodified production
 preview retains keyboard/Dash/pause/current combat and omits DEV/debug UI.
+
+## Tags and canonical BuildSnapshot
+
+PlayerBuild owns exactly twelve Tag identities in immutable TAG_IDS order: PRECISION,
+RAPID_FIRE, CLOSE_COMBAT, PROJECTILES, EXPLOSIONS, DRONES, TECHNOLOGY, SHIELDS, CONTROL,
+MOBILITY, SUPPORT, SURVIVAL. TagPoints has exactly those twelve own numeric fields, initially0.
+There is no authored current-prototype mapping: occupied Combat slots, current weapon
+upgrades, all six passives and Prism/Cluster/Twin add no Tag points. All current production
+progression leaves Tags unchanged, including internally supplied nonzero test points.
+
+addTagPoints(tag,amount) adds nonnegative safe integers. It checks the existing live-Build
+invariant first, validates membership even for zero, and rejects invalid IDs/nonnumbers/
+NaN/infinities/negatives/fractions/unsafe amounts or overflowing totals with RangeError
+before mutation. Valid zero returns false; positive accepted amounts return true.
+Tag totals are authority; cached identity derives only after accepted positive additions.
+dominantTags contains every highest-positive-score tie; secondaryTags every next-distinct-
+positive-score tie. Arrays follow TAG_IDS order, independent of arrival order. With no
+positive points both arrays are empty; with only one positive tier secondary is empty.
+
+PlayerBuild.snapshot() now returns canonical BuildSnapshot with slots, baseStats,
+runModifiers, effectiveStats, tags and identity:{dominantTags,secondaryTags}.
+PlayerBuildReadModel is replaced. Existing narrow stat/slot getters remain. Every snapshot
+is deeply detached plain JSON data, including both identity arrays; old detached data
+remains usable after disposal. DevSnapshot exposes this only through existing nested build;
+the five commands remain unchanged and production has no DEV API or Tag debug UI.
+
+Tag mutation never recomputes EffectiveStats, changes HP/movement/attacks/cadence/rewards,
+draws from any of the four streams, records diagnostics or resets/adds a TimerEvent.
+Stat/flat/Analyzer mutations never change Tags or recompute identity. Reads derive nothing
+and have no side effects. Analyzer remains a separate numeric stat with no reward consumer.
+No tag-based stats, reward weighting, maturity score or difficulty coupling is implemented.
+Exactly five existing events remain. Tags use existing captured Build disposal; all disposed
+reads/mutations (including zero-point additions) throw. Native restart creates a fresh
+Build with twelve zeros/empty identity, existing slots/defaults/zero modifiers and fresh
+lifecycle/RNG/input/diagnostics/API/five events; old callbacks cannot reach new Tags.
+
+Real Chrome checks verify all18 current choices through browser pointer input with nonzero
+Tags unchanged, actual Prism/Cluster/Twin attacks and the exact DRONES3/TECHNOLOGY3/MOBILITY2/
+SURVIVAL1 identity, then SURVIVAL+3 pivot. Snapshot copies, invalid-add atomicity, unchanged
+stats/launches/five timer phases and zero RNG/diagnostic effects pass. Genuine browser BLUR,
+manual/reward pause, two Victory NEW RUN cycles, Death RETRY and paused nonterminal native
+restart preserve fresh ownership/zero Tags with disposed old reads/additions and inert
+saved callbacks. Additional Missile/Cluster native cycles pass. Unmodified production
+preview retains W/Space/Escape/current combat, omits DEV/debug UI and has no new pageerrors.
 
 ## Run diagnostics
 
@@ -458,7 +503,7 @@ Gameplay prototypes will initially use placeholders and simple geometry.
 
 Nine unit tests cover collision.ts, eight cover progression/experience.ts, six cover player/dash.ts timing/expiry partitions, seven cover enemies/shooterMovement.ts band rules, and six cover progression/selectChoices.ts size, distinctness, membership, nonmutation, controlled randomness, repeated offers and input boundaries.
 
-Eight pure Prism eligibility cases, seven pure spread cases and seventeen focused-upgrade cases also pass, for 367 tracked tests across twenty-two files. GAME-046 preserves all309 prior cases and adds34 pure PlayerBuild plus24 Scene cases (95 Scene cases total). GAME-045 preserves all 264 prior cases and adds 35 pure diagnostics plus 10 actual Scene integration cases. All 223 pre-GAME-044 cases remain, including 21 pure RunRandom and 17 Scene RNG cases; GAME-044 adds 11 lifecycle, 17 keyboard and 13 Scene integration cases. Coverage includes five Replication radius cases, six Spatial radius cases, eight Cluster eligibility cases, six Cluster geometry cases, eight Twin eligibility cases and twenty-four evolution-offer cases. Fourteen Warden schedule/phase/burst cases cover spawn30, HP60/31/30/1/0, normalized world-angle bursts and deterministic independent outputs. Seven Elite schedule cases cover Tank6/12/18/24, non-Tanks and deterministic input stability. Real-browser scene validation covers rank caps, next-pause offers, volley/snapshot behavior and two native RETRY cycles restoring five gameplay timers.
+Eight pure Prism eligibility cases, seven pure spread cases and seventeen focused-upgrade cases also pass, for 424 tracked tests across twenty-two files. GAME-047 preserves all367 prior cases and adds18 pure Tag/BuildSnapshot plus39 Scene cases (52 pure Build / 134 Scene total). GAME-046 preserves all309 prior cases and adds34 pure PlayerBuild plus24 Scene cases (95 Scene cases total). GAME-045 preserves all 264 prior cases and adds 35 pure diagnostics plus 10 actual Scene integration cases. All 223 pre-GAME-044 cases remain, including 21 pure RunRandom and 17 Scene RNG cases; GAME-044 adds 11 lifecycle, 17 keyboard and 13 Scene integration cases. Coverage includes five Replication radius cases, six Spatial radius cases, eight Cluster eligibility cases, six Cluster geometry cases, eight Twin eligibility cases and twenty-four evolution-offer cases. Fourteen Warden schedule/phase/burst cases cover spawn30, HP60/31/30/1/0, normalized world-angle bursts and deterministic independent outputs. Seven Elite schedule cases cover Tank6/12/18/24, non-Tanks and deterministic input stability. Real-browser scene validation covers rank caps, next-pause offers, volley/snapshot behavior and two native RETRY cycles restoring five gameplay timers.
 
 Vitest is installed and configured.
 
@@ -512,7 +557,7 @@ These should only be introduced when real project requirements justify them.
 
 The placeholder arena, bounded desktop movement, camera follow, repeated enemy spawning/chase, nearest-enemy targeting and Laser projectile impacts with enemy damage/death are implemented and browser-verified.
 
-GAME-001 through GAME-039 and GAME-042/043/044/045/046 are complete. GAME-040/041 are SUPERSEDED. GATE A PASSED — Runtime Foundation approved; GAME-047+ remain BACKLOG pending separate definition.
+GAME-001 through GAME-039 and GAME-042/043/044/045/046/047 are complete. GAME-040/041 are SUPERSEDED. GATE A PASSED — Runtime Foundation approved; GAME-048+ remain BACKLOG pending separate definition. GATE B remains unchanged / not passed.
 
 ---
 

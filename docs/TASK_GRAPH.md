@@ -339,7 +339,7 @@ Never reuse these IDs for unrelated tasks.
 
 ## Mechanical Vertical Slice roadmap
 
-GAME-042/043/044/045 are DONE; GAME-046 DONE; GAME-047 READY; GAME-048+ remain BACKLOG. Each row gives phase membership, exact dependencies and a
+GAME-042/043/044/045 are DONE; GAME-046 DONE; GAME-047 DONE; GAME-048+ remain BACKLOG. Each row gives phase membership, exact dependencies and a
 short capability; gates are review checkpoints, not automatic authorization.
 Dependency ranges are inclusive.
 
@@ -547,7 +547,7 @@ Production preview boots with DEV API absent. Known favicon404 and Vite bundle-s
 no new pageerrors observed.
 
 CURRENT_STATE and real PROJECT_GRAPH ownership are updated. DESIGN-005/GAME-039 stay DONE,
-GAME-040/041 SUPERSEDED; GAME-043 DONE; GAME-044 DONE; GAME-045 DONE; GAME-046 DONE; GAME-047 READY; GAME-048+ remain BACKLOG. GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 READY; GAME-048+ remain BACKLOG pending separate definition. Explicit staging
+GAME-040/041 SUPERSEDED; GAME-043 DONE; GAME-044 DONE; GAME-045 DONE; GAME-046 DONE; GAME-047 DONE; GAME-048+ remain BACKLOG. GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 DONE; GAME-048+ remain BACKLOG pending separate definition. Explicit staging
 and ignored .codex-review/GAME-042-review.txt follow AGENTS.md; no commit is created.
 
 #### GAME-043 — Seeded RNG Streams
@@ -749,7 +749,7 @@ Out of scope: GAME-044 Pause/Input, GAME-045 telemetry, GAME-046 Build, Encounte
 templates/pressure/portals/weights, full Reward Generator/Analyzer/pity/recent offers,
 World Scheduler/events, BossController/Juggernaut, RunResult/RunReport, replay recording,
 daily seeds, seed entry/query/settings/reseed DEV command, save/meta/profile, arbitrary
-named/forkable RNG framework, service locator or new dependency. GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 READY; GAME-048+ remain BACKLOG pending separate definition.
+named/forkable RNG framework, service locator or new dependency. GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 DONE; GAME-048+ remain BACKLOG pending separate definition.
 
 **Implementation completion evidence**
 
@@ -769,7 +769,7 @@ fixed-seed spawn/offer sequences and cross-stream isolation. Two actual Victory 
 cycles and one Death RETRY (plus nonterminal/Missile/Cluster native restarts) dispose old
 streams and retain fresh RNG/lifecycle/API/five events with inert stale callbacks.
 Production canvas boots with DEV API absent; only known favicon404 and build chunk-size
-warnings remain. GAME-044 DONE; GAME-045 DONE; GAME-046 DONE; GAME-047 READY; GAME-048+ remain BACKLOG; GAME-040/041 SUPERSEDED; GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 READY; GAME-048+ remain BACKLOG pending separate definition.
+warnings remain. GAME-044 DONE; GAME-045 DONE; GAME-046 DONE; GAME-047 DONE; GAME-048+ remain BACKLOG; GAME-040/041 SUPERSEDED; GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 DONE; GAME-048+ remain BACKLOG pending separate definition.
 
 **Definition validation and documentation (historical definition-only instructions)**
 
@@ -1090,7 +1090,7 @@ Missile/Cluster cycles pass: fresh authority/adapter/RNG/API, zero reasons, unpa
 five fresh events, old streams throw and saved stale callbacks draw zero on all fresh streams.
 Unmodified production preview passes keyboard/Space/Escape and 700ms rendered pause freeze
 without DEV API/debug controls. Only known favicon404 and Vite chunk-size warnings remain.
-GAME-042/043/044 DONE; GAME-040/041 SUPERSEDED; GAME-045 DONE; GAME-046 DONE; GAME-047 READY; GAME-048+ remain BACKLOG; GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 READY; GAME-048+ remain BACKLOG pending separate definition.
+GAME-042/043/044 DONE; GAME-040/041 SUPERSEDED; GAME-045 DONE; GAME-046 DONE; GAME-047 DONE; GAME-048+ remain BACKLOG; GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 DONE; GAME-048+ remain BACKLOG pending separate definition.
 
 #### GAME-045 — Telemetry & Diagnostics Foundation
 
@@ -1346,8 +1346,8 @@ inert stale owners/callbacks. Unmodified production preview verifies keyboard/Da
 DEV absence and local static-only network requests. HIDDEN/VISIBLE combinations remain
 separately identified synthetic tracked coverage; known favicon404/bundle-size warnings only.
 
-GAME-045 DONE; GAME-040/041 SUPERSEDED; GAME-046 DONE; GAME-047 READY; GAME-048+ remain BACKLOG.
-GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 READY; GAME-048+ remain BACKLOG pending separate definition. GAME-048+ are not unlocked.
+GAME-045 DONE; GAME-040/041 SUPERSEDED; GAME-046 DONE; GAME-047 DONE; GAME-048+ remain BACKLOG.
+GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 DONE; GAME-048+ remain BACKLOG pending separate definition. GAME-048+ are not unlocked.
 
 **GATE A — Runtime Foundation — PASSED**
 
@@ -1356,7 +1356,7 @@ GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 READY; GA
 | ID | Title | Depends on | Capability | Status |
 | --- | --- | --- | --- | --- |
 | GAME-046 | PlayerBuild / Slots / Effective Stats | GAME-042 | 3/1/6 build ownership and cached Effective Stats with explicit modifiers. | DONE |
-| GAME-047 | Tags & Build Snapshot | GAME-046 | Tag contributions, derived identity and detached BuildSnapshot. | READY |
+| GAME-047 | Tags & Build Snapshot | GAME-046 | Tag contributions, derived identity and detached BuildSnapshot. | DONE |
 | GAME-048 | Player Defense Runtime | GAME-046 | Authoritative Shield/Hull/protection and incoming-damage boundary. | BACKLOG |
 | GAME-049 | Combat Resolution & Launch Snapshots | GAME-046, GAME-048 | Attack/Hit/Damage resolution and immutable launch values. | BACKLOG |
 | GAME-050 | Enemy Definitions & Spawn Snapshots | GAME-049 | EnemyDefinition, scaling profiles and per-spawn runtime snapshots. | BACKLOG |
@@ -1374,7 +1374,7 @@ Implemented and verified against the acceptance contracts below.
 Establish one focused run-scoped PlayerBuild authority for 3 Combat / 1 Active / 6 Core
 slots, immutable Base Stats, unconditional Run Modifiers and cached Effective Stats.
 GameplayScene remains the composition root and current combat/progression/presentation owner.
-GAME-047 READY; GAME-048+ remain BACKLOG; no later runtime domain is implemented here.
+GAME-047 DONE; GAME-048+ remain BACKLOG; no later runtime domain is implemented here.
 
 **Pre-implementation tracked-source audit and migration inventory**
 
@@ -1725,19 +1725,19 @@ old reads/mutations/callbacks remain inert. Extra Missile/Cluster terminal cycle
 Unmodified production preview passes keyboard/Dash/pause/current combat and DEV absence.
 Known favicon404 and Vite bundle-size warnings only. CURRENT_STATE and PROJECT_GRAPH reflect
 actual implemented ownership; no dependencies changed. GATE A remains PASSED; GAME-046 DONE;
-GAME-047 READY; GAME-048+ remain BACKLOG. GATE B is not passed or altered by this implementation.
+GAME-047 DONE; GAME-048+ remain BACKLOG. GATE B is not passed or altered by this implementation.
 
 #### GAME-047 — Tags & Build Snapshot
 
-STATUS: READY
+STATUS: DONE
 
 **Goal, dependencies and definition boundary**
 
 Depends on GAME-046 DONE; preserve GAME-039/042/043/044/045/046 contracts and PASSED GATE A.
 Extend the existing Phaser-free PlayerBuild with twelve numeric Tag totals, derived build
 identity and one canonical detached BuildSnapshot. Tags describe the build in parallel to
-stats; they never supply combat multipliers. This is a definition only: no runtime/tests or
-other documentation change now. GAME-048+ remain BACKLOG; GATE B is unchanged / not passed.
+stats; they never supply combat multipliers. Implemented and verified against the contracts
+below. GAME-048+ remain BACKLOG; GATE B is unchanged / not passed.
 
 **Authoritative design and current source audit**
 
@@ -1959,7 +1959,7 @@ fake progression/gameplay algorithms. Type migration must preserve existing asse
    Vite >500kB bundle warning from new errors. Report tracked/internal/ordinary boot/actual
    native evidence separately; this definition makes no new runtime verification claim.
 
-**Scope, validation and documentation handoff**
+**Scope exclusions and historical definition/implementation handoff rules**
 
 No GAME-048 defense, GAME-049 Attack/Hit/Damage snapshots, EnemyDefinition/death migration,
 reward generation/Analyzer/pity, Director/maturity/difficulty, Core/Active catalogs or
@@ -1979,6 +1979,36 @@ Only successful separately authorized implementation and required tracked/native
 may move GAME-047 READY->DONE and update factual CURRENT_STATE/PROJECT_GRAPH exports/
 ownership/consumers. ARCHITECTURE normally stays unchanged. GAME-048+ remain BACKLOG and
 GATE B requires its actual phase prerequisites and review; GAME-047 alone cannot pass it.
+
+**GAME-047 implementation completion evidence**
+
+PlayerBuild now exports immutable canonical TAG_IDS and derived TagId, TagPoints,
+BuildIdentity and BuildSnapshot. Twelve integer totals start0, with no current prototype
+contribution source. addTagPoints asserts live first, validates ID even at0, rejects
+invalid amounts/overflow atomically, returns false for valid0 and true for accepted
+positive additions. Candidate totals and top-two distinct positive score tiers commit
+together; ties follow canonical order. Separate cached identity/stat derivation paths
+prevent cross-domain recomputation. snapshot() deeply copies all four existing fields
+plus tags/identity; DevSnapshot.build uses that canonical type, with no old alias or new
+command. GameplayScene runtime, lifecycle/input/RNG/diagnostics and five events are unchanged.
+No stat/Analyzer/reward/maturity/difficulty behavior or dependencies were added.
+
+npm run check passes424 tests/22 files, preserving all367 prior cases with18 pure and39
+Scene additions (52 pure Build /134 Scene total). Tracked coverage includes all18 current
+choice identities at both zero and nonzero Tags, exact RNG budgets, atomic validation,
+cache separation, copies, five real Clock events and captured old callback/disposal guards.
+Real Chrome confirms ordinary DEV zero baseline, exact internal nonzero identity/pivot,
+deep detachment, zero added draws/diagnostics/timer resets and unchanged launch values.
+All9 weapon upgrades, all6 passives and Prism/Cluster/Twin were accepted through actual
+browser pointer input without changing injected Tags; evolved attacks remain functional.
+Actual browser BLUR/manual/reward composition and two Victory NEW RUN cycles, Death RETRY
+and paused nonterminal native restart retain fresh Build/twelve0/empty identity, existing
+owners/API/five events and unpaused Clock; old direct additions (including0)/reads throw
+and saved callbacks remain inert. Additional Missile/Cluster native cycles pass.
+Unmodified production preview retains W/Space/Escape/current combat, no DEV API/debug UI
+and no new pageerrors. Known favicon404 and Vite bundle-size warning only. Factual
+CURRENT_STATE/PROJECT_GRAPH updated. GAME-047 DONE; GAME-048+ BACKLOG; GAME-040/041
+SUPERSEDED; GATE A PASSED; GATE B unchanged / not passed. No commit created.
 
 **GATE B — Modern Combat on Legacy Spawning** — review the preceding phase capabilities before its cutover/next proof.
 

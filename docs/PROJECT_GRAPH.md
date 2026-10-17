@@ -4,8 +4,8 @@
 
 - Project: NEBULA.
 - Milestone: First Playable / GAME-015 complete.
-- Source baseline HEAD: `8d487858f3ce9fd37e6f6906c38032f6acc5a294`.
-- This map reflects that source baseline plus the staged GAME-046 PlayerBuild ownership; current Scene retains combat/presentation and GAME-039 DEV wiring.
+- Source baseline HEAD: `0bb9a92fb0a4af2e86cc856dad3f8fad3c81fab7`.
+- This map reflects that source baseline plus the staged GAME-047 Tags/BuildSnapshot ownership; current Scene retains combat/presentation and GAME-039 DEV wiring.
 - Active task request defines task-specific requirements.
 - AGENTS.md defines repository policy.
 - TASK_GRAPH.md defines task scope, dependencies and status.
@@ -34,10 +34,10 @@ IDs are repository-relative paths; symbols use `path#export`.
 | `src/game/run/RunRandom.test.ts` | 21 pure seed/golden/range/independence/disposal cases |
 | `src/game/run/RunDiagnostics.ts` | Phaser-free run observation: seed identity, active elapsed, aggregates, bounded semantic timeline and exact-owner disposal |
 | `src/game/run/RunDiagnostics.test.ts` | 35 pure seed/lifetime/numeric/identity/atomicity/copy/eviction/terminal cases |
-| `src/game/player/PlayerBuild.ts` | Phaser-free run Build: exact3/1/6 slots, ten bases, explicit modifiers, validated effective cache and captured disposal |
-| `src/game/player/PlayerBuild.test.ts` | 34 pure slot/base/percentage/flat/Analyzer/copy/atomicity/lifetime cases |
+| `src/game/player/PlayerBuild.ts` | Phaser-free run Build: exact3/1/6 slots, ten bases/modifiers/effective cache, twelve Tag totals/derived identity, detached canonical snapshot and captured disposal |
+| `src/game/player/PlayerBuild.test.ts` | 52 pure slot/base/percentage/flat/Analyzer/Tag/identity/copy/atomicity/lifetime cases |
 | `src/game/devTools.ts` | DevSnapshot with numeric runSeed/runState/copied ordered pauseReasons and detached nested diagnostics/build; five-command DevTools types, no runtime registry |
-| `src/game/scenes/GameplayScene.devTools.test.ts` | 95 tracked Scene/DevTools/lifecycle/RNG/pause/input/diagnostics/Build cases, including installed Phaser Clock phase integration |
+| `src/game/scenes/GameplayScene.devTools.test.ts` | 134 tracked Scene/DevTools/lifecycle/RNG/pause/input/diagnostics/Build/Tag cases, including installed Phaser Clock phase integration |
 | `src/game/combat/collision.ts` | Pure numeric collision math |
 | `src/game/combat/collision.test.ts` | Tracked geometry tests |
 | `src/game/progression/experience.ts` | Pure XP threshold/award arithmetic and state type |
@@ -96,8 +96,13 @@ IDs are repository-relative paths; symbols use `path#export`.
 | `src/game/run/RunDiagnostics.ts#DiagnosticArchetype` | chaser/shooter/tank/boss; Elite valid only for tank |
 | `src/game/run/RunDiagnostics.ts#DiagnosticRecord` | Six semantic timeline variants, timestamped with active elapsed |
 | `src/game/run/RunDiagnostics.ts#RunDiagnosticsSnapshot` | Detached plain seed/elapsed/aggregates/timeline/evictions/terminal view |
-| `src/game/player/PlayerBuild.ts#PlayerBuild` | Owns fixed slots, immutable BaseStats, explicit RunModifiers and derived EffectiveStats; detached reads and disposed invariants |
-| `src/game/player/PlayerBuild.ts#PlayerBuildReadModel` | Slots/baseStats/runModifiers/effectiveStats only; no Tags or full GAME-047 BuildSnapshot |
+| `src/game/player/PlayerBuild.ts#PlayerBuild` | Owns fixed slots, immutable BaseStats, explicit RunModifiers, derived EffectiveStats, independent Tag totals/identity cache; detached reads and disposed invariants |
+| `src/game/player/PlayerBuild.ts#BuildSnapshot` | Canonical detached slots/baseStats/runModifiers/effectiveStats/tags/identity; replaces GAME-046 read model |
+| `src/game/player/PlayerBuild.ts#TAG_IDS` | Immutable canonical twelve-Tag tuple, shared by identity ordering and tests |
+| `src/game/player/PlayerBuild.ts#TagId` | Literal union derived from TAG_IDS; no arbitrary string identity |
+| `src/game/player/PlayerBuild.ts#TagPoints` | Exactly twelve nonnegative safe-integer numeric totals |
+| `src/game/player/PlayerBuild.ts#BuildIdentity` | Cached derived dominant/secondary positive score tiers, canonical ties |
+| `src/game/player/PlayerBuild.ts#PlayerBuild.addTagPoints` | Validated atomic permanent accumulation; no current production callers, stats/RNG/diagnostics/timer effects |
 | `src/game/player/PlayerBuild.ts#BaseStats` | Exact ten shared fields; PercentStatKey excludes Analyzer, CombatSystemId has only three current identities |
 | `src/game/combat/collision.ts#segmentCircleHitTime` | First segment-circle hit in [0,1], else Infinity |
 | `src/game/progression/experience.ts#ExperienceState` | Numeric level and XP toward next level |
@@ -151,7 +156,7 @@ Runtime labels below describe scene-owned concepts, not separate modules/classes
 | `src/game/scenes/GameplayScene.ts` | RECORDS | RunDiagnostics at accepted create/update/spawn/kill/damage/XP/reward/pause/terminal boundaries |
 | `src/game/devTools.ts` | IMPORTS_TYPE | `src/game/run/RunDiagnostics.ts#RunDiagnosticsSnapshot` |
 | `src/game/scenes/GameplayScene.ts` | CREATES | `src/game/player/PlayerBuild.ts#PlayerBuild` during PREPARING, before HP/HUD; exact captured disposal |
-| `src/game/devTools.ts` | IMPORTS_TYPE | `src/game/player/PlayerBuild.ts#PlayerBuildReadModel` for detached snapshot.build |
+| `src/game/devTools.ts` | IMPORTS_TYPE | `src/game/player/PlayerBuild.ts#BuildSnapshot` for detached snapshot.build |
 | `src/game/player/PlayerBuild.ts#PlayerBuild` | TESTED_BY | `src/game/player/PlayerBuild.test.ts` and actual Scene integration |
 | `src/game/run/RunDiagnostics.ts#RunDiagnostics` | TESTED_BY | `src/game/run/RunDiagnostics.test.ts` and actual Scene integration tests |
 | `src/game/progression/selectChoices.ts#selectChoices` | TESTED_BY | `src/game/progression/selectChoices.test.ts` |
@@ -302,7 +307,7 @@ detonation and cleanup → enterRunVictory → frozen gameplay / fixed result
 | TRACKED TESTS | eliteTank.test.ts → shouldSpawnEliteTank | Seven cases: Tank6/12/18/24, Chaser/Shooter12 exclusion, deterministic input stability |
 | TRACKED TESTS | shooterMovement.test.ts → shooterMovement | 7 tests: speed/diagonal, inclusive edges, retreat, large steps, coincident center, zero time, partitions |
 | TRACKED TESTS | RunDiagnostics.test.ts / GameplayScene.devTools.test.ts | 35 pure observer cases plus 10 Scene cases; total 309 across 21 files, preserving 264 prior tests |
-| TRACKED TESTS | PlayerBuild.test.ts / GameplayScene.devTools.test.ts | 34 pure Build +24 new Scene cases; total367 tests/22 files, all309 prior preserved |
+| TRACKED TESTS | PlayerBuild.test.ts / GameplayScene.devTools.test.ts | 52 pure Build /134 Scene total; GAME-047 adds18 pure +39 Scene, total424 tests/22 files, all367 prior preserved |
 | RUNTIME / MANUAL EVIDENCE | GameplayScene combat/death/restart | Browser smoke and ignored validation harnesses; not tracked Vitest coverage |
 
 Ignored harnesses are not graph nodes and do not run in npm run check.
@@ -374,7 +379,21 @@ level/HP mutation. R/F/V/S/E compose current firing values, C stays separate; Mi
 radius for consistent visual/collision/world exit. Shared FireControl resets only the three same
 player events; local cadence resets stay weapon-specific. snapshot.build is detached, reads do not
 alter RNG/diagnostics. Real pointer/modifier/collision/evolution/focus/native/production checks
-cover the boundary; Tags/defense/Attack architecture and later gameplay remain absent.
+cover the boundary; defense/Attack architecture and later gameplay remain absent.
+
+PlayerBuild TAG_IDS/TagId/TagPoints/BuildIdentity/BuildSnapshot/addTagPoints IMPLEMENT_TASK GAME-047.
+Twelve explicit stored totals start0; existing prototype slots/choices contribute nothing.
+Accepted positive additions validate before committing totals and cached top-two distinct
+positive score tiers, preserving canonical ties. Tag and EffectiveStats derivation paths
+are independent. snapshot() copies all existing fields plus tags/identity; devTools.ts now
+imports BuildSnapshot for DevSnapshot.build, and GameplayScene continues forwarding the
+same snapshot() call. No new Scene mutation/cleanup/timer code or Tag command was needed.
+All tracked addTagPoints callers are PlayerBuild.test.ts and GameplayScene.devTools.test.ts;
+internal ignored browser harnesses exercise the same real method without production controls.
+Pure tests, all18 actual pointer choices with nonzero Tags, real BLUR and native restart
+checks verify gameplay/stat/Analyzer/RNG/diagnostic/five-event isolation. Existing captured
+Build disposal invalidates Tag additions/reads; fresh native Build resets twelve0/empty
+identity. No maturity/difficulty/offer weighting or later domain behavior is implemented.
 
 ## Common navigation queries
 

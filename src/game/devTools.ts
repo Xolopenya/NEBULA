@@ -1,11 +1,11 @@
 import type { PauseReason, RunState } from './run/RunLifecycle';
 import type { RunDiagnosticsSnapshot } from './run/RunDiagnostics';
-import type { PlayerBuildReadModel } from './player/PlayerBuild';
+import type { BuildSnapshot } from './player/PlayerBuild';
 
 export type DevSnapshot = {
   runSeed: number;
   diagnostics: RunDiagnosticsSnapshot;
-  build: PlayerBuildReadModel;
+  build: BuildSnapshot;
   runState: RunState;
   pauseReasons: PauseReason[];
   isPlayerDead: boolean;

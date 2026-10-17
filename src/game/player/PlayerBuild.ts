@@ -18,8 +18,14 @@ export type RunModifiers = {
   prototypeHullFlat: number;
   prototypeThrustFlat: number;
 };
-export type PlayerBuildReadModel = {
+export const TAG_IDS = Object.freeze(['PRECISION', 'RAPID_FIRE', 'CLOSE_COMBAT', 'PROJECTILES',
+  'EXPLOSIONS', 'DRONES', 'TECHNOLOGY', 'SHIELDS', 'CONTROL', 'MOBILITY', 'SUPPORT', 'SURVIVAL'] as const);
+export type TagId = typeof TAG_IDS[number];
+export type TagPoints = Record<TagId, number>;
+export type BuildIdentity = { dominantTags: TagId[]; secondaryTags: TagId[] };
+export type BuildSnapshot = {
   slots: BuildSlots; baseStats: BaseStats; runModifiers: RunModifiers; effectiveStats: EffectiveStats;
+  tags: TagPoints; identity: BuildIdentity;
 };
 export const DEFAULT_BASE_STATS: Readonly<BaseStats> = Object.freeze({
   hull: 5, thrust: 300, reactorPower: 1, fireControl: 1, projectileVelocity: 1,
@@ -57,6 +63,9 @@ export class PlayerBuild {
     projectileVelocity: 0, projectileScale: 0, engineering: 0, shieldSystems: 0, impact: 0 },
     combatAnalyzerLevels: 0, prototypeHullFlat: 0, prototypeThrustFlat: 0 };
   #effective: EffectiveStats;
+  #tags: TagPoints = { PRECISION: 0, RAPID_FIRE: 0, CLOSE_COMBAT: 0, PROJECTILES: 0,
+    EXPLOSIONS: 0, DRONES: 0, TECHNOLOGY: 0, SHIELDS: 0, CONTROL: 0, MOBILITY: 0, SUPPORT: 0, SURVIVAL: 0 };
+  #identity: BuildIdentity = { dominantTags: [], secondaryTags: [] };
   #disposed = false;
 
   constructor(baseStats: Readonly<BaseStats> = DEFAULT_BASE_STATS) {
@@ -74,10 +83,27 @@ export class PlayerBuild {
   getBaseStats(): BaseStats { this.assertLive(); return { ...this.#base }; }
   getRunModifiers(): RunModifiers { this.assertLive(); return structuredClone(this.#modifiers); }
   getEffectiveStats(): EffectiveStats { this.assertLive(); return { ...this.#effective }; }
-  snapshot(): PlayerBuildReadModel {
+  snapshot(): BuildSnapshot {
     this.assertLive();
     return { slots: this.getSlots(), baseStats: this.getBaseStats(),
-      runModifiers: this.getRunModifiers(), effectiveStats: this.getEffectiveStats() };
+      runModifiers: this.getRunModifiers(), effectiveStats: this.getEffectiveStats(),
+      tags: { ...this.#tags }, identity: structuredClone(this.#identity) };
+  }
+
+  addTagPoints(tag: TagId, amount: number): boolean {
+    this.assertLive();
+    if (!TAG_IDS.includes(tag)) throw new RangeError('Unsupported PlayerBuild tag');
+    if (typeof amount !== 'number' || !Number.isSafeInteger(amount) || amount < 0) {
+      throw new RangeError('PlayerBuild tag points require a nonnegative safe integer');
+    }
+    const total = this.#tags[tag] + amount;
+    if (!Number.isSafeInteger(total)) throw new RangeError('PlayerBuild tag points overflow');
+    if (amount === 0) return false;
+    const tags = { ...this.#tags, [tag]: total };
+    const identity = this.deriveIdentity(tags);
+    this.#tags = tags;
+    this.#identity = identity;
+    return true;
   }
 
   applyStatPercent(stat: PercentStatKey, delta: number): boolean {
@@ -107,6 +133,17 @@ export class PlayerBuild {
     return true;
   }
   dispose(): void { this.#disposed = true; }
+
+  private deriveIdentity(tags: TagPoints): BuildIdentity {
+    let highest = 0, second = 0;
+    for (const tag of TAG_IDS) {
+      const points = tags[tag];
+      if (points > highest) { second = highest; highest = points; }
+      else if (points < highest && points > second) second = points;
+    }
+    return { dominantTags: TAG_IDS.filter(tag => highest > 0 && tags[tag] === highest),
+      secondaryTags: TAG_IDS.filter(tag => second > 0 && tags[tag] === second) };
+  }
 
   private resolve(modifiers: RunModifiers): EffectiveStats {
     integer(modifiers.prototypeHullFlat); integer(modifiers.prototypeThrustFlat);

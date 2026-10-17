@@ -3,7 +3,7 @@ import { GameplayScene } from './GameplayScene';
 import { RunLifecycle } from '../run/RunLifecycle';
 import { RunRandom } from '../run/RunRandom';
 import { RunDiagnostics } from '../run/RunDiagnostics';
-import { PlayerBuild } from '../player/PlayerBuild';
+import { PlayerBuild, TAG_IDS, type BuildSnapshot } from '../player/PlayerBuild';
 
 class EventEmitter {
   private callbacks = new Map<string, Set<(...args: unknown[]) => void>>();
@@ -1020,5 +1020,123 @@ describe('GAME-046 PlayerBuild production consumers', () => {
     expect(fresh).not.toBe(old); expect(fresh.getEffectiveStats()).toEqual(new PlayerBuild().getEffectiveStats());
     expect(window.__NEBULA_DEV__!.snapshot()).toEqual(before); for (const draw of draws) expect(draw).not.toHaveBeenCalled();
     s['enterPlayerDeath'](); expect(s['applyBuildChange']({ kind: 'percent', stat: 'hull', delta: 1 })).toBe(false);
+  });
+});
+
+describe('GAME-047 canonical BuildSnapshot and production neutrality', () => {
+  const choices = [
+    { kind: 'laser', upgrade: 'power' }, { kind: 'laser', upgrade: 'fireRate' }, { kind: 'laser', upgrade: 'speed' },
+    { kind: 'missile', upgrade: 'warheadPower' }, { kind: 'missile', upgrade: 'propulsion' }, { kind: 'missile', upgrade: 'blastExpansion' },
+    { kind: 'drone', upgrade: 'boltPower' }, { kind: 'drone', upgrade: 'firingSystem' }, { kind: 'drone', upgrade: 'boltPropulsion' },
+    { kind: 'passive', module: 'hull' }, { kind: 'passive', module: 'thruster' }, { kind: 'passive', module: 'collector' },
+    { kind: 'passive', module: 'combat' }, { kind: 'passive', module: 'spatial' }, { kind: 'passive', module: 'replication' },
+    { kind: 'prism' }, { kind: 'cluster' }, { kind: 'twin' },
+  ] as const;
+  const tagsAndIdentity = (b: BuildSnapshot) => ({ tags: b.tags, identity: b.identity });
+  function dirty(build: PlayerBuild) {
+    build.addTagPoints('TECHNOLOGY', 3); build.addTagPoints('DRONES', 3); build.addTagPoints('MOBILITY', 2);
+  }
+  it('boots the canonical detached BuildSnapshot with twelve zero Tags and the existing bootstrap', () => {
+    const f = fixture(), s = f.scene; allowCreate(s); s.create();
+    const api = window.__NEBULA_DEV__!, before = api.snapshot()!;
+    expect(before.build).toEqual(new PlayerBuild().snapshot());
+    expect(Object.keys(before.build.tags)).toEqual(TAG_IDS);
+    expect(Object.values(before.build.tags)).toEqual(Array(12).fill(0));
+    expect(before.build.identity).toEqual({ dominantTags: [], secondaryTags: [] });
+    expect(before).toMatchObject({ playerHealth: 5, gameplayTimerCount: 5, runState: 'RUNNING' });
+    expect(before.diagnostics).toMatchObject({ runSeed: before.runSeed, gameplayElapsedMs: 0,
+      aggregates: { spawned: { total: 1 }, offersPresented: 0 }, timeline: [{ type: 'RUN_STARTED', gameplayElapsedMs: 0 }] });
+    expect(Object.keys(api)).toEqual(['snapshot', 'forceLevelUp', 'spawnWarden', 'setWardenHealth', 'setGodMode']);
+    expect('tags' in before).toBe(false); expect('buildIdentity' in before).toBe(false);
+    dirty(s['playerBuild']!); const tagged = api.snapshot()!, copy = api.snapshot()!;
+    copy.build.tags.DRONES = 99; copy.build.identity.dominantTags.pop(); copy.build.identity.secondaryTags.push('SURVIVAL');
+    const diagnostics = s['runDiagnostics']!.snapshot(), draws = spyStreams(s);
+    for (let i = 0; i < 5; i++) expect(api.snapshot()).toEqual(tagged);
+    expect(s['runDiagnostics']!.snapshot()).toEqual(diagnostics);
+    for (const draw of draws) expect(draw).not.toHaveBeenCalled();
+    expect(JSON.parse(JSON.stringify(tagged))).toEqual(tagged);
+  });
+  for (const nonzero of [false, true]) {
+    it.each(choices)('accepted $kind choice preserves Tags and exact offer RNG budget (nonzero=' + nonzero + ')', option => {
+      const f = fixture(), s = f.scene, build = s['playerBuild']!;
+      if (nonzero) dirty(build);
+      let index = 1;
+      if (option.kind === 'laser' || option.kind === 'missile' || option.kind === 'drone') {
+        s['weaponFocus'] = option.kind;
+        const tracks = option.kind === 'laser' ? ['power', 'fireRate', 'speed']
+          : option.kind === 'missile' ? ['warheadPower', 'propulsion', 'blastExpansion'] : ['boltPower', 'firingSystem', 'boltPropulsion'];
+        s['focusCursors'][option.kind] = tracks.indexOf(option.upgrade);
+      } else if (option.kind === 'passive') index = 2;
+      else {
+        index = 3;
+        if (option.kind === 'prism') { s['laserRanks'] = { power: 2, fireRate: 2, speed: 2 }; s['moduleLevels'].combat = 1; }
+        if (option.kind === 'cluster') { s['missileRanks'] = { warheadPower: 2, propulsion: 2, blastExpansion: 2 }; s['moduleLevels'].spatial = 1; }
+        if (option.kind === 'twin') { s['droneRanks'] = { boltPower: 2, firingSystem: 2, boltPropulsion: 2 }; s['moduleLevels'].replication = 1; }
+      }
+      const before = tagsAndIdentity(build.snapshot()), draws = spyStreams(s);
+      if (option.kind === 'passive') {
+        const n = ['hull', 'thruster', 'collector', 'combat', 'spatial', 'replication'].indexOf(option.module);
+        draws[1].mockReturnValue((n + 0.1) / 6);
+      }
+      expect(f.api.forceLevelUp()).toBe(true);
+      expect(tagsAndIdentity(build.snapshot())).toEqual(before);
+      expect(draws[1]).toHaveBeenCalledTimes(index === 3 ? 1 : 2);
+      const pick = s['levelUpPresentation'][index];
+      const diagnosticIdentity = option.kind === 'passive' ? 'passive.' + option.module
+        : 'upgrade' in option ? option.kind + '.' + option.upgrade : option.kind;
+      expect(f.api.snapshot()!.diagnostics.timeline.find(r => r.type === 'LEVEL_UP_OFFERED'))
+        .toMatchObject({ choices: expect.arrayContaining([diagnosticIdentity]) });
+      expect(f.api.forceLevelUp()).toBe(false); f.api.snapshot(); s['enterLevelUpPause']();
+      pick.emit('pointerdown');
+      expect(s['run']!.state).toBe('RUNNING');
+      expect(f.api.snapshot()!.diagnostics.timeline.find(r => r.type === 'LEVEL_UP_SELECTED')).toMatchObject({ choice: diagnosticIdentity });
+      s['acceptLevelUpChoice'](pick, option); pick.emit('pointerdown');
+      expect(tagsAndIdentity(build.snapshot())).toEqual(before);
+      expect(draws[1]).toHaveBeenCalledTimes(index === 3 ? 1 : 2);
+      for (const i of [0, 2, 3]) expect(draws[i]).not.toHaveBeenCalled();
+    });
+  }
+  it('nonzero contributions change no live HP/speed/launch values/diagnostics/streams or five Clock events', async () => {
+    const { default: Clock } = await vi.importActual<{ default: typeof import('phaser').Time.Clock }>('../../../node_modules/phaser/src/time/Clock.js');
+    const f = inputFixture(), s = f.scene; allowCreate(s); Object.assign(s, { sys: { events: { once() {}, on() {} } } });
+    const clock = new Clock(s); Object.assign(s, { time: clock }); s.create(); clock.preUpdate(); clock.update(100, 100);
+    const events = [...s['gameplayTimers']], phases = events.map(t => t.elapsed), delays = events.map(t => t.delay);
+    const resets = events.map(t => vi.spyOn(t, 'reset')), diagnostics = s['runDiagnostics']!.snapshot(), draws = spyStreams(s);
+    const build = s['playerBuild']!, stats = build.getEffectiveStats(); dirty(build);
+    for (let i = 0; i < 5; i++) window.__NEBULA_DEV__!.snapshot();
+    expect(build.getEffectiveStats()).toEqual(stats); expect(s['playerHealth']).toBe(5); expect(s['movementSpeed']).toBe(300);
+    expect(s['gameplayTimers']).toEqual(events); expect(events.map(t => t.elapsed)).toEqual(phases);
+    expect(events.map(t => t.delay)).toEqual(delays); for (const reset of resets) expect(reset).not.toHaveBeenCalled();
+    expect(s['runDiagnostics']!.snapshot()).toEqual(diagnostics);
+    s['currentTarget'] = s['enemies'][0]; s['fireLaser'](); s['fireMissile'](); s['fireDrone']();
+    expect(s['projectiles'][0]).toMatchObject({ damage: 1, radius: 6, velocityX: 1200 });
+    expect(s['missiles'][0]).toMatchObject({ damage: 2, radius: 8, speed: 450, explosionRadius: 120 });
+    expect(s['projectiles'][1]).toMatchObject({ damage: 1, radius: 5, velocityX: 800 });
+    const tags = tagsAndIdentity(build.snapshot()); s['handlePauseRequest']();
+    clock.update(5000, 4900); expect(events.map(t => t.elapsed)).toEqual(phases);
+    s.game.events.emit('blur'); s.game.events.emit('focus'); s['handlePauseRequest']();
+    expect(tagsAndIdentity(build.snapshot())).toEqual(tags);
+    for (const reset of resets) expect(reset).not.toHaveBeenCalled();
+    for (const draw of draws) expect(draw).not.toHaveBeenCalled();
+  });
+  it('exact old disposal and saved reward/timer/focus callbacks cannot reach fresh Tags', () => {
+    const f = fixture(), s = f.scene; allowCreate(s);
+    const cleanups: Array<() => void> = [];
+    const once = s.events.once.bind(s.events);
+    vi.spyOn(s.events, 'once').mockImplementation((key, fn, ctx) => { if (key === 'shutdown') cleanups.push(fn as () => void); return once(key, fn, ctx); });
+    s.create(); const oldCleanup = [...cleanups];
+    const old = s['playerBuild']!, oldRun = s['run']!, oldApi = window.__NEBULA_DEV__!; dirty(old);
+    const timers = s['gameplayTimers'].map(t => t.callback!);
+    const focus = ['blur', 'hidden', 'focus', 'visible'].flatMap(event => s.game.events.listeners(event)) as Array<() => void>;
+    oldApi.forceLevelUp(); const choice = s['levelUpPresentation'][1];
+    f.shutdown(); s.create(); const fresh = s['playerBuild']!, before = window.__NEBULA_DEV__!.snapshot();
+    expect(fresh).not.toBe(old); expect(fresh.snapshot()).toEqual(new PlayerBuild().snapshot());
+    for (const op of [() => old.addTagPoints('DRONES', 0), () => old.addTagPoints('DRONES', 1), () => old.snapshot()]) expect(op).toThrow('disposed PlayerBuild');
+    for (const callback of timers) callback();
+    for (const callback of oldCleanup) callback();
+    for (const callback of focus) callback();
+    s['acceptLevelUpChoice'](choice, { kind: 'laser', upgrade: 'power' }, oldRun);
+    expect(oldApi.snapshot()).toBeNull(); expect(oldApi.forceLevelUp()).toBe(false);
+    expect(window.__NEBULA_DEV__!.snapshot()).toEqual(before);
   });
 });
