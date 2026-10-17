@@ -339,7 +339,7 @@ Never reuse these IDs for unrelated tasks.
 
 ## Mechanical Vertical Slice roadmap
 
-GAME-042 is DONE; all other roadmap nodes below remain BACKLOG. Each row gives phase membership, exact dependencies and a
+GAME-042 is DONE, GAME-043 is READY; later roadmap nodes remain BACKLOG. Each row gives phase membership, exact dependencies and a
 short capability; gates are review checkpoints, not automatic authorization.
 Dependency ranges are inclusive.
 
@@ -348,7 +348,7 @@ Dependency ranges are inclusive.
 | ID | Title | Depends on | Capability | Status |
 | --- | --- | --- | --- | --- |
 | GAME-042 | Run Lifecycle & Fresh Run Boundary | DESIGN-005, GAME-039 | Run lifecycle, terminal and fresh-restart authority; preserve GAME-038 first-terminal semantics. | DONE |
-| GAME-043 | Seeded RNG Streams | GAME-042 | runSeed and independent Encounter/Reward/World/Boss RNG streams. | BACKLOG |
+| GAME-043 | Seeded RNG Streams | GAME-042 | runSeed and independent Encounter/Reward/World/Boss RNG streams. | READY |
 | GAME-044 | Authoritative Pause & Input Boundary | GAME-042 | Single gameplay pause authority, movement/Active/Pause intents and focus-loss semantics. | BACKLOG |
 | GAME-045 | Telemetry & Diagnostics Foundation | GAME-042 | Run timeline, aggregates and diagnostics foundation. | BACKLOG |
 
@@ -547,8 +547,223 @@ Production preview boots with DEV API absent. Known favicon404 and Vite bundle-s
 no new pageerrors observed.
 
 CURRENT_STATE and real PROJECT_GRAPH ownership are updated. DESIGN-005/GAME-039 stay DONE,
-GAME-040/041 SUPERSEDED and GAME-043+ BACKLOG. GATE A remains incomplete. Explicit staging
+GAME-040/041 SUPERSEDED; GAME-043 READY; GAME-044+ BACKLOG. GATE A remains incomplete. Explicit staging
 and ignored .codex-review/GAME-042-review.txt follow AGENTS.md; no commit is created.
+
+#### GAME-043 — Seeded RNG Streams
+
+STATUS: READY
+
+**Dependencies:** GAME-042 DONE. Definition only; implementation requires its own task.
+Introduce deterministic run-scoped procedural randomness without a replay system or future
+Director/Reward/World/Boss architecture. RunLifecycle stays lifecycle/terminal/disposal only.
+GameplayScene composes a separate focused RunRandom (or equivalent) with immutable uint32
+runSeed and exactly four explicit independent streams: Encounter, Reward, World, Boss.
+That owner holds their mutable PRNG states and invalidation; no global singleton, exposed
+string-keyed registry, arbitrary stream creation/forking or universal RunContext/service bag.
+
+**Current tracked-source randomness inventory**
+
+Audited all tracked src files at this definition's HEAD, including test files, for
+Math.random, Phaser.Math.Between/FloatBetween/RND, random/rng/shuffle/pick and helper
+default sources. The complete current findings and relevant non-consumers are:
+
+| Source / actual operation | Classification and migration |
+| --- | --- |
+| `src/game/scenes/GameplayScene.ts#spawnEnemy`: `Phaser.Math.Between(0, 3)` | Encounter: random side; replace with fixed side mapping from one stream draw |
+| Same method: `Phaser.Math.FloatBetween(view.left, view.right)` in x branch and `FloatBetween(view.top, view.bottom)` in y branch | Encounter: exactly one coordinate branch executes per accepted placement, after side draw; preserve ranges |
+| `src/game/progression/selectChoices.ts#selectChoices`: optional/default `random = Math.random`, one `random()` per selected entry | Reward for gameplay calls; remove ambient fallback and require explicit supplied source for sampling |
+| `GameplayScene.enterLevelUpPause`: first-slot fallback `selectChoices(ordinaryPool, 1)` | Reward draw only when no deterministic focused choice exists |
+| Same method: passive second-slot `selectChoices(filteredPassivePool, 1)` | Reward draw for the current distinct passive selection |
+| Same method: ordinary third-slot `selectChoices(remainingPool, 1)` | Reward draw only when no eligible evolution was offered |
+| `src/game/progression/selectChoices.test.ts` | Test-injected controlled sources / invalid values, plus omitted-source zero-count/invalid-count cases; not production consumers. Adapt signatures without weakening assertions |
+| `src/game/scenes/GameplayScene.devTools.test.ts` | Math.random spy throws if deterministic DEV Warden placement draws; test guard, not a random consumer |
+| `focusedUpgrade.ts#selectFocusedUpgrade`, `evolutionOffer.ts#selectEvolutionOffer` | Stable explicit weapon/track/evolution cursor decisions, no RNG; leave deterministic |
+| `enemies/warden.ts`, scheduled CCCSCT/Elite/Warden predicates, `publishDevTools.spawnWarden` | Deterministic HP phases/radial directions/schedules/opposite-corner placement; no Boss or Encounter draws for these nonrandom decisions |
+| `GameplayScene.create` stars | Fixed arithmetic positions/radii; presentation is already deterministic, not an additional random consumer |
+
+No additional tracked production random helpers, Phaser.Math.RND, shuffle/pick,
+presentation-only random calls or legitimate current World/Boss consumers were found.
+All gameplay sampling found is covered by Encounter/Reward above. If later implementation
+audit finds an unexpected unsafe-to-classify consumer, report a blocking architecture
+issue instead of adding a fifth stream or silently implementing a later domain.
+
+**Root seed and initialization order**
+
+runSeed is an integer 0..4294967295 inclusive; zero is valid. Reject invalid explicit seeds
+(nonnumber, nonfinite, fractional, negative or >uint32 max) rather than silently clamping.
+Normal root entropy uses browser crypto.getRandomValues(new Uint32Array(1)) or the smallest
+existing equivalent, never Math.random or a new dependency. Entropy is root creation,
+not an Encounter/Reward/World/Boss draw.
+
+Generate the new run's root seed only AFTER the existing RunLifecycle.start() successfully
+enters RUNNING. Do not consume entropy/procedural RNG during PREPARING to initialize play.
+A holder may exist earlier only if it cannot expose usable seed/streams before RUNNING.
+Compose/wire snapshots and consumers only once the RNG owner is initialized; keep normal
+synchronous startup and GAME-042 lifecycle semantics. No loading/async initialization system.
+
+Every native create receives a fresh owner and normally fresh entropy. Require owner
+identity inequality; do not require seed inequality because entropy collisions are possible.
+Tests/ignored harnesses may construct an owner from an explicit fixed seed and inject it
+before the first tested decision. This is internal testability, not a production control.
+No seed query parameter, localStorage/settings field, picker/daily seed, reseed/setSeed
+command, sixth DEV command or public global RNG control.
+
+**Algorithm, derivation and four streams**
+
+Use a tiny repository-owned fixed 32-bit PRNG, preferably Mulberry32 (an equivalently
+small explicitly fixed integer algorithm is allowed). Document the exact chosen arithmetic
+and commit golden-sequence tests, including zero and a second fixed seed.
+Outputs must always be finite and in [0, 1), using deterministic JS 32-bit integer operations.
+No Math.random implementation, unspecified Phaser global RNG state or RNG dependency.
+
+Derive the four initial states from root seed with four distinct fixed explicit committed
+salts/constants and a deterministic derivation/mix. Do not give all four identical raw state.
+The chosen algorithm and derivation constants are reproducibility contracts for the current
+code/content version, protected by golden tests; do not create a contentVersion system here.
+Expose exactly four concrete stream operations/read-only stream handles, with independent
+mutable cursors: consuming one never advances another. No arbitrary names or shared
+hidden cursor behind facades. RunRandom chooses numbers; existing domains interpret them.
+
+**Encounter placement and consumption**
+
+Keep spawnEnemy scheduling/behavior in GameplayScene. Preserve the existing early guards:
+non-RUNNING lifecycle, current Level-Up pause, missing player, cap10 and active Warden
+consume ZERO Encounter draws and do not advance successfulTimedSpawns.
+Only after those guards pass does a meaningful timed placement consume exactly two draws:
+side = floor(next * 4), then one varying coordinate using lower + next * (upper - lower).
+Fixed mapping: side0 left, side1 right, side2 top, side3 bottom; preserve 48px beyond-edge
+origin, current camera worldView ranges, arena clamp, margin25 (Warden40), minimum600
+distance and deterministic opposite-corner fallback. Fallback consumes no extra draw.
+Do not change CCCSCT, scheduled Elite12/24, Warden30, cap or successful-spawn counting.
+
+No RNG per frame, AI/movement/targeting/collision/HUD/timer polling or terminal transition.
+GAME-039 spawnWarden remains deterministic and consumes zero Encounter draws; it does not
+become timed spawning or change flags/cap/placement semantics.
+World and Boss streams exist now but remain dormant during current prototype play:
+do not randomize Warden phases/bursts/schedule, DEV placement or nonexistent world content.
+
+**Reward sampling and consumption**
+
+Keep selectChoices pure; make sampling require an explicit random source and pass the run's
+Reward stream at ALL three current production call sites. No silent Math.random fallback.
+Preserve existing finite/[0,1) validation, size/distinctness/input-nonmutation and
+sampling-without-replacement behavior. No reward service/weights/Analyzer/pity/rerolls.
+
+Preserve explicit levelUpPool order, eligibility filtering, authored focus/track cursors,
+evolution guarantee/cursor, canonical entry identity and three distinct choice structure.
+The helper's current Set deduplication preserves the supplied stable array order; do not
+introduce candidate ordering from incidental object enumeration or nondeterministic input.
+General order remains eligibility/feasibility → stable candidates → weights if already
+applicable → roll; this task adds no weighted system.
+
+Generate once on entering a new presentation: each sampled slot uses one Reward draw;
+deterministic focused Slot1 uses none, deterministic evolution Slot3 uses none.
+Normal focused/no-evolution offer therefore uses two draws; first-slot fallback adds one,
+and an evolution replacing ordinary Slot3 removes one. Do not add draws to deterministic
+cursor logic. Preserve current helper draw count for actual sampling, including single
+remaining candidates; a zero-count request needs none.
+
+An existing presentation stays stable. Rejected duplicate enterLevelUpPause/forceLevelUp,
+stale/double choice callback, snapshot, pause/read/render/inspection and ordinary choice
+acceptance consume zero further randomness. Current acceptLevelUpChoice mutates build/
+timers and resumes, but does not generate another offer or make a separate random decision.
+
+**Read models, lifecycle and five timers**
+
+Approve a detached numeric runSeed field in existing DevSnapshot for DEV bug reports.
+Exactly the existing five commands remain; no mutable PRNG state/stream objects, draw
+operations, reseeding or control leaks through snapshot. Repeated snapshot/HUD/terminal UI
+reads never advance any stream. Future read models/previews/telemetry must obey that rule.
+
+RunRandom follows GAME-042 lifetime without absorbing RunLifecycle responsibilities.
+Exact old shutdown/disposal invalidates the captured RNG owner and all retained stream
+handles; disposal is idempotent and cannot mutate/reseed the new owner.
+Direct draw from a disposed owner/stream throws a clear programmer/invariant Error.
+Normal stale callbacks never reach it: existing owning-run guards reject them before
+procedural work. Old references never redirect through a global currentRng pointer.
+Fresh authority/RNG owner/API identity and God Mode reset remain current native semantics.
+
+Preserve first-terminal-wins, straight/Missile/Cluster atomic boundaries and Scene-owned
+Level-Up pause; add no RNG to terminal outcome decisions. No GAME-044 migration.
+Keep exactly five gameplay TimerEvents (spawn, Laser/Prism, Missile/Cluster, Drone/Twin,
+hostile fire), with five fresh events after native restart and old callbacks inert.
+Add ZERO polling/entropy-refresh/reseed/procedural-tick timers, independent clocks or timeScale.
+Draw synchronously only at the concrete decision boundaries above.
+
+**Required tracked tests for later implementation**
+
+Preserve all current185 tests/18 files and GAME-039/GAME-042 assertions. Adapt existing
+Scene fixtures to a known RNG owner and sampling calls to explicit sources without
+creating parallel spawn/reward algorithms merely for tests.
+
+| Boundary | Required evidence |
+| --- | --- |
+| Seed / algorithm | Zero and uint32 max accepted; invalid explicit seeds rejected; exact golden sequences for zero and another fixed seed; outputs finite and >=0,<1; algorithm changes detected |
+| Derivation | Same seed reproduces exact sequences for each of four streams; committed salt/mix golden coverage; four sequences not accidentally identical; separate owners equivalent |
+| Independence | Many Reward draws leave Encounter unchanged and vice versa; World/Boss independence in both directions; arbitrary one-stream consumption cannot advance any other |
+| Disposal | Idempotent; stale owner AND captured stream draw throw the documented invariant Error; fresh independent owner unaffected |
+| Spawn integration | Fixed seed yields exact side/coordinate/placement sequence through real spawnEnemy; equivalent state/history repeat; Reward consumption does not change placement; cap/pause/non-RUNNING/missing-player/active-Warden paths consume zero; clamp/minimum/fallback/count/archetype/Elite/Warden schedule unchanged |
+| Reward integration | Exact fixed-seed ordinary offers through real Level-Up path; identical state repeats; next independent presentation continues expected Reward sequence; Encounter consumption leaves offers unchanged; stable UI/snapshot/pause/rejected callbacks/duplicate forceLevelUp and acceptance consume zero |
+| DEV / dormant streams | Detached stable runSeed, same exact five commands, read-only snapshots consume zero; no artificial World/Boss draws during current Warden/prototype behavior |
+| Source regression | Complete tracked-source audit finds no production ambient Math.random/Phaser global random dependency or selectChoices caller missing explicit source |
+| Lifecycle order | Entropy/root owner activates only after successful RUNNING; no PREPARING procedural draws; fresh owner identity, no seed-inequality assertion; current lifecycle/terminal/timer tests preserved |
+
+**Required real browser/native validation for later implementation**
+
+1. Normal DEV boot: lifecycle RUNNING, valid uint32 root seed, four fresh streams,
+   five timers, exact five-command API and stable detached snapshot.runSeed.
+2. Real timed spawn still occurs with current valid camera-edge/clamp/minimum/fallback
+   semantics and schedules, using Encounter. Real Level-Up uses Reward, three stable
+   choices, real choice resume and zero additional draws from repeated snapshots/UI reads.
+3. Two independent Scene/run setups with the same injected fixed seed, equivalent relevant
+   state/history, before the first tested procedural decision: identical spawn sequences
+   and ordinary offer sequences. Extra Reward consumption in one setup leaves subsequent
+   Encounter result identical; extra Encounter consumption leaves subsequent Reward offer
+   identical. Inject only through tracked/ignored harness access, never public seed controls.
+4. At least TWO actual Victory→NEW RUN native restarts and ONE actual Death→RETRY native
+   restart. After EACH: old RunLifecycle DISPOSED and captured RNG owner/streams reject
+   draws; fresh owner identity and valid root seed (equality permitted); RUNNING/null,
+   full current player/Boss/progression baseline, God Mode false, fresh API/old API null
+   or false, five fresh events and no old callbacks consuming/mutating fresh RNG/gameplay.
+5. Real production boot/canvas works, public DEV API absent, no player seed/debug controls.
+   Inspect console; distinguish new errors from known favicon/resource404/build-size warning.
+
+Native scene.restart is required evidence; manual create/fixture reset/page refresh does
+not substitute. Report tracked, fixed-seed harness, normal boot and native-cycle results
+separately. Do not claim these future runtime checks in this definition-only handoff.
+
+**Scope, later structure and reproducibility limits**
+
+A focused src/game/run/RunRandom.ts plus pure tests is authorized for later implementation;
+exact filenames may follow conventions. Scene creates/wires it after successful run.start
+and passes explicit Encounter/Reward draw sources. Do not move spawning, choices, combat,
+Boss behavior or future world/reward architecture into the RNG owner.
+
+Same explicit seed + same code/content version + relevant state/decision history reproduces
+procedural decisions. Seed alone does not guarantee identical runs under different inputs,
+decision order, FPS, physics or browser scheduling. No pixel-perfect/lockstep/input replay.
+Future RunReport may record seed/version; do not build it or a version system now.
+
+Out of scope: GAME-044 Pause/Input, GAME-045 telemetry, GAME-046 Build, Encounter Director/
+templates/pressure/portals/weights, full Reward Generator/Analyzer/pity/recent offers,
+World Scheduler/events, BossController/Juggernaut, RunResult/RunReport, replay recording,
+daily seeds, seed entry/query/settings/reseed DEV command, save/meta/profile, arbitrary
+named/forkable RNG framework, service locator or new dependency. GATE A stays incomplete.
+
+**Definition validation and future documentation**
+
+Now change only TASK_GRAPH, GAME-043 BACKLOG→READY plus accurate roadmap introduction.
+Run npm run check and git diff --check, verify scope/statuses, explicitly stage only
+docs/TASK_GRAPH.md, inspect complete git diff --cached and run cached check/stat.
+Generate ignored .codex-review/GAME-043-review.txt with AGENTS.md sections, source inventory
+and complete staged diff. Never stage review artifacts or commit.
+
+After successful later implementation and tracked/native checks, GAME-043 may become DONE;
+CURRENT_STATE describes actual seed/streams/consumers/determinism and PROJECT_GRAPH maps
+real files/exports/consumers. ARCHITECTURE normally stays unchanged except a factual stale
+implementation-status correction if necessary. Keep DESIGN-005/GAME-039/GAME-042 DONE,
+GAME-040/041 SUPERSEDED and GAME-044+ BACKLOG. GATE A still needs GAME-044 and GAME-045.
 
 **GATE A — Runtime Foundation** — review the preceding phase capabilities before its cutover/next proof.
 
