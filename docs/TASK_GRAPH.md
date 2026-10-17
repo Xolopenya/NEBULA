@@ -339,7 +339,7 @@ Never reuse these IDs for unrelated tasks.
 
 ## Mechanical Vertical Slice roadmap
 
-GAME-042/043/044/045 are DONE; GAME-046 DONE; GAME-047 DONE; GAME-048+ remain BACKLOG. Each row gives phase membership, exact dependencies and a
+GAME-042/043/044/045 are DONE; GAME-046 DONE; GAME-047 DONE; GAME-048 READY; GAME-049+ remain BACKLOG. Each row gives phase membership, exact dependencies and a
 short capability; gates are review checkpoints, not automatic authorization.
 Dependency ranges are inclusive.
 
@@ -547,7 +547,7 @@ Production preview boots with DEV API absent. Known favicon404 and Vite bundle-s
 no new pageerrors observed.
 
 CURRENT_STATE and real PROJECT_GRAPH ownership are updated. DESIGN-005/GAME-039 stay DONE,
-GAME-040/041 SUPERSEDED; GAME-043 DONE; GAME-044 DONE; GAME-045 DONE; GAME-046 DONE; GAME-047 DONE; GAME-048+ remain BACKLOG. GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 DONE; GAME-048+ remain BACKLOG pending separate definition. Explicit staging
+GAME-040/041 SUPERSEDED; GAME-043 DONE; GAME-044 DONE; GAME-045 DONE; GAME-046 DONE; GAME-047 DONE; GAME-048 READY; GAME-049+ remain BACKLOG. GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 DONE; GAME-048 READY; GAME-049+ remain BACKLOG pending separate definition. Explicit staging
 and ignored .codex-review/GAME-042-review.txt follow AGENTS.md; no commit is created.
 
 #### GAME-043 — Seeded RNG Streams
@@ -749,7 +749,7 @@ Out of scope: GAME-044 Pause/Input, GAME-045 telemetry, GAME-046 Build, Encounte
 templates/pressure/portals/weights, full Reward Generator/Analyzer/pity/recent offers,
 World Scheduler/events, BossController/Juggernaut, RunResult/RunReport, replay recording,
 daily seeds, seed entry/query/settings/reseed DEV command, save/meta/profile, arbitrary
-named/forkable RNG framework, service locator or new dependency. GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 DONE; GAME-048+ remain BACKLOG pending separate definition.
+named/forkable RNG framework, service locator or new dependency. GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 DONE; GAME-048 READY; GAME-049+ remain BACKLOG pending separate definition.
 
 **Implementation completion evidence**
 
@@ -769,7 +769,7 @@ fixed-seed spawn/offer sequences and cross-stream isolation. Two actual Victory 
 cycles and one Death RETRY (plus nonterminal/Missile/Cluster native restarts) dispose old
 streams and retain fresh RNG/lifecycle/API/five events with inert stale callbacks.
 Production canvas boots with DEV API absent; only known favicon404 and build chunk-size
-warnings remain. GAME-044 DONE; GAME-045 DONE; GAME-046 DONE; GAME-047 DONE; GAME-048+ remain BACKLOG; GAME-040/041 SUPERSEDED; GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 DONE; GAME-048+ remain BACKLOG pending separate definition.
+warnings remain. GAME-044 DONE; GAME-045 DONE; GAME-046 DONE; GAME-047 DONE; GAME-048 READY; GAME-049+ remain BACKLOG; GAME-040/041 SUPERSEDED; GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 DONE; GAME-048 READY; GAME-049+ remain BACKLOG pending separate definition.
 
 **Definition validation and documentation (historical definition-only instructions)**
 
@@ -1090,7 +1090,7 @@ Missile/Cluster cycles pass: fresh authority/adapter/RNG/API, zero reasons, unpa
 five fresh events, old streams throw and saved stale callbacks draw zero on all fresh streams.
 Unmodified production preview passes keyboard/Space/Escape and 700ms rendered pause freeze
 without DEV API/debug controls. Only known favicon404 and Vite chunk-size warnings remain.
-GAME-042/043/044 DONE; GAME-040/041 SUPERSEDED; GAME-045 DONE; GAME-046 DONE; GAME-047 DONE; GAME-048+ remain BACKLOG; GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 DONE; GAME-048+ remain BACKLOG pending separate definition.
+GAME-042/043/044 DONE; GAME-040/041 SUPERSEDED; GAME-045 DONE; GAME-046 DONE; GAME-047 DONE; GAME-048 READY; GAME-049+ remain BACKLOG; GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 DONE; GAME-048 READY; GAME-049+ remain BACKLOG pending separate definition.
 
 #### GAME-045 — Telemetry & Diagnostics Foundation
 
@@ -1346,8 +1346,8 @@ inert stale owners/callbacks. Unmodified production preview verifies keyboard/Da
 DEV absence and local static-only network requests. HIDDEN/VISIBLE combinations remain
 separately identified synthetic tracked coverage; known favicon404/bundle-size warnings only.
 
-GAME-045 DONE; GAME-040/041 SUPERSEDED; GAME-046 DONE; GAME-047 DONE; GAME-048+ remain BACKLOG.
-GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 DONE; GAME-048+ remain BACKLOG pending separate definition. GAME-048+ are not unlocked.
+GAME-045 DONE; GAME-040/041 SUPERSEDED; GAME-046 DONE; GAME-047 DONE; GAME-048 READY; GAME-049+ remain BACKLOG.
+GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 DONE; GAME-048 READY; GAME-049+ remain BACKLOG pending separate definition. GAME-049+ are not unlocked.
 
 **GATE A — Runtime Foundation — PASSED**
 
@@ -1357,7 +1357,7 @@ GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 DONE; GAM
 | --- | --- | --- | --- | --- |
 | GAME-046 | PlayerBuild / Slots / Effective Stats | GAME-042 | 3/1/6 build ownership and cached Effective Stats with explicit modifiers. | DONE |
 | GAME-047 | Tags & Build Snapshot | GAME-046 | Tag contributions, derived identity and detached BuildSnapshot. | DONE |
-| GAME-048 | Player Defense Runtime | GAME-046 | Authoritative Shield/Hull/protection and incoming-damage boundary. | BACKLOG |
+| GAME-048 | Player Defense Runtime | GAME-046 | Authoritative Shield/Hull/protection and incoming-damage boundary. | READY |
 | GAME-049 | Combat Resolution & Launch Snapshots | GAME-046, GAME-048 | Attack/Hit/Damage resolution and immutable launch values. | BACKLOG |
 | GAME-050 | Enemy Definitions & Spawn Snapshots | GAME-049 | EnemyDefinition, scaling profiles and per-spawn runtime snapshots. | BACKLOG |
 | GAME-051 | Authoritative EnemyDeath Pipeline | GAME-049, GAME-050 | Exactly-once death record with last damaging / kill-source attribution for explicit XP/objective/Medical/Boss consumers and telemetry. | BACKLOG |
@@ -1374,7 +1374,7 @@ Implemented and verified against the acceptance contracts below.
 Establish one focused run-scoped PlayerBuild authority for 3 Combat / 1 Active / 6 Core
 slots, immutable Base Stats, unconditional Run Modifiers and cached Effective Stats.
 GameplayScene remains the composition root and current combat/progression/presentation owner.
-GAME-047 DONE; GAME-048+ remain BACKLOG; no later runtime domain is implemented here.
+GAME-047 DONE; GAME-048 READY; GAME-049+ remain BACKLOG; no later runtime domain is implemented here.
 
 **Pre-implementation tracked-source audit and migration inventory**
 
@@ -1725,7 +1725,7 @@ old reads/mutations/callbacks remain inert. Extra Missile/Cluster terminal cycle
 Unmodified production preview passes keyboard/Dash/pause/current combat and DEV absence.
 Known favicon404 and Vite bundle-size warnings only. CURRENT_STATE and PROJECT_GRAPH reflect
 actual implemented ownership; no dependencies changed. GATE A remains PASSED; GAME-046 DONE;
-GAME-047 DONE; GAME-048+ remain BACKLOG. GATE B is not passed or altered by this implementation.
+GAME-047 DONE; GAME-048 READY; GAME-049+ remain BACKLOG. GATE B is not passed or altered by this implementation.
 
 #### GAME-047 — Tags & Build Snapshot
 
@@ -1737,7 +1737,7 @@ Depends on GAME-046 DONE; preserve GAME-039/042/043/044/045/046 contracts and PA
 Extend the existing Phaser-free PlayerBuild with twelve numeric Tag totals, derived build
 identity and one canonical detached BuildSnapshot. Tags describe the build in parallel to
 stats; they never supply combat multipliers. Implemented and verified against the contracts
-below. GAME-048+ remain BACKLOG; GATE B is unchanged / not passed.
+below. GAME-048 READY; GAME-049+ remain BACKLOG; GATE B is unchanged / not passed.
 
 **Authoritative design and current source audit**
 
@@ -2007,8 +2007,368 @@ owners/API/five events and unpaused Clock; old direct additions (including0)/rea
 and saved callbacks remain inert. Additional Missile/Cluster native cycles pass.
 Unmodified production preview retains W/Space/Escape/current combat, no DEV API/debug UI
 and no new pageerrors. Known favicon404 and Vite bundle-size warning only. Factual
-CURRENT_STATE/PROJECT_GRAPH updated. GAME-047 DONE; GAME-048+ BACKLOG; GAME-040/041
+CURRENT_STATE/PROJECT_GRAPH updated. GAME-047 DONE; GAME-048 READY; GAME-049+ BACKLOG; GAME-040/041
 SUPERSEDED; GATE A PASSED; GATE B unchanged / not passed. No commit created.
+
+#### GAME-048 — Player Defense Runtime
+
+STATUS: READY
+
+**Goal, dependencies and definition boundary**
+
+Depends on GAME-046 DONE; preserve GAME-047 DONE and GAME-039/042/043/044/045 contracts.
+GATE A remains PASSED. Introduce one focused run-scoped PlayerDefense owning current Hull,
+current Shield and damage protection, with Shield-first numeric incoming damage, Hull
+healing/capping and the explicit contact separation below. Scene remains composition root,
+collision/presentation/lifecycle adapter; PlayerBuild remains maximum-Hull authority.
+This is a definition only: only TASK_GRAPH changes now, GAME-048 BACKLOG->READY.
+GAME-049+ remain BACKLOG; GATE B unchanged / not passed. No runtime implementation now.
+
+**Current defense source inventory and authoritative design audit**
+
+Audit baseline: HEAD 0cc50ab5d83c1c58a88f4a69dbbcfaffa6405d5a after GAME-047.
+Reviewed the complete TASK_GRAPH, CURRENT_STATE, ARCHITECTURE, GAME_DESIGN, PROJECT_GRAPH,
+CONTENT_MANIFEST and BALANCE context, including GAME-047's implemented changes. Searched
+tracked docs/src for playerHealth/playerMaxHealth/playerDamageProtection, protection,
+damagePlayer/contactDamage/God Mode, Shield/Shield Systems, healing/overheal/death,
+hostile projectiles and alpha/protection feedback. Reinspect these anchors before coding.
+
+| Actual current owner / anchor | Factual behavior and migration constraint |
+| --- | --- |
+| GameplayScene.playerHealth / create | Independent mutable current HP; initialized from playerMaxHealth (5 at fresh Build). Move all writes to Defense, not a second Scene cache |
+| playerMaxHealth / PlayerBuild.getEffectiveStats().hull | Derived maximum; base5, explicit flat Hull Plating+1 after base percentages. Build validates Hull>=1 and magnitude<=MAX_SAFE_INTEGER; no independent mutable maximum in Defense |
+| playerDamageProtectionDuration / playerDamageProtectionRemaining | Scene constant500ms and mutable remainder0. Move the remainder and fixed duration arithmetic to Defense; do not keep a writable Scene mirror |
+| update / updatePlayerProtection | Active update guards first, diagnostics.advance(delta), movement/Dash, Drone/enemies/targeting, then protection countdown, straight shots, Missiles, contact, XP. Countdown max(0,remaining-delta); positive retains feedback, zero restores alpha1. Preserve this phase, not an earlier/later new clock |
+| damagePlayer | Reject non-RUNNING, missing player/HP0, DEV God Mode, then protection. Subtract/clamp HP, observe positive actual HP loss, refresh HUD, set protection500 and alpha0.5, then enterPlayerDeath if HP0. Lethal terminal therefore retains protection500 and ends with alpha0.25 |
+| updatePlayerContact / EnemyRuntime | First inclusive circle contact in enemies collection order, at most one attempt/frame; regular contact1, Elite Tank/Warden2. Existing protection early return prevents contact scanning; there is no separation. Explicitly replace that early return for geometry as specified below, preserving damage rejection |
+| playerRadius / enemyRadius / createEnemy | Player20, regular Chaser/Shooter/Tank including Elite24, Warden40; combined contact radii44/60. Enemy margin max(25,enemy radius). No Ship Impact or global contact knockback exists |
+| movePlayer / create player / arena | Player movement clamps x by width/2+lineWidth/2, y by height/2+lineWidth/2 in arena4800x2700; current visual40x48 with outline2 gives margins21/25. Contact runs after player and enemy movement, after attacks; do not reorder simulation |
+| updateProjectiles / launchHostileProjectile | Reverse iteration, swept segment-circle against player20+shot radius6; current hostile damage1. Calls damagePlayer then destroys/splices the colliding shot even on God/protection rejection and after lethal damage; no Defense ownership of projectile lifetime |
+| applyBuildChange | Exact current run/build guard; shared percent changes require RUNNING, legacy Hull/Thruster require exact current PAUSED/REWARD/text. Shared Hull change caps current HP to new max, never heals an increase; invalid Build mutation changes no HP |
+| acceptLevelUpChoice / Hull Plating | Guard -> successful Build flat+1 -> module level+1 -> current=min(newMax,current+1) -> HUD -> selected diagnostics -> destroy UI/release REWARD. Exact full/damaged/fractional arithmetic and stale/double rejection must survive |
+| updateHud / publishDevTools / devTools.ts | HUD HP current/max reads Scene HP/Build max. DEV snapshot exposes playerHealth and protectionRemaining, plus canonical build.effectiveStats.hull; five commands only, God Mode outside Build, production API absent |
+| RunDiagnostics.recordPlayerDamage | Positive actual clamped Hull loss increments hpLost and acceptedDamagingHits once; no damage timeline row. Shield fields do not exist. God/protection/pause reject0, healing/capping record0, lethal loss precedes TERMINAL |
+| enterPlayerDeath / enterRunVictory / native controls | RunLifecycle accepts first terminal; Death records terminal, clears input, alpha0.25 and SHIP DESTROYED/RETRY. Native scene.restart recreates all owners/events; straight cleanup/full Missile-Cluster detonation still precede Victory |
+| create / captured disposal | PREPARING lifecycle -> fresh Build before HP/HUD -> player/initial Chaser/five events/input/UI -> successful start -> crypto RunRandom -> RunDiagnostics bootstrap -> DEV. Each owner cleanup captures its exact const and removes its own listeners |
+| PlayerBuild Shield Systems / BuildSnapshot / Tags | shieldSystems base/effective1, owned/resolved but no current consumer. Build owns stats/modifiers/twelve Tags/identity, never transient Hull/Shield/protection. No Shield source, capacity, recharge or regeneration exists |
+| GameplayScene.devTools.test.ts / PlayerBuild.test.ts / RunDiagnostics.test.ts | 424 tests/22 files, including52 pure Build/134 Scene. Current fixtures assign HP/protection directly; migrate setup to real Defense state/operations, retaining assertions. The old God-contact x-unchanged assertion is superseded only by the explicit separation contract |
+
+ARCHITECTURE Player defense and GAME_DESIGN Damage/Shield/healing require God Mode before
+protection, Shield before Hull, overflow, protection on Shield OR Hull loss, capped healing
+and contact escape separation. Neither assigns a pixel push magnitude. CONTENT_MANIFEST
+places Shield Active/Core/Shield Capacitor/Medical content in later scoped work; BALANCE
+does not supply a current Shield capacity/regeneration/scaling formula. Those are not
+authorization to invent a production source. The geometry below is an explicit minimal
+overlap-resolution decision for architect review, derived from current radii and bounds.
+
+**One owner, exact API and numeric contracts**
+
+Authorize focused Phaser-free src/game/player/PlayerDefense.ts and pure tests for later
+implementation. Mutable gameplay state is exactly currentHull, currentShield and
+protectionRemaining. No Scene/Build/RunLifecycle/Clock/RNG/diagnostics/input references,
+maxHull cache, God Mode flag, public property setters or generic health/effect framework.
+Replace independent Scene playerHealth/playerDamageProtectionRemaining fields with reads
+from this owner; read-only compatibility getters are acceptable, never writable aliases.
+playerMaxHealth stays derived from PlayerBuild. Keep position/collision/separation in Scene.
+
+Pin this concrete surface (no overlapping snapshots or generic mutate/effect API):
+
+```typescript
+type PlayerDefenseSnapshot = {
+  currentHull: number; currentShield: number; protectionRemaining: number;
+};
+type IncomingDefenseResult = {
+  accepted: boolean; protectionRejected: boolean;
+  shieldLost: number; hullLost: number; hullDepleted: boolean;
+};
+// PlayerDefense operations:
+declare class PlayerDefense {
+  constructor(initialHull: number);
+  snapshot(): PlayerDefenseSnapshot;
+  advanceProtection(delta: number): void;
+  applyIncomingDamage(amount: number): IncomingDefenseResult;
+  healHull(amount: number, maxHull: number): number; // Actual positive Hull gained, else0.
+  reconcileMaxHull(maxHull: number): void;
+  setCurrentShield(value: number): void;
+  dispose(): void;
+}
+```
+
+initialHull is a copied numeric current value, >=1 and <=Number.MAX_SAFE_INTEGER, finite;
+normal Scene passes Build effective Hull5, with Shield0/protection0. It is not a stored
+maximum. Current Hull/Shield remain finite 0..MAX_SAFE_INTEGER with fractions allowed.
+setCurrentShield accepts that same Shield range as raw replacement, changes no Hull or
+protection, and adds no capacity/stacking/regen/recharge semantics. It has NO production
+caller in GAME-048: pure tests/ignored internal Scene harnesses alone set nonzero Shield.
+No sixth DEV command, starting Shield, pickup, Shield Active or Core mechanic is authorized.
+Shield Systems remains owned by Build and unused; no automatic multiplier, derived start
+Shield or fake consumer. Fixed-strength world Shield may later have authored independent
+rules; later Active/Core/permanent sources must separately define capacity/scaling.
+
+Every read/mutation asserts live FIRST; dispose is idempotent. Validate all input and
+candidate values before committing any part. Require typeof number and finite numbers,
+damage>0; healing>=0; delta>=0; supplied maxHull in [1,MAX_SAFE_INTEGER], including valid
+fractions under GAME-046 bounds. Damage/heal/delta are finite amounts, not integer-only;
+large finite amounts saturate only through valid gameplay arithmetic. Reject malformed,
+NaN/infinities/negative/invalid zero damage or invalid maxima with clear RangeError and
+unchanged snapshot. No coercion, invalid-input clamping, rounding or broad catch.
+All stored results/returned losses must stay finite and nonnegative. Compute saturation
+without overflowing intermediate sums, e.g. heal only the available max-current gap.
+
+snapshot returns a fresh detached plain JSON object with exactly the three fields above;
+no references/functions/classes/Maps/Sets. Reads do not mutate state, advance protection,
+derive Build data, consume RNG or record diagnostics. Earlier snapshots survive disposal.
+
+**Protection and Shield-first incoming arithmetic**
+
+advanceProtection(delta) sets remaining=max(0,remaining-delta), in milliseconds. Zero is a
+no-op; exact expiry and overshoot produce0. Fixed accepted-hit duration is exactly500ms,
+owned once by Defense (an immutable constant is fine), not copied writable Scene state.
+Pure Defense knows no lifecycle; Scene invokes advance only during active RUNNING update
+at the existing protection phase after movement/targeting and before projectile/contact
+processing. No advancement on pause/resume-command early-return frames, missing-player/
+intent frames, PAUSED, TERMINAL or DISPOSED. Resume continues the same remaining phase.
+
+applyIncomingDamage validates first. With currentHull0 return accepted:false, losses0,
+protectionRejected:false and hullDepleted:true, no mutation. Otherwise, positive protection
+returns accepted:false/protectionRejected:true, losses0 and hullDepleted:false; retain
+the exact remainder without extending it. With neither rejection:
+
+- absorbed=min(oldShield,amount); nextShield=oldShield-absorbed.
+- remaining=amount-absorbed; nextHull=max(0,oldHull-remaining).
+- shieldLost=oldShield-nextShield; hullLost=oldHull-nextHull (actual stored differences).
+- accepted means at least one actual loss>0; if floating-point rounding produces no stored
+  loss, return accepted:false/protectionRejected:false, losses0/hullDepleted:false, with
+  no state/protection change.
+- For accepted damage, commit both candidate values and protectionRemaining=500 before
+  returning; protectionRejected:false, hullDepleted=(nextHull===0). No negative defense,
+  overkill carry, extra rounding, resistances or damage-type/source interpretation.
+
+Shield-only loss starts500 protection just like Hull loss. Shield3/Hull5 receiving2 yields
+Shield1/Hull5; after expiry, receiving3 yields Shield0/Hull3. A second hit DURING protection
+is rejected rather than applying the second example. Exact Shield depletion leaves Hull
+untouched if no overflow; fractional Shield/damage/HP are supported. All result objects
+contain only the five numeric/boolean fields, not formal GAME-049 combat records.
+
+**Scene routing, diagnostics, terminal and visuals**
+
+Pin production incoming order:
+
+1. Exact owning/current run and current Defense/player identity available; reject absent,
+   stale, non-RUNNING/terminal or already-zero Hull before numerical work. Captured old
+   callbacks must fail their existing owner guards before using current Scene Defense.
+2. DEV God Mode check in Scene: reject without calling Defense, losing Hull/Shield,
+   healing, requesting terminal or starting/extending protection. Toggle remains current
+   run-local boolean; existing protection may continue its normal active countdown.
+3. Defense protection check -> Shield absorption -> overflow to Hull through the one
+   numeric operation above. No alternate damage algorithm for contacts/hostile shots.
+4. For accepted hullLost>0 call existing recordPlayerDamage(hullLost) exactly once. hpLost
+   means actual Hull lost; acceptedDamagingHits retains that Hull-loss observation scope.
+   Shield-only accepted hits increment NEITHER counter; never pass Shield loss or0.
+5. For an accepted hit refresh current HUD, set existing alpha0.5, then request Death
+   through the existing enterPlayerDeath path only if accepted && hullDepleted.
+6. RunLifecycle first-terminal acceptance records TERMINAL, clears input, sets alpha0.25
+   and presents existing SHIP DESTROYED/RETRY. No direct Run mutation inside Defense.
+
+The pure accepted operation commits protection500 before Scene's terminal request. Thus
+lethal snapshots retain500 and alpha0.25 wins over damage alpha0.5, matching current final
+state; positive Hull-loss observation precedes TERMINAL. Protection rejection, God Mode,
+Shield-only/nonlethal hits, heal and max reconciliation never request Death. Build max>=1
+prevents max reconciliation of a living ship to0. No diagnostics schema/event/counter
+extension, Shield-loss telemetry or fake damage for heals/caps/setCurrentShield/reads.
+Keep the existing six semantic record types and GAME-045 observation-only ownership.
+
+Keep updatePlayerProtection as presentation/guard adapter if useful: after active Defense
+advance, positive remainder retains alpha0.5; zero restores1 as currently. Terminal never
+runs this restoration and remains0.25 after Death. No Phaser references in Defense, new
+flash/VFX system, player damage numbers or GAME-096 production HUD/bar work. HUD remains
+HP currentHull / Build effective Hull, existing XP/Level/Dash text unchanged.
+
+Hostile collision ownership stays in updateProjectiles. Every colliding hostile shot is
+destroyed/spliced exactly once even on God Mode/protection rejection or Shield-only hit;
+lethal shot cleanup still completes before the next terminal-guarded loop return. Do not
+tie lifetime/removal to accepted or hullLost, and do not move visuals into Defense.
+Preserve reverse production ordering, Death-first/Victory-first, straight player hit/
+cleanup and full Missile/Cluster primary/satellite/removal boundaries before Victory.
+killEnemy, XP/Boss recognition and all outgoing attacks remain unchanged.
+
+**Build maximum synchronization and Hull Plating healing**
+
+PlayerBuild remains the only maximum-Hull truth. On a successful shared Hull percentage
+mutation, Build changes first, then Defense.reconcileMaxHull(new effective Hull), then HUD.
+Resolve/assert the current live Defense before attempting the Build mutation; unavailable
+or stale ownership cannot partly apply a Build change to an unrelated Defense.
+Reconciliation validates max and caps currentHull=min(currentHull,max), never heals an
+increase, never changes Shield/protection/Build and emits no damage/terminal record.
+Preserve exact current run/build bridge identity/RUNNING guards. No new effective-stat
+consumer, modifier formula or duplicated max in Defense. Other stats do not touch Defense.
+
+Hull Plating path: exact current PAUSED/REWARD/run/presentation/eligibility guard -> Build
+applyPrototypeHullPlating() succeeds -> legacy module level increments -> reconcile to
+new max -> healHull(1,new max) -> HUD -> existing SELECTED observation/UI destruction/
+input reset/REWARD release. If Build throws/rejects, Defense/level/selection are unchanged.
+Only this concrete current reward path may heal while PAUSED; MANUAL/focus-only pause,
+terminal/disposed/stale callbacks have no mutation authority. REWARD+FOCUS_LOSS acceptance
+still applies the current choice once and releases only REWARD.
+
+healHull(amount,max) computes currentHull=min(max,currentHull+amount), discarding overheal;
+use bounded gap arithmetic to avoid intermediate overflow. Return max(0,new-old), the
+actual Hull gained (0 at full Hull or after a cap). A supplied smaller max may cap stale
+current Hull; ordinary Scene changes explicitly reconcile first. Zero amount changes no
+Hull when already reconciled. Fractions are preserved. Healing never changes Shield,
+protection/alpha, maximum, RNG or diagnostics. Pure Defense is numeric, not lifecycle-
+aware: Scene/current consumer forbids terminal healing/revival; no heal may resume Run.
+No Medical Drone, shield healing, full heal, ratio heal or Scene HP assignment is added.
+All existing full5->6, damaged2->3 and fractional2.5->3.5 Hull Plating cases retain exact
+max+1/Heal1, including repeated flat arithmetic with shared percentages.
+
+**Exact contact separation geometry (explicit GAME-048 cutover)**
+
+Current docs require small escape separation but provide no authored pixel strength.
+Choose the minimum circle-overlap translation, not a new tuned force/impulse:
+
+- At the existing contact phase require current RUNNING run/Defense/player and Hull>0.
+  Remove the protection-only early return from geometric scanning. Scan enemies in current
+  collection order, select the FIRST with d<=R, R=playerRadius20+enemy.collisionRadius.
+  Use current world centers; no nearest-target reordering, enemy movement or extra scan.
+- Let away=(player.x-enemy.x,player.y-enemy.y). For d>0 normalize by that exact distance;
+  for coincident centers d=0 use unit(+1,0), deterministically. Compute step=max(0,R-d).
+- Candidate player position = old position + unitAway*step; clamp x/y using the SAME
+  movePlayer margins width/2+lineWidth/2 and height/2+lineWidth/2, arena4800x2700. Current
+  bounds are x[21,4779], y[25,2675]. No epsilon, fixed extra kick, velocity or new timer.
+- Apply this separation BEFORE routing that contact's unchanged contactDamage once, then
+  stop scanning, including if damage was rejected. Touching d=R gives step0 but remains
+  an inclusive damage contact. Unclamped distance becomes R; maximum correction is R
+  (44 regular/Elite,60 Warden) at coincident centers. Clamping may leave residual overlap
+  at an edge/corner; accept it, do not teleport/search an alternate exit or iterate pushes.
+
+For example regular enemy(2400,1350), player(2430,1350) yields player(2444,1350);
+coincident centers there yield player(2444,1350); Warden coincidence yields x2460.
+An edge-blocked away vector may yield no movement; still route the first contact only.
+Geometric separation occurs for actual contact even under God Mode/protection, while
+damage remains rejected and no protection restarts. This intentionally supersedes the
+old God Mode no-position-change assertion and protection scan skip, not their no-damage
+guarantees. PAUSED/terminal/missing/stale/zero-Hull contact does neither geometry nor damage.
+No separation for projectile hits or noncontacts. No Ship Impact, RNG, enemy/global
+knockback/Stagger, wall/enemy damage, repeated per-enemy damage, Dash change or integration
+framework. This is one radius-bounded position correction per active contact pass.
+Preserve existing update order: targeting/Drone placement already ran; their normal next
+active updates observe the position, and the following XP step uses current position.
+No extra targeting/orbit/attack simulation pass or new collision system is authorized.
+
+**DEV snapshot, isolation, pause and exact lifetime**
+
+Preserve existing detached DevSnapshot.playerHealth and protectionRemaining as DERIVED
+compatibility scalars from one Defense.snapshot() read. Add only playerShield:number,
+derived from currentShield. Max Hull is already build.effectiveStats.hull, not another
+stored max or duplicate defense object. This exposes all four verification values while
+preserving current DEV consumers. No transient Defense data goes into BuildSnapshot;
+GAME-047's six-field canonical shape/Tags/identity and current zero-source policy stay exact.
+Keep snapshot/forceLevelUp/spawnWarden/setWardenHealth/setGodMode, old API null/false and
+production API absent. No heal/damage/setHull/setShield/clearProtection commands or UI.
+Read-only snapshots remain available during pause/terminal, mutate nothing and draw0.
+
+Defense operations consume zero Encounter/Reward/World/Boss draws and mutate no Tags,
+identity/Analyzer/offers/weapon values/timers. Keep RunLifecycle, RunRandom, KeyboardInput
+and RunDiagnostics ownership/schema unchanged. GAME-044 PAUSED freezes damage/contact/
+separation/Hull/Shield/protection; only exact current Hull reward application may perform
+its existing healing exception. Pause itself never heals/clears protection; resume keeps
+the remaining countdown. All five existing Phaser TimerEvents/phases and Clock.paused
+rules remain; zero new timer, independent clock, wall time, polling or timeScale ownership.
+
+Every native create: fresh RunLifecycle PREPARING -> fresh PlayerBuild -> fresh const
+PlayerDefense(build effective Hull), Shield0/protection0 -> existing player/HUD/local
+setup/initial Chaser/five events/input/UI -> successful run.start -> crypto RunRandom ->
+RunDiagnostics bootstrap -> DEV. Construct Defense before the first HUD read; remove old
+HP/protection resets. No PREPARING entropy/draw/diagnostic or extra bootstrap spawn.
+Bind shutdown/destroy disposal to that exact captured const Defense, remove those exact
+listeners, idempotent. Never dispose via mutable this.playerDefense in an old closure.
+After disposal all direct reads/mutations (including zero heal/delta/Shield setting) throw
+clear disposed-PlayerDefense invariant Error; dispose itself stays safe. Old detached
+snapshots remain plain data. Retained timer/input/focus/reward/result/DEV/cleanup callbacks
+must reject their old owning run/owner identity before fresh Defense access, damage/heal,
+max reconcile, RNG or presentation work. No global currentDefense pointer/registry.
+Native restart is the physical reset, not manual create/reset service or state transplant:
+fresh owner, Hull5/max5, Shield0/protection0, fresh Build/zero Tags/identity and existing
+lifecycle/RNG/input/diagnostics/API, unpaused fresh Clock and five fresh gameplay events.
+
+**Required tracked tests for separately authorized implementation**
+
+Preserve all424 pre-GAME-048 tests/22 files. Add focused pure PlayerDefense and actual
+Scene production-path cases. Existing tests that directly assign Scene HP/protection must
+construct/use real Defense operations/internal fixtures instead of adding compatibility
+setters or alternate damage logic. Adapt only the old contact position expectation to
+this explicit cutover; preserve God/protection/terminal/RNG/diagnostic assertions.
+
+| Boundary | Required evidence |
+| --- | --- |
+| Pure baseline/read/validation | Hull5/Shield0/protection0, exact detached three-field JSON snapshot, immutable old reads; valid fractions/boundaries; invalid constructor/Shield/max/amount/delta/NaN/infinities/nonnumbers/negative/zero damage reject before partial mutation; large finite damage/heal/delta saturate safely |
+| Pure numeric incoming | Hull-only, fractional, exact lethal/overkill to0, exact five-field actual-loss result, already-zero no mutation; full/partial Shield absorption, exact depletion, fractional Shield and same-hit overflow; accepted Shield-only starts500; no stored loss due rounding does not start protection |
+| Pure protection | Accepted hit starts500 before return including lethal; repeated protected hit rejects both losses/no extension; active delta, zero/exact500/overshoot expiry, invalid delta leaves all state unchanged; separate hits only after expiry |
+| Pure heal/reconcile | Damaged/full/capped/fractional/zero heals with actual positive return; discarded overheal/overflow-safe saturation, no Shield/protection effects; lower max caps, higher max no heal; validation atomic; no stored maximum |
+| Pure lifetime | Idempotent dispose; every read/mutation even zero throws afterward; earlier snapshot usable; fresh independent owner baseline |
+| Scene boot/authority/HUD/DEV | Defense constructed in PREPARING before HUD, exact5/5/0/0, five events/commands, unchanged Build/Tags/seed/diagnostic bootstrap; no writable duplicate HP/protection, max still Build; derived legacy snapshot fields plus playerShield correct/detached, production API absent |
+| Scene God/protection/Shield | Real hostile collision consumed on God/protection reject, accepted Shield-only/full overflow/lethal; God loses0 and starts/extends nothing, disable restores future damage. Actual active update advances only at existing phase; PAUSED/terminal freeze. Internal Shield setup only; Shield Systems changes do nothing |
+| Scene Hull/reward | Real Hull Plating full/damaged/fractional +1 max/Heal1, repeated flats and shared percentages; shared max increase no heal/reduction cap; failed Build leaves Defense/level/selection unchanged; exact reward+focus/stale/double/terminal guards, SELECTED before final RESUMED |
+| Scene contact geometry | First collection contact only; inclusive tangent, d>R no effect, regular/Elite44 and Warden60, explicit axis/diagonal/minimum translation, coincident+X, exact player arena edge/corner clamp/residual overlap; God/protected still separate without damage/protection restart; paused/terminal/missing0; no RNG/Impact/enemy/velocity effects |
+| Diagnostics/terminal | hpLost/acceptedDamagingHits reflect positive Hull loss only; Shield-only/rejections/heals/caps0; lethal Hull observation precedes accepted TERMINAL, protection500 and final alpha0.25. Alpha0.5 accepted Shield/Hull and1 at expiry; first-terminal Death/Victory and straight/Missile/Cluster cleanup unchanged, terminal cannot heal/resume |
+| Isolation/lifetime | Defense/read/heal/reconcile/separation draw0 all streams, Build/Tags/identity/Analyzer/offers unchanged, no timer reset/new event; same five Clock phases. Dirty old Defense disposed and old captured timer/input/focus/reward/result/API/cleanup cannot touch fresh defense/owners; existing RNG/Build/API disposal guarantees preserved |
+
+**Required real browser/native validation for separately authorized implementation**
+
+1. Ordinary DEV boot: RUNNING, Hull5/max5/Shield0/protection0, unchanged Build/Tags/RNG/
+   diagnostics, exact five commands/five observed events, derived detached snapshot/HUD.
+2. Actual hostile hit consumed, Hull loss/protection500/alpha feedback; another collision
+   during protection consumed with no loss/extension; next hit after expiry damages again.
+   God Mode against actual projectile/contact: no Defense mutation/protection start, contact
+   geometry still follows the pinned rule; disabling restores later accepted damage.
+3. Ignored INTERNAL harness sets real owner's Shield, routes actual Scene incoming path:
+   full absorb, exact depletion, overflow/fractions, Shield-only protection, lethal Hull
+   after depletion. Verify actual losses/unchanged Shield Systems/no Shield telemetry.
+   Do not create public controls, source content or a second damage algorithm.
+4. Actual rendered pointer Hull Plating at full/damaged/fractional HP preserves max+1/
+   Heal1/HUD/protection/Shield; internal shared Hull increase never heals, reduction caps.
+5. Real W/Space/Escape and manual/reward pause, genuine browser BLUR/reward+focus: meaningful
+   paused wall time leaves protection/Hull/Shield and same five phases stable, explicit
+   resume continues. Distinguish synthetic HIDDEN/VISIBLE from real focus evidence.
+6. Actual contact overlap: exact regular/Warden/coincident/diagonal/edge positions; God/
+   protected/no-contact cases, first-enemy ordering, bounds and zero RNG/Impact influence.
+7. Preserve Death-first/Victory-first and straight/full Missile/Cluster primary/satellite
+   terminal boundaries, lethal protection500/final alpha0.25, frozen terminal defense and
+   no heal/revive. Colliding lethal hostile shot still cleaned up.
+8. At least TWO actual Victory -> NEW RUN, ONE Death -> RETRY and ONE PAUSED nonterminal
+   native scene.restart. Dirty old defense where practical; EACH old owner disposed/direct
+   reads/mutations throw, fresh5/5/0/0, fresh Build/Tags/lifecycle/RNG/input/diagnostics/API,
+   five fresh events/unpaused Clock. Invoke saved old callbacks/cleanup; they cannot damage,
+   heal or reconcile fresh defense/draw fresh RNG. Reload/manual create is not native proof.
+9. Unmodified production preview: movement/Dash/pause/automatic combat/ordinary damage/
+   Death/retry, no DEV API/defense debug UI or added Shield HUD. Inspect console; distinguish
+   known favicon404/Vite >500kB warning from new errors. Report tracked/internal/actual
+   native evidence separately; no new runtime verification is claimed by this definition.
+
+**Scope, definition validation and later documentation**
+
+No GAME-049 Attack/Hit/Damage/AttackSnapshot/DamageRecord/DamageSource/Type taxonomy,
+crit/Armor/resistance/penetration/friendly-fire migration; no enemy definitions/death
+pipeline, enemy/global knockback/Impact/Stagger system, Shield Active/specialization/Core
+or Capacitor, Medical Drone/Barrier, Shield regeneration/recharge/capacity, production HUD
+bars/incoming numbers, reward weighting, maturity/Director, framework/manager/ECS/event
+bus/service locator, extra timer/RNG/dependency. This numeric incoming result is not a
+formal combat record. Outgoing weapon/launch/progression/gameplay contracts remain intact
+except this task's explicit defense authority/Shield math/contact-separation cutover.
+
+Now change only docs/TASK_GRAPH.md: GAME-048 BACKLOG->READY, this definition and necessary
+current status wording; GAME-046/047 DONE, GAME-040/041 SUPERSEDED, GAME-049+ BACKLOG,
+GATE A PASSED and GATE B unchanged/not passed. Preserve historical definition instructions.
+Run npm run check and git diff --check; verify single-file scope, explicitly stage only
+TASK_GRAPH, inspect COMPLETE git diff --cached and run cached check/stat. Generate ignored
+.codex-review/GAME-048-review.txt with AGENTS.md sections, branch/base, source inventory,
+exact API/arithmetic/geometry/consumer/lifetime/validation decisions and full staged diff.
+Never stage review artifacts or commit; all other docs/runtime/tests/config stay unchanged.
+After successful separately authorized implementation and required tracked/native checks,
+GAME-048 may become DONE; update factual CURRENT_STATE defense behavior and PROJECT_GRAPH
+actual exports/consumers/lifetime. ARCHITECTURE normally unchanged. GAME-049+ remain
+BACKLOG; GATE A stays PASSED; GATE B needs its actual phase prerequisites and gate review.
 
 **GATE B — Modern Combat on Legacy Spawning** — review the preceding phase capabilities before its cutover/next proof.
 
