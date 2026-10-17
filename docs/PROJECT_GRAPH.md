@@ -9,7 +9,10 @@
 - Active task request defines task-specific requirements.
 - AGENTS.md defines repository policy.
 - TASK_GRAPH.md defines task scope, dependencies and status.
-- CURRENT_STATE.md records implemented runtime state.
+- CURRENT_STATE.md records implemented runtime state; source code and tests are exact implementation truth.
+- GAME_DESIGN.md is target player-facing behavior; ARCHITECTURE.md is target ownership/contracts/invariants.
+- CONTENT_MANIFEST.md fixes current-wave content; BALANCE.md holds target ranges and playtest hypotheses.
+- Current implementation may intentionally differ from target design; no future runtime modules are mapped here.
 - Actual source code is authoritative for implementation details.
 - PROJECT_GRAPH.md is only a navigation/ownership aid; it never overrides these sources.
 
@@ -56,11 +59,13 @@ IDs are repository-relative paths; symbols use `path#export`.
 | `src/game/player/dash.ts` | Pure Dash frame timing split |
 | `src/game/player/dash.test.ts` | Tracked Dash timing tests |
 | `AGENTS.md` | Repository policy and detailed architect-review protocol |
-| `docs/GAME_DESIGN.md` | Gameplay/design intent; includes unimplemented directions |
-| `docs/ARCHITECTURE.md` | Architecture principles and boundaries |
+| `docs/GAME_DESIGN.md` | Target player-facing gameplay behavior; not implementation status |
+| `docs/ARCHITECTURE.md` | Target ownership boundaries, contracts, lifecycle rules and invariants |
+| `docs/CONTENT_MANIFEST.md` | Exact content scope of the current development wave |
+| `docs/BALANCE.md` | Balance target ranges, pacing hypotheses and playtest checkpoints |
 | `docs/CURRENT_STATE.md` | Implemented runtime truth |
-| `docs/TASK_GRAPH.md` | Work scope, dependencies and status |
-| `docs/PROJECT_GRAPH.md` | Repository navigation and ownership |
+| `docs/TASK_GRAPH.md` | Implementation order, dependencies and task status |
+| `docs/PROJECT_GRAPH.md` | Implemented code/navigation/ownership map, not future module design |
 | `.agents/skills/nebula-game-task/SKILL.md` | Codex scoped-task workflow and branch guard |
 
 ## Exported symbol nodes
