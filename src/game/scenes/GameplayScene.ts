@@ -1,6 +1,7 @@
 import type { DevTools } from '../devTools';
 import { RunLifecycle } from '../run/RunLifecycle';
 import { RunRandom } from '../run/RunRandom';
+import { KeyboardInput } from '../input/KeyboardInput';
 import * as Phaser from 'phaser';
 import { segmentCircleHitTime } from '../combat/collision';
 import { prismSpread } from '../combat/prismSpread';
@@ -149,11 +150,11 @@ export class GameplayScene extends Phaser.Scene {
   private missileRanks: MissileRanks = { warheadPower: 0, propulsion: 0, blastExpansion: 0 };
   private weaponFocus: WeaponFocus = 'laser';
   private focusCursors: FocusCursors = { laser: 0, missile: 0, drone: 0 };
-  private cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
-  private wasd?: Record<'up' | 'left' | 'down' | 'right', Phaser.Input.Keyboard.Key>;
+  private inputAdapter?: KeyboardInput;
+  private canResume?: () => boolean;
+  private pausePresentation?: Phaser.GameObjects.Text;
   private readonly movementDirection = new Phaser.Math.Vector2();
   private movementSpeed = 300;
-  private dashKey?: Phaser.Input.Keyboard.Key;
   private readonly dashDirection = new Phaser.Math.Vector2();
   private readonly dashSpeed = 900;
   private readonly dashDuration = 200;
@@ -193,6 +194,8 @@ export class GameplayScene extends Phaser.Scene {
   create(): void {
     const run = new RunLifecycle();
     this.run = run;
+    this.time.paused = false;
+    this.pausePresentation = undefined;
     const disposeRun = () => {
       run.dispose();
       this.events.off(Phaser.Scenes.Events.SHUTDOWN, disposeRun);
@@ -216,7 +219,6 @@ export class GameplayScene extends Phaser.Scene {
     this.dashRemaining = 0;
     this.dashCooldownRemaining = 0;
     this.dashDirection.set(0, 0);
-    this.dashKey = undefined;
     this.laser = { damage: 1, fireInterval: 600, projectileSpeed: 1200 };
     this.laserRanks = { power: 0, fireRate: 0, speed: 0 };
     this.missileRanks = { warheadPower: 0, propulsion: 0, blastExpansion: 0 };
@@ -304,17 +306,7 @@ export class GameplayScene extends Phaser.Scene {
       callback: () => { if (run.state === 'RUNNING') this.fireHostileProjectile(); },
     }));
 
-    const keyboard = this.input.keyboard;
-    if (keyboard) {
-      this.dashKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
-      this.cursors = keyboard.createCursorKeys();
-      this.wasd = {
-        up: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W),
-        left: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A),
-        down: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S),
-        right: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D),
-      };
-    }
+    this.bindRunInput(run);
 
     this.add
       .text(width / 2, 80, 'NEBULA — GAMEPLAY SCENE', {
@@ -356,23 +348,16 @@ export class GameplayScene extends Phaser.Scene {
   }
 
   update(_time: number, delta: number): void {
-    // Consume even rejected presses so pause/death/cooldown cannot queue a Dash.
-    const dashPressed = this.dashKey
-      ? Phaser.Input.Keyboard.JustDown(this.dashKey) && this.dashKey.isDown && !this.dashKey.originalEvent?.repeat
-      : false;
+    const intent = this.inputAdapter?.sample();
+    if (intent?.pausePressed) { this.handlePauseRequest(); return; }
     if (this.isSimulationPaused()) return;
-    if (!this.player || !this.cursors || !this.wasd) return;
+    if (!this.player || !intent) return;
 
-    const left = this.wasd.left.isDown || this.cursors.left.isDown;
-    const right = this.wasd.right.isDown || this.cursors.right.isDown;
-    const up = this.wasd.up.isDown || this.cursors.up.isDown;
-    const down = this.wasd.down.isDown || this.cursors.down.isDown;
-
-    this.movementDirection.set(Number(right) - Number(left), Number(down) - Number(up));
+    this.movementDirection.set(intent.moveX, intent.moveY);
     this.movementDirection.normalize();
 
     const previousCooldownDisplay = Math.ceil(this.dashCooldownRemaining / 100);
-    if (dashPressed && this.dashRemaining === 0 && this.dashCooldownRemaining === 0
+    if (intent.activatePressed && this.dashRemaining === 0 && this.dashCooldownRemaining === 0
       && this.movementDirection.lengthSq() > 0) {
       this.dashDirection.copy(this.movementDirection);
       this.dashRemaining = this.dashDuration;
@@ -430,7 +415,75 @@ export class GameplayScene extends Phaser.Scene {
   }
 
   private isSimulationPaused(): boolean {
-    return this.isLevelUpPaused || this.run?.state !== 'RUNNING';
+    return this.run?.state !== 'RUNNING';
+  }
+
+  private bindRunInput(run: RunLifecycle): void {
+    let valid = true;
+    const current = () => valid && this.run === run && run.state !== 'DISPOSED';
+    const adapter = new KeyboardInput(this.input.keyboard, () => current() && run.state === 'RUNNING');
+    this.inputAdapter = adapter;
+    let focused = document.hasFocus();
+    let visible = !document.hidden;
+    this.canResume = () => current() && focused && visible && document.hasFocus() && !document.hidden;
+    const loseFocus = () => {
+      if (!current() || (run.state !== 'RUNNING' && run.state !== 'PAUSED')) return;
+      run.requestPause('FOCUS_LOSS');
+      adapter.reset();
+      this.projectPause();
+    };
+    const blur = () => { if (current()) { focused = false; loseFocus(); } };
+    const hidden = () => { if (current()) { visible = false; loseFocus(); } };
+    const focus = () => { if (current()) focused = true; };
+    const visibleAgain = () => { if (current()) visible = true; };
+    const events = this.game.events;
+    const bindings = [
+      [Phaser.Core.Events.BLUR, blur], [Phaser.Core.Events.HIDDEN, hidden],
+      [Phaser.Core.Events.FOCUS, focus], [Phaser.Core.Events.VISIBLE, visibleAgain],
+    ] as const;
+    for (const [event, listener] of bindings) events.on(event, listener);
+    const disposeInput = () => {
+      valid = false;
+      adapter.dispose();
+      for (const [event, listener] of bindings) events.off(event, listener);
+      this.events.off(Phaser.Scenes.Events.SHUTDOWN, disposeInput);
+      this.events.off(Phaser.Scenes.Events.DESTROY, disposeInput);
+    };
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, disposeInput);
+    this.events.once(Phaser.Scenes.Events.DESTROY, disposeInput);
+  }
+
+  private handlePauseRequest(): void {
+    const run = this.run;
+    if (!run || run.hasPauseReason('REWARD')) return;
+    if (run.state === 'RUNNING') run.requestPause('MANUAL');
+    else if (run.state === 'PAUSED' && this.canResume?.()) {
+      run.releasePause('MANUAL');
+      run.releasePause('FOCUS_LOSS');
+    } else return;
+    this.inputAdapter?.reset();
+    this.projectPause();
+  }
+
+  private projectPause(): void {
+    this.time.paused = this.run?.state === 'PAUSED';
+    if (!this.time.paused || this.run?.hasPauseReason('REWARD')) {
+      this.pausePresentation?.destroy();
+      this.pausePresentation = undefined;
+    } else if (!this.pausePresentation) {
+      this.pausePresentation = this.add.text(this.scale.width / 2, this.scale.height / 2,
+        'PAUSED\nESC to resume', { fontFamily: 'Arial, sans-serif', fontSize: '48px', color: '#e2e8f0',
+          backgroundColor: '#050816', padding: { x: 24, y: 16 }, align: 'center' })
+        .setOrigin(0.5).setScrollFactor(0).setDepth(2);
+    }
+  }
+
+  private clearTerminalInput(): void {
+    this.inputAdapter?.reset();
+    for (const text of this.levelUpPresentation) text.destroy();
+    this.levelUpPresentation = [];
+    this.isLevelUpPaused = false;
+    this.projectPause();
   }
 
   private restoreEnemyOutline(enemy: EnemyRuntime): void {
@@ -451,7 +504,10 @@ export class GameplayScene extends Phaser.Scene {
   }
 
   private enterLevelUpPause(): void {
-    if (this.isSimulationPaused()) return;
+    const run = this.run;
+    if (this.isLevelUpPaused || run?.state !== 'RUNNING' || !run.requestPause('REWARD')) return;
+    this.inputAdapter?.reset();
+    this.projectPause();
     this.isLevelUpPaused = true;
     const title = this.add.text(this.scale.width / 2, this.scale.height / 2 - 160, 'LEVEL UP — CHOOSE ONE', {
       fontFamily: 'Arial, sans-serif',
@@ -494,7 +550,7 @@ export class GameplayScene extends Phaser.Scene {
         }).setOrigin(0.5).setScrollFactor(0).setDepth(1)
         .setInteractive({ useHandCursor: true });
       this.levelUpPresentation.push(choice);
-      choice.once('pointerdown', () => this.acceptLevelUpChoice(choice, option));
+      choice.once('pointerdown', () => this.acceptLevelUpChoice(choice, option, run));
     });
   }
 
@@ -536,16 +592,15 @@ export class GameplayScene extends Phaser.Scene {
     }
   }
 
-  private acceptLevelUpChoice(choice: Phaser.GameObjects.Text, option: LevelUpChoice): void {
-    const run = this.run;
-    if (run?.state !== 'RUNNING' || !this.isLevelUpPaused || !this.levelUpPresentation.includes(choice)) return;
+  private acceptLevelUpChoice(choice: Phaser.GameObjects.Text, option: LevelUpChoice, run = this.run): void {
+    if (this.run !== run || run?.state !== 'PAUSED' || !run.hasPauseReason('REWARD')
+      || !this.isLevelUpPaused || !this.levelUpPresentation.includes(choice)) return;
     if (option.kind === 'laser' && this.laserRanks[option.upgrade] >= 2) return;
     if (option.kind === 'missile' && this.missileRanks[option.upgrade] >= 2) return;
     if (option.kind === 'drone' && this.droneRanks[option.upgrade] >= 2) return;
     if (option.kind === 'prism' && this.prismEvolved) return;
     if (option.kind === 'cluster' && this.clusterEvolved) return;
     if (option.kind === 'twin' && this.twinDroneEvolved) return;
-    if (this.dashKey) Phaser.Input.Keyboard.JustDown(this.dashKey);
     if (option.kind === 'laser') this.laserRanks[option.upgrade] += 1;
     if (option.kind === 'prism') this.prismEvolved = true;
     if (option.kind === 'cluster') {
@@ -611,6 +666,9 @@ export class GameplayScene extends Phaser.Scene {
     this.isLevelUpPaused = false;
     for (const text of this.levelUpPresentation) text.destroy();
     this.levelUpPresentation = [];
+    this.inputAdapter?.reset();
+    run.releasePause('REWARD');
+    this.projectPause();
   }
 
   private updateXpPickups(delta: number): void {
@@ -679,6 +737,7 @@ export class GameplayScene extends Phaser.Scene {
   private enterPlayerDeath(): void {
     const run = this.run;
     if (!run?.tryEnterTerminal('DEATH')) return;
+    this.clearTerminalInput();
     this.player?.setAlpha(0.25);
     this.add.text(this.scale.width / 2, this.scale.height / 2, 'SHIP DESTROYED', {
       fontFamily: 'Arial, sans-serif',
@@ -706,6 +765,7 @@ export class GameplayScene extends Phaser.Scene {
   private enterRunVictory(): void {
     const run = this.run;
     if (!this.bossDefeated || !run?.tryEnterTerminal('VICTORY')) return;
+    this.clearTerminalInput();
     const centerX = this.scale.width / 2;
     const centerY = this.scale.height / 2;
     this.victoryPresentation = [
@@ -1069,6 +1129,7 @@ export class GameplayScene extends Phaser.Scene {
         const boss = activeWarden();
         return {
           runSeed: this.runRandom!.runSeed,
+          runState: this.run!.state, pauseReasons: this.run!.pauseReasons,
           isPlayerDead: this.isPlayerDead, isRunVictorious: this.isRunVictorious,
           isLevelUpPaused: this.isLevelUpPaused, godMode: this.godMode,
           playerHealth: this.playerHealth,

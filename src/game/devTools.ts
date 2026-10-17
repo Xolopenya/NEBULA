@@ -1,5 +1,9 @@
+import type { PauseReason, RunState } from './run/RunLifecycle';
+
 export type DevSnapshot = {
   runSeed: number;
+  runState: RunState;
+  pauseReasons: PauseReason[];
   isPlayerDead: boolean;
   isRunVictorious: boolean;
   isLevelUpPaused: boolean;

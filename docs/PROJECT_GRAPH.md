@@ -4,8 +4,8 @@
 
 - Project: NEBULA.
 - Milestone: First Playable / GAME-015 complete.
-- Source baseline HEAD: `d688127d346c3fb6ccbc8b933c2e391eb69ed310`.
-- This map reflects that source baseline plus the staged GAME-043 seeded RNG ownership; current Scene retains combat/presentation and GAME-039 DEV wiring.
+- Source baseline HEAD: `55ea5c1975b90fae771605723336f78abfe03f84`.
+- This map reflects that source baseline plus the staged GAME-044 pause/input ownership; current Scene retains combat/presentation and GAME-039 DEV wiring.
 - Active task request defines task-specific requirements.
 - AGENTS.md defines repository policy.
 - TASK_GRAPH.md defines task scope, dependencies and status.
@@ -26,12 +26,14 @@ IDs are repository-relative paths; symbols use `path#export`.
 | `src/game/config.ts` | Full HD FIT config and scene registration |
 | `src/game/scenes/BootScene.ts` | Starts GameplayScene |
 | `src/game/scenes/GameplayScene.ts` | Owns current run simulation, presentation and DEV API per-create binding |
-| `src/game/run/RunLifecycle.ts` | Focused lifecycle authority: RunState, TerminalOutcome, RunLifecycle; no Phaser dependency |
-| `src/game/run/RunLifecycle.test.ts` | Eight pure lifecycle start/terminal/disposal/independence/read-only cases |
+| `src/game/run/RunLifecycle.ts` | Focused lifecycle authority: RunState including PAUSED, PauseReason, terminal/disposal; no Phaser dependency |
+| `src/game/run/RunLifecycle.test.ts` | 19 pure lifecycle/reason/composition/terminal/disposal/independence cases |
+| `src/game/input/KeyboardInput.ts` | Concrete desktop key bindings, GameplayIntent sample/reset/dispose and held-control suppression |
+| `src/game/input/KeyboardInput.test.ts` | 17 adapter mapping/edge/repeat/reset/held/fresh/disposal cases |
 | `src/game/run/RunRandom.ts` | Phaser-free uint32 seed, four independent explicit Mulberry32 streams, exact-owner disposal |
 | `src/game/run/RunRandom.test.ts` | 21 pure seed/golden/range/independence/disposal cases |
-| `src/game/devTools.ts` | DevSnapshot with detached numeric runSeed / five-command DevTools types and optional Window declaration; no runtime registry |
-| `src/game/scenes/GameplayScene.devTools.test.ts` | 48 tracked Scene/DevTools/lifecycle/RNG integration cases with rendering fixtures |
+| `src/game/devTools.ts` | DevSnapshot with numeric runSeed/runState/copied ordered pauseReasons; five-command DevTools types, no runtime registry |
+| `src/game/scenes/GameplayScene.devTools.test.ts` | 61 tracked Scene/DevTools/lifecycle/RNG/pause/input cases, including installed Phaser Clock phase integration |
 | `src/game/combat/collision.ts` | Pure numeric collision math |
 | `src/game/combat/collision.test.ts` | Tracked geometry tests |
 | `src/game/progression/experience.ts` | Pure XP threshold/award arithmetic and state type |
@@ -81,6 +83,9 @@ IDs are repository-relative paths; symbols use `path#export`.
 | `src/game/config.ts#gameConfig` | Registers BootScene/GameplayScene; 1920x1080 FIT |
 | `src/game/scenes/BootScene.ts#BootScene` | Scene startup transition |
 | `src/game/scenes/GameplayScene.ts#GameplayScene` | Scene/run owner |
+| `src/game/run/RunLifecycle.ts#PauseReason` | Exactly REWARD, MANUAL, FOCUS_LOSS; requestPause/releasePause/hasPauseReason and detached ordered reason view |
+| `src/game/input/KeyboardInput.ts#GameplayIntent` | Raw moveX/moveY and activatePressed/pausePressed edges |
+| `src/game/input/KeyboardInput.ts#KeyboardInput` | Desktop adapter only; no gameplay movement/Dash simulation |
 | `src/game/run/RunRandom.ts#RunRandom` | Immutable runSeed; encounter/reward/world/boss next(); dispose invalidates captured handles |
 | `src/game/combat/collision.ts#segmentCircleHitTime` | First segment-circle hit in [0,1], else Infinity |
 | `src/game/progression/experience.ts#ExperienceState` | Numeric level and XP toward next level |
@@ -127,6 +132,8 @@ Runtime labels below describe scene-owned concepts, not separate modules/classes
 | `src/game/enemies/shooterMovement.ts#shooterMovement` | TESTED_BY | `src/game/enemies/shooterMovement.test.ts` |
 | `src/game/scenes/GameplayScene.ts` | IMPORTS | `src/game/progression/selectChoices.ts#selectChoices` |
 | `src/game/scenes/GameplayScene.ts` | CREATES | `src/game/run/RunRandom.ts#RunRandom` after successful RunLifecycle.start, from crypto uint32 entropy |
+| `src/game/scenes/GameplayScene.ts` | CREATES | `src/game/input/KeyboardInput.ts#KeyboardInput` bound to exact owning run |
+| `src/game/input/KeyboardInput.ts#KeyboardInput` | TESTED_BY | `src/game/input/KeyboardInput.test.ts` |
 | `src/game/run/RunRandom.ts#RunRandom` | TESTED_BY | `src/game/run/RunRandom.test.ts` |
 | `src/game/progression/selectChoices.ts#selectChoices` | TESTED_BY | `src/game/progression/selectChoices.test.ts` |
 | `src/game/scenes/GameplayScene.ts` | IMPORTS | `src/game/progression/prismLaser.ts` (LaserRanks, canEvolvePrismLaser) |
@@ -174,14 +181,15 @@ All private names below are navigation anchors, not exported symbol nodes.
 | Category | Current owner / anchors | Boundary |
 | --- | --- | --- |
 | World presentation | create; arena Graphics, stars, boundary | Scene-owned drawing |
-| Player visual/input | player, cursors, wasd; create | Polygon and keyboard bindings |
+| Player visual/input | player, inputAdapter; create / bindRunInput | Polygon and exact-create KeyboardInput; raw keys remain in adapter |
 | Movement/bounds/camera | update; movementDirection; create camera setup | Normalized delta movement, arena clamp/follow |
-| Dash | dashKey, dashDirection, dashRemaining, dashCooldownRemaining; update → stepDash / movePlayer | Fresh Space; scene-owned lock, 900 px/s, 200 ms, 3000 ms cooldown; active-time-only and segment clamping; create resets |
+| Dash | inputAdapter.sample / intent.activatePressed, dashDirection, dashRemaining, dashCooldownRemaining; update → stepDash / movePlayer | Space intent; scene-owned lock, 900 px/s, 200 ms, 3000 ms cooldown; PAUSED freezes burst/cooldown; create resets |
 | Player health | playerHealth, playerMaxHealth; damagePlayer | Current/max HP and clamping |
 | Damage protection | playerDamageProtectionRemaining; updatePlayerProtection | Global 500 ms protection, temporary alpha |
-| Level-up pause | isLevelUpPaused; enterLevelUpPause; isSimulationPaused | Distinct from death/Victory; level increase freezes update/callbacks; fixed title and three distinct focused/passive/open choices; one selection resumes |
-| Choice UI/resume | levelUpPresentation; enterLevelUpPause; acceptLevelUpChoice | Current text identity and terminal guard; applies one Laser/Missile/passive effect or Prism, destroys title/options then resumes |
-| Run lifecycle | run; RunLifecycle; create | Fresh PREPARING to RUNNING; exact captured shutdown/destroy disposal; immutable first terminal outcome |
+| Level-up pause | isLevelUpPaused; enterLevelUpPause; RunLifecycle REWARD | Flag is transaction identity only; REWARD owns PAUSED; current choice releases only REWARD, other reasons retain pause |
+| Choice UI/resume | levelUpPresentation; enterLevelUpPause; acceptLevelUpChoice | Exact run/text/REWARD identity; applies one current upgrade/evolution, destroys UI, releases REWARD only; resumes if no other reason remains |
+| Run lifecycle | run; RunLifecycle; create | PREPARING/RUNNING/PAUSED/TERMINAL/DISPOSED; concrete composed reasons; first terminal from RUNNING/PAUSED; captured exact disposal |
+| Pause/input projection | bindRunInput; handlePauseRequest; projectPause; canResume; pausePresentation | Exact-owner BLUR/HIDDEN loss, separate FOCUS/VISIBLE bookkeeping, explicit focused Escape resume; Scene Clock.paused freezes five events; minimal non-reward UI |
 | Run RNG | runRandom; RunRandom; create | Fresh owner after successful RUNNING; crypto uint32 seed; exact captured shutdown/destroy disposal; old handles throw; World/Boss dormant |
 | Spawn randomness | spawnEnemy → runRandom.encounter.next | Two draws after guards: fixed side mapping then varying coordinate; deterministic fallback adds none |
 | Choice randomness | enterLevelUpPause → selectChoices → runRandom.reward.next | Explicit source at three sampling sites; one draw per sampled slot, none for focus/evolution/stable UI/acceptance |
@@ -227,7 +235,7 @@ All private names below are navigation anchors, not exported symbol nodes.
 BootScene.create → scene.start('GameplayScene') → GameplayScene.create
 → fresh player/enemy/collections → spawn/Laser/Missile/Drone/hostile timers → update.
 
-update: consume fresh Dash press → simulation pause guard → player movement/Dash split/bounds → Drone orbit → Chaser/Tank/Warden pursuit / Shooter band movement → target/highlight
+update: sample intents / handle PauseRequest → lifecycle simulation guard → player movement/Dash split/bounds → Drone orbit → Chaser/Tank/Warden pursuit / Shooter band movement → target/highlight
 → protection countdown → straight projectiles/impacts → Missiles/homing/explosions → contact damage → XP magnet/collection (simulation active only).
 
 Lethal player damage → damagePlayer → enterPlayerDeath → frozen simulation
@@ -237,12 +245,12 @@ Common Warden removal during a player hit → complete that projectile or full M
 detonation and cleanup → enterRunVictory → frozen gameplay / fixed result
 → guarded NEW RUN pointerdown → native scene.restart → fresh create.
 
-- Dash presses are consumed before pause guards and on choice acceptance; native repeat events are rejected, so rejected presses do not queue.
-- create resets Dash clocks/direction and reacquires input; keyboard shutdown clears old keys on retry.
+- Adapter consumes intent edges and suppresses held controls across pause/resume/terminal; repeats/rejected activation never queue. Choice acceptance resets adapter, not raw keys.
+- create resets Dash clocks/direction and Clock.paused, with a fresh exact-owner adapter/focus binding; old callbacks/cleanup remain inert on reused Scene.
 - create constructs a fresh lifecycle authority and resets health/protection, arrays, target and successfulTimedSpawns0 (no Elite/Boss), bossSpawned/bossDefeated false; constructs one initial Chaser outside the timed CCCSCT sequence.
 - Spawn, Laser, Missile, Drone and hostile callbacks return while dead, level-up paused or victorious; same timer events remain scheduled without Victory reset/pause/recreation.
 - Level-increasing collection removes its pickup then pauses; subsequent pickups remain frozen.
-- One current choice applies its Laser/Missile/Drone upgrade, Passive Module or Prism/Cluster/Twin evolution then destroys levelUpPresentation and clears pause; stale choices cannot close a new pause.
+- One current choice applies its upgrade/evolution, destroys levelUpPresentation and releases REWARD only; other reasons retain PAUSED and stale choices cannot release a new presentation's reason.
 - Final recipe prerequisite resumes normally; only the next presentation can offer an evolution. Offers use the separate three-evolution cursor; accepting Prism sets prismEvolved without consuming Combat or changing numeric Laser values/timer.
 - create resets all three evolution flags and evolutionOfferCursor to false/Prism-first. Active Missiles own clusterEnabled at launch; satellite resolution derives only from readonly launch damage/radius after primary deaths.
 - create resets missileRanks, missileValues, weaponFocus and focusCursors as well as laserRanks and prismEvolved. Prism uses the same straight-shot collection and five existing gameplay timers.
@@ -316,9 +324,11 @@ Statuses and dependencies remain in TASK_GRAPH.md, not duplicated here.
 
 GameplayScene.publishDevTools / creditExperience / godMode / gameplayTimers IMPLEMENTS_TASK GAME-039. Vite DEV-only publication owns per-create shutdown/destroy invalidation; old captured API is inert after native restart. Shared creditExperience preserves pickup credit/removal/choice order; God Mode guards damagePlayer; five existing TimerEvent references supply snapshot counts, including pending insertion. DevTools types are exported from src/game/devTools.ts; runtime ownership remains in GameplayScene.
 
-RunLifecycle IMPLEMENTS_TASK GAME-042: PREPARING/RUNNING/TERMINAL/DISPOSED, immutable outcome, start/tryEnterTerminal/dispose. GameplayScene owns its per-create construction/captured disposal and derives terminal getters; concrete UI and attack boundaries stay in Scene. Existing timer and cadence-reset callbacks plus retry controls capture their owning run; Level-Up remains separate. Tracked pure lifecycle and Scene integration tests plus real Phaser native restart evidence validate the boundary.
+RunLifecycle IMPLEMENTS_TASK GAME-042, extended with PAUSED by GAME-044: immutable first outcome, start/tryEnterTerminal/dispose and concrete pause reason ownership. GameplayScene owns per-create construction/captured disposal and derived terminal getters; concrete UI and attack boundaries stay in Scene. Existing timer/cadence-reset/retry callbacks capture their run; Level-Up presentation remains Scene-owned with REWARD lifecycle authority. Tracked tests and real Phaser native restarts validate the boundary.
 
 RunRandom IMPLEMENTS_TASK GAME-043: fixed Mulberry32 and root-XOR-salt avalanche, independent Encounter/Reward/World/Boss state, immutable uint32 seed and disposed-handle errors. GameplayScene owns creation after RUNNING and captured exact-owner cleanup; spawnEnemy consumes Encounter and Level-Up sampling consumes Reward. World/Boss have no current consumers. DevSnapshot exposes only numeric runSeed; no seed controls, service registry or new timers. Pure golden/independence tests, actual Scene tests and real Phaser fixed-seed/native restart checks cover the boundary.
+
+RunLifecycle pause operations + KeyboardInput + GameplayScene.bindRunInput/handlePauseRequest/projectPause IMPLEMENT_TASK GAME-044. Scene projects authority onto the existing Clock.paused and minimal UI; REWARD acceptance releases only its reason, focused/visible Escape explicitly releases MANUAL/FOCUS_LOSS. Captured adapter/listener cleanup cannot change a fresh reused Clock/run. DEV snapshot adds detached runState/ordered reasons. Actual keyboard, 2300ms phase freeze, genuine browser BLUR, native restart and unmodified production preview checks pass; HIDDEN/VISIBLE combinations are covered separately by tracked synthetic tests.
 
 ## Common navigation queries
 
@@ -329,7 +339,7 @@ RunRandom IMPLEMENTS_TASK GAME-043: fixed Mulberry32 and root-XOR-salt avalanche
 | Where are XP thresholds and levels calculated? | src/game/progression/experience.ts; scene playerExperience |
 | Where are level-up choices/resume owned? | GameplayScene.ts → enterLevelUpPause, levelUpPresentation, acceptLevelUpChoice |
 | Where are HUD values rendered/refreshed? | GameplayScene.ts → hud, updateHud; create, damagePlayer, updateXpPickups |
-| Where is Dash input/timing/reset owned? | GameplayScene.ts → dashKey, update, movePlayer, create; player/dash.ts#stepDash |
+| Where is Dash input/timing/reset owned? | input/KeyboardInput.ts → Space intent; GameplayScene.ts → update, movePlayer, create; player/dash.ts#stepDash |
 | Where is player damage controlled? | GameplayScene.ts → damagePlayer, updatePlayerProtection |
 | Who owns projectile movement/lifetime/cleanup? | GameplayScene.ts → updateProjectiles (straight shots), updateMissiles (homing) |
 | Where are Drone orbit/bolts owned? | GameplayScene.ts → droneConfig, droneAttackValues, droneRanks, droneTimer, droneAngle, twinDrone, twinDroneEvolved, updateDrone, positionDrone, fireDrone, fireDroneFrom, firePlayerProjectile / updateProjectiles |

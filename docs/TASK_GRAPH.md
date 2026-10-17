@@ -339,7 +339,7 @@ Never reuse these IDs for unrelated tasks.
 
 ## Mechanical Vertical Slice roadmap
 
-GAME-042 and GAME-043 are DONE; GAME-044 is READY; GAME-045+ remain BACKLOG. Each row gives phase membership, exact dependencies and a
+GAME-042 and GAME-043 are DONE; GAME-044 is DONE; GAME-045+ remain BACKLOG. Each row gives phase membership, exact dependencies and a
 short capability; gates are review checkpoints, not automatic authorization.
 Dependency ranges are inclusive.
 
@@ -349,7 +349,7 @@ Dependency ranges are inclusive.
 | --- | --- | --- | --- | --- |
 | GAME-042 | Run Lifecycle & Fresh Run Boundary | DESIGN-005, GAME-039 | Run lifecycle, terminal and fresh-restart authority; preserve GAME-038 first-terminal semantics. | DONE |
 | GAME-043 | Seeded RNG Streams | GAME-042 | runSeed and independent Encounter/Reward/World/Boss RNG streams. | DONE |
-| GAME-044 | Authoritative Pause & Input Boundary | GAME-042 | Single gameplay pause authority, movement/Active/Pause intents and focus-loss semantics. | READY |
+| GAME-044 | Authoritative Pause & Input Boundary | GAME-042 | Single gameplay pause authority, movement/Active/Pause intents and focus-loss semantics. | DONE |
 | GAME-045 | Telemetry & Diagnostics Foundation | GAME-042 | Run timeline, aggregates and diagnostics foundation. | BACKLOG |
 
 #### GAME-042 — Run Lifecycle & Fresh Run Boundary
@@ -547,7 +547,7 @@ Production preview boots with DEV API absent. Known favicon404 and Vite bundle-s
 no new pageerrors observed.
 
 CURRENT_STATE and real PROJECT_GRAPH ownership are updated. DESIGN-005/GAME-039 stay DONE,
-GAME-040/041 SUPERSEDED; GAME-043 DONE; GAME-044 READY; GAME-045+ BACKLOG. GATE A remains incomplete. Explicit staging
+GAME-040/041 SUPERSEDED; GAME-043 DONE; GAME-044 DONE; GAME-045+ BACKLOG. GATE A remains incomplete. Explicit staging
 and ignored .codex-review/GAME-042-review.txt follow AGENTS.md; no commit is created.
 
 #### GAME-043 — Seeded RNG Streams
@@ -769,7 +769,7 @@ fixed-seed spawn/offer sequences and cross-stream isolation. Two actual Victory 
 cycles and one Death RETRY (plus nonterminal/Missile/Cluster native restarts) dispose old
 streams and retain fresh RNG/lifecycle/API/five events with inert stale callbacks.
 Production canvas boots with DEV API absent; only known favicon404 and build chunk-size
-warnings remain. GAME-044 READY; GAME-045+ BACKLOG; GAME-040/041 SUPERSEDED; GATE A incomplete.
+warnings remain. GAME-044 DONE; GAME-045+ BACKLOG; GAME-040/041 SUPERSEDED; GATE A incomplete.
 
 **Definition validation and documentation (historical definition-only instructions)**
 
@@ -783,19 +783,19 @@ After successful later implementation and tracked/native checks, GAME-043 may be
 CURRENT_STATE describes actual seed/streams/consumers/determinism and PROJECT_GRAPH maps
 real files/exports/consumers. ARCHITECTURE normally stays unchanged except a factual stale
 implementation-status correction if necessary. Keep DESIGN-005/GAME-039/GAME-042 DONE,
-GAME-040/041 SUPERSEDED; GAME-044 READY; GAME-045+ BACKLOG. GATE A still needs GAME-044 and GAME-045.
+GAME-040/041 SUPERSEDED; GAME-044 DONE; GAME-045+ BACKLOG. GATE A remains incomplete pending GAME-045.
 
 #### GAME-044 — Authoritative Pause & Input Boundary
 
-STATUS: READY
+STATUS: DONE
 
 **Dependencies:** GAME-042 DONE. Preserve the implemented GAME-043 RNG contract (DONE).
-Definition only: runtime implementation requires a separate task. Extend the focused
+Implemented and validated in a separate scoped task. Extend the focused
 RunLifecycle with authoritative PAUSED state/reasons and compose one concrete desktop
 input adapter in GameplayScene. Scene remains the Phaser composition/presentation root;
 do not create RunManager, a second PauseManager or a RunContext service bag.
 
-**Current source-grounded pause/input ownership inventory**
+**Pre-implementation source-grounded pause/input ownership inventory**
 
 Audited tracked src at HEAD 214b668a39ba3a9e4418132bc633e7b7d2f40716 after GAME-043,
 including tests, for cursors/wasd/keyboard/Keyboard.Key/JustDown/Space/ESC/Escape,
@@ -1048,7 +1048,7 @@ Phaser Clock behavior requires real Phaser validation as well as tracked integra
    warnings from new errors. Keep tracked, normal boot, synthetic and actual native evidence
    separate; no browser behavior is claimed implemented by this definition task.
 
-**Scope and definition handoff**
+**Scope and definition handoff (historical definition-only instructions)**
 
 No mobile/touch controls (GAME-098), production HUD (GAME-096), Settings (GAME-099), Build
 Screen (GAME-097), real Active/Shield/Decoy runtime (GAME-070), Dash specializations (GAME-072),
@@ -1065,6 +1065,32 @@ Never stage that packet or commit. CURRENT_STATE/PROJECT_GRAPH/ARCHITECTURE and 
 remain unchanged now. Only successful later implementation with tracked/native validation
 may set GAME-044 DONE and update actual runtime docs/map. GATE A remains incomplete until
 GAME-044 implementation and GAME-045 are done/reviewed; GAME-045+ are not unlocked here.
+
+**Implementation completion evidence**
+
+RunLifecycle now owns PAUSED and exactly REWARD/MANUAL/FOCUS_LOSS with idempotent acquisition,
+owner-only release, detached fixed-order reasons and reason clearing on terminal/dispose.
+KeyboardInput supplies raw move/activate/pause intents, held/suppressed physical controls,
+non-repeat edges and exact binding disposal. Scene consumes intents, retains current Dash,
+migrates Level-Up to PAUSED/REWARD and projects authority onto existing Clock.paused/minimal UI.
+Only final-reason release resumes; explicit focused/visible Escape handles manual/focus,
+and focus return alone never resumes. Native create explicitly clears reused Clock.paused.
+Existing entropy/streams/draw budgets, five timers and atomic terminal boundaries are retained.
+DEV adds detached runState/copied ordered pauseReasons with five unchanged commands.
+
+npm run check passes 264 tests/20 files, preserving 223 prior cases with required Level-Up
+authority expectations migrated. Actual installed Phaser Clock integration verifies same-event
+phase preservation. Real Chrome W/arrows/Space/Escape, held release/repress, mid-Dash/cooldown,
+Level-Up pointer acceptance and 2300ms wall-time freeze of gameplay/five phases/all streams pass.
+Actual foreground-tab changes with Chromium focus emulation disabled trigger Phaser BLUR;
+document stays visible, return stays PAUSED until Escape, including REWARD+FOCUS_LOSS.
+HIDDEN/VISIBLE/restoration-order coverage is separate tracked synthetic evidence.
+Two actual Victory NEW RUN cycles, Death RETRY, paused nonterminal restart and additional
+Missile/Cluster cycles pass: fresh authority/adapter/RNG/API, zero reasons, unpaused Clock,
+five fresh events, old streams throw and saved stale callbacks draw zero on all fresh streams.
+Unmodified production preview passes keyboard/Space/Escape and 700ms rendered pause freeze
+without DEV API/debug controls. Only known favicon404 and Vite chunk-size warnings remain.
+GAME-042/043/044 DONE; GAME-040/041 SUPERSEDED; GAME-045+ BACKLOG; GATE A incomplete.
 
 **GATE A — Runtime Foundation** — review the preceding phase capabilities before its cutover/next proof.
 

@@ -14,7 +14,7 @@ Do not place future plans or speculative features here.
 
 Current phase:
 
-FIRST PLAYABLE CORE LOOP COMPLETE / GAME-043 COMPLETE
+FIRST PLAYABLE CORE LOOP COMPLETE / GAME-044 COMPLETE
 
 The project has a working browser application, development toolchain and placeholder gameplay scene.
 
@@ -210,7 +210,7 @@ Replication Matrix is the sixth explicit repeatable run-local passive, starting/
 
 Twin Drone Formation requires explicit Drone ranks2/2/2 + Replication level>=1 and unevolved state. The passive is not consumed. Both final-prerequisite categories apply only to the next presentation; accepted Twin sets twinDroneEvolved once, preserves ranks/values, sets Drone focus and immediately adds one opposite teal radius10 companion at current droneAngle+PI. It retains the primary position/shared angle and the SAME Drone TimerEvent delay/elapsed phase, without a volley or existing-bolt duplication. One shared angle positions primary/Twin at radius110 and 2rad/s; each center is independently clamped. The synchronized callback queries nearest enemies independently from each actual origin, with stable ties and independent near-zero/no-target suppression, and launches full-damage normal bolts from each valid origin. Both origins use current Drone damage x Combat, speed, radius5+Replication and lifetime1800 at launch; old bolts retain snapshots. Pause/death freeze both companions/angle/bolts. Native restart destroys Twin/old shots/timers, clears its reference/flag and recreates exactly one angle0 primary and five fresh gameplay timers. Real-runtime validation covers all offer combinations/cursors, immediate acceptance/phase, orbit/targeting/suppression, real Clock boundaries, both-origin snapshots and two actual native retries. No generic companion or Amount architecture is added.
 
-Every killed enemy creates exactly one lime-green world-space XP pickup at its death position: regular value1, Elite Tank value5, Warden value10. killEnemy reads the killed runtime xpValue; duplicate removal attempts create no second pickup. Scene-owned pickup records preserve visual, value and magnet speed; create resets the array and restart destroys old visuals. Pickups stay stationary outside the current player-center magnet radius (baseline 180 pixels). Within range they accelerate toward the current player position at 900 px/s² up to 600 px/s, using frame delta; leaving range resets speed. Reaching a 20-pixel player-center collection radius credits pickup.value to player XP before destroying/removing the pickup. Motion is capped by collection to avoid overshoot. Magnet processing stops during level-up pause, death and Victory. Scene-owned playerExperience starts at level 1 with 0 XP toward the next level. The pure experience module requires 5 × current level XP, subtracts each reached threshold, carries excess forward and allows multiple levels per award. Restart resets this state and clears the separate isLevelUpPaused flag. Collection that increases level credits/removes the triggering pickup, then enters level-up pause immediately; subsequent pickups remain untouched. Screen-fixed LEVEL UP — CHOOSE ONE text and exactly three distinct selectable options appear, built once from uncapped Laser, Missile and Drone upgrades plus Hull Plating, Thruster Module, Collector Field, Combat Processor, Spatial Amplifier and Replication Matrix, using the focused/passive/open slot policy above. The pure selectChoices helper accepts a supplied pool, count and random source, leaves the pool unchanged and permits repeats across later presentations. Choices stay stable during a pause. Each Laser upgrade has an explicit run-local rank starting at 0, increments only on its accepted selection and becomes ineligible at rank 2; all six passives remain repeatable. An eligible evolution occupies Slot 3 as described below. isSimulationPaused combines Scene-owned Level-Up pause with non-RUNNING lifecycle state (PREPARING, TERMINAL or DISPOSED) to freeze movement, chase/targeting, projectiles, damage/protection, XP movement/collection and all spawn/fire callbacks. Level-up pause itself is not death and offers no retry. Clicking one current choice destroys the level-up title/options and resumes simulation; duplicate/stale choice callbacks are rejected. Selected effects apply before resume and accumulate across level-ups. Scene-owned laser data starts at damage 1, fireInterval 600 ms and projectileSpeed 1200 px/s and resets on each create. Fire Rate resets the existing laserTimer in place to the new interval with elapsed time zero, preserving one Laser event rather than adding another. New straight player shots snapshot weapon-specific damage multiplied by the run-wide damage multiplier, plus current speed; already-fired shots keep their launch values. Missiles likewise snapshot multiplied explosion damage at launch, including Missiles that span a choice pause. Hostile shots are unchanged. Restart clears presentation references and native scene shutdown destroys the texts.
+Every killed enemy creates exactly one lime-green world-space XP pickup at its death position: regular value1, Elite Tank value5, Warden value10. killEnemy reads the killed runtime xpValue; duplicate removal attempts create no second pickup. Scene-owned pickup records preserve visual, value and magnet speed; create resets the array and restart destroys old visuals. Pickups stay stationary outside the current player-center magnet radius (baseline 180 pixels). Within range they accelerate toward the current player position at 900 px/s² up to 600 px/s, using frame delta; leaving range resets speed. Reaching a 20-pixel player-center collection radius credits pickup.value to player XP before destroying/removing the pickup. Motion is capped by collection to avoid overshoot. Magnet processing stops during level-up pause, death and Victory. Scene-owned playerExperience starts at level 1 with 0 XP toward the next level. The pure experience module requires 5 × current level XP, subtracts each reached threshold, carries excess forward and allows multiple levels per award. Restart resets this state and clears the separate isLevelUpPaused flag. Collection that increases level credits/removes the triggering pickup, then enters level-up pause immediately; subsequent pickups remain untouched. Screen-fixed LEVEL UP — CHOOSE ONE text and exactly three distinct selectable options appear, built once from uncapped Laser, Missile and Drone upgrades plus Hull Plating, Thruster Module, Collector Field, Combat Processor, Spatial Amplifier and Replication Matrix, using the focused/passive/open slot policy above. The pure selectChoices helper accepts a supplied pool, count and random source, leaves the pool unchanged and permits repeats across later presentations. Choices stay stable during a pause. Each Laser upgrade has an explicit run-local rank starting at 0, increments only on its accepted selection and becomes ineligible at rank 2; all six passives remain repeatable. An eligible evolution occupies Slot 3 as described below. isSimulationPaused derives only from non-RUNNING lifecycle state (PREPARING, PAUSED, TERMINAL or DISPOSED) to freeze movement, chase/targeting, projectiles, damage/protection, XP movement/collection and all spawn/fire callbacks. Level-up pause itself is not death and offers no retry. Clicking one current choice destroys the level-up title/options and releases REWARD; simulation resumes only if no other reason remains, and duplicate/stale callbacks are rejected. Selected effects apply before resume and accumulate across level-ups. Scene-owned laser data starts at damage 1, fireInterval 600 ms and projectileSpeed 1200 px/s and resets on each create. Fire Rate resets the existing laserTimer in place to the new interval with elapsed time zero, preserving one Laser event rather than adding another. New straight player shots snapshot weapon-specific damage multiplied by the run-wide damage multiplier, plus current speed; already-fired shots keep their launch values. Missiles likewise snapshot multiplied explosion damage at launch, including Missiles that span a choice pause. Hostile shots are unchanged. Restart clears presentation references and native scene shutdown destroys the texts.
 
 Laser → Prism Laser and the GAME-030 open-slot integration are validated in the real Phaser runtime. Power, Fire Rate and Projectile Speed ranks reset to 0 and cap at 2 independently, preserving +1 damage, -50 ms (minimum 100) and +200 px/s per accepted selection. Full mastery retains damage 3, interval 500 ms and speed 1600 px/s before global damage multiplication. Prism requires all three ranks >=2, Combat Processor level >=1 and unevolved state. Eligibility is checked only on entering a new presentation: sole eligible Prism owns Slot 3 exactly once; if multiple evolutions qualify, the cursor arbitrates; Slots 1 and 2 follow the focused/passive policy above. Completing the final prerequisite resumes normally; ignoring sole eligible Prism offers it again next level, while multiple-eligible offers scan cyclically. Selecting it once retains Combat Processor and mastered Laser values, then removes the evolution offer for that run.
 
@@ -237,7 +237,7 @@ This is intentional.
 In Vite development runtime, the current GameplayScene publishes `window.__NEBULA_DEV__`
 with exactly snapshot(), forceLevelUp(), spawnWarden(), setWardenHealth(health) and
 setGodMode(enabled). Production preview boots without this property.
-snapshot() returns detached numeric runSeed, plain terminal/God Mode, HP/protection, nested level/XP/threshold,
+snapshot() returns detached numeric runSeed, runState and ordered pauseReasons, plain terminal/God Mode, HP/protection, nested level/XP/threshold,
 Boss flags/current Warden HP/derived phase, timed-spawn count, enemy count and actual
 owned TimerEvent count. It changes no gameplay state or offers.
 
@@ -267,19 +267,19 @@ inert old captured API.
 ## Run lifecycle and fresh-run ownership
 
 Every GameplayScene.create constructs a fresh RunLifecycle before synchronous gameplay
-initialization, then starts it at the end. The authority has PREPARING, RUNNING, TERMINAL
-and DISPOSED states and read-only state/outcome; start succeeds once, terminal requests
-are accepted only from RUNNING, and the first DEATH/VICTORY is immutable through disposal.
+initialization, then starts it at the end. The authority has PREPARING, RUNNING, PAUSED,
+TERMINAL and DISPOSED states and read-only state/outcome; start succeeds once, terminal
+requests are accepted from RUNNING or PAUSED, and the first DEATH/VICTORY is immutable through disposal.
 Idempotent dispose cannot revive the authority or clear its outcome.
-No PAUSED, POST_RUN, new clock or later domain migration is implemented. RNG ownership is
+No POST_RUN, new clock or later domain migration is implemented. RNG ownership is
 separate from RunLifecycle as described below.
 
 isPlayerDead and isRunVictorious are derived getters, without separate mutable flags.
 Only an accepted terminal request produces the existing concrete Death/Victory overlay.
 Victory stays after the existing straight hit/projectile cleanup or full Missile/Cluster
 detonation cleanup, never inside killEnemy. Production processing order still decides
-Death-first versus Victory-first. Level-Up pause stays Scene-owned while lifecycle remains
-RUNNING; all other non-RUNNING states suppress simulation and mutable DEV commands.
+Death-first versus Victory-first. Level-Up presentation stays Scene-owned but REWARD owns
+its authoritative PAUSED state; all non-RUNNING states suppress simulation and mutable DEV commands.
 
 Native Phaser restart still resets the physical run. Shutdown/destroy cleanup captures
 the exact authority from that create; a new create receives a different authority identity.
@@ -294,6 +294,45 @@ races, straight/Missile/Cluster primary-kill and satellite-kill atomic boundarie
 Level-Up freeze/resume, two Victory NEW RUN cycles, ordinary Death RETRY and nonterminal
 native restart. Each restart disposes old authority and creates independent RUNNING/null
 authority/API plus five fresh events. Production preview boots without DEV API.
+
+## Authoritative pause and desktop input
+
+RunLifecycle owns exactly REWARD, MANUAL and FOCUS_LOSS reasons. The first reason enters
+PAUSED, duplicate requests do nothing, releasing one reason leaves other ownership intact,
+and only the final release resumes RUNNING. Terminal/dispose clear reasons without revival.
+isSimulationPaused reads lifecycle only; isLevelUpPaused is presentation/transaction identity.
+Real Level-Up acquires REWARD and clears gameplay input before constructing the unchanged
+Reward-backed offer while PAUSED. Valid current choice applies once and releases only REWARD.
+Escape is ignored during REWARD; stale/double/terminal choices cannot upgrade or release it.
+
+KeyboardInput owns WASD/arrows, Space and Escape and returns raw movement/activate/pause intents.
+Scene retains normalization, movement/clamp and the current innate Dash bridge. No real Active
+runtime or mobile adapter is implemented. Adapter tracks held controls independently of Phaser
+logical resetKeys, suppressing them until physical release/fresh non-repeat press after reward,
+manual/focus pause, terminal, resume and fresh run. Paused presses never queue movement or Dash.
+
+Escape pauses with MANUAL; explicit focused/visible Escape without REWARD releases MANUAL and
+FOCUS_LOSS if present. Per-create Phaser Game BLUR/HIDDEN acquire FOCUS_LOSS; FOCUS/VISIBLE
+only update separate bookkeeping. Return never auto-resumes; both tracked and actual document
+focus/visibility are required to resume. Minimal screen-fixed PAUSED / ESC to resume text stays
+hidden behind reward transactions and is removed before terminal UI.
+
+Scene.time.paused freezes the same five events' elapsed/remaining phases throughout PAUSED;
+simulation guards freeze movement, enemies, targeting, attacks, XP, protection and Dash/orbit.
+There is no timeScale workaround, extra timer, catch-up or resume reset. Accepted Fire Rate/
+Firing System retain their intentional existing in-place event resets. Terminal restores the
+existing unpaused Clock/guarded-callback behavior; fresh create explicitly clears Clock.paused.
+Native restart disposes exact old input/focus bindings as well as lifecycle/RNG. Captured old
+callbacks/cleanup cannot change fresh input, pause reasons, Clock or RNG.
+
+Tracked tests and actual Chrome keyboard checks verify held W/Space/Escape, mid-burst/cooldown
+freeze, real Level-Up pointer acceptance and 2300ms of unchanged gameplay/all four streams/
+five TimerEvent phases. With focus emulation disabled, actual foreground-tab changes trigger
+Phaser BLUR (document remains visible); return stays PAUSED until Escape, including reward+
+focus composition. HIDDEN/VISIBLE/restoration-order cases are separately tested synthetically.
+Two Victory NEW RUN cycles, Death RETRY and paused nonterminal restart restore fresh input/
+authority/RNG/API and five events; saved stale callbacks draw zero on all fresh streams.
+Unmodified production preview supports keyboard/Space/Escape, with no DEV API or debug controls.
 
 ## Seeded run randomness
 
@@ -341,7 +380,7 @@ Gameplay prototypes will initially use placeholders and simple geometry.
 
 Nine unit tests cover collision.ts, eight cover progression/experience.ts, six cover player/dash.ts timing/expiry partitions, seven cover enemies/shooterMovement.ts band rules, and six cover progression/selectChoices.ts size, distinctness, membership, nonmutation, controlled randomness, repeated offers and input boundaries.
 
-Eight pure Prism eligibility cases, seven pure spread cases and seventeen focused-upgrade cases also pass, for 223 tracked tests across nineteen files. All 185 previous cases remain, plus 21 pure RunRandom and 17 Scene RNG cases. Coverage includes five Replication radius cases, six Spatial radius cases, eight Cluster eligibility cases, six Cluster geometry cases, eight Twin eligibility cases and twenty-four evolution-offer cases. Fourteen Warden schedule/phase/burst cases cover spawn30, HP60/31/30/1/0, normalized world-angle bursts and deterministic independent outputs. Seven Elite schedule cases cover Tank6/12/18/24, non-Tanks and deterministic input stability. Real-browser scene validation covers rank caps, next-pause offers, volley/snapshot behavior and two native RETRY cycles restoring five gameplay timers.
+Eight pure Prism eligibility cases, seven pure spread cases and seventeen focused-upgrade cases also pass, for 264 tracked tests across twenty files. All 223 pre-GAME-044 cases remain, including 21 pure RunRandom and 17 Scene RNG cases; GAME-044 adds 11 lifecycle, 17 keyboard and 13 Scene integration cases. Coverage includes five Replication radius cases, six Spatial radius cases, eight Cluster eligibility cases, six Cluster geometry cases, eight Twin eligibility cases and twenty-four evolution-offer cases. Fourteen Warden schedule/phase/burst cases cover spawn30, HP60/31/30/1/0, normalized world-angle bursts and deterministic independent outputs. Seven Elite schedule cases cover Tank6/12/18/24, non-Tanks and deterministic input stability. Real-browser scene validation covers rank caps, next-pause offers, volley/snapshot behavior and two native RETRY cycles restoring five gameplay timers.
 
 Vitest is installed and configured.
 
@@ -395,7 +434,7 @@ These should only be introduced when real project requirements justify them.
 
 The placeholder arena, bounded desktop movement, camera follow, repeated enemy spawning/chase, nearest-enemy targeting and Laser projectile impacts with enemy damage/death are implemented and browser-verified.
 
-GAME-001 through GAME-039 and GAME-042/043 are complete. GAME-040/041 are SUPERSEDED; GAME-044+ remain BACKLOG. GATE A remains incomplete.
+GAME-001 through GAME-039 and GAME-042/043/044 are complete. GAME-040/041 are SUPERSEDED; GAME-045+ remain BACKLOG. GATE A remains incomplete.
 
 ---
 

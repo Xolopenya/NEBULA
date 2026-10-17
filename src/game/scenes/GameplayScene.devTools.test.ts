@@ -3,6 +3,17 @@ import { GameplayScene } from './GameplayScene';
 import { RunLifecycle } from '../run/RunLifecycle';
 import { RunRandom } from '../run/RunRandom';
 
+class EventEmitter {
+  private callbacks = new Map<string, Set<(...args: unknown[]) => void>>();
+  on(event: string, fn: (...args: unknown[]) => void) {
+    if (!this.callbacks.has(event)) this.callbacks.set(event, new Set());
+    this.callbacks.get(event)!.add(fn); return this;
+  }
+  off(event: string, fn: (...args: unknown[]) => void) { this.callbacks.get(event)?.delete(fn); return this; }
+  emit(event: string, ...args: unknown[]) { for (const fn of this.listeners(event)) fn(...args); }
+  listeners(event: string) { return [...this.callbacks.get(event) ?? []]; }
+}
+
 function visual(x = 0, y = 0) {
   const callbacks = new Map<string, () => void>();
   const object = {
@@ -19,9 +30,18 @@ function visual(x = 0, y = 0) {
 }
 vi.mock('phaser', () => ({
   Scene: class {},
-  Math: { Vector2: class { set() { return this; } }, Clamp: (n: number, a: number, b: number) => Math.max(a, Math.min(b, n)),
+  Math: { Vector2: class {
+    x = 0; y = 0;
+    set(x = 0, y = 0) { this.x = x; this.y = y; return this; }
+    copy(v: { x: number; y: number }) { return this.set(v.x, v.y); }
+    lengthSq() { return this.x ** 2 + this.y ** 2; }
+    length() { return Math.hypot(this.x, this.y); }
+    normalize() { const n = this.length(); if (n) { this.x /= n; this.y /= n; } return this; }
+    scale(n: number) { this.x *= n; this.y *= n; return this; }
+  }, Clamp: (n: number, a: number, b: number) => Math.max(a, Math.min(b, n)),
     Distance: { Between: (x: number, y: number, a: number, b: number) => Math.hypot(x - a, y - b) } },
   Scenes: { Events: { SHUTDOWN: 'shutdown', DESTROY: 'destroy' } },
+  Core: { Events: { BLUR: 'blur', HIDDEN: 'hidden', FOCUS: 'focus', VISIBLE: 'visible' } },
 }));
 
 function fixture() {
@@ -32,6 +52,7 @@ function fixture() {
   run.start();
   Object.assign(scene, {
     run,
+    time: { paused: false }, input: {}, game: { events: new EventEmitter() },
     runRandom: new RunRandom(0),
     cameras: { main: { worldView: { left: 1440, right: 3360, top: 810, bottom: 1890 } } },
     player: visual(2400, 1350), scale: { width: 1920, height: 1080 },
@@ -55,7 +76,7 @@ function fixture() {
   return { scene, api: window.__NEBULA_DEV__!, created,
     shutdown: () => { for (const fn of [...listeners.get('shutdown') ?? []]) fn(); } };
 }
-beforeEach(() => { vi.stubGlobal('window', {}); });
+beforeEach(() => { vi.stubGlobal('window', {}); vi.stubGlobal('document', { hasFocus: () => true, hidden: false }); });
 describe('current scene DevTools production operations', () => {
   it('publishes exactly five commands and observes detached snapshots without side effects', () => {
     const { scene, api } = fixture();
@@ -162,7 +183,7 @@ describe('current scene DevTools production operations', () => {
   });
   it.each(['isPlayerDead', 'isRunVictorious', 'isLevelUpPaused'] as const)('rejects all mutations during %s but allows snapshots', key => {
     const { scene, api } = fixture();
-    if (key === 'isLevelUpPaused') scene[key] = true;
+    if (key === 'isLevelUpPaused') { scene[key] = true; scene['run']!.requestPause('REWARD'); }
     else scene['run']!.tryEnterTerminal(key === 'isPlayerDead' ? 'DEATH' : 'VICTORY');
     const before = api.snapshot();
     expect(before).not.toBeNull();
@@ -308,11 +329,12 @@ describe('GAME-042 real Scene terminal integration', () => {
     }
     expect(scene['run']!.tryEnterTerminal(first === 'DEATH' ? 'VICTORY' : 'DEATH')).toBe(false);
   });
-  it('ordinary Level-Up remains RUNNING, freezes simulation and resumes via real choice callback', () => {
+  it('ordinary Level-Up uses PAUSED/REWARD, freezes simulation and resumes via real choice callback', () => {
     const { scene, api } = fixture();
     const projectile = shot(scene);
     expect(api.forceLevelUp()).toBe(true);
-    expect([scene['run']!.state, scene['run']!.outcome]).toEqual(['RUNNING', null]);
+    expect([scene['run']!.state, scene['run']!.outcome]).toEqual(['PAUSED', null]);
+    expect(scene['run']!.pauseReasons).toEqual(['REWARD']);
     scene['updateProjectiles'](100);
     expect(projectile.remainingLifetime).toBe(2000);
     scene['levelUpPresentation'][1].emit('pointerdown');
@@ -378,7 +400,7 @@ describe('GAME-042 real Scene terminal integration', () => {
     expect(oldApi.snapshot()).toBeNull();
     expect(scene['gameplayTimers']).toHaveLength(5);
     expect(scene['gameplayTimers'].every(t => !timers.includes(t))).toBe(true);
-    for (const callback of lifecycleCallbacks.slice(0, 3)) callback();
+    for (const callback of lifecycleCallbacks.slice(0, 4)) callback();
     for (const callback of callbacks) callback();
     expect(encounter).not.toHaveBeenCalled();
     expect(reward).not.toHaveBeenCalled();
@@ -452,7 +474,7 @@ describe('Scene run-scoped randomness production boundaries', () => {
   it.each(['cap', 'pause', 'PREPARING', 'TERMINAL', 'DISPOSED', 'no player', 'Warden'])('%s rejects timed spawn with zero draws/count mutation', guard => {
     const { scene } = fixture();
     if (guard === 'cap') for (let i = 0; i < 10; i++) scene['createEnemy'](100, 100, 'chaser');
-    if (guard === 'pause') scene['isLevelUpPaused'] = true;
+    if (guard === 'pause') scene['run']!.requestPause('REWARD');
     if (guard === 'PREPARING') scene['run'] = new RunLifecycle();
     if (guard === 'TERMINAL') scene['run']!.tryEnterTerminal('VICTORY');
     if (guard === 'DISPOSED') scene['run']!.dispose();
@@ -546,5 +568,164 @@ describe('Scene run-scoped randomness production boundaries', () => {
     scene['enterRunVictory'](); scene['spawnEnemy'](); scene['enterLevelUpPause'](); api.snapshot();
     expect(draws.map(draw => draw.mock.calls.length)).toEqual(before);
     expect(draws[2]).not.toHaveBeenCalled(); expect(draws[3]).not.toHaveBeenCalled();
+  });
+});
+
+function inputFixture() {
+  const f = fixture();
+  const keys = new Map<string, EventEmitter>();
+  Object.assign(f.scene.input, { keyboard: { addKey: (key: string) => {
+    if (!keys.has(key)) keys.set(key, new EventEmitter()); return keys.get(key);
+  } } });
+  f.scene['bindRunInput'](f.scene['run']!);
+  const down = (key: string, repeat = false) => keys.get(key)!.emit('down', {}, { repeat });
+  const up = (key: string) => keys.get(key)!.emit('up');
+  const escape = () => { down('ESC'); f.scene.update(0, 0); up('ESC'); };
+  return { ...f, keys, down, up, escape };
+}
+
+describe('GAME-044 authoritative pause and input production paths', () => {
+  it('DEV diagnostics copy ordered reasons without leaking authority or consuming any stream', () => {
+    const f = inputFixture(), s = f.scene, draws = spyStreams(s);
+    s['run']!.requestPause('FOCUS_LOSS'); s['run']!.requestPause('MANUAL'); s['projectPause']();
+    const snapshot = f.api.snapshot()!;
+    expect(snapshot).toMatchObject({ runState: 'PAUSED', pauseReasons: ['MANUAL', 'FOCUS_LOSS'], runSeed: 0 });
+    snapshot.pauseReasons.push('REWARD'); snapshot.pauseReasons.length = 0;
+    expect(f.api.snapshot()!.pauseReasons).toEqual(['MANUAL', 'FOCUS_LOSS']);
+    expect([f.api.forceLevelUp(), f.api.spawnWarden(), f.api.setGodMode(true), f.api.setWardenHealth(1)])
+      .toEqual([false, false, false, false]);
+    for (const draw of draws) expect(draw).not.toHaveBeenCalled();
+  });
+  it('REWARD is the sole freeze authority, Escape ignored, valid choice releases it once', () => {
+    const f = inputFixture(), s = f.scene; const draws = spyStreams(s);
+    f.down('W'); expect(f.api.forceLevelUp()).toBe(true);
+    expect(f.api.snapshot()).toMatchObject({ runState: 'PAUSED', pauseReasons: ['REWARD'] });
+    expect(s.time.paused).toBe(true); expect(s['pausePresentation']).toBeUndefined();
+    const labels = offer(s), choice = s['levelUpPresentation'][1];
+    f.escape(); expect(offer(s)).toEqual(labels); expect(s['run']!.pauseReasons).toEqual(['REWARD']);
+    choice.emit('pointerdown');
+    expect(s['run']!.state).toBe('RUNNING'); expect(s.time.paused).toBe(false);
+    expect(s['inputAdapter']!.sample().moveY).toBe(0);
+    s['acceptLevelUpChoice'](choice, { kind: 'laser', upgrade: 'power' });
+    expect(s['laserRanks'].power).toBe(1);
+    expect(draws.map(draw => draw.mock.calls.length)).toEqual([0, 2, 0, 0]);
+    s['isLevelUpPaused'] = true; expect(s['isSimulationPaused']()).toBe(false);
+  });
+  it('manual Escape freezes simulation and held movement until release/repress, no new RNG', () => {
+    const f = inputFixture(), s = f.scene, draws = spyStreams(s);
+    f.down('W'); s.update(0, 10); expect(s['player']!.y).toBe(1347);
+    f.escape(); const y = s['player']!.y;
+    expect(s['run']!.pauseReasons).toEqual(['MANUAL']); expect(s.time.paused).toBe(true);
+    expect(s['pausePresentation']!.text).toBe('PAUSED\nESC to resume');
+    s.update(0, 1000); expect(s['player']!.y).toBe(y);
+    f.escape(); expect(s['run']!.state).toBe('RUNNING'); expect(s['pausePresentation']).toBeUndefined();
+    s.update(0, 100); expect(s['player']!.y).toBe(y);
+    f.up('W'); f.down('W'); s.update(0, 100); expect(s['player']!.y).toBe(y - 30);
+    for (const draw of draws) expect(draw).not.toHaveBeenCalled();
+  });
+  it('composes REWARD and focus; restoration never resumes and choice releases only REWARD', () => {
+    const f = inputFixture(), s = f.scene;
+    f.api.forceLevelUp(); s.game.events.emit('blur'); s.game.events.emit('hidden');
+    expect(s['run']!.pauseReasons).toEqual(['REWARD', 'FOCUS_LOSS']);
+    expect(s['pausePresentation']).toBeUndefined();
+    s['levelUpPresentation'][1].emit('pointerdown');
+    expect(s['run']!.pauseReasons).toEqual(['FOCUS_LOSS']); expect(s.time.paused).toBe(true);
+    expect(s['pausePresentation']).toBeDefined();
+    s.game.events.emit('visible'); f.escape(); expect(s['run']!.state).toBe('PAUSED');
+    s.game.events.emit('focus'); expect(s['run']!.state).toBe('PAUSED');
+    f.escape(); expect(s['run']!.state).toBe('RUNNING');
+  });
+  it('composes MANUAL/focus idempotently; both tracked and actual document focus/visibility required', () => {
+    const f = inputFixture(), s = f.scene, draws = spyStreams(s);
+    f.escape(); s.game.events.emit('hidden'); s.game.events.emit('blur'); s.game.events.emit('blur');
+    expect(s['run']!.pauseReasons).toEqual(['MANUAL', 'FOCUS_LOSS']);
+    s.game.events.emit('focus'); f.escape(); expect(s['run']!.state).toBe('PAUSED');
+    s.game.events.emit('visible');
+    vi.stubGlobal('document', { hasFocus: () => false, hidden: false }); f.escape();
+    expect(s['run']!.state).toBe('PAUSED');
+    vi.stubGlobal('document', { hasFocus: () => true, hidden: true }); f.escape();
+    expect(s['run']!.state).toBe('PAUSED');
+    vi.stubGlobal('document', { hasFocus: () => true, hidden: false }); f.escape();
+    expect(s['run']!.pauseReasons).toEqual([]); expect(s['run']!.state).toBe('RUNNING');
+    for (const draw of draws) expect(draw).not.toHaveBeenCalled();
+  });
+  it('Space intent preserves mid-Dash lock and freezes burst/cooldown; held Space never queues', () => {
+    const f = inputFixture(), s = f.scene;
+    f.down('D'); f.down('SPACE'); s.update(0, 50);
+    expect([s['dashRemaining'], s['dashCooldownRemaining'], s['player']!.x]).toEqual([150, 2950, 2445]);
+    f.escape(); s.update(0, 5000);
+    expect([s['dashRemaining'], s['dashCooldownRemaining']]).toEqual([150, 2950]);
+    f.escape(); s.update(0, 150);
+    expect([s['dashRemaining'], s['dashCooldownRemaining'], s['player']!.x]).toEqual([0, 2800, 2580]);
+    f.escape(); s.update(0, 5000); expect(s['dashCooldownRemaining']).toBe(2800); f.escape();
+    s.update(0, 3000); expect(s['dashRemaining']).toBe(0);
+    f.up('D'); f.down('D'); s.update(0, 10); expect(s['dashRemaining']).toBe(0);
+    f.up('SPACE'); f.down('SPACE'); s.update(0, 10); expect(s['dashRemaining']).toBe(190);
+  });
+  it('freezes real gameplay helpers and all stream budgets during MANUAL pause', () => {
+    const f = inputFixture(), s = f.scene;
+    s['createEnemy'](2500, 1350, 'shooter'); s['currentTarget'] = s['enemies'][0];
+    s['fireLaser'](); s['fireMissile'](); s['fireHostileProjectile']();
+    s['xpPickups'] = [{ visual: visual(2400, 1350), value: 5, speed: 0 } as unknown as (typeof s)['xpPickups'][number]];
+    s['playerDamageProtectionRemaining'] = 200; f.escape();
+    const state = () => JSON.stringify({ snapshot: f.api.snapshot(), drone: s['droneAngle'], dash: s['dashRemaining'],
+      enemies: s['enemies'], projectiles: s['projectiles'], missiles: s['missiles'], pickups: s['xpPickups'] });
+    const before = state(), draws = spyStreams(s);
+    s.update(0, 5000); s['spawnEnemy'](); s['fireLaser'](); s['fireMissile'](); s['fireDrone'](); s['fireHostileProjectile']();
+    s['updateProjectiles'](5000); s['updateMissiles'](5000); s['updateXpPickups'](5000); s['updatePlayerContact'](); s['damagePlayer'](100);
+    expect(state()).toBe(before); for (const draw of draws) expect(draw).not.toHaveBeenCalled();
+  });
+  it('actual installed Phaser Clock preserves five event phases and resumes same objects without catch-up', async () => {
+    const { default: Clock } = await vi.importActual<{ default: typeof import('phaser').Time.Clock }>(
+      '../../../node_modules/phaser/src/time/Clock.js');
+    const { scene: s } = fixture(); allowCreate(s);
+    Object.assign(s, { sys: { events: { once() {}, on() {} } } });
+    const clock = new Clock(s); Object.assign(s, { time: clock }); s.create();
+    clock.preUpdate(); clock.update(100, 100);
+    const events = [...s['gameplayTimers']], phases = events.map(e => e.elapsed);
+    const callbacks = events.map(e => vi.fn(e.callback as () => void)); callbacks.forEach((fn, i) => { events[i].callback = fn; });
+    s['handlePauseRequest'](); s.game.events.emit('blur');
+    for (let i = 0; i < 10; i++) clock.update(1000 + i * 1000, 1000);
+    expect(events.map(e => e.elapsed)).toEqual(phases); expect(events).toEqual(s['gameplayTimers']);
+    expect(callbacks.every(fn => fn.mock.calls.length === 0)).toBe(true);
+    s['run']!.releasePause('MANUAL'); s['projectPause'](); expect(clock.paused).toBe(true);
+    s.game.events.emit('focus'); s['handlePauseRequest'](); expect(clock.paused).toBe(false);
+    clock.update(11001, 499); expect(callbacks.every(fn => fn.mock.calls.length === 0)).toBe(true);
+    clock.update(11002, 1); expect(callbacks.map(fn => fn.mock.calls.length)).toEqual([0, 1, 0, 0, 0]);
+    expect(s['gameplayTimers']).toEqual(events);
+  });
+  it.each(['laser', 'drone'] as const)('%s accepted cadence upgrade still resets the same TimerEvent while REWARD is owned', weapon => {
+    const f = inputFixture(), s = f.scene;
+    const event = { elapsed: 123, reset: vi.fn() };
+    Object.assign(s, weapon === 'laser' ? { laserTimer: event } : { droneTimer: event });
+    f.api.forceLevelUp(); const choice = s['levelUpPresentation'][1];
+    s['acceptLevelUpChoice'](choice, weapon === 'laser' ? { kind: 'laser', upgrade: 'fireRate' } : { kind: 'drone', upgrade: 'firingSystem' });
+    expect(event.reset).toHaveBeenCalledWith(expect.objectContaining({ delay: weapon === 'laser' ? 550 : 1050, loop: true }));
+    expect(weapon === 'laser' ? s['laserTimer'] : s['droneTimer']).toBe(event);
+    expect(s['run']!.state).toBe('RUNNING');
+  });
+  it.each(['DEATH', 'VICTORY'] as const)('terminal %s from PAUSED clears input/reasons/UI and restores guarded Clock behavior', outcome => {
+    const f = inputFixture(), s = f.scene; f.api.forceLevelUp();
+    const choice = s['levelUpPresentation'][1]; s.game.events.emit('blur');
+    if (outcome === 'VICTORY') { s['bossDefeated'] = true; s['enterRunVictory'](); } else s['enterPlayerDeath']();
+    expect(s['run']!.outcome).toBe(outcome); expect(s['run']!.pauseReasons).toEqual([]);
+    expect(s.time.paused).toBe(false); expect(s['pausePresentation']).toBeUndefined();
+    s['acceptLevelUpChoice'](choice, { kind: 'laser', upgrade: 'power' }); f.escape(); s.game.events.emit('focus');
+    expect(s['laserRanks'].power).toBe(0); expect(s['run']!.state).toBe('TERMINAL');
+    expect(s['inputAdapter']!.sample()).toEqual({ moveX: 0, moveY: 0, activatePressed: false, pausePressed: false });
+  });
+  it('captured old input/focus/cleanup stays inert after paused Scene reuse and fresh Clock reset', () => {
+    const f = inputFixture(), s = f.scene;
+    allowCreate(s); s.create(); const oldRun = s['run']!, oldRandom = s['runRandom']!, oldInput = s['inputAdapter']!;
+    const listeners = ['blur', 'hidden', 'focus', 'visible'].flatMap(event => s.game.events.listeners(event));
+    s['handlePauseRequest'](); expect(s.time.paused).toBe(true); f.shutdown(); s.create();
+    expect(s.time.paused).toBe(false); expect(s['inputAdapter']).not.toBe(oldInput);
+    expect(oldRun.state).toBe('DISPOSED'); expect(() => oldRandom.encounter.next()).toThrow('disposed');
+    const snapshot = window.__NEBULA_DEV__!.snapshot();
+    s['handlePauseRequest'](); expect(s.time.paused).toBe(true);
+    for (const listener of listeners) listener();
+    expect(s.time.paused).toBe(true); oldInput.reset(); oldInput.dispose();
+    expect(s['run']!.pauseReasons).toEqual(['MANUAL']);
+    expect(snapshot).toMatchObject({ runState: 'RUNNING', pauseReasons: [], gameplayTimerCount: 5 });
   });
 });
