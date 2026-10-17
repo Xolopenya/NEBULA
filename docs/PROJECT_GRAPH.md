@@ -4,8 +4,8 @@
 
 - Project: NEBULA.
 - Milestone: First Playable / GAME-015 complete.
-- Source baseline HEAD: `8ef99ca97489672d097e073c203d75ddf17a0fa6`.
-- This map reflects that source baseline plus GAME-038 atomic terminal Victory, result UI and native NEW RUN ownership.
+- Source baseline HEAD: `fd96a22e3d84fbd1bf90569d7c78d6d4126b32ef`.
+- This map reflects that source baseline plus GAME-042 lifecycle/terminal/disposal ownership; current Scene retains combat/presentation and GAME-039 DEV wiring.
 - Active task request defines task-specific requirements.
 - AGENTS.md defines repository policy.
 - TASK_GRAPH.md defines task scope, dependencies and status.
@@ -26,8 +26,10 @@ IDs are repository-relative paths; symbols use `path#export`.
 | `src/game/config.ts` | Full HD FIT config and scene registration |
 | `src/game/scenes/BootScene.ts` | Starts GameplayScene |
 | `src/game/scenes/GameplayScene.ts` | Owns current run simulation, presentation and DEV API per-create binding |
+| `src/game/run/RunLifecycle.ts` | Focused lifecycle authority: RunState, TerminalOutcome, RunLifecycle; no Phaser dependency |
+| `src/game/run/RunLifecycle.test.ts` | Eight pure lifecycle start/terminal/disposal/independence/read-only cases |
 | `src/game/devTools.ts` | DevSnapshot / DevTools types and optional Window declaration; no runtime registry |
-| `src/game/scenes/GameplayScene.devTools.test.ts` | 21 tracked Scene integration contracts with rendering/lifecycle fixtures |
+| `src/game/scenes/GameplayScene.devTools.test.ts` | 31 tracked Scene/DevTools integration contracts with rendering/lifecycle fixtures |
 | `src/game/combat/collision.ts` | Pure numeric collision math |
 | `src/game/combat/collision.test.ts` | Tracked geometry tests |
 | `src/game/progression/experience.ts` | Pure XP threshold/award arithmetic and state type |
@@ -174,8 +176,9 @@ All private names below are navigation anchors, not exported symbol nodes.
 | Damage protection | playerDamageProtectionRemaining; updatePlayerProtection | Global 500 ms protection, temporary alpha |
 | Level-up pause | isLevelUpPaused; enterLevelUpPause; isSimulationPaused | Distinct from death/Victory; level increase freezes update/callbacks; fixed title and three distinct focused/passive/open choices; one selection resumes |
 | Choice UI/resume | levelUpPresentation; enterLevelUpPause; acceptLevelUpChoice | Current text identity and terminal guard; applies one Laser/Missile/passive effect or Prism, destroys title/options then resumes |
-| Death/retry | isPlayerDead; enterPlayerDeath | Idempotent freeze; death-only clickable retry; rejects Victory |
-| Victory/result | isRunVictorious, victoryPresentation; enterRunVictory | Atomic attack completion after new common Boss defeat, first terminal wins; fixed current-level result and identity/duplicate-guarded native NEW RUN; create clears state/UI references |
+| Run lifecycle | run; RunLifecycle; create | Fresh PREPARING to RUNNING; exact captured shutdown/destroy disposal; immutable first terminal outcome |
+| Death/retry | derived isPlayerDead; enterPlayerDeath | Accepted DEATH precedes existing UI; RETRY bound to owning run; rejects Victory |
+| Victory/result | derived isRunVictorious, victoryPresentation; enterRunVictory | Atomic attack completion after new common Boss defeat, first terminal wins; fixed current-level result and identity/duplicate-guarded native NEW RUN; create clears state/UI references |
 | Enemy runtime | enemies; EnemyRuntime; createEnemy | One collection of archetype/isElite + visual/health + readonly contactDamage/xpValue/collisionRadius; enemyData and concrete eliteTankData own regular/Elite/Boss values/presentation; Warden phase styles are concrete |
 | Spawning | spawnEnemy; timedSpawnSequence, successfulTimedSpawns, spawnInterval, maximumEnemies | Same2000ms timer/successful CCCSCT mix; shouldSpawnEliteTank promotes Tank12/24; Warden replaces30, active Boss suppresses spawns/count only; blocked cap10 callbacks retain pending count; create resets0 |
 | Enemy movement | update; chaseDirection; shooterMovement | Shared Chaser/Tank pursuit (regular100/Elite120) / Shooter350–500 inclusive band; Warden70/100 current-HP pursuit; scene clamp max(25, collisionRadius), pure Shooter step |
@@ -228,7 +231,7 @@ detonation and cleanup → enterRunVictory → frozen gameplay / fixed result
 
 - Dash presses are consumed before pause guards and on choice acceptance; native repeat events are rejected, so rejected presses do not queue.
 - create resets Dash clocks/direction and reacquires input; keyboard shutdown clears old keys on retry.
-- create resets health/protection/death, arrays, target and successfulTimedSpawns0 (no Elite/Boss), bossSpawned/bossDefeated false; constructs one initial Chaser outside the timed CCCSCT sequence.
+- create constructs a fresh lifecycle authority and resets health/protection, arrays, target and successfulTimedSpawns0 (no Elite/Boss), bossSpawned/bossDefeated false; constructs one initial Chaser outside the timed CCCSCT sequence.
 - Spawn, Laser, Missile, Drone and hostile callbacks return while dead, level-up paused or victorious; same timer events remain scheduled without Victory reset/pause/recreation.
 - Level-increasing collection removes its pickup then pauses; subsequent pickups remain frozen.
 - One current choice applies its Laser/Missile/Drone upgrade, Passive Module or Prism/Cluster/Twin evolution then destroys levelUpPresentation and clears pause; stale choices cannot close a new pause.
@@ -304,6 +307,8 @@ No generalized weapon stats framework is implemented.
 Statuses and dependencies remain in TASK_GRAPH.md, not duplicated here.
 
 GameplayScene.publishDevTools / creditExperience / godMode / gameplayTimers IMPLEMENTS_TASK GAME-039. Vite DEV-only publication owns per-create shutdown/destroy invalidation; old captured API is inert after native restart. Shared creditExperience preserves pickup credit/removal/choice order; God Mode guards damagePlayer; five existing TimerEvent references supply snapshot counts, including pending insertion. DevTools types are exported from src/game/devTools.ts; runtime ownership remains in GameplayScene.
+
+RunLifecycle IMPLEMENTS_TASK GAME-042: PREPARING/RUNNING/TERMINAL/DISPOSED, immutable outcome, start/tryEnterTerminal/dispose. GameplayScene owns its per-create construction/captured disposal and derives terminal getters; concrete UI and attack boundaries stay in Scene. Existing timer and cadence-reset callbacks plus retry controls capture their owning run; Level-Up remains separate. Tracked pure lifecycle and Scene integration tests plus real Phaser native restart evidence validate the boundary.
 
 ## Common navigation queries
 

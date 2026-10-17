@@ -339,7 +339,7 @@ Never reuse these IDs for unrelated tasks.
 
 ## Mechanical Vertical Slice roadmap
 
-GAME-042 is READY; all other roadmap nodes below remain BACKLOG. Each row gives phase membership, exact dependencies and a
+GAME-042 is DONE; all other roadmap nodes below remain BACKLOG. Each row gives phase membership, exact dependencies and a
 short capability; gates are review checkpoints, not automatic authorization.
 Dependency ranges are inclusive.
 
@@ -347,17 +347,17 @@ Dependency ranges are inclusive.
 
 | ID | Title | Depends on | Capability | Status |
 | --- | --- | --- | --- | --- |
-| GAME-042 | Run Lifecycle & Fresh Run Boundary | DESIGN-005, GAME-039 | Run lifecycle, terminal and fresh-restart authority; preserve GAME-038 first-terminal semantics. | READY |
+| GAME-042 | Run Lifecycle & Fresh Run Boundary | DESIGN-005, GAME-039 | Run lifecycle, terminal and fresh-restart authority; preserve GAME-038 first-terminal semantics. | DONE |
 | GAME-043 | Seeded RNG Streams | GAME-042 | runSeed and independent Encounter/Reward/World/Boss RNG streams. | BACKLOG |
 | GAME-044 | Authoritative Pause & Input Boundary | GAME-042 | Single gameplay pause authority, movement/Active/Pause intents and focus-loss semantics. | BACKLOG |
 | GAME-045 | Telemetry & Diagnostics Foundation | GAME-042 | Run timeline, aggregates and diagnostics foundation. | BACKLOG |
 
 #### GAME-042 — Run Lifecycle & Fresh Run Boundary
 
-STATUS: READY
+STATUS: DONE
 
 **Dependencies:** DESIGN-005 DONE; GAME-039 DONE, including GAME-038 terminal behavior.
-This is a definition for architect review, not a runtime implementation.
+Implemented and verified against the lifecycle and integration contracts below.
 Introduce one small run-scoped lifecycle/terminal/disposal authority. GameplayScene remains
 the Phaser composition root and presentation orchestrator; do not rewrite other domains
 around a Run object. This boundary precedes GAME-043 RNG, GAME-044 Pause/Input,
@@ -367,8 +367,8 @@ GAME-045 telemetry and GAME-046 PlayerBuild, without implementing them.
 
 | File / anchor | Current behavior and migration constraint |
 | --- | --- |
-| `src/game/scenes/GameplayScene.ts#create` | Resets mutable `isPlayerDead` / `isRunVictorious`, Level-Up state, God Mode, Boss/progression and collections; creates initial Chaser and five gameplay events |
-| `isSimulationPaused` | Currently combines death, Level-Up pause and Victory |
+| `src/game/scenes/GameplayScene.ts#create` | Creates fresh RunLifecycle with derived terminal getters, resets Level-Up state, God Mode, Boss/progression and collections; creates initial Chaser and five gameplay events |
+| `isSimulationPaused` | Combines Scene Level-Up pause with non-RUNNING lifecycle |
 | `damagePlayer` → `enterPlayerDeath` | Common incoming damage/protection/God Mode path; lethal HP requests death, then SHIP DESTROYED / RETRY |
 | `enterRunVictory` | Requires `bossDefeated`, rejects existing terminal flags; creates current-level result and guarded NEW RUN |
 | `updateProjectiles` | Reverse processing order; lethal hostile shot cleanup and straight player hit/death/projectile cleanup precede subsequent work; Victory requested after the completed lethal Boss hit |
@@ -378,9 +378,9 @@ GAME-045 telemetry and GAME-046 PlayerBuild, without implementing them.
 | `gameplayTimers`, `laserTimer`, `droneTimer`, `create` | Five existing Phaser TimerEvents; native Phaser shutdown owns timer/object destruction |
 | `publishDevTools` | Per-create validity closure, shutdown/destroy invalidation, fresh API; terminal snapshot booleans and mutation guards must remain correct |
 | `src/game/devTools.ts` | Exact public five-command API and snapshot type, no lifecycle command/reference |
-| `src/game/scenes/GameplayScene.devTools.test.ts` | Real Scene method contracts with renderer/lifecycle fixtures, including direct flag setup in availability tests, same-Scene stale API, create reset and publication cleanup |
+| `src/game/scenes/GameplayScene.devTools.test.ts` | Real Scene method contracts with renderer/lifecycle fixtures, including real authority setup in availability tests, same-Scene stale API, create reset and publication cleanup |
 
-There is no separate current Run lifecycle module or tracked GAME-038 terminal-suite file.
+The focused src/game/run/RunLifecycle.ts authority and its unit tests now exist; terminal integration tests extend the real Scene/DevTools suite.
 Existing pure collision/Cluster geometry and Warden tests complement Scene coverage;
 prior ignored browser harness evidence does not replace tracked acceptance tests.
 
@@ -489,10 +489,10 @@ migration, XP rewrite, reward transactions, portals/events/Cores/Doctrine/Mini-B
 Juggernaut/BossController, RunResult, POST_RUN, save/meta/profile, mobile controls or new
 dependencies. Preserve prototype gameplay until its separately authorized cutover.
 
-**Required tracked tests for future implementation**
+**Required tracked tests**
 
-Preserve all existing assertions (current baseline167 tests/17 files). Adapt tests that
-currently assign terminal flags to create terminal state through the real authority;
+Preserve all existing assertions (pre-migration baseline167 tests/17 files). Tests that
+previously assigned terminal flags now create terminal state through the real authority;
 do not remove availability checks or replace them with fake parallel terminal algorithms.
 
 | Boundary | Required contracts |
@@ -507,7 +507,7 @@ Use real Scene operations with minimal renderer/lifecycle fixtures where appropr
 not alternate damage/terminal/restart implementations. Add no meaningless rendering tests.
 Tracked tests supplement, not replace, the real engine checks below.
 
-**Required native/browser validation for future implementation**
+**Required native/browser validation**
 
 Use actual GameplayScene/Phaser Clock/lifecycle:
 
@@ -534,20 +534,21 @@ Manual create, fixture recreation or page refresh does not count as native resta
 Inspect console; report new errors separately from known resource404/build-size warnings.
 Report tracked tests, normal boots, real engine harness and native restart cycles distinctly.
 
-**Definition validation and later documentation**
+**Validation and completion**
 
-Now: only TASK_GRAPH changes, GAME-042 BACKLOG→READY for architect review.
-Run npm run check and git diff --check; inspect scope/statuses; explicitly stage only
-docs/TASK_GRAPH.md, inspect full git diff --cached, run cached check/stat, and generate
-ignored .codex-review/GAME-042-review.txt with AGENTS.md sections and complete staged diff.
-No runtime/API/browser validation is claimed for a documentation-only definition.
-Do not stage review artifacts or commit.
+GAME-042 DONE: npm run check passes (185 tests / 18 files, typecheck and production build).
+Real Chrome/Phaser checks pass: normal DEV boot, Level-Up freeze/resume with lifecycle
+RUNNING, real Death-first and Victory-first races, straight/Missile and Cluster primary/
+satellite-kill atomicity. Two required Victory NEW RUN cycles, ordinary Death RETRY and
+nonterminal native restart dispose the captured old authority and create new RUNNING/null
+authority, fresh API and five fresh TimerEvents. Additional Missile/Cluster scenarios also
+complete native NEW RUN. Retained old authority/callbacks/listeners/controls/API are inert.
+Production preview boots with DEV API absent. Known favicon404 and Vite bundle-size warning;
+no new pageerrors observed.
 
-After later successful implementation, required tracked/native checks must pass before
-GAME-042 DONE and factual CURRENT_STATE / real PROJECT_GRAPH ownership updates.
-ARCHITECTURE already defines the target; no redesign, only a factual stale-status
-correction if necessary. Keep DESIGN-005/GAME-039 DONE, GAME-040/041 SUPERSEDED and
-GAME-043+ BACKLOG. GATE A is not complete: GAME-043/044/045 remain outstanding.
+CURRENT_STATE and real PROJECT_GRAPH ownership are updated. DESIGN-005/GAME-039 stay DONE,
+GAME-040/041 SUPERSEDED and GAME-043+ BACKLOG. GATE A remains incomplete. Explicit staging
+and ignored .codex-review/GAME-042-review.txt follow AGENTS.md; no commit is created.
 
 **GATE A — Runtime Foundation** — review the preceding phase capabilities before its cutover/next proof.
 

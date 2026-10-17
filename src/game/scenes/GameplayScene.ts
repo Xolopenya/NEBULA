@@ -1,4 +1,5 @@
 import type { DevTools } from '../devTools';
+import { RunLifecycle } from '../run/RunLifecycle';
 import * as Phaser from 'phaser';
 import { segmentCircleHitTime } from '../combat/collision';
 import { prismSpread } from '../combat/prismSpread';
@@ -115,8 +116,9 @@ export class GameplayScene extends Phaser.Scene {
   private droneTimer?: Phaser.Time.TimerEvent;
   private hud?: Phaser.GameObjects.Text;
   private playerExperience: ExperienceState = { level: 1, xp: 0 };
-  private isPlayerDead = false;
-  private isRunVictorious = false;
+  private run?: RunLifecycle;
+  private get isPlayerDead(): boolean { return this.run?.outcome === 'DEATH'; }
+  private get isRunVictorious(): boolean { return this.run?.outcome === 'VICTORY'; }
   private victoryPresentation: Phaser.GameObjects.Text[] = [];
   private isLevelUpPaused = false;
   private levelUpPresentation: Phaser.GameObjects.Text[] = [];
@@ -187,9 +189,17 @@ export class GameplayScene extends Phaser.Scene {
   }
 
   create(): void {
+    const run = new RunLifecycle();
+    this.run = run;
+    const disposeRun = () => {
+      run.dispose();
+      this.events.off(Phaser.Scenes.Events.SHUTDOWN, disposeRun);
+      this.events.off(Phaser.Scenes.Events.DESTROY, disposeRun);
+    };
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, disposeRun);
+    this.events.once(Phaser.Scenes.Events.DESTROY, disposeRun);
     this.godMode = false;
     this.gameplayTimers = [];
-    this.isRunVictorious = false;
     this.victoryPresentation = [];
     this.moduleLevels = { hull: 0, thruster: 0, collector: 0, combat: 0, spatial: 0, replication: 0 };
     this.playerMaxHealth = 5;
@@ -215,7 +225,6 @@ export class GameplayScene extends Phaser.Scene {
     this.clusterEvolved = false;
     this.evolutionOfferCursor = 'prism';
     this.playerExperience = { level: 1, xp: 0 };
-    this.isPlayerDead = false;
     this.isLevelUpPaused = false;
     this.levelUpPresentation = [];
     this.playerHealth = this.playerMaxHealth;
@@ -259,7 +268,7 @@ export class GameplayScene extends Phaser.Scene {
 
     this.drone = this.add.circle(0, 0, this.droneConfig.visualRadius, 0x2dd4bf)
       .setStrokeStyle(2, 0xccfbf1);
-    this.updateDrone(0);
+    this.positionDrone(this.drone, this.droneAngle);
 
     this.createEnemy(this.player.x + this.minimumSpawnDistance, this.player.y, 'chaser');
 
@@ -270,27 +279,27 @@ export class GameplayScene extends Phaser.Scene {
     this.gameplayTimers.push(this.time.addEvent({
       delay: this.spawnInterval,
       loop: true,
-      callback: () => this.spawnEnemy(),
+      callback: () => { if (run.state === 'RUNNING') this.spawnEnemy(); },
     }));
     this.gameplayTimers.push(this.laserTimer = this.time.addEvent({
       delay: this.laser.fireInterval,
       loop: true,
-      callback: () => this.fireLaser(),
+      callback: () => { if (run.state === 'RUNNING') this.fireLaser(); },
     }));
     this.gameplayTimers.push(this.time.addEvent({
       delay: this.missile.fireInterval,
       loop: true,
-      callback: () => this.fireMissile(),
+      callback: () => { if (run.state === 'RUNNING') this.fireMissile(); },
     }));
     this.gameplayTimers.push(this.droneTimer = this.time.addEvent({
       delay: this.droneAttackValues.fireInterval,
       loop: true,
-      callback: () => this.fireDrone(),
+      callback: () => { if (run.state === 'RUNNING') this.fireDrone(); },
     }));
     this.gameplayTimers.push(this.time.addEvent({
       delay: this.hostileFireInterval,
       loop: true,
-      callback: () => this.fireHostileProjectile(),
+      callback: () => { if (run.state === 'RUNNING') this.fireHostileProjectile(); },
     }));
     if (import.meta.env.DEV) this.publishDevTools();
 
@@ -323,6 +332,7 @@ export class GameplayScene extends Phaser.Scene {
       })
       .setOrigin(0.5)
       .setScrollFactor(0);
+    run.start();
   }
 
   private updateHud(): void {
@@ -409,7 +419,7 @@ export class GameplayScene extends Phaser.Scene {
   }
 
   private isSimulationPaused(): boolean {
-    return this.isPlayerDead || this.isLevelUpPaused || this.isRunVictorious;
+    return this.isLevelUpPaused || this.run?.state !== 'RUNNING';
   }
 
   private restoreEnemyOutline(enemy: EnemyRuntime): void {
@@ -515,7 +525,8 @@ export class GameplayScene extends Phaser.Scene {
   }
 
   private acceptLevelUpChoice(choice: Phaser.GameObjects.Text, option: LevelUpChoice): void {
-    if (this.isPlayerDead || this.isRunVictorious || !this.isLevelUpPaused || !this.levelUpPresentation.includes(choice)) return;
+    const run = this.run;
+    if (run?.state !== 'RUNNING' || !this.isLevelUpPaused || !this.levelUpPresentation.includes(choice)) return;
     if (option.kind === 'laser' && this.laserRanks[option.upgrade] >= 2) return;
     if (option.kind === 'missile' && this.missileRanks[option.upgrade] >= 2) return;
     if (option.kind === 'drone' && this.droneRanks[option.upgrade] >= 2) return;
@@ -548,7 +559,7 @@ export class GameplayScene extends Phaser.Scene {
           this.droneTimer?.reset({
             delay: this.droneAttackValues.fireInterval,
             loop: true,
-            callback: () => this.fireDrone(),
+            callback: () => { if (run.state === 'RUNNING') this.fireDrone(); },
           });
           break;
       }
@@ -582,7 +593,7 @@ export class GameplayScene extends Phaser.Scene {
       this.laserTimer?.reset({
         delay: this.laser.fireInterval,
         loop: true,
-        callback: () => this.fireLaser(),
+        callback: () => { if (run.state === 'RUNNING') this.fireLaser(); },
       });
     }
     this.isLevelUpPaused = false;
@@ -654,8 +665,8 @@ export class GameplayScene extends Phaser.Scene {
   }
 
   private enterPlayerDeath(): void {
-    if (this.isPlayerDead || this.isRunVictorious) return;
-    this.isPlayerDead = true;
+    const run = this.run;
+    if (!run?.tryEnterTerminal('DEATH')) return;
     this.player?.setAlpha(0.25);
     this.add.text(this.scale.width / 2, this.scale.height / 2, 'SHIP DESTROYED', {
       fontFamily: 'Arial, sans-serif',
@@ -664,6 +675,7 @@ export class GameplayScene extends Phaser.Scene {
       backgroundColor: '#050816',
       padding: { x: 24, y: 16 },
     }).setOrigin(0.5).setScrollFactor(0).setDepth(1);
+    let restartRequested = false;
     this.add.text(this.scale.width / 2, this.scale.height / 2 + 100, 'RETRY', {
       fontFamily: 'Arial, sans-serif',
       fontSize: '40px',
@@ -673,13 +685,15 @@ export class GameplayScene extends Phaser.Scene {
     }).setOrigin(0.5).setScrollFactor(0).setDepth(1)
       .setInteractive({ useHandCursor: true })
       .once('pointerdown', () => {
-        if (this.isPlayerDead) this.scene.restart();
+        if (restartRequested || this.run !== run || run.state !== 'TERMINAL') return;
+        restartRequested = true;
+        this.scene.restart();
       });
   }
 
   private enterRunVictory(): void {
-    if (!this.bossDefeated || this.isPlayerDead || this.isRunVictorious) return;
-    this.isRunVictorious = true;
+    const run = this.run;
+    if (!this.bossDefeated || !run?.tryEnterTerminal('VICTORY')) return;
     const centerX = this.scale.width / 2;
     const centerY = this.scale.height / 2;
     this.victoryPresentation = [
@@ -704,7 +718,8 @@ export class GameplayScene extends Phaser.Scene {
     for (const text of this.victoryPresentation) text.setOrigin(0.5).setScrollFactor(0).setDepth(2);
     let restartRequested = false;
     newRun.once('pointerdown', () => {
-      if (restartRequested || !this.isRunVictorious || !this.victoryPresentation.includes(newRun)) return;
+      if (restartRequested || this.run !== run || run.state !== 'TERMINAL'
+        || !this.isRunVictorious || !this.victoryPresentation.includes(newRun)) return;
       restartRequested = true;
       this.scene.restart();
     });
