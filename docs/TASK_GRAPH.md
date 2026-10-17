@@ -339,7 +339,7 @@ Never reuse these IDs for unrelated tasks.
 
 ## Mechanical Vertical Slice roadmap
 
-All nodes below are BACKLOG. Each row gives phase membership, exact dependencies and a
+GAME-042 is READY; all other roadmap nodes below remain BACKLOG. Each row gives phase membership, exact dependencies and a
 short capability; gates are review checkpoints, not automatic authorization.
 Dependency ranges are inclusive.
 
@@ -347,10 +347,207 @@ Dependency ranges are inclusive.
 
 | ID | Title | Depends on | Capability | Status |
 | --- | --- | --- | --- | --- |
-| GAME-042 | Run Lifecycle & Fresh Run Boundary | DESIGN-005, GAME-039 | Run lifecycle, terminal and fresh-restart authority; preserve GAME-038 first-terminal semantics. | BACKLOG |
+| GAME-042 | Run Lifecycle & Fresh Run Boundary | DESIGN-005, GAME-039 | Run lifecycle, terminal and fresh-restart authority; preserve GAME-038 first-terminal semantics. | READY |
 | GAME-043 | Seeded RNG Streams | GAME-042 | runSeed and independent Encounter/Reward/World/Boss RNG streams. | BACKLOG |
 | GAME-044 | Authoritative Pause & Input Boundary | GAME-042 | Single gameplay pause authority, movement/Active/Pause intents and focus-loss semantics. | BACKLOG |
 | GAME-045 | Telemetry & Diagnostics Foundation | GAME-042 | Run timeline, aggregates and diagnostics foundation. | BACKLOG |
+
+#### GAME-042 — Run Lifecycle & Fresh Run Boundary
+
+STATUS: READY
+
+**Dependencies:** DESIGN-005 DONE; GAME-039 DONE, including GAME-038 terminal behavior.
+This is a definition for architect review, not a runtime implementation.
+Introduce one small run-scoped lifecycle/terminal/disposal authority. GameplayScene remains
+the Phaser composition root and presentation orchestrator; do not rewrite other domains
+around a Run object. This boundary precedes GAME-043 RNG, GAME-044 Pause/Input,
+GAME-045 telemetry and GAME-046 PlayerBuild, without implementing them.
+
+**Current source anchors (reinspect before implementation):**
+
+| File / anchor | Current behavior and migration constraint |
+| --- | --- |
+| `src/game/scenes/GameplayScene.ts#create` | Resets mutable `isPlayerDead` / `isRunVictorious`, Level-Up state, God Mode, Boss/progression and collections; creates initial Chaser and five gameplay events |
+| `isSimulationPaused` | Currently combines death, Level-Up pause and Victory |
+| `damagePlayer` → `enterPlayerDeath` | Common incoming damage/protection/God Mode path; lethal HP requests death, then SHIP DESTROYED / RETRY |
+| `enterRunVictory` | Requires `bossDefeated`, rejects existing terminal flags; creates current-level result and guarded NEW RUN |
+| `updateProjectiles` | Reverse processing order; lethal hostile shot cleanup and straight player hit/death/projectile cleanup precede subsequent work; Victory requested after the completed lethal Boss hit |
+| `updateMissiles` → `explodeMissile` / `explodeClusterSatellites` | Primary affected snapshot, optional survivor satellite union, Missile removal, then Victory request |
+| `killEnemy` | Exactly-once removal, Boss-defeated flag and normal XP10 pickup; no terminal transition inside it |
+| `enterPlayerDeath` / `enterRunVictory` pointer callbacks | RETRY / NEW RUN call native `scene.restart()`; retain concrete UI and once/identity guards |
+| `gameplayTimers`, `laserTimer`, `droneTimer`, `create` | Five existing Phaser TimerEvents; native Phaser shutdown owns timer/object destruction |
+| `publishDevTools` | Per-create validity closure, shutdown/destroy invalidation, fresh API; terminal snapshot booleans and mutation guards must remain correct |
+| `src/game/devTools.ts` | Exact public five-command API and snapshot type, no lifecycle command/reference |
+| `src/game/scenes/GameplayScene.devTools.test.ts` | Real Scene method contracts with renderer/lifecycle fixtures, including direct flag setup in availability tests, same-Scene stale API, create reset and publication cleanup |
+
+There is no separate current Run lifecycle module or tracked GAME-038 terminal-suite file.
+Existing pure collision/Cluster geometry and Warden tests complement Scene coverage;
+prior ignored browser harness evidence does not replace tracked acceptance tests.
+
+**Minimal authority and legal transitions**
+
+One entirely fresh authority is constructed at the beginning of every `GameplayScene.create()`.
+It starts PREPARING while existing run-scoped state is constructed and transitions once
+to RUNNING after the run is initialized for normal gameplay. Do not change startup order,
+initial player/Chaser/weapons/progression, spawn/Warden schedule or gameplay timing;
+no loading screen, asynchronous preparation or new preparation infrastructure.
+
+Only active lifecycle states required here are PREPARING, RUNNING, TERMINAL, DISPOSED:
+
+- PREPARING → RUNNING through one successful start.
+- RUNNING → TERMINAL through one accepted DEATH or VICTORY.
+- RUNNING → DISPOSED on native shutdown/restart without a terminal outcome.
+- TERMINAL → DISPOSED on shutdown/restart; disposal is safe from PREPARING as cleanup too.
+- DISPOSED has no outgoing transition.
+
+The full approved target vocabulary includes PAUSED and POST_RUN. PAUSED is deferred to
+GAME-044; POST_RUN to GAME-093. Neither transition is implemented or claimed here.
+A minimal type may omit them; if included, label them unused and keep them unreachable.
+
+The authority owns lifecycle state, terminal outcome (`null | DEATH | VICTORY`),
+terminal eligibility and disposal/invalidation. It exposes read-only state/outcome and
+only concrete synchronous operations equivalent to `start()`, `tryEnterTerminal(outcome)`
+and `dispose()`. Exact representation/names may follow repository style.
+Define predictable results: start accepts only PREPARING; terminal accepts only RUNNING;
+successful transitions return true, duplicate/illegal requests return false without mutation.
+Disposal is idempotent and cannot revive an authority. An accepted terminal outcome is
+immutable, including after disposal; disposal before terminal leaves outcome null.
+No public setters or independent Scene terminal booleans duplicate authority.
+
+A focused class or closure module is allowed. No RunManager/GameStateManager, generic FSM,
+new dependency, event bus, DI/container/service locator or lifecycle registry.
+Scene may keep `isPlayerDead` / `isRunVictorious` as derived compatibility getters/helpers:
+they read the accepted outcome and are never separately assigned/reset as mutable truth.
+
+**Death, Victory and simulation integration**
+
+Preserve GAME-038 production processing order and first-terminal-wins. No hypothetical
+timestamps, reordering update loops, outcome priority, deferred resolution or generic
+combat transaction. The first legal terminal request wins; conflicting/duplicate requests
+produce no outcome change, additional UI or scheduled work. Never both terminal booleans true.
+
+- Lethal current `damagePlayer` path requests DEATH through the authority. Only acceptance
+  permits the existing death presentation/RETRY. Retain current HP/protection/God Mode rules.
+- `enterRunVictory` preserves the actual `bossDefeated` prerequisite. Only accepted
+  VICTORY permits current Victory/result/NEW RUN presentation.
+- Straight player attack: finish its own hit, damage, common death/removal and projectile
+  cleanup, then request Victory at the existing boundary. Do not advance unrelated later
+  attacks/contacts/XP after terminal acceptance.
+- Missile/Cluster: finish primary affected snapshot, the full optional survivor/satellite
+  union and Missile cleanup before requesting Victory. A Boss primary kill must not skip
+  satellites; a satellite kill must not skip the remaining affected set.
+- `killEnemy` still records removal/XP/Boss defeat; it must not enter terminal itself.
+  Do not auto-collect frozen Boss XP or change current result-level semantics.
+- Death-first prevents later Victory and attacks; completed Victory-first prevents later
+  incoming Death. Keep native frozen world and distinct terminal UI exactly as before.
+
+Current `isLevelUpPaused` stays in Scene/progression. The authority stays RUNNING during
+an ordinary Level-Up pause; real choices freeze/resume gameplay independently.
+Minimally adapt `isSimulationPaused()` to existing Level-Up pause plus the authority's
+non-simulatable state (PREPARING, TERMINAL, DISPOSED). Keep normal guards on movement,
+attacks, damage, XP and timer callbacks. No manual pause, PauseReason, focus-loss behavior,
+input adapters, Active input, pause menu or GAME-044 migration.
+Current Death/Victory overlays remain TERMINAL presentation, never premature POST_RUN.
+
+**Fresh run, native restart and stale authority**
+
+Native Phaser `scene.restart()` remains the physical reset path for RETRY and NEW RUN.
+Do not introduce manual create calls, giant reset services, new Scenes or a scene router.
+On shutdown/destroy, dispose that exact run authority once; repeated signals are safe.
+Cleanup must be bound to the old authority, not redirect through a mutable global currentRun.
+Old references cannot start, accept terminal changes, mutate or terminate the fresh run.
+Prevent retained old callbacks/listeners/presentation controls from regaining authority
+when the Scene instance is reused; preserve existing presentation identity/once guards
+and bind any newly introduced authority-sensitive work to its owning run.
+
+Every fresh create owns a different authority identity, PREPARING→RUNNING, outcome null.
+Phaser still destroys old world/UI/timers and constructs the existing full baseline;
+do not manually transplant old state or replace engine cleanup.
+
+GAME-039's exact five-command DEV API remains unchanged. No sixth lifecycle command,
+new public global run reference or registry. Its existing death/Victory snapshot fields
+derive from the new authority, and snapshots remain detached/read-only in terminal state.
+Old captured API snapshot remains null and mutations false after shutdown.
+Fresh API identity/God Mode false and terminal/pause mutation rejections remain intact.
+Do not move DevTools implementation or other gameplay ownership into the lifecycle module.
+
+**Timer/clock and scope boundaries**
+
+Preserve exactly five gameplay Phaser TimerEvents: spawn, Laser/Prism, Missile/Cluster,
+Drone/Twin and hostile fire. Add ZERO lifecycle/terminal/disposal/polling events, delayed
+terminal callbacks, independent simulation clock or timeScale.
+Current Phaser Clock is the execution substrate; do not implement target gameplay clock.
+Existing guarded scheduled events remain unchanged on terminal entry; every restart
+creates five fresh events and old timer callbacks remain destroyed/inert.
+
+No universal RunContext/service bag, arbitrary dependency map, runSeed/RNG streams,
+stage/difficulty, Build/tags/stats, Director/rewards/world scheduling or telemetry framework.
+A tiny concrete reference to this lifecycle authority is sufficient.
+Keep enemies, combat loops, weapons, XP/progression, Warden, HUD and presentation in their
+current domains. No Shield/Hull or EnemyDefinition/Attack/Hit/Damage/EnemyDeathRecord
+migration, XP rewrite, reward transactions, portals/events/Cores/Doctrine/Mini-Boss rewrite,
+Juggernaut/BossController, RunResult, POST_RUN, save/meta/profile, mobile controls or new
+dependencies. Preserve prototype gameplay until its separately authorized cutover.
+
+**Required tracked tests for future implementation**
+
+Preserve all existing assertions (current baseline167 tests/17 files). Adapt tests that
+currently assign terminal flags to create terminal state through the real authority;
+do not remove availability checks or replace them with fake parallel terminal algorithms.
+
+| Boundary | Required contracts |
+| --- | --- |
+| Lifecycle unit | Fresh PREPARING; one start→RUNNING; duplicate/illegal start false; first DEATH or VICTORY accepted; each conflicting order preserves the first; duplicate same outcome false; immutable outcome; dispose→DISPOSED, idempotent; disposed start/terminal false; independent fresh authority |
+| Scene Death/Victory | Real lethal damage and real Boss player attack yield one accepted outcome and one corresponding presentation; duplicates/conflicts create no extra UI; derived flags correct and never both true |
+| Simulation / Level-Up | Terminal/non-simulatable authority freezes existing paths; Level-Up remains independent, RUNNING, nonterminal, and normal choice resumes |
+| Atomicity / races | Straight cleanup before Victory; full Missile and Cluster primary/satellite/cleanup before Victory; no unrelated later work; deterministic production-order Death-first and Victory-first races |
+| DevTools / lifetime | Existing five-command API/snapshot booleans correct; mutations reject terminal; old authority disposed and incapable of affecting new run; fresh authority/API identity; stale API null/false; God Mode reset; five fresh event ownership |
+
+Use real Scene operations with minimal renderer/lifecycle fixtures where appropriate,
+not alternate damage/terminal/restart implementations. Add no meaningless rendering tests.
+Tracked tests supplement, not replace, the real engine checks below.
+
+**Required native/browser validation for future implementation**
+
+Use actual GameplayScene/Phaser Clock/lifecycle:
+
+1. Normal DEV boot: fresh authority reaches RUNNING with null outcome; initial gameplay/
+   state intact and five TimerEvents. Verify PREPARING before start in focused tests.
+2. Actual lethal production damage: DEATH accepted once, SHIP DESTROYED/RETRY, no Victory.
+3. Real Warden killed by production player attack: completed owning attack cleanup before
+   accepted VICTORY, ordinary current result/NEW RUN, no Death.
+4. Real deterministic Death-first and Victory-first production-order cases preserve the
+   immutable first outcome. Exercise straight, Missile and full Cluster atomic boundaries.
+5. Real Level-Up choice pause freezes/resumes normally, remains RUNNING/nonterminal and
+   adds no GAME-044 behavior.
+6. At least TWO actual Victory→NEW RUN native restarts and ONE actual Death→RETRY native
+   restart. Capture old authority and API in the ignored test/harness, never a production
+   global API. After EACH: old authority DISPOSED and start/terminal attempts ineffective;
+   new authority identity with PREPARING→RUNNING complete and null outcome; full player/
+   progression/Boss baseline; God Mode false; fresh API, captured old API null/false;
+   five fresh events, old timers/callbacks/listeners unable to affect the new run.
+7. Validate native shutdown/restart without terminal where available: RUNNING→DISPOSED
+   without fabricated Death/Victory; fresh create is independent.
+8. Real production-mode boot works and GAME-039 public DevTools remains absent/undefined.
+
+Manual create, fixture recreation or page refresh does not count as native restart evidence.
+Inspect console; report new errors separately from known resource404/build-size warnings.
+Report tracked tests, normal boots, real engine harness and native restart cycles distinctly.
+
+**Definition validation and later documentation**
+
+Now: only TASK_GRAPH changes, GAME-042 BACKLOG→READY for architect review.
+Run npm run check and git diff --check; inspect scope/statuses; explicitly stage only
+docs/TASK_GRAPH.md, inspect full git diff --cached, run cached check/stat, and generate
+ignored .codex-review/GAME-042-review.txt with AGENTS.md sections and complete staged diff.
+No runtime/API/browser validation is claimed for a documentation-only definition.
+Do not stage review artifacts or commit.
+
+After later successful implementation, required tracked/native checks must pass before
+GAME-042 DONE and factual CURRENT_STATE / real PROJECT_GRAPH ownership updates.
+ARCHITECTURE already defines the target; no redesign, only a factual stale-status
+correction if necessary. Keep DESIGN-005/GAME-039 DONE, GAME-040/041 SUPERSEDED and
+GAME-043+ BACKLOG. GATE A is not complete: GAME-043/044/045 remain outstanding.
 
 **GATE A — Runtime Foundation** — review the preceding phase capabilities before its cutover/next proof.
 
