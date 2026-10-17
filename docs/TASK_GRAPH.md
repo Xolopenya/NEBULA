@@ -339,7 +339,7 @@ Never reuse these IDs for unrelated tasks.
 
 ## Mechanical Vertical Slice roadmap
 
-GAME-042/043/044/045 are DONE; GAME-046 DONE; GAME-047+ remain BACKLOG. Each row gives phase membership, exact dependencies and a
+GAME-042/043/044/045 are DONE; GAME-046 DONE; GAME-047 READY; GAME-048+ remain BACKLOG. Each row gives phase membership, exact dependencies and a
 short capability; gates are review checkpoints, not automatic authorization.
 Dependency ranges are inclusive.
 
@@ -547,7 +547,7 @@ Production preview boots with DEV API absent. Known favicon404 and Vite bundle-s
 no new pageerrors observed.
 
 CURRENT_STATE and real PROJECT_GRAPH ownership are updated. DESIGN-005/GAME-039 stay DONE,
-GAME-040/041 SUPERSEDED; GAME-043 DONE; GAME-044 DONE; GAME-045 DONE; GAME-046 DONE; GAME-047+ remain BACKLOG. GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047+ remain BACKLOG pending separate definition. Explicit staging
+GAME-040/041 SUPERSEDED; GAME-043 DONE; GAME-044 DONE; GAME-045 DONE; GAME-046 DONE; GAME-047 READY; GAME-048+ remain BACKLOG. GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 READY; GAME-048+ remain BACKLOG pending separate definition. Explicit staging
 and ignored .codex-review/GAME-042-review.txt follow AGENTS.md; no commit is created.
 
 #### GAME-043 — Seeded RNG Streams
@@ -749,7 +749,7 @@ Out of scope: GAME-044 Pause/Input, GAME-045 telemetry, GAME-046 Build, Encounte
 templates/pressure/portals/weights, full Reward Generator/Analyzer/pity/recent offers,
 World Scheduler/events, BossController/Juggernaut, RunResult/RunReport, replay recording,
 daily seeds, seed entry/query/settings/reseed DEV command, save/meta/profile, arbitrary
-named/forkable RNG framework, service locator or new dependency. GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047+ remain BACKLOG pending separate definition.
+named/forkable RNG framework, service locator or new dependency. GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 READY; GAME-048+ remain BACKLOG pending separate definition.
 
 **Implementation completion evidence**
 
@@ -769,7 +769,7 @@ fixed-seed spawn/offer sequences and cross-stream isolation. Two actual Victory 
 cycles and one Death RETRY (plus nonterminal/Missile/Cluster native restarts) dispose old
 streams and retain fresh RNG/lifecycle/API/five events with inert stale callbacks.
 Production canvas boots with DEV API absent; only known favicon404 and build chunk-size
-warnings remain. GAME-044 DONE; GAME-045 DONE; GAME-046 DONE; GAME-047+ remain BACKLOG; GAME-040/041 SUPERSEDED; GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047+ remain BACKLOG pending separate definition.
+warnings remain. GAME-044 DONE; GAME-045 DONE; GAME-046 DONE; GAME-047 READY; GAME-048+ remain BACKLOG; GAME-040/041 SUPERSEDED; GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 READY; GAME-048+ remain BACKLOG pending separate definition.
 
 **Definition validation and documentation (historical definition-only instructions)**
 
@@ -1090,7 +1090,7 @@ Missile/Cluster cycles pass: fresh authority/adapter/RNG/API, zero reasons, unpa
 five fresh events, old streams throw and saved stale callbacks draw zero on all fresh streams.
 Unmodified production preview passes keyboard/Space/Escape and 700ms rendered pause freeze
 without DEV API/debug controls. Only known favicon404 and Vite chunk-size warnings remain.
-GAME-042/043/044 DONE; GAME-040/041 SUPERSEDED; GAME-045 DONE; GAME-046 DONE; GAME-047+ remain BACKLOG; GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047+ remain BACKLOG pending separate definition.
+GAME-042/043/044 DONE; GAME-040/041 SUPERSEDED; GAME-045 DONE; GAME-046 DONE; GAME-047 READY; GAME-048+ remain BACKLOG; GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 READY; GAME-048+ remain BACKLOG pending separate definition.
 
 #### GAME-045 — Telemetry & Diagnostics Foundation
 
@@ -1346,8 +1346,8 @@ inert stale owners/callbacks. Unmodified production preview verifies keyboard/Da
 DEV absence and local static-only network requests. HIDDEN/VISIBLE combinations remain
 separately identified synthetic tracked coverage; known favicon404/bundle-size warnings only.
 
-GAME-045 DONE; GAME-040/041 SUPERSEDED; GAME-046 DONE; GAME-047+ remain BACKLOG.
-GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047+ remain BACKLOG pending separate definition. GAME-047+ are not unlocked.
+GAME-045 DONE; GAME-040/041 SUPERSEDED; GAME-046 DONE; GAME-047 READY; GAME-048+ remain BACKLOG.
+GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 READY; GAME-048+ remain BACKLOG pending separate definition. GAME-048+ are not unlocked.
 
 **GATE A — Runtime Foundation — PASSED**
 
@@ -1356,7 +1356,7 @@ GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047+ remain B
 | ID | Title | Depends on | Capability | Status |
 | --- | --- | --- | --- | --- |
 | GAME-046 | PlayerBuild / Slots / Effective Stats | GAME-042 | 3/1/6 build ownership and cached Effective Stats with explicit modifiers. | DONE |
-| GAME-047 | Tags & Build Snapshot | GAME-046 | Tag contributions, derived identity and detached BuildSnapshot. | BACKLOG |
+| GAME-047 | Tags & Build Snapshot | GAME-046 | Tag contributions, derived identity and detached BuildSnapshot. | READY |
 | GAME-048 | Player Defense Runtime | GAME-046 | Authoritative Shield/Hull/protection and incoming-damage boundary. | BACKLOG |
 | GAME-049 | Combat Resolution & Launch Snapshots | GAME-046, GAME-048 | Attack/Hit/Damage resolution and immutable launch values. | BACKLOG |
 | GAME-050 | Enemy Definitions & Spawn Snapshots | GAME-049 | EnemyDefinition, scaling profiles and per-spawn runtime snapshots. | BACKLOG |
@@ -1374,7 +1374,7 @@ Implemented and verified against the acceptance contracts below.
 Establish one focused run-scoped PlayerBuild authority for 3 Combat / 1 Active / 6 Core
 slots, immutable Base Stats, unconditional Run Modifiers and cached Effective Stats.
 GameplayScene remains the composition root and current combat/progression/presentation owner.
-GAME-047+ remain BACKLOG; no later runtime domain is implemented here.
+GAME-047 READY; GAME-048+ remain BACKLOG; no later runtime domain is implemented here.
 
 **Pre-implementation tracked-source audit and migration inventory**
 
@@ -1725,7 +1725,260 @@ old reads/mutations/callbacks remain inert. Extra Missile/Cluster terminal cycle
 Unmodified production preview passes keyboard/Dash/pause/current combat and DEV absence.
 Known favicon404 and Vite bundle-size warnings only. CURRENT_STATE and PROJECT_GRAPH reflect
 actual implemented ownership; no dependencies changed. GATE A remains PASSED; GAME-046 DONE;
-GAME-047+ remain BACKLOG. GATE B is not passed or altered by this implementation.
+GAME-047 READY; GAME-048+ remain BACKLOG. GATE B is not passed or altered by this implementation.
+
+#### GAME-047 — Tags & Build Snapshot
+
+STATUS: READY
+
+**Goal, dependencies and definition boundary**
+
+Depends on GAME-046 DONE; preserve GAME-039/042/043/044/045/046 contracts and PASSED GATE A.
+Extend the existing Phaser-free PlayerBuild with twelve numeric Tag totals, derived build
+identity and one canonical detached BuildSnapshot. Tags describe the build in parallel to
+stats; they never supply combat multipliers. This is a definition only: no runtime/tests or
+other documentation change now. GAME-048+ remain BACKLOG; GATE B is unchanged / not passed.
+
+**Authoritative design and current source audit**
+
+Audited HEAD fdf3aef88b6fd49dbf34fa0b5a9daf5004a5dc39 after GAME-046. Read TASK_GRAPH,
+CURRENT_STATE, ARCHITECTURE, GAME_DESIGN, PROJECT_GRAPH, CONTENT_MANIFEST and BALANCE in full;
+searched docs/src for tag/tags, contribution, identity, dominant, secondary, maturity,
+synergy, Analyzer, eligibility, weighting, BuildSnapshot and PlayerBuildReadModel.
+
+| Source / anchor | Finding and GAME-047 constraint |
+| --- | --- |
+| GAME_DESIGN: Tags and build identity; Combat Systems; Combat System progression | Exactly twelve names, additive points/levels, dynamic identity and conceptual bands; future selected starting system has a small tilt, without exact tag IDs/amounts per starting system. Named specialization tag associations describe future content, not current prototype contributions. Tags never directly multiply stats, block/auto-select weapon branches or revoke acquired development after loss |
+| CONTENT_MANIFEST: Build and progression; Exact twelve Core Items; OBSOLETE / SUPERSEDED | Future Core identities have approved tag associations (e.g. Overclocked Reactor Technology/Rapid Fire, Bulkheads Survival), without exact point amounts. Target one-system start and Core catalog are absent now; Prism/Cluster/Twin are prototype references only |
+| BALANCE: Build and stat tuning boundaries; Difficulty influence | No fractional point requirement or concrete prototype mapping. Bands 0–1 interest / 2–3 secondary / 4+ primary / 6+ deep are tuning hypotheses, not identity tiers or a maturity formula. Structural difficulty influence is later and hard-bounded |
+| ARCHITECTURE: Tags and BuildSnapshot; Player Runtime versus PlayerBuild; Rewards; Director | PlayerBuild owns contributions/derived tags; detached snapshots serve readers. Rewards owns future relevance/Analyzer weights; Director owns future pressure. No exact current-content point matrix or maturity formula is supplied |
+| src/game/player/PlayerBuild.ts | Sole Build owner: fixed slots, immutable ten bases, explicit RunModifiers, cached EffectiveStats; snapshot currently returns four-field PlayerBuildReadModel. No Tag authority, contributions, identity or full BuildSnapshot exists |
+| PlayerBuild.test.ts | 34 pure cases protect slots/defaults, percentages/flat bonuses/Analyzer, validation/atomicity, deep copies and disposed invariants. Preserve them |
+| GameplayScene.create / disposeBuild | Fresh const build during PREPARING before HP/HUD; exact captured shutdown/destroy disposal already handles its lifetime. All three prototype Combat slots occupied, Active null, six Core null |
+| GameplayScene.applyBuildChange / acceptLevelUpChoice | Only production Build mutations are applyPrototypeHullPlating and applyPrototypeThruster through exact run/build/current REWARD guards. Private percent bridge calls applyStatPercent for internal use/tests; addCombatAnalyzerLevels has pure/Scene test callers only. Other current choices retain Scene-local ranks/values/flags |
+| GameplayScene.LevelUpChoice / levelUpPool / enterLevelUpPause | Nine weapon tracks, six passives and Prism/Cluster/Twin; focused/passive/open arbitration with explicit Reward RNG. No authored Tag points or tag-based eligibility/weights |
+| src/game/devTools.ts / GameplayScene.publishDevTools | PlayerBuildReadModel is consumed as DevSnapshot.build; Scene forwards playerBuild.snapshot(). Five commands only. No narrower current consumer justifies retaining that old snapshot type |
+| PROJECT_GRAPH / CURRENT_STATE / tracked src | Build ownership and 367 tests/22 files are implemented facts. Other identity matches are run/choice/enemy identity, not Tags; no content-tag source registry or maturity implementation exists |
+
+**Current prototype contribution decision: explicitly none**
+
+No authoritative exact tag-point mapping exists for LASER, MISSILE, COMBAT_DRONE, any of
+their nine current tuning upgrades, Hull Plating, Thruster Module, Collector Field, Combat
+Processor, Spatial Amplifier, Replication Matrix, Prism Laser, Cluster Missile or Twin Drone.
+Do not infer points from names, future specialization/Core associations, occupied slots,
+weapon focus, numeric stats or the target starting-system tilt. All twelve totals start at0;
+current boot, offer generation and accepted current Level-Up/evolution choices add ZERO.
+They also preserve any points supplied through internal tests without changing them.
+Later scoped target-content tasks must author exact sources/amounts before wiring them.
+There is no production Scene contribution call site to add in GAME-047; create and
+acceptLevelUpChoice remain neutrality/regression anchors, not mapping insertion points.
+
+**Exact identities, canonical order and numeric domain**
+
+Define one explicit TagId literal union, preferably derived from one immutable TAG_IDS
+tuple, in exactly this order:
+
+```text
+PRECISION, RAPID_FIRE, CLOSE_COMBAT, PROJECTILES, EXPLOSIONS, DRONES,
+TECHNOLOGY, SHIELDS, CONTROL, MOBILITY, SUPPORT, SURVIVAL
+```
+
+Reuse that canonical order for all twelve-field point copies, identity ties, snapshots and
+tests; no runtime alphabetical sort, installation order, incidental object enumeration or
+random tie breaking. No additional DAMAGE/OFFENSE/DEFENSE/LASER/MISSILE/BOSS/CRIT/AREA/ECONOMY
+or arbitrary string tag. UI display names may differ later; runtime IDs remain stable.
+TagPoints = Record<TagId, number>, with exactly these twelve own fields, initially all0.
+This is numeric accumulation, never Set<TagId>, booleans or a hasTag-only contract.
+Every amount and total is a nonnegative safe integer; zero is allowed. No fractional
+requirement exists in the authoritative design, so fractional/negative points are invalid.
+Two DRONES contributions +1 and +2 produce3; different fields remain independent.
+
+**Existing owner, concrete mutation and independent derivation**
+
+Extend src/game/player/PlayerBuild.ts only as the Build authority; no TagManager,
+BuildIdentityManager, global registry, event bus, separate run owner or new dependency.
+Retain existing stat/slot APIs, defaults, formulas, validation, caching and disposal policy.
+Add one concrete typed mutation: addTagPoints(tag: TagId, amount: number): boolean.
+No source IDs/handles, grouped transactions, removal/reversal, temporary buffs/durations,
+metadata bags, arbitrary callbacks, tag query language or universal effect framework.
+Current contributions are permanent; no removal consumer exists. Later Core replacement
+must define its own scoped removal/application contract before implementing that behavior.
+
+On every call assert the existing live-Build invariant first. Validate exact supported
+TagId membership (including for zero) and typeof amount === number, nonnegative safe
+integer amount, and safe integer candidate total before any state change. Invalid IDs,
+nonnumbers, NaN, both infinities, negatives, fractions or overflow throw a clear RangeError,
+consistent with existing numeric invariants. No coercion, rounding, clamping or broad catch.
+Valid zero returns false with no mutation; valid positive accepted addition returns true.
+An invalid candidate leaves the entire points/identity/stat snapshot unchanged.
+
+Store Tag totals as authority. Cache identity as derived data, initialized empty and
+recomputed only on accepted positive Tag mutation. Prepare the candidate totals/identity
+before committing either; rejected/no-op contributions leave both unchanged. No independent
+identity setter, dirty-flag framework or second writable identity truth. Tag mutation never
+calls the EffectiveStats resolver/commit; stat/Analyzer mutations never derive identity.
+Reads return copies of already-derived data without sorting/deriving every frame/read.
+
+BuildIdentity = { dominantTags: TagId[]; secondaryTags: TagId[] } with exact semantics:
+
+- Consider only totals >0; dominantTags contains EVERY tag tied at the highest positive score.
+- secondaryTags contains EVERY tag tied at the next DISTINCT positive score, if any.
+- No positive totals means both arrays empty; one positive score tier means secondary empty.
+- Each array follows TAG_IDS order, irrespective of contribution arrival order. No tag can
+  occupy both arrays. Lower positive tiers remain visible in totals but not these arrays.
+- Adding points may change either tier; derive from current totals without permanent classes.
+  Analyzer, stats and conceptual balance bands do not determine or break ties.
+
+For example DRONES3/TECHNOLOGY3/MOBILITY2/SURVIVAL1 gives dominant [DRONES, TECHNOLOGY],
+secondary [MOBILITY]. Raising SURVIVAL to4 gives dominant [SURVIVAL], secondary
+[DRONES, TECHNOLOGY]. All twelve at0 gives []/[]. No threshold/maturity level is added.
+
+**One canonical BuildSnapshot and DEV migration**
+
+Replace the GAME-046 PlayerBuildReadModel export with BuildSnapshot; audit and migrate all
+its actual type consumers. No current narrower consumer warrants keeping an alias/type.
+PlayerBuild.snapshot(): BuildSnapshot is the only public whole-build snapshot operation;
+retain existing narrow stat/slot getters, but add no overlapping buildSnapshot() or
+identitySnapshot() truth. Exact shape for the currently owned Build data:
+
+```typescript
+type BuildSnapshot = {
+  slots: BuildSlots;
+  baseStats: BaseStats;
+  runModifiers: RunModifiers;
+  effectiveStats: EffectiveStats;
+  tags: TagPoints;
+  identity: { dominantTags: TagId[]; secondaryTags: TagId[] };
+};
+```
+
+Preserve all four GAME-046 fields and their exact nested schemas, including Analyzer in
+base/effective stats and combatAnalyzerLevels in runModifiers. slots retains exactly
+[LASER,MISSILE,COMBAT_DRONE], null Active and six null Core positions. tags copies all
+twelve numeric fields in canonical order; identity copies both arrays. No Maps/Sets/classes,
+functions, owner/Scene/Phaser references, lifecycle/RNG/diagnostics, current HP, XP/level,
+enemies, timers or pause reasons belong in BuildSnapshot. Do not migrate Scene-local
+weapon ranks/development or precreate Doctrine/Active/Core mechanics merely to fill future
+target fields; future scoped owners can extend the canonical snapshot when implemented.
+
+Every read produces plain JSON-serializable deeply detached data. Mutating any returned
+tag field, identity array, slot tuple, base/effective stat or nested modifier cannot affect
+PlayerBuild, cached identity, earlier/later independent snapshots or live gameplay.
+Repeated reads mutate no state/cache and consume zero RNG/diagnostics/timer work.
+DevSnapshot.build becomes BuildSnapshot, forwarded by existing playerBuild.snapshot().
+Add Tag/identity data ONLY there; no top-level snapshot.tags/buildIdentity or second owner.
+Keep exactly snapshot/forceLevelUp/spawnWarden/setWardenHealth/setGodMode. No addTag/setTag/
+setIdentity/setDominant command, debug UI/global owner or production API. Old API remains
+null/false after invalidation; production window.__NEBULA_DEV__ stays absent.
+
+**Separation, gameplay neutrality and future consumer boundaries**
+
+Tags describe identity and future eligibility/offer weights/thresholds/synergy/UI; they are
+not numeric combat stats. No PROJECTILES->damage, SURVIVAL->Hull or MOBILITY->Thrust mapping.
+Never reverse-infer tags from high Velocity/FireControl/Hull/Engineering or other stats.
+Changing Tags leaves baseStats/runModifiers/effectiveStats byte-for-byte unchanged;
+stat/flat/Analyzer changes leave Tags/identity unchanged. Analyzer remains GAME-046's
+numeric shared stat, visible in the same snapshot fields; it adds no points, breaks no
+identity tie, filters no Tag visibility and changes no offers in GAME-047.
+
+No Build Maturity formula is defined by these sources for GAME-047. Difficulty must not
+use raw sum(tagPoints); no powerScore/buildPower/gearScore/combatRating/threatScore.
+Director pressure/structural maturity remains GAME-062+, Reward Generator/Analyzer
+weighting/pity/recent offers remains GAME-054/055, authored weapon specialization remains
+GAME-056..059, Active mechanics GAME-070+, Core sources/mechanics GAME-077+, Doctrine
+GAME-084+ and Build Screen GAME-097. No behavior from those consumers is implemented here.
+
+At fresh zero points AND internally supplied nonzero points, preserve HP/Hull/Thrust,
+movement/Dash, Laser/Missile/Drone launch values and shared stat composition, Fire Control,
+Prism/Cluster/Twin, current rewards/choices/order/eligibility/focus/cursors, XP, enemy
+spawning/cap/Warden/difficulty, pause/input and terminal atomicity. No launch consumes Tags.
+Keep RunLifecycle, RunRandom, KeyboardInput and RunDiagnostics implementations unchanged.
+Tag add/identity/read/snapshot use ZERO Encounter/Reward/World/Boss draws. Preserve exact
+GAME-043 offer/spawn draw budgets. Diagnostics stays six semantic record types with no
+TAG_CHANGED/IDENTITY_CHANGED/BUILD_SNAPSHOT rows, counters or snapshot side effects.
+Keep exactly five existing TimerEvents and their identities/delays/elapsed phases; Tag
+mutation/read never resets one, fires immediately, adds polling/clock/timeScale or schedules.
+Existing selected local cadence/shared Fire Control effects remain their own unchanged rules.
+
+**Lifetime and fresh native restart**
+
+Tags live inside the existing fresh PlayerBuild constructed in PREPARING before HP/HUD.
+No new owner, shutdown listener, boot entropy, startup reorder or cleanup system is needed.
+The current exact captured const build disposal handles all Tag state idempotently.
+After disposal addTagPoints (even zero) and snapshot/any Build read throw the same
+disposed-PlayerBuild invariant; earlier detached snapshots remain usable plain data.
+Each native create gets a different Build identity with all twelve totals0 and empty
+dominant/secondary arrays; no old points/cache survive. Exact old cleanup must not dispose
+fresh Build. Saved old timer/input/focus/reward/result/API callbacks cannot mutate fresh
+Tags or redirect through a global current Build. Pure Build has no lifecycle policy;
+current Scene ownership/transaction guards remain intact with no production Tag callers.
+
+**Required tracked tests for separately authorized implementation**
+
+Preserve all367 pre-GAME-047 tests/22 files, including34 pure Build and95 Scene cases;
+add meaningful pure PlayerBuild tests and real Scene method integration without parallel
+fake progression/gameplay algorithms. Type migration must preserve existing assertions.
+
+| Boundary | Required evidence |
+| --- | --- |
+| Exact set/baseline | Exactly12 TagIds and canonical order, twelve own zero fields, no arbitrary unknown tag; fresh defaults/slots/modifiers/effective values retained |
+| Contributions | One amount, repeated same-tag +1/+2=3, independent tags; valid zero false; invalid ID including prototype-like keys; nonnumbers/NaN/infinities/negative/fraction/unsafe amount; max-safe accepted then overflow throws; entire snapshot unchanged after every rejection/no-op |
+| Identity | No positives, one positive tag, one tier with several ties, two tiers, >=3 tiers, tied dominant and tied secondary, canonical order despite reversed arrival; additions change identity; no separate setter and returned arrays cannot mutate authority |
+| Independent caches/stats | All base/modifier/effective fields unchanged by Tag additions (including nonzero); stats/legacy flats/Analyzer never change Tags/identity; Tag work never invokes stat recomputation, stat work never recomputes identity; repeated reads do neither |
+| Snapshot | Canonical BuildSnapshot includes all existing fields plus exactly12 totals/two identity arrays; all nested arrays/objects detached from owner and independent reads; JSON roundtrip; repeated snapshots stable/no state/cache side effects |
+| Pure lifetime | All disposed Tag mutation/read/snapshot attempts throw the existing invariant, even zero; idempotent disposal; independent fresh Build resets all points/identity |
+| Scene boot/DEV | PREPARING Build and same slots/stats/modifiers/HP, all Tags0/identity[]; five actual timers and five exact commands, unchanged seed/initial diagnostics; DevSnapshot.build canonical/detached, no top-level duplicates or new commands |
+| Actual gameplay/timers | Baseline movement/Hull/Dash/weapon composition and current launch values unchanged at0 and internally nonzero Tags; same five events/delays/elapsed, zero reset calls from Tag mutation/read; no Tags consulted by projectiles |
+| Current progression | All nine weapon upgrade identities, all six passives and Prism/Cluster/Twin accepted through existing production choice paths leave Tags/identity at baseline (and preserve internally injected nonzero values). Offers/snapshots/stale/double/rejected choices contribute zero; order/cursors/Reward budgets unchanged |
+| Isolation/pause | Spy all four streams: Tag add/identity/read/snapshot draw0; diagnostics snapshot unchanged, no extra records/counters; manual/reward/focus pause state and same-event phases unchanged apart from existing accepted gameplay effects |
+| Scene lifetime/terminal | Existing first-terminal and attack cleanup boundaries retained; restart fresh Build/all-zero tags/empty identity, fresh lifecycle/RNG/input/diagnostics/API and five events; disposed old Build throws, captured old callbacks/cleanup cannot modify fresh Tags or draw fresh RNG |
+
+**Required real browser/native validation for separately authorized implementation**
+
+1. Ordinary DEV boot: current gameplay, slots/stats/modifiers, zero Tags/empty identity in
+   canonical snapshot.build, five observed TimerEvents and exact five-command API.
+2. Repeated actual DEV snapshots stable; mutate returned nested tag fields/identity arrays
+   (also exercise nonempty identity via ignored internal harness), prove later snapshots
+   unchanged. Reads produce no gameplay, four-stream, diagnostics or timer effects.
+3. Real W/Space/Escape, Hull/Thruster and current Level-Up pointer choices, Laser/Missile/
+   Drone and actual Prism/Cluster/Twin remain GAME-046-compatible. Choices never add Tags;
+   no authorized current production mapping exists. Use ignored INTERNAL harness only to
+   exercise nonzero addTagPoints/identity/neutrality/invalid atomicity, never new controls.
+4. Real manual/reward/focus pause composition, meaningful wall-time five-phase freeze,
+   explicit resume and genuine browser BLUR retain GAME-044 behavior and Tag state. Separate
+   synthetic HIDDEN/VISIBLE coverage from actual browser focus evidence. No Tag-triggered
+   timer reset, diagnostic entry or RNG draw; ordinary gameplay observations remain valid.
+5. At least TWO actual Victory -> NEW RUN, ONE Death -> RETRY and ONE PAUSED nonterminal
+   native scene.restart. Dirty old Tags through internal harness before restart. After EACH:
+   old Build disposed and direct reads/mutations throw; fresh owner/all twelve0/identity[];
+   fresh slots/stats/zero modifiers, lifecycle/RNG/input/diagnostics/API/five events and
+   unpaused fresh Clock. Saved old callbacks/cleanup cannot mutate fresh Tags or other
+   owners. Page reload, manual create or fixture recreation is not native restart evidence.
+6. Unmodified production preview: normal gameplay/keyboard/Dash/pause/current combat,
+   DEV API absent and no Tag debug UI. Inspect console, distinguish known favicon404 and
+   Vite >500kB bundle warning from new errors. Report tracked/internal/ordinary boot/actual
+   native evidence separately; this definition makes no new runtime verification claim.
+
+**Scope, validation and documentation handoff**
+
+No GAME-048 defense, GAME-049 Attack/Hit/Damage snapshots, EnemyDefinition/death migration,
+reward generation/Analyzer/pity, Director/maturity/difficulty, Core/Active catalogs or
+mechanics, specialization/Doctrine, Build Screen, source registry, effect callbacks,
+conditional tag effects/stat formulas/damage, generic content framework or new dependency.
+
+For this definition change only TASK_GRAPH: GAME-047 BACKLOG->READY and necessary current
+roadmap/status wording. GAME-046 stays DONE; GAME-040/041 SUPERSEDED; GAME-048+ BACKLOG;
+GATE A PASSED, GATE B unchanged/not passed. Preserve historical definition instructions.
+Run npm run check and git diff --check; verify only docs/TASK_GRAPH.md changed; stage that
+explicit path only. Inspect complete git diff --cached, run cached check/stat, and create
+ignored .codex-review/GAME-047-review.txt with AGENTS.md sections, source audit and contracts,
+required future tests/native checks, gate/status facts and FULL staged diff. Never stage
+the packet or commit. CURRENT_STATE/PROJECT_GRAPH/ARCHITECTURE/GAME_DESIGN/CONTENT_MANIFEST/
+BALANCE/runtime/tests/config/dependencies remain unchanged now.
+Only successful separately authorized implementation and required tracked/native validation
+may move GAME-047 READY->DONE and update factual CURRENT_STATE/PROJECT_GRAPH exports/
+ownership/consumers. ARCHITECTURE normally stays unchanged. GAME-048+ remain BACKLOG and
+GATE B requires its actual phase prerequisites and review; GAME-047 alone cannot pass it.
 
 **GATE B — Modern Combat on Legacy Spawning** — review the preceding phase capabilities before its cutover/next proof.
 
