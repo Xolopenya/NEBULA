@@ -1,3 +1,4 @@
+import type { DevTools } from '../devTools';
 import * as Phaser from 'phaser';
 import { segmentCircleHitTime } from '../combat/collision';
 import { prismSpread } from '../combat/prismSpread';
@@ -98,6 +99,8 @@ type MissileRuntime = {
 };
 
 export class GameplayScene extends Phaser.Scene {
+  private godMode = false;
+  private gameplayTimers: Phaser.Time.TimerEvent[] = [];
   private player?: Phaser.GameObjects.Polygon;
   private drone?: Phaser.GameObjects.Arc;
   private twinDrone?: Phaser.GameObjects.Arc;
@@ -184,6 +187,8 @@ export class GameplayScene extends Phaser.Scene {
   }
 
   create(): void {
+    this.godMode = false;
+    this.gameplayTimers = [];
     this.isRunVictorious = false;
     this.victoryPresentation = [];
     this.moduleLevels = { hull: 0, thruster: 0, collector: 0, combat: 0, spatial: 0, replication: 0 };
@@ -262,35 +267,32 @@ export class GameplayScene extends Phaser.Scene {
     this.cameras.main.startFollow(this.player);
     this.cameras.main.centerOn(this.player.x, this.player.y);
 
-    this.time.addEvent({
+    this.gameplayTimers.push(this.time.addEvent({
       delay: this.spawnInterval,
       loop: true,
       callback: () => this.spawnEnemy(),
-    });
-
-    this.laserTimer = this.time.addEvent({
+    }));
+    this.gameplayTimers.push(this.laserTimer = this.time.addEvent({
       delay: this.laser.fireInterval,
       loop: true,
       callback: () => this.fireLaser(),
-    });
-
-    this.time.addEvent({
+    }));
+    this.gameplayTimers.push(this.time.addEvent({
       delay: this.missile.fireInterval,
       loop: true,
       callback: () => this.fireMissile(),
-    });
-
-    this.droneTimer = this.time.addEvent({
+    }));
+    this.gameplayTimers.push(this.droneTimer = this.time.addEvent({
       delay: this.droneAttackValues.fireInterval,
       loop: true,
       callback: () => this.fireDrone(),
-    });
-
-    this.time.addEvent({
+    }));
+    this.gameplayTimers.push(this.time.addEvent({
       delay: this.hostileFireInterval,
       loop: true,
       callback: () => this.fireHostileProjectile(),
-    });
+    }));
+    if (import.meta.env.DEV) this.publishDevTools();
 
     const keyboard = this.input.keyboard;
     if (keyboard) {
@@ -609,12 +611,7 @@ export class GameplayScene extends Phaser.Scene {
       pickup.speed = Math.min(this.xpMagnetMaxSpeed,
         pickup.speed + this.xpMagnetAcceleration * seconds);
       if (distance <= this.xpCollectionRadius + step) {
-        const previousLevel = this.playerExperience.level;
-        this.playerExperience = addExperience(this.playerExperience, pickup.value);
-        this.updateHud();
-        pickup.visual.destroy();
-        this.xpPickups.splice(i, 1);
-        if (this.playerExperience.level > previousLevel) this.enterLevelUpPause();
+        this.creditExperience(pickup.value, pickup);
         continue;
       }
       pickup.visual.x += dx / distance * step;
@@ -646,7 +643,9 @@ export class GameplayScene extends Phaser.Scene {
 
   private damagePlayer(amount: number): void {
     if (this.isSimulationPaused()) return;
-    if (!this.player || this.playerHealth === 0 || this.playerDamageProtectionRemaining > 0) return;
+    if (!this.player || this.playerHealth === 0) return;
+    if (import.meta.env.DEV && this.godMode) return;
+    if (this.playerDamageProtectionRemaining > 0) return;
     this.playerHealth = Math.max(0, this.playerHealth - amount);
     this.updateHud();
     this.playerDamageProtectionRemaining = this.playerDamageProtectionDuration;
@@ -1019,6 +1018,80 @@ export class GameplayScene extends Phaser.Scene {
       xpValue: archetype === 'boss' ? 10 : isElite ? eliteTankData.xpValue : 1,
       collisionRadius: archetype === 'boss' ? 40 : this.enemyRadius });
     if (archetype === 'boss') this.bossSpawned = true;
+  }
+
+  private creditExperience(amount: number, collectedPickup?: XpPickup): void {
+    const previousLevel = this.playerExperience.level;
+    this.playerExperience = addExperience(this.playerExperience, amount);
+    this.updateHud();
+    if (collectedPickup) {
+      collectedPickup.visual.destroy();
+      this.xpPickups.splice(this.xpPickups.indexOf(collectedPickup), 1);
+    }
+    if (this.playerExperience.level > previousLevel) this.enterLevelUpPause();
+  }
+
+  private publishDevTools(): void {
+    // Phaser reuses this Scene on restart: validity belongs to this create, not this object.
+    let valid = true;
+    const canMutate = () => valid && !this.isSimulationPaused() && !!this.player;
+    const activeWarden = () => this.enemies.find(enemy => enemy.archetype === 'boss' && enemy.health > 0);
+    const api: DevTools = {
+      snapshot: () => {
+        if (!valid) return null;
+        const boss = activeWarden();
+        return {
+          isPlayerDead: this.isPlayerDead, isRunVictorious: this.isRunVictorious,
+          isLevelUpPaused: this.isLevelUpPaused, godMode: this.godMode,
+          playerHealth: this.playerHealth,
+          progression: { ...this.playerExperience, threshold: xpForNextLevel(this.playerExperience.level) },
+          protectionRemaining: this.playerDamageProtectionRemaining,
+          bossSpawned: this.bossSpawned, bossDefeated: this.bossDefeated,
+          warden: boss ? { health: boss.health, phase: wardenPhase(boss.health) ?? null } : null,
+          successfulTimedSpawns: this.successfulTimedSpawns, activeEnemyCount: this.enemies.length,
+          gameplayTimerCount: this.gameplayTimers.filter(timer => !!timer.callback).length,
+        };
+      },
+      forceLevelUp: () => {
+        if (!canMutate()) return false;
+        this.creditExperience(xpForNextLevel(this.playerExperience.level) - this.playerExperience.xp);
+        return true;
+      },
+      spawnWarden: () => {
+        if (!canMutate() || this.bossSpawned || this.bossDefeated || activeWarden()
+          || this.enemies.length >= this.maximumEnemies) return false;
+        const player = this.player!;
+        const margin = Math.max(this.enemyMargin, 40);
+        const x = player.x < this.arenaWidth / 2 ? this.arenaWidth - margin : margin;
+        const y = player.y < this.arenaHeight / 2 ? this.arenaHeight - margin : margin;
+        if (x < margin || x > this.arenaWidth - margin || y < margin || y > this.arenaHeight - margin
+          || Math.hypot(x - player.x, y - player.y) < this.minimumSpawnDistance) return false;
+        this.createEnemy(x, y, 'boss');
+        return true;
+      },
+      setWardenHealth: health => {
+        if (!canMutate() || typeof health !== 'number' || !Number.isFinite(health)
+          || health < 1 || health > 60) return false;
+        const boss = activeWarden();
+        if (!boss) return false;
+        boss.health = health;
+        return true;
+      },
+      setGodMode: enabled => {
+        if (!canMutate() || typeof enabled !== 'boolean') return false;
+        this.godMode = enabled;
+        return true;
+      },
+    };
+    window.__NEBULA_DEV__ = api;
+    const invalidate = () => {
+      valid = false;
+      if (window.__NEBULA_DEV__ === api) delete window.__NEBULA_DEV__;
+      this.events.off(Phaser.Scenes.Events.SHUTDOWN, invalidate);
+      this.events.off(Phaser.Scenes.Events.DESTROY, invalidate);
+    };
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, invalidate);
+    this.events.once(Phaser.Scenes.Events.DESTROY, invalidate);
   }
 
   private spawnEnemy(): void {

@@ -2,7 +2,7 @@
 
 ## Last Updated
 
-2026-10-16.
+2026-10-17.
 
 This document describes only what is currently implemented and working.
 
@@ -14,7 +14,7 @@ Do not place future plans or speculative features here.
 
 Current phase:
 
-FIRST PLAYABLE CORE LOOP COMPLETE / GAME-038 COMPLETE
+FIRST PLAYABLE CORE LOOP COMPLETE / GAME-039 COMPLETE
 
 The project has a working browser application, development toolchain and placeholder gameplay scene.
 
@@ -232,6 +232,38 @@ This is intentional.
 
 ---
 
+## DEV utilities
+
+In Vite development runtime, the current GameplayScene publishes `window.__NEBULA_DEV__`
+with exactly snapshot(), forceLevelUp(), spawnWarden(), setWardenHealth(health) and
+setGodMode(enabled). Production preview boots without this property.
+snapshot() returns detached plain terminal/God Mode, HP/protection, nested level/XP/threshold,
+Boss flags/current Warden HP/derived phase, timed-spawn count, enemy count and actual
+owned TimerEvent count. It changes no gameplay state or offers.
+
+forceLevelUp credits exactly the remaining next-level XP through creditExperience, shared
+with normal pickup collection, and opens the existing three-choice pause. spawnWarden uses
+the real Boss creation path once per run, only with both boss flags false, no active Boss
+and room under cap10; deterministic opposite-corner placement respects margin40 and distance600.
+It does not advance successfulTimedSpawns. setWardenHealth accepts finite 1..60 (including
+fractions) without killing, changing flags or resetting cadence; phases remain HP-derived.
+God Mode rejects incoming damage before protection/HP mutation, while hostile collisions
+still consume projectiles and contact retains current position semantics. Disabling does
+not heal/reset protection; fresh create resets God Mode false.
+
+Every create publishes a fresh API with shutdown/destroy invalidation independent of
+Scene object reuse. Old snapshot returns null and mutations false; all current mutations
+also reject during Level-Up pause/Death/Victory while read-only snapshots remain available.
+There are still exactly five gameplay TimerEvents, including fresh events pending Clock
+insertion; DevTools adds none.
+
+Tracked tests call actual Scene production methods with rendering/lifecycle fixtures.
+Real Chrome/Phaser validation separately confirms ordinary DEV boot, production absence,
+real choice acceptance, Warden phase movement/bursts and attack-triggered Victory, God Mode
+projectile/contact behavior, two actual Victory NEW RUN native restarts and one ordinary
+Death RETRY. Each restart has baseline flags/XP/God Mode, fresh API, five fresh events and
+inert old captured API.
+
 ## Assets
 
 No production game assets are currently integrated.
@@ -246,7 +278,7 @@ Gameplay prototypes will initially use placeholders and simple geometry.
 
 Nine unit tests cover collision.ts, eight cover progression/experience.ts, six cover player/dash.ts timing/expiry partitions, seven cover enemies/shooterMovement.ts band rules, and six cover progression/selectChoices.ts size, distinctness, membership, nonmutation, controlled randomness, repeated offers and input boundaries.
 
-Eight pure Prism eligibility cases, seven pure spread cases and seventeen focused-upgrade cases also pass, for 146 tracked tests across sixteen files, including five Replication radius cases, six Spatial radius cases, eight Cluster eligibility cases, six Cluster geometry cases, eight Twin eligibility cases and twenty-four evolution-offer cases. Fourteen Warden schedule/phase/burst cases cover spawn30, HP60/31/30/1/0, normalized world-angle bursts and deterministic independent outputs. Seven Elite schedule cases cover Tank6/12/18/24, non-Tanks and deterministic input stability. Real-browser scene validation covers rank caps, next-pause offers, volley/snapshot behavior and two native RETRY cycles restoring five gameplay timers.
+Eight pure Prism eligibility cases, seven pure spread cases and seventeen focused-upgrade cases also pass, for 167 tracked tests across seventeen files, including five Replication radius cases, six Spatial radius cases, eight Cluster eligibility cases, six Cluster geometry cases, eight Twin eligibility cases and twenty-four evolution-offer cases. Fourteen Warden schedule/phase/burst cases cover spawn30, HP60/31/30/1/0, normalized world-angle bursts and deterministic independent outputs. Seven Elite schedule cases cover Tank6/12/18/24, non-Tanks and deterministic input stability. Real-browser scene validation covers rank caps, next-pause offers, volley/snapshot behavior and two native RETRY cycles restoring five gameplay timers.
 
 Vitest is installed and configured.
 
@@ -300,7 +332,7 @@ These should only be introduced when real project requirements justify them.
 
 The placeholder arena, bounded desktop movement, camera follow, repeated enemy spawning/chase, nearest-enemy targeting and Laser projectile impacts with enemy damage/death are implemented and browser-verified.
 
-GAME-001 through GAME-038 are complete. GAME-039 and later remain BACKLOG.
+GAME-001 through GAME-039 are complete. GAME-040/041 are SUPERSEDED; GAME-042+ remain BACKLOG.
 
 ---
 

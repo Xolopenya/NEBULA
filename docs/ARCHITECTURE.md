@@ -332,7 +332,8 @@ aggregates and RunReport/performance investigation. They do not own gameplay dec
 GAME-045 and GAME-100 define staged delivery; no telemetry framework is pre-created.
 DevTools is DEV-only, absent from production, reads detached plain snapshots and invokes
 real production paths. Old APIs/references become inert after restart.
-GAME-039 remains BACKLOG; its exact limited API is specified in TASK_GRAPH, not implemented here.
+GAME-039 provides the initial concrete DEV-only DevTools slice.
+Its exact API and current task status are specified in TASK_GRAPH.
 
 ## Validation and fallback
 

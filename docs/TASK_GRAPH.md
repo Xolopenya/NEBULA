@@ -92,15 +92,14 @@ Its repository documentation is the authoritative target baseline for subsequent
 
 ## GAME-039 — First DevTools Utilities
 
-STATUS: READY
+STATUS: DONE
 
 ### Goal and dependencies
 
 Depends: DESIGN-005 (DONE), GAME-038 (DONE), existing XP/choice and Warden paths.
-This is an implementation-ready definition for architect review, not an implemented API.
+Implemented and verified against the acceptance contracts below.
 Expose only a small DEV browser API to reproduce expensive current prototype states before
-the later architecture migration. This definition changes only TASK_GRAPH; implementation
-requires its own reviewed task. GAME-042+ remain BACKLOG.
+the later architecture migration. GAME-042+ remain BACKLOG.
 
 ### Current source anchors and preserved behavior
 
@@ -121,8 +120,8 @@ Inspect these actual owners again at implementation time; source/tests override 
 | `killEnemy`, `updateProjectiles`, `updateMissiles`, `enterRunVictory` | Common Boss death/XP first; owning straight attack or full Missile/Cluster detonation cleans up before first-terminal Victory |
 | `enterPlayerDeath`, `enterRunVictory` | Death RETRY and Victory NEW RUN use native restart; preserve their distinct UI and first-terminal semantics |
 
-Current GameplayScene has no custom DevTools shutdown owner. Add only the concrete
-exposure/invalidation lifecycle needed here. Do not infer new Run architecture.
+GameplayScene owns concrete per-create DEV exposure and shutdown/destroy invalidation.
+No new Run architecture is introduced.
 The current contact path has no escape-separation mechanic; preserve its existing
 contact/position behavior, and do not implement target-design separation or Shield here.
 
@@ -182,7 +181,7 @@ amount through the production XP-credit/Level-Up path: one next threshold, new-l
 from the current valid remainder, normal HUD refresh, real three choices and full pause.
 No fake pickup is required.
 
-Today that path is inline in `updateXpPickups`. Extract only the smallest shared
+The shared `creditExperience` operation serves `updateXpPickups` and DevTools. Preserve the
 XP-credit/level-entry operation needed by collection and this command, retaining pickup
 removal before choice presentation, collection pause ordering and `addExperience`
 overflow semantics. The API must not duplicate progression or offer algorithms.
@@ -265,7 +264,7 @@ architecture, reward-generator architecture, performance sandbox and save/profil
 Fixed-seed/procedural tracing tools wait for their real later systems.
 No GAME-042+ implementation or future runtime stubs.
 
-### Required tracked tests for later implementation
+### Required tracked tests
 
 Preserve all existing assertions (baseline146 tests/16 files; report actual new totals).
 Inspect/reuse `experience.test.ts`, `warden.test.ts`, `selectChoices.test.ts` and
@@ -288,7 +287,7 @@ Cover at least:
 
 Tracked tests do not substitute for the real browser/lifecycle checks below.
 
-### Required native/browser validation for later implementation
+### Required native/browser validation
 
 Use the real application and GameplayScene/Phaser Clock, not alternate gameplay algorithms:
 
@@ -316,20 +315,18 @@ Use the real application and GameplayScene/Phaser Clock, not alternate gameplay 
 Report new console errors/warnings separately from known favicon/build-size warnings.
 Distinguish tracked tests, normal boots, real scene harness and actual native restart evidence.
 
-### Validation, status and architect handoff
+### Validation and completion
 
-For THIS definition-only task: run `npm run check`, `git diff --check`; verify only
-`docs/TASK_GRAPH.md` changed, explicitly stage that path, run `git status`,
-`git diff --cached --check`, `git diff --cached --stat` and inspect the complete staged diff.
-Generate ignored `.codex-review/GAME-039-review.txt` with all AGENTS.md sections and full
-staged diff. Never stage the packet or commit. Browser/API tests above are future
-implementation acceptance requirements, not claims of checks performed for this definition.
+GAME-039 DONE: npm run check passes (167 tests / 17 files, TypeScript and build).
+Real Chrome ordinary DEV boot and production preview absence pass. Real GameplayScene
+checks cover normal choices, Warden movement/bursts at HP30/31, God Mode/projectile/contact,
+two actual Victory NEW RUN restarts and one ordinary Death RETRY. Each native restart
+restores the baseline, fresh API and five fresh gameplay TimerEvents; captured old API is inert.
+Known warnings: favicon404 in DEV browser and Vite bundle size >500 kB; no new runtime errors.
 
-Change only GAME-039 BACKLOG→READY. DESIGN-005 stays DONE, GAME-040/041 SUPERSEDED and
-GAME-042+ BACKLOG. Do not edit CURRENT_STATE, PROJECT_GRAPH or other design docs now.
-After later successful implementation and native validation, GAME-039 may become DONE,
-CURRENT_STATE records actual DEV behavior and PROJECT_GRAPH changes only for real material
-ownership/file changes. Later roadmap tasks remain BACKLOG.
+Factual CURRENT_STATE and material PROJECT_GRAPH ownership are updated. DESIGN-005 remains
+DONE, GAME-040/041 SUPERSEDED and GAME-042+ BACKLOG. Explicit staging and complete ignored
+.codex-review/GAME-039-review.txt follow AGENTS.md; user creates the final commit after review.
 
 ## Retired roadmap IDs
 

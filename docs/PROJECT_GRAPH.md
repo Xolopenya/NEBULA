@@ -25,7 +25,9 @@ IDs are repository-relative paths; symbols use `path#export`.
 | `src/main.ts` | Browser entry; constructs Phaser.Game with gameConfig |
 | `src/game/config.ts` | Full HD FIT config and scene registration |
 | `src/game/scenes/BootScene.ts` | Starts GameplayScene |
-| `src/game/scenes/GameplayScene.ts` | Owns current run simulation and presentation |
+| `src/game/scenes/GameplayScene.ts` | Owns current run simulation, presentation and DEV API per-create binding |
+| `src/game/devTools.ts` | DevSnapshot / DevTools types and optional Window declaration; no runtime registry |
+| `src/game/scenes/GameplayScene.devTools.test.ts` | 21 tracked Scene integration contracts with rendering/lifecycle fixtures |
 | `src/game/combat/collision.ts` | Pure numeric collision math |
 | `src/game/combat/collision.test.ts` | Tracked geometry tests |
 | `src/game/progression/experience.ts` | Pure XP threshold/award arithmetic and state type |
@@ -300,6 +302,8 @@ Combat Processor is applied in launchPlayerProjectile and fireMissile; explodeMi
 create resets all module levels and run values before constructing the HUD. Existing native shutdown still owns object/timer cleanup.
 No generalized weapon stats framework is implemented.
 Statuses and dependencies remain in TASK_GRAPH.md, not duplicated here.
+
+GameplayScene.publishDevTools / creditExperience / godMode / gameplayTimers IMPLEMENTS_TASK GAME-039. Vite DEV-only publication owns per-create shutdown/destroy invalidation; old captured API is inert after native restart. Shared creditExperience preserves pickup credit/removal/choice order; God Mode guards damagePlayer; five existing TimerEvent references supply snapshot counts, including pending insertion. DevTools types are exported from src/game/devTools.ts; runtime ownership remains in GameplayScene.
 
 ## Common navigation queries
 
