@@ -87,26 +87,249 @@ Depends: completed GAME-038 baseline and the supplied target design.
 Scope: documentation-only consistency migration across GAME_DESIGN, ARCHITECTURE,
 CONTENT_MANIFEST, BALANCE, TASK_GRAPH and PROJECT_GRAPH.
 CURRENT_STATE remains implementation truth. No runtime/tests/packages/dependencies or
-future runtime stubs change. Architect approval is pending; this task is not marked DONE.
+future runtime stubs change. DESIGN-005 is architect-approved and DONE.
+Its repository documentation is the authoritative target baseline for subsequent tasks.
 
 ## GAME-039 — First DevTools Utilities
 
-STATUS: BACKLOG
+STATUS: READY
 
-Depends: DESIGN-005 approval and GAME-038 baseline; separately define/review before READY.
-DEV-only window.__NEBULA_DEV__ API, absent in production:
+### Goal and dependencies
 
-| Planned function | Contract |
+Depends: DESIGN-005 (DONE), GAME-038 (DONE), existing XP/choice and Warden paths.
+This is an implementation-ready definition for architect review, not an implemented API.
+Expose only a small DEV browser API to reproduce expensive current prototype states before
+the later architecture migration. This definition changes only TASK_GRAPH; implementation
+requires its own reviewed task. GAME-042+ remain BACKLOG.
+
+### Current source anchors and preserved behavior
+
+Inspect these actual owners again at implementation time; source/tests override this map:
+
+| Current file / anchor | Integration constraint |
 | --- | --- |
-| snapshot() | Detached plain data |
-| forceLevelUp() | Real progression and reward paths |
-| spawnWarden() | Real enemy creation; never fake successful timed-spawn count |
-| setWardenHealth(health) | Finite 1..60 only; never directly kill |
-| setGodMode(enabled) | Reject damage before protection/Shield/Hull; do not start protection |
+| `src/game/scenes/GameplayScene.ts#create` | Resets run fields, creates initial Chaser and five events; native `scene.restart()` handles old Phaser objects/timers |
+| `isSimulationPaused` | `isPlayerDead || isLevelUpPaused || isRunVictorious`; use this current guard for mutations |
+| `updateXpPickups`, `playerExperience`, `updateHud`, `enterLevelUpPause` | Collection calls `addExperience`, refreshes HUD, removes pickup, then opens real choice pause on level increase |
+| `src/game/progression/experience.ts` | `xpForNextLevel(level) = level * 5`; `addExperience` retains overflow and returns state |
+| `enterLevelUpPause`, `acceptLevelUpChoice` | Stable three-choice focused/passive/open-or-evolution presentation and normal selection/resume |
+| `createEnemy`, `enemyData.boss`, `enemies` | Real `'boss'` Warden: HP60, radius40, contact2, XP10; creation sets `bossSpawned` |
+| `spawnEnemy`, `maximumEnemies`, `minimumSpawnDistance` | Cap10, minimum player distance600, active Warden suppresses timed spawning; `successfulTimedSpawns` advances only after timed creation |
+| `src/game/enemies/warden.ts` | `wardenPhase` derives phase from HP; `shouldSpawnWarden` guards successful timed spawn30 |
+| `fireHostileProjectile`, `update`, `restoreEnemyOutline` | Real HP-derived Warden movement/style and 4/8-direction hostile bursts |
+| `damagePlayer`, `updatePlayerContact`, `updateProjectiles` | Common incoming-damage/protection boundary; hostile collision removes its projectile even when damage is rejected |
+| `killEnemy`, `updateProjectiles`, `updateMissiles`, `enterRunVictory` | Common Boss death/XP first; owning straight attack or full Missile/Cluster detonation cleans up before first-terminal Victory |
+| `enterPlayerDeath`, `enterRunVictory` | Death RETRY and Victory NEW RUN use native restart; preserve their distinct UI and first-terminal semantics |
 
-Real production Warden attacks/death remain authoritative. No debug UI, hotkeys,
-timeScale or forceVictory. Stale API/references are inert after native restart.
-Not implemented by DESIGN-005.
+Current GameplayScene has no custom DevTools shutdown owner. Add only the concrete
+exposure/invalidation lifecycle needed here. Do not infer new Run architecture.
+The current contact path has no escape-separation mechanic; preserve its existing
+contact/position behavior, and do not implement target-design separation or Shield here.
+
+### DEV exposure, results and lifetime
+
+Use Vite's development boundary (`import.meta.env.DEV`), not a player setting.
+During a valid DEV GameplayScene/run, `window.__NEBULA_DEV__` exposes exactly:
+
+| Method | Result |
+| --- | --- |
+| `snapshot()` | Detached plain serializable snapshot; `null` after invalidation |
+| `forceLevelUp()` | `true` on successful next-level request, otherwise `false` |
+| `spawnWarden()` | `true` on real creation, otherwise `false` |
+| `setWardenHealth(health)` | `true` on accepted finite 1..60 assignment, otherwise `false` |
+| `setGodMode(enabled)` | `true` on accepted boolean setting, otherwise `false` |
+
+Production build/runtime: the window property is absent/undefined. No production player
+path depends on it; unused DevTools preserves current gameplay.
+
+Each `create` owns a fresh API object and an explicitly invalidatable per-run binding.
+A native restart may reuse the same Scene instance: checking that instance is currently
+active, or redirecting old closures through a mutable global current-scene pointer, is
+insufficient. Shutdown/disposal invalidates the old binding before fresh publication.
+Remove the window property only if it still points to that binding's API, so old cleanup
+cannot remove a newer API. Clean owned listeners; no stale callbacks/timers/references.
+Captured `oldApi` never gains authority over the restarted scene.
+After shutdown: snapshot returns null and every mutation returns false, without lifecycle
+exceptions or effects on a newer run.
+
+While the current scene exists, snapshot remains read-only during Level-Up pause, Death
+and Victory. Every mutating command returns false without effects during those states.
+No command queues, nested reward UI or bypass of first-terminal-wins.
+
+### snapshot()
+
+Include detached values sufficient to verify:
+
+- Terminal state: `isPlayerDead`, `isRunVictorious`, `isLevelUpPaused` and run-local God Mode.
+- Player/progression: `playerHealth`, `playerExperience.level`, XP toward next level,
+  `xpForNextLevel` threshold and current protection remaining for damage verification.
+- Boss: `bossSpawned`, `bossDefeated`, active Warden presence, current health and
+  `wardenPhase(health)` when present; absent Warden health/phase are null.
+- Simulation: `successfulTimedSpawns`, current active enemy count and actual scheduled
+  gameplay TimerEvent count (including freshly created events pending Clock insertion).
+
+Do not hardcode a count of five instead of observing actual owned events. Exact field
+names/TypeScript grouping may follow project style. No Phaser objects, Scene references,
+mutable enemy/progression collections, TimerEvents or functions may escape.
+Returned nested data is detached; mutating it cannot alter live gameplay.
+Snapshot never advances simulation/RNG, changes targets/timers, creates UI or generates offers.
+
+### forceLevelUp()
+
+Only in valid active gameplay. Compute remaining XP as
+`xpForNextLevel(playerExperience.level) - playerExperience.xp`, then award exactly that
+amount through the production XP-credit/Level-Up path: one next threshold, new-level XP0
+from the current valid remainder, normal HUD refresh, real three choices and full pause.
+No fake pickup is required.
+
+Today that path is inline in `updateXpPickups`. Extract only the smallest shared
+XP-credit/level-entry operation needed by collection and this command, retaining pickup
+removal before choice presentation, collection pause ordering and `addExperience`
+overflow semantics. The API must not duplicate progression or offer algorithms.
+Do not directly increment level, assign pause, synthesize choices, change ranks, force
+Evolution or select a reward. Normal choice acceptance resumes normally.
+Already paused/dead/victorious/stale requests return false without generating another offer.
+
+### spawnWarden()
+
+Only in valid active gameplay with a player, `bossSpawned === false`,
+`bossDefeated === false`, no active Warden and room under cap10.
+If `bossSpawned` is already true, return false and create nothing even if no active
+Warden is found; preserve one-Warden-per-run semantics without count or flag mutation.
+Use `createEnemy(x, y, 'boss')`, not a simplified debug enemy or forced `spawnEnemy`
+counter mutation. Creation naturally sets `bossSpawned`; leave `bossDefeated` false.
+Never increment/fake `successfulTimedSpawns`, pretend spawn30 occurred, remove ordinary
+enemies, overflow the cap or request Victory. Invalid/cap/paused/terminal/stale requests
+return false without effects.
+
+Choose a deterministic valid location using the existing opposite-arena-corner fallback:
+use margin `max(enemyMargin, 40)`; choose each far corner coordinate opposite the
+player's arena half. Validate arena/body margin and distance >=600 before creation;
+if infeasible, return false. Do not consume random draws or introduce seeded RNG.
+Do not refactor unrelated timed-spawn placement.
+
+The Warden retains production HP60, body radius40, contact2, XP10, targeting, HP-derived
+movement/styles, radial attacks and common death handling. While it lives, the existing
+active-Boss timed-spawn suppression remains authoritative without count advancement.
+Real player attacks must kill it through the existing atomic attack boundary and produce
+normal GAME-038 Victory. No fake boss flags or direct Victory.
+
+### setWardenHealth(health)
+
+Require valid active gameplay and an active production Warden. Accept only a finite
+number in inclusive range 1..60; fractional finite values in range are valid.
+Reject nonnumbers, NaN, both infinities, <=0, >60, absent Warden, pause/terminal/stale calls.
+Do not clamp.
+
+Directly set current Warden health only; no kill, XP, Victory, spawn/count/flag changes,
+immediate attack, timer reset or extra event. Derive phase through existing `wardenPhase`:
+HP>30 is Phase1; 0<HP<=30 is Phase2. Allow 31→30 and 30→31 for testing. Subsequent real
+movement/style/hostile fire reads health; no debug phase flag or gameplay regeneration.
+
+### setGodMode(enabled)
+
+One scene/run-local DEV boolean, reset false on every native create/restart.
+Only valid active calls with a boolean are accepted; all unavailable/stale calls return false.
+
+Integrate rejection in the CURRENT `damagePlayer` boundary after terminal/valid-player
+guards and before health/protection mutation. Both projectile/contact paths still reach
+their normal damage boundary. Rejected God Mode hits do not heal, change max HP, reduce
+health, start/extend protection or change player damage feedback.
+Existing protection may count down naturally; toggling never resets it.
+Do not stop contacts/hostile attacks, remove enemies, pause, make the player untargetable,
+change Warden behavior or change outgoing damage.
+`updateProjectiles` still consumes a colliding hostile projectile despite rejection.
+Preserve current contact/position handling; do not add a separation mechanic.
+Disabling leaves health/protection unchanged and restores normal future incoming damage.
+
+### Five gameplay TimerEvents and implementation limits
+
+Keep exactly five: spawn, Laser/Prism, Missile/Cluster, Drone/Twin and hostile fire.
+Add ZERO gameplay TimerEvents: no polling, deferred-command event, separate update clock
+or timeScale timer. Snapshot/commands do not reset event phases. Existing scheduled objects
+remain through pause/terminal guards; native shutdown destroys old ownership and each
+restart creates exactly five fresh events. Rejected commands change no timers.
+
+Reuse actual production methods; only the smallest shared helper and, if justified, tiny
+concrete DEV exposure/lifecycle module are allowed. No unrelated gameplay extraction.
+Do not duplicate Warden, XP, choice or damage algorithms in DevTools; no generic command
+registry, plugin/debug framework, global mutable singleton or new dependency.
+
+### Out of scope
+
+Debug UI/menu/overlay/panel, hotkeys, query-string/localStorage debug flags, timeScale,
+pause stepping, direct level/XP/rank/passive setters, forced Prism/Cluster/Twin/Evolution,
+forceVictory/forceDeath, arbitrary enemy spawn/deletion, arena clear, teleport, fixed seed,
+RNG controls, encounter forcing, portals/Director, PlayerBuild, Shield, GAME-042 Run
+architecture, reward-generator architecture, performance sandbox and save/profile/meta.
+Fixed-seed/procedural tracing tools wait for their real later systems.
+No GAME-042+ implementation or future runtime stubs.
+
+### Required tracked tests for later implementation
+
+Preserve all existing assertions (baseline146 tests/16 files; report actual new totals).
+Inspect/reuse `experience.test.ts`, `warden.test.ts`, `selectChoices.test.ts` and
+`collision.test.ts`; they cover arithmetic/phase/sampling/geometry, not this API integration.
+
+Add focused tracked tests against real production helpers/commands and their actual
+state boundaries. Minimal adapters/fixtures may supply dependencies but must not reimplement
+alternate progression, Warden, damage or terminal algorithms merely to test them.
+Cover at least:
+
+| Contract | Required cases |
+| --- | --- |
+| DEV / snapshot | Testable DEV exposure; required current values; plain detached nested data; returned mutations cannot affect gameplay; repeated snapshots change no state/RNG/UI/timers |
+| forceLevelUp | Real next threshold from nonzero remainder, normal pause and three choices; exactly one level; duplicate paused call creates no second offer |
+| spawnWarden | Real identity/HP60/radius40/contact2/XP10, normal bossSpawned, unchanged timed count, deterministic valid placement and distance; second Boss/cap/missing-player/paused/terminal/stale rejection; bossSpawned already true (including no active Warden) returns false with no new Boss or count/flag mutation; bossDefeated already true rejects |
+| setWardenHealth | Valid endpoints and finite in-range values; reject 0/negative/>60/NaN/both infinities/nonnumbers/no Boss; 31 Phase1 and 30 Phase2 in both directions; no direct death/XP/Victory/flag/count/timer effects |
+| God Mode | Hostile collision consumes projectile without health/protection damage; contact does not damage and normal contact/position behavior remains; no protection start/extension; disable restores future damage; restart resets false |
+| Lifetime / availability | Old captured API inert after fresh create/native restart, new window API has fresh identity; stale snapshot null/mutations false; all mutations reject during Level-Up/Death/Victory; current snapshots still read-only |
+| Timers | Exactly five scheduled gameplay events including fresh-create pending events; no DEV event; no command-induced resets; native restart has five fresh active events and no old effects |
+
+Tracked tests do not substitute for the real browser/lifecycle checks below.
+
+### Required native/browser validation for later implementation
+
+Use the real application and GameplayScene/Phaser Clock, not alternate gameplay algorithms:
+
+1. Separate ordinary DEV boot: API exists and snapshot works.
+2. Real production build/preview (or equivalent real production-mode boot): API absent/
+   undefined; normal player gameplay still works without DEV exposure.
+3. forceLevelUp opens the real stable three-choice UI, duplicate call rejects, and accepting
+   a real choice resumes normally. Verify XP remainder/one-threshold result and pause freeze.
+4. spawnWarden creates the real Boss at valid deterministic distance with unchanged timed
+   count, normal flags/cap and active-Boss spawn suppression. Observe normal attacks;
+   set HP30 and observe Phase2 movement/burst, then cross back to31 without resetting
+   hostile cadence. A real player attack kills it and produces atomic normal Victory/XP10.
+5. God Mode: collide a real hostile projectile and verify consumption without HP/protection
+   mutation; overlap contact and verify no damage/changed contact positioning; disable and
+   observe normal future damage. Existing protection must not be started/extended by rejection.
+6. Perform at least TWO actual Victory NEW RUN → native `scene.restart()` cycles after
+   dirty DEV use: spawn/change Warden, enable God Mode and exercise XP/choices where practical.
+   After EACH: God Mode false, no Warden, boss flags false, successfulTimedSpawns0, level1/XP0,
+   normal initial Chaser/current prototype baseline, fresh window API, captured old API inert,
+   five fresh gameplay TimerEvents and no old callbacks/listeners/DEV effects.
+7. Preserve an ordinary Death → actual RETRY → native restart regression with the same fresh
+   baseline/API/timer checks. A manual create call, page reload or fixture reset is not
+   native restart evidence. Preserve all existing terminal atomicity/frozen-world semantics.
+
+Report new console errors/warnings separately from known favicon/build-size warnings.
+Distinguish tracked tests, normal boots, real scene harness and actual native restart evidence.
+
+### Validation, status and architect handoff
+
+For THIS definition-only task: run `npm run check`, `git diff --check`; verify only
+`docs/TASK_GRAPH.md` changed, explicitly stage that path, run `git status`,
+`git diff --cached --check`, `git diff --cached --stat` and inspect the complete staged diff.
+Generate ignored `.codex-review/GAME-039-review.txt` with all AGENTS.md sections and full
+staged diff. Never stage the packet or commit. Browser/API tests above are future
+implementation acceptance requirements, not claims of checks performed for this definition.
+
+Change only GAME-039 BACKLOG→READY. DESIGN-005 stays DONE, GAME-040/041 SUPERSEDED and
+GAME-042+ BACKLOG. Do not edit CURRENT_STATE, PROJECT_GRAPH or other design docs now.
+After later successful implementation and native validation, GAME-039 may become DONE,
+CURRENT_STATE records actual DEV behavior and PROJECT_GRAPH changes only for real material
+ownership/file changes. Later roadmap tasks remain BACKLOG.
 
 ## Retired roadmap IDs
 
