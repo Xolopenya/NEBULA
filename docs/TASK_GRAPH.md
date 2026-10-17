@@ -339,7 +339,7 @@ Never reuse these IDs for unrelated tasks.
 
 ## Mechanical Vertical Slice roadmap
 
-GAME-042/043/044/045 are DONE; GAME-046+ remain BACKLOG. Each row gives phase membership, exact dependencies and a
+GAME-042/043/044/045 are DONE; GAME-046 READY; GAME-047+ remain BACKLOG. Each row gives phase membership, exact dependencies and a
 short capability; gates are review checkpoints, not automatic authorization.
 Dependency ranges are inclusive.
 
@@ -547,7 +547,7 @@ Production preview boots with DEV API absent. Known favicon404 and Vite bundle-s
 no new pageerrors observed.
 
 CURRENT_STATE and real PROJECT_GRAPH ownership are updated. DESIGN-005/GAME-039 stay DONE,
-GAME-040/041 SUPERSEDED; GAME-043 DONE; GAME-044 DONE; GAME-045 DONE; GAME-046+ BACKLOG. GATE A PASSED — Runtime Foundation approved; GAME-046+ remain BACKLOG pending separate definition. Explicit staging
+GAME-040/041 SUPERSEDED; GAME-043 DONE; GAME-044 DONE; GAME-045 DONE; GAME-046 READY; GAME-047+ remain BACKLOG. GATE A PASSED — Runtime Foundation approved; GAME-046 READY; GAME-047+ remain BACKLOG pending separate definition. Explicit staging
 and ignored .codex-review/GAME-042-review.txt follow AGENTS.md; no commit is created.
 
 #### GAME-043 — Seeded RNG Streams
@@ -749,7 +749,7 @@ Out of scope: GAME-044 Pause/Input, GAME-045 telemetry, GAME-046 Build, Encounte
 templates/pressure/portals/weights, full Reward Generator/Analyzer/pity/recent offers,
 World Scheduler/events, BossController/Juggernaut, RunResult/RunReport, replay recording,
 daily seeds, seed entry/query/settings/reseed DEV command, save/meta/profile, arbitrary
-named/forkable RNG framework, service locator or new dependency. GATE A PASSED — Runtime Foundation approved; GAME-046+ remain BACKLOG pending separate definition.
+named/forkable RNG framework, service locator or new dependency. GATE A PASSED — Runtime Foundation approved; GAME-046 READY; GAME-047+ remain BACKLOG pending separate definition.
 
 **Implementation completion evidence**
 
@@ -769,7 +769,7 @@ fixed-seed spawn/offer sequences and cross-stream isolation. Two actual Victory 
 cycles and one Death RETRY (plus nonterminal/Missile/Cluster native restarts) dispose old
 streams and retain fresh RNG/lifecycle/API/five events with inert stale callbacks.
 Production canvas boots with DEV API absent; only known favicon404 and build chunk-size
-warnings remain. GAME-044 DONE; GAME-045 DONE; GAME-046+ BACKLOG; GAME-040/041 SUPERSEDED; GATE A PASSED — Runtime Foundation approved; GAME-046+ remain BACKLOG pending separate definition.
+warnings remain. GAME-044 DONE; GAME-045 DONE; GAME-046 READY; GAME-047+ remain BACKLOG; GAME-040/041 SUPERSEDED; GATE A PASSED — Runtime Foundation approved; GAME-046 READY; GAME-047+ remain BACKLOG pending separate definition.
 
 **Definition validation and documentation (historical definition-only instructions)**
 
@@ -783,7 +783,7 @@ After successful later implementation and tracked/native checks, GAME-043 may be
 CURRENT_STATE describes actual seed/streams/consumers/determinism and PROJECT_GRAPH maps
 real files/exports/consumers. ARCHITECTURE normally stays unchanged except a factual stale
 implementation-status correction if necessary. Keep DESIGN-005/GAME-039/GAME-042 DONE,
-GAME-040/041 SUPERSEDED; GAME-044 DONE; GAME-045 DONE; GAME-046+ BACKLOG. GATE A PASSED — Runtime Foundation approved; GAME-046+ remain BACKLOG pending separate definition.
+GAME-040/041 SUPERSEDED; GAME-044 DONE; GAME-045 DONE; GAME-046 READY; GAME-047+ remain BACKLOG. GATE A PASSED — Runtime Foundation approved; GAME-046 READY; GAME-047+ remain BACKLOG pending separate definition.
 
 #### GAME-044 — Authoritative Pause & Input Boundary
 
@@ -1090,7 +1090,7 @@ Missile/Cluster cycles pass: fresh authority/adapter/RNG/API, zero reasons, unpa
 five fresh events, old streams throw and saved stale callbacks draw zero on all fresh streams.
 Unmodified production preview passes keyboard/Space/Escape and 700ms rendered pause freeze
 without DEV API/debug controls. Only known favicon404 and Vite chunk-size warnings remain.
-GAME-042/043/044 DONE; GAME-040/041 SUPERSEDED; GAME-045 DONE; GAME-046+ BACKLOG; GATE A PASSED — Runtime Foundation approved; GAME-046+ remain BACKLOG pending separate definition.
+GAME-042/043/044 DONE; GAME-040/041 SUPERSEDED; GAME-045 DONE; GAME-046 READY; GAME-047+ remain BACKLOG; GATE A PASSED — Runtime Foundation approved; GAME-046 READY; GAME-047+ remain BACKLOG pending separate definition.
 
 #### GAME-045 — Telemetry & Diagnostics Foundation
 
@@ -1346,8 +1346,8 @@ inert stale owners/callbacks. Unmodified production preview verifies keyboard/Da
 DEV absence and local static-only network requests. HIDDEN/VISIBLE combinations remain
 separately identified synthetic tracked coverage; known favicon404/bundle-size warnings only.
 
-GAME-045 DONE; GAME-040/041 SUPERSEDED; GAME-046+ remain BACKLOG.
-GATE A PASSED — Runtime Foundation approved; GAME-046+ remain BACKLOG pending separate definition. No later task is unlocked.
+GAME-045 DONE; GAME-040/041 SUPERSEDED; GAME-046 READY; GAME-047+ remain BACKLOG.
+GATE A PASSED — Runtime Foundation approved; GAME-046 READY; GAME-047+ remain BACKLOG pending separate definition. GAME-047+ are not unlocked.
 
 **GATE A — Runtime Foundation — PASSED**
 
@@ -1355,13 +1355,353 @@ GATE A PASSED — Runtime Foundation approved; GAME-046+ remain BACKLOG pending 
 
 | ID | Title | Depends on | Capability | Status |
 | --- | --- | --- | --- | --- |
-| GAME-046 | PlayerBuild / Slots / Effective Stats | GAME-042 | 3/1/6 build ownership and cached Effective Stats with explicit modifiers. | BACKLOG |
+| GAME-046 | PlayerBuild / Slots / Effective Stats | GAME-042 | 3/1/6 build ownership and cached Effective Stats with explicit modifiers. | READY |
 | GAME-047 | Tags & Build Snapshot | GAME-046 | Tag contributions, derived identity and detached BuildSnapshot. | BACKLOG |
 | GAME-048 | Player Defense Runtime | GAME-046 | Authoritative Shield/Hull/protection and incoming-damage boundary. | BACKLOG |
 | GAME-049 | Combat Resolution & Launch Snapshots | GAME-046, GAME-048 | Attack/Hit/Damage resolution and immutable launch values. | BACKLOG |
 | GAME-050 | Enemy Definitions & Spawn Snapshots | GAME-049 | EnemyDefinition, scaling profiles and per-spawn runtime snapshots. | BACKLOG |
 | GAME-051 | Authoritative EnemyDeath Pipeline | GAME-049, GAME-050 | Exactly-once death record with last damaging / kill-source attribution for explicit XP/objective/Medical/Boss consumers and telemetry. | BACKLOG |
 | GAME-052 | Enemy Interaction + Swarm & Charger | GAME-048..051 | Enemy interaction/knockback/Decoy susceptibility plus Swarm and Charger roles. | BACKLOG |
+
+#### GAME-046 — PlayerBuild / Slots / Effective Stats
+
+STATUS: READY
+
+**Goal, dependencies and definition boundary**
+
+Depends on GAME-042 DONE and PASSED GATE A; preserve GAME-039/043/044/045 contracts.
+This is an implementation-ready definition, not implemented PlayerBuild functionality.
+Establish one focused run-scoped PlayerBuild authority for 3 Combat / 1 Active / 6 Core
+slots, immutable Base Stats, unconditional Run Modifiers and cached Effective Stats.
+GameplayScene remains the composition root and current combat/progression/presentation owner.
+No implementation is authorized by this definition-only diff. GAME-047+ remain BACKLOG.
+
+**Current tracked-source audit and migration inventory**
+
+Audited HEAD 15bc6002d4d58635bea4e8a2353a6fd5e9246493 after GAME-045, including all tracked
+src matches for power/damage/fireRate/speed/hull/thruster/collector/combat/spatial/replication,
+moduleLevels/laserRanks/missileRanks/droneRanks/effective/stat/modifier/slot/prism/cluster/twin.
+Current numerical truth is in GameplayScene fields/create/acceptLevelUpChoice and concrete
+launch/update methods, not a PlayerBuild/stat resolver. No shared stat/modifier/slot owner
+exists. Other matches include enemy tuning, lifecycle/input state, diagnostic identities and
+pure progression/geometry tests; these are not additional ship stats or build authorities.
+
+Classification: A = migrate to shared Build authority; B = retain weapon-local tuning;
+C = temporary prototype compatibility state; D = superseded target mechanics preserved
+until their named cutover; E = future domain, absent now. Reinspect source before implementation.
+
+| Actual current owner / value | Source-grounded truth | GAME-046 decision |
+| --- | --- | --- |
+| Scene playerMaxHealth/playerHealth, create, updateHud/damagePlayer | Max/current5 initially; HP subtraction clamps0; protection500ms; body radius20 | A: max comes only from effective Hull; current HP/protection/body stay physical Scene state (GAME-048 later) |
+| movementSpeed, update/movePlayer | Normal300px/s, normalized intent, frame delta, segment bounds | A: ordinary speed reads effective Thrust; no separate mutable movementSpeed truth |
+| moduleLevels.hull / Hull Plating choice | Each acceptance max+1 and current=min(newMax,current+1); no ratio/percentage heal | A/C: Build-owned exact flat compatibility bonus+1; Scene retains choice level for label and explicit Heal1 |
+| moduleLevels.thruster / Thruster choice | Each acceptance normal speed+30px/s | A/C: Build-owned exact flat compatibility bonus+30; no Dash change |
+| laser / laserRanks | Damage1, interval600ms, velocity1200px/s; ranks power/fireRate/speed0..2; each +1 damage, -50ms with local100ms floor, +200px/s | B: retain local values/ranks and floor; compose shared reads below, never convert local ranks into global modifiers |
+| Laser projectile constants / fireLaser | Radius6, lifetime2000ms, near-zero aim suppression, currentTarget/nearest ties unchanged | B: shared physical Scale consumes radius6, Velocity consumes tuned speed; lifetime/aim/target stay local |
+| missileValues / missileRanks | Damage2, speed450, explosionRadius120; warheadPower/propulsion/blastExpansion0..2 give +1/+75/+30 | B: retain local ranks/tuning; damage/speed compose shared stats, explosion radius remains local |
+| missile / fireMissile/updateMissiles | Interval1800ms, physical radius8, lifetime4000ms, maxActive1; live-target homing/reacquisition/last heading | B/D: physical radius consumes Scale; cap/lifetime/homing unchanged until GAME-057 Guidance cutover |
+| droneAttackValues / droneRanks | Damage1, interval1200ms, speed800; boltPower/firingSystem/boltPropulsion0..2 give +1/-150ms/+200 | B: retain ranks/values; compose Reactor/Engineering/cadence/projectile stats below |
+| droneConfig / positionDrone / fireDroneFrom | Orbit110, angularSpeed2rad/s, body radius10, bolt radius5, lifetime1800ms; actual per-origin targeting | B: only bolt size/speed/damage/cadence consume shared stats; orbit/body/lifetime/targeting stay local |
+| moduleLevels.collector / xpMagnetRadius | Magnet180 +40 per selection; collection20, acceleration900, max speed600 | C: unchanged XP-local compatibility, no Pickup Radius stat or slots |
+| moduleLevels.combat / globalDamageMultiplier | Starts1; +0.25 each selection; common straight launch and Missile launch multiply once | C: retain legacy multiplier separately, not also Reactor; combat level still gates Prism |
+| moduleLevels.spatial / effectiveMissileExplosionRadius | Local Missile radius +15*level, e.g.120/135/150; Blast1+Spatial1=165, Blast2+Spatial2=210 | C: unchanged local explosion addition, not Projectile Scale |
+| moduleLevels.replication / effectiveDroneBoltRadius | Drone bolt radius5+level, e.g.5/6/7/10; no copy-count change | C: local bolt addition before shared Scale, not Engineering or a new stat; still gates Twin |
+| prismEvolved / canEvolvePrismLaser / prismSpread | Laser2/2/2 + Combat>=1; three full-damage shots at0/-12/+12 degrees | D: unchanged recipe/flag/volley, one LASER slot; no extra slot/pellet scaling |
+| clusterEvolved / canEvolveClusterMissile / clusterSatelliteOffsets | Missile2/2/2 + Spatial>=1; primary then six circle-union satellites, half launch damage/radius, centers at primary radius | D: unchanged legacy explosions, no satellite projectiles or shared Scale on blasts; one MISSILE slot |
+| twinDroneEvolved / canEvolveTwinDrone | Drone2/2/2 + Replication>=1; one mirrored companion at angle+PI, same event and per-origin full bolts | D: unchanged recipe/copy/orbit, both instances share one COMBAT_DRONE slot; no Doctrine now |
+| dashSpeed/dashDuration/dashCooldown / stepDash | Innate900px/s,200ms,3000ms; nonzero intent, lock, expiry split, no immunity | D: compatibility outside EMPTY Active slot until GAME-070; no Thrust/Fire Control/Velocity scaling |
+| levelUpPool / focusedUpgrade / evolutionOffer | Nine capped weapon tracks + six repeatable passives; focus/track/evolution cursors; exactly three distinct choices | C: preserve identities/order/labels/eligibility/effects/RNG budgets; no target stat-offer pool |
+| Shared stats/Active/Core/Tags/defense/combat contracts | Only target documentation exists; DevSnapshot has no build; Diagnostics records18 current choice identities only | E: add only this Build/stat/empty-slot foundation; later content/Tags/Shield/Attack systems remain absent |
+
+Tests inspected: focusedUpgrade (17), Prism/Cluster/Twin recipes (8 each), Spatial (6),
+Replication (5), evolutionOffer (24), prismSpread (7), clusterSatellites (6), Dash (6),
+Scene/DevTools (71, including actual offers/ranks/terminal/RNG/pause/diagnostics), plus the
+RunDiagnostics schema/observer tests. These cover concrete helpers and production paths,
+not a preexisting stat resolver; new max-Hull/Thrust/composition tests are required below.
+
+**One concrete owner, slots and public surface**
+
+Authorize a small Phaser-free src/game/player/PlayerBuild.ts and focused pure tests
+(or equally focused repository-consistent filenames). It receives no Scene, lifecycle,
+Clock, input, RNG or diagnostics references. Do not put Build fields in those owners.
+Keep transient current HP, protection, movement, cooldowns/targets/projectiles and prototype
+weapon ranks/values/recipe flags in Scene for this first migration. Do not extract full
+CombatSystemBuild/progression/runtimes or precreate directories/classes for later tasks.
+
+Use explicit CombatSystemId = LASER | MISSILE | COMBAT_DRONE only. Detached/read-only slots:
+combat is a fixed three-position tuple [LASER, MISSILE, COMBAT_DRONE] in that order;
+active is one nullable position, null; cores is a fixed six-position tuple, all null.
+All three current weapons remain operational from boot; firing paths consult their concrete
+installed identity (small explicit membership read, no registry). Twin shares the Drone slot.
+This temporary three-system prototype baseline does not implement target one-system start
+selection (GAME-094), Armory (GAME-075), support types or acquisition pacing. Active remains
+EMPTY despite innate Dash. No Core catalog/contribution/mechanics/replacement (GAME-077+).
+No public equip/unequip/swap/recalibration or slot mutation operation is needed or authorized;
+fixed tuple types and detached copies enforce capacity, without future Active/Core ID stubs.
+
+Small typed surface equivalent to getSlots(), getBaseStats(), getRunModifiers(),
+getEffectiveStats(), snapshot(), applyStatPercent(stat,delta), addCombatAnalyzerLevels(delta),
+applyPrototypeHullPlating(), applyPrototypeThruster(), dispose(). snapshot returns only
+{slots,baseStats,runModifiers,effectiveStats}; call it PlayerBuildReadModel, not the later
+GAME-047 tag/development BuildSnapshot. No mutable arrays/objects escape. Repeated reads
+return deeply detached plain JSON data, change no state/caches/timers/RNG/diagnostics.
+No caller can assign bases or effective values. No source-object registry, arbitrary
+property keys, callback modifiers, removable/temporary buffs, condition DSL or item framework.
+
+**Exact ten stats, defaults and consumers**
+
+BaseStats and EffectiveStats have exactly the following explicit numeric fields. All are
+run-local; Scene uses the exact default object. Constructor may accept a copied typed
+BaseStats for pure validation/testing; normal boot never substitutes balance hypotheses.
+
+| Stat / typed key | Base | Effective meaning / GAME-046 consumer |
+| --- | --- | --- |
+| Hull / hull | 5 HP | Max HP only, HUD and fresh current HP; physical current HP remains in Scene |
+| Thrust / thrust | 300px/s | Normal movement segment only, same normalization/clamping |
+| Reactor Power / reactorPower | 1 | Shared launch damage multiplier for Laser/Prism, Missile/Cluster and Drone/Twin |
+| Fire Control / fireControl | 1 | Only those three player weapon event intervals; local tuned interval divided by effective value |
+| Projectile Velocity / projectileVelocity | 1 | Laser/Prism velocity, Missile travel speed, Drone/Twin bolt velocity |
+| Projectile Scale / projectileScale | 1 | Physical player projectile collision AND visual radius: Laser/Prism6, Missile8, Drone/Twin(5+Replication level) |
+| Engineering / engineering | 1 | Extra Combat Drone/Twin damage multiplier only; no current Laser/Missile/Guidance exception |
+| Shield Systems / shieldSystems | 1 | Owned/resolved but unused: no Shield runtime until GAME-048/070 |
+| Impact / impact | 1 | Owned/resolved but unused: no knockback/control implementation or damage multiplier |
+| Combat Analyzer / combatAnalyzer | 0 levels | Owned/resolved but unused: no offer weighting/stat choice until GAME-055 |
+
+No Armor/Crit/Luck/Pickup Radius/Explosion Radius/Drone Count/Dash Cooldown/Salvage,
+generic attack speed, universal Area/Duration or future stat is added. BALANCE's Analyzer
+~0..4 is a hypothesis, not a cap to invent here; no fake consumers for the three unused stats.
+
+**Run modifier representation, formulas, caching and validation**
+
+RunModifiers is an explicit structure: percent has the nine keys above excluding
+combatAnalyzer, all initially0; combatAnalyzerLevels is a signed additive integer total,
+initially0; prototypeHullFlat and prototypeThrustFlat are nonnegative safe-integer
+compatibility totals initially0 (units HP and px/s). The latter two are NOT shared stats
+or a generic flat-modifier layer. They exist only for the two inspected legacy flat choices.
+PercentStatKey is the explicit nine-key union; StatKey is the ten-key union. Analyzer is
+excluded from applyStatPercent; addCombatAnalyzerLevels accepts integer deltas only.
+
+applyStatPercent uses fractional units:0.10=+10%, -0.15=-15%. Same-stat ordinary deltas
+ADD into the accumulated percent; never multiply separate ordinary bonuses. For example
+Reactor +0.10,+0.20,-0.15 gives base1*(1+0.15)=1.15 (normal floating-point tolerance).
+No cross-stat coupling or changes to immutable base values.
+
+Exact derivation, evaluated only at construction/successful meaningful mutation:
+- Hull = base.hull * (1 + percent.hull) + prototypeHullFlat.
+- Thrust = base.thrust * (1 + percent.thrust) + prototypeThrustFlat.
+- Each of reactorPower/fireControl/projectileVelocity/projectileScale/engineering/
+  shieldSystems/impact = that base * (1 + its percent).
+- Combat Analyzer = base.combatAnalyzer + combatAnalyzerLevels (integer levels, not percent).
+
+This explicit flat compatibility exception avoids approximating +1HP as repeatedly added
+0.20 or +30px/s as0.10; such accumulation/multiplication can introduce fractional drift.
+Only applyPrototypeHullPlating adds1 to prototypeHullFlat; only applyPrototypeThruster
+adds30 to prototypeThrustFlat. With zero ordinary percents, repeated choices yield exactly
+5+n Hull and 300+30*n Thrust within safe integer range, including long repeated sequences.
+Shared percentages apply to physical BASE, then the legacy flat bonus is added. Thus a
+Hull Plating choice still changes max by exactly1 even with a shared percent present.
+Do not also derive/add these bonuses from Scene moduleLevels or mutate base values.
+
+Validate exact keys/finite numeric bases and deltas (no coercion/NaN/Infinity), accumulated
+modifier totals, compatibility integer additions and ALL candidate effective values before
+committing any change or replacing the cache. Bounds: Hull>=1HP; Thrust>=1px/s; each of the
+seven scale stats>=0.01; Fire Control additionally<=100 so the retained local100ms
+Laser floor cannot produce an interval below1ms. Analyzer is a nonnegative safe integer.
+Numeric magnitudes and results
+must not exceed Number.MAX_SAFE_INTEGER; resulting base percentage factor must be positive.
+Apply the same bounds to bases; signed percent/Analyzer modifier totals may be negative
+only while the resulting values stay valid. Reject invalid keys (including percentage
+Analyzer), unsupported structure, nonfinite/overflow/underflow or out-of-range results
+atomically with a clear invariant Error; no clamping, partial mutation, broad catch or
+arbitrary repair. These are explicit numerical safety minima, not a rebalancing pass.
+
+Cache is derived data, never a second writable authority. A zero delta is a false/no-op;
+accepted changed mutations return true and recompute once. Reads, frames, fire, snapshots,
+pause and resume never recompute/build all modifier logic. Consumer-composed damage/speed/
+radius/interval arithmetic must also be finite, positive and <=MAX_SAFE_INTEGER (weapon
+intervals additionally>=1ms) before
+creating/resetting a timer or projectile; fail loudly before that consumer mutates state.
+Ordinary fractional stats/HP are not rounded; tests use tolerance for percentage arithmetic,
+exact equality for the integer legacy baseline. No arbitrary max Analyzer level.
+
+**Hull/Thrust and current reward compatibility**
+
+Replace separately mutable Scene playerMaxHealth/movementSpeed with read-through values
+from the current Build (compatibility getter names are fine); no duplicated max/speed cache.
+During PREPARING, construct fresh Build before current HP initialization and first updateHud.
+Fresh current HP = effective Hull. Current physical HP/protection/God Mode remain Scene-owned;
+all existing damage guards, clamped loss, diagnostics and terminal rules remain unchanged.
+
+At a valid current Hull Plating selection, apply Build's flat+1 first, then increment the
+existing module level and set current HP=min(new effective max,current HP+1), refresh HUD.
+No full heal/ratio heal/percent-scaled healing, and no diagnostic damage/XP/build record for
+this heal. Thruster selection applies flat+30 first, then existing level increment, no Dash
+change. Validate Build mutation before changing level/HP or recording selection. Scene levels
+remain label/legacy eligibility history only, not numerical max-Hull/Thrust authority.
+
+Pure Build has no lifecycle/pause policy. Scene supplies a tiny synchronous current-run/build
+mutation bridge: RUNNING for internal authorized stat operations; PAUSED only for exact
+current REWARD choice application. MANUAL/focus-only pause, terminal/disposed/stale callers
+cannot mutate Build through Scene. Keep exact current run/presentation guards, including
+REWARD+FOCUS_LOSS selection and stale/double rejection. No new public gameplay stat setters.
+When an internal shared Hull modifier reduces max, Scene caps current HP at the new max;
+an increase alone gives no HP. Only the inspected Hull Plating path explicitly heals1.
+
+All current weapon-local choices retain ranks0..2, numeric increments/caps and focus/cursors.
+Collector, Combat Processor, Spatial and Replication stay local/prototype, not new global
+stats; preserve their module levels, labels, recipes and effects. No changes to levelUpPool,
+selectChoices, XP thresholds/overflow or evolution prerequisites/arbitration. No Analyzer
+choice, target stat offers, Core/Active grants, Doctrine or specialization progression.
+
+**Concrete firing consumers and the GAME-049 boundary**
+
+Let R/F/V/S/E be current effective Reactor/FireControl/Velocity/Scale/Engineering and
+C be the retained globalDamageMultiplier (initial1,+0.25 per Combat Processor). Compose
+local tuning FIRST, then legacy C exactly once, then shared multipliers exactly once:
+
+| Current firing path | Damage | Interval ms | Travel px/s | Physical radius px |
+| --- | --- | --- | --- | --- |
+| fireLaser, normal or each Prism beam | laser.damage * C * R | laser.fireInterval / F | laser.projectileSpeed * V | 6 * S |
+| fireMissile, primary blast | missileValues.damage * C * R | 1800 / F | missileValues.speed * V | 8 * S |
+| fireDroneFrom, primary or Twin | droneAttackValues.damage * C * R * E | droneAttackValues.fireInterval / F | droneAttackValues.projectileSpeed * V | (5 + moduleLevels.replication) * S |
+
+No Engineering on Laser/Missile, no double C/Reactor in a shared launch helper. Preserve
+baseline local update arithmetic; zero shared modifiers/default scales reproduce existing
+values and choices exactly. Drone/Twin each uses its actual origin and independent nearest
+target; no Drone body scaling, fleet count, orbit change or targeting extraction.
+
+Missile explosion radius remains missileValues.explosionRadius+15*Spatial level. Shared
+Scale changes its physical circle/swept collision/world-exit margin only. Capture that
+physical radius on the existing Missile runtime at creation and use it consistently later,
+rather than rereading a mutable shared factor or the old fixed8. Straight runtimes already
+store radius/velocity/damage. Preserve existing stored launch values/flags for in-flight
+projectiles/Missiles when Build/local tuning later changes; do not regress them into live
+per-frame stat reads. This minimal extra Missile scalar only completes the current size
+consumer. No formal Attack/Hit/Damage/AttackSnapshot pipeline, resolver, source taxonomy or
+new snapshot framework: GAME-046 defines where shared values come from; GAME-049 owns
+formal launch snapshots/combat resolution. Existing homing/reacquisition, impact ordering,
+lifetimes, cap1 and native cleanup remain as-is.
+
+Prism keeps three full-damage beams and fixed spread. Cluster still performs the full primary
+then six satellite-circle union; satellites inherit stored primary damage*0.5 and explosion
+radius*0.5 with centers at the FULL stored primary explosion radius, NOT projectile
+Scale/Velocity. No fragment projectiles.
+Twin keeps two full Drone bolts on one event/slot. Scale affects neither explosion/Cluster
+coverage nor spread/pellet counts, Drone orbit/body, player/enemy bodies or XP pickup radius.
+Velocity affects neither enemy shots/movement, Dash nor XP attraction.
+
+Keep exactly five TimerEvents. Retain a concrete handle to the existing Missile event if
+needed alongside laserTimer/droneTimer; do not add an event. Construct the three player
+weapon events with composed delays. Local Laser Fire Rate still updates its local interval
+with max(100,old-50) then resets only its same Laser event using local/F; local Drone Firing
+System subtracts150 then resets only its same Drone event using local/F. No global100ms
+floor on the shared-divided interval. Missile local upgrades do not reset its event.
+
+For a changed shared Fire Control through the internal mutation bridge, synchronously
+reset exactly those three existing weapon events in place to composed intervals, elapsed0,
+retaining loop and captured-owning-run callbacks. This explicit new-stat mutation policy
+is not invoked by a zero-delta/no-op, other stat/legacy choice, read, pause or resume. It
+adds no immediate shot/catch-up call. Preserve current Clock.paused even for a legal reward
+mutation; its reset cadence progresses only on later active Clock updates. Spawn2000ms,
+hostile1500ms, Warden behavior and Dash cooldown are never changed by shared Fire Control.
+No per-frame cadence polling, event recreation, independent clock, timeScale or new scheduler.
+
+**Lifetime, DEV and diagnostics contracts**
+
+Every create: new RunLifecycle PREPARING -> captured exact Build construction/disposal
+binding before HP/HUD initialization -> existing local compatibility resets/player/Drone/
+initial Chaser/five events/input/presentation -> successful start -> crypto RunRandom ->
+RunDiagnostics start/initial spawn -> DEV publication. Build construction makes zero draws;
+no start-order change to entropy or diagnostics and no extra initial enemy/spawn record.
+
+Capture const build from that create for shutdown/destroy; dispose idempotent and remove
+its listeners. Never dispose via this.playerBuild in an old callback. All old direct Build
+mutation/read/snapshot calls after disposal throw a clear invariant Error; detached earlier
+snapshots remain plain data. Native scene.restart creates a new owner with zero modifiers,
+exact defaults/slots and full current-HP baseline; no old state transplanted. Old saved
+reward/timer/input/focus/result/API/cleanup callbacks must reject before fresh Build access,
+HP change or cadence synchronization. No coupling of Build disposal into RunLifecycle.
+
+Keep the exact five DEV commands; authorize only nested snapshot.build with
+{slots,baseStats,runModifiers,effectiveStats}, deeply detached with no owner/functions,
+Phaser objects, Tags, Doctrine, preview logic or mutable references. No setStat/addModifier/
+equipSystem/sixth command/debug UI; internal test/harness access is not a public control.
+Repeated current snapshots consume zero RNG, mutate no gameplay/timers/diagnostic history.
+Old API null/false; production API absent. RunDiagnostics types/aggregates/recording stay
+unchanged: no build-change rows, stat-read logs, per-frame records or build authority there.
+For same seed/state/decisions/active deltas, baseline observations and RNG budgets remain
+unchanged; adding snapshot.build is the only required new DEV read-model field.
+
+**Required tracked tests for later implementation**
+
+Preserve all309 current tests/21 files and GAME-039/042/043/044/045 assertions. Add focused
+pure Build tests and actual Scene method integration, not alternate gameplay algorithms.
+
+| Boundary | Required evidence |
+| --- | --- |
+| Slots/base | Exact3/1/6 lengths, stable LASER/MISSILE/COMBAT_DRONE, null Active/six null Core, exactly ten source-grounded defaults; copied constructor input and nested tuples/base data; no slot mutators/future IDs |
+| Modifiers/cache | All nine percent formulas, +10%+20%=+30%, mixed bonuses/penalties, independent keys; integer Analyzer additions/subtractions, no percent Analyzer; immutable bases, no read recomputation; exact flat Hull/Thruster exception with/without percent |
+| Invariants | Invalid/missing/unknown keys, nonnumbers/NaN/infinities, unsafe sums, overflow/underflow and effective minima/boundaries; entire candidate rejected with unchanged modifiers/cache; zero delta no-op, no timer reset; no effective setter |
+| Lifetime/read model | All nested copies detached/serializable; snapshots stable with zero effects/draws; disposed mutations AND reads throw, idempotent disposal, fresh owner independence |
+| Actual boot | Build initialized during PREPARING before HP/HUD; all3 weapons present, correct empty slots/base/zero modifiers/effective values, HP5/speed300, zero added RNG, five events, unchanged diagnostic initial Chaser/start baseline |
+| Hull/Thrust choices | Actual guarded Hull choices heal exactly1/cap correctly from damaged/fractional/full HP, repeat exact5+n; Thruster exact300+30*n including long sequences; percentage combinations/base unchanged; max reduction caps only, increase alone no heal; HUD updated; normal/diagonal/bounds and Dash900/200/3000/expiry partitions unchanged |
+| Laser/Prism | Existing baseline and all local ranks/cadence resets; Reactor damage, FireControl interval, Velocity and physical visual/collision radius; Prism three full shots/spread unchanged, already-launched shots retain values |
+| Missile/Cluster | Baseline/local ranks/cap/homing/target loss preserved; R/F/V/S consumers, launch physical radius used consistently for collision/world exit; old/new launch values across mutation; Spatial/Blast local coverage and full Cluster primary/satellite atomicity unaffected by shared Scale |
+| Drone/Twin | R*E composition with legacy C once, local upgrades/F cadence/V velocity/(5+Replication)*S body; per-origin target/full bolts, orbit/body/copy count unchanged; no extra slot/timer |
+| Non-consumers | Engineering leaves Laser/Missile unchanged; FireControl leaves Dash/hostile/spawn/support unchanged; Scale does not alter blasts/spread/count/orbit/XP; Shield Systems/Impact/Analyzer have no invented runtime effects |
+| Reward/pause/RNG/diagnostics | Exact current offers/labels/identities, eligibility/focus/evolution cursors/draw budgets; local compatibility remains; SELECTED before final RESUMED, composed focus retains PAUSED; stale/double/terminal cannot mutate Build; reads/additions add no diagnostics/RNG; zero-modifier diagnostic sequence regression |
+| Cadence/ownership | Same five TimerEvent identities, correct composed delays at boot/local upgrade/shared FC; only FC mutation resets all3 player events, no immediate shots; zero/other modifiers do not reset; pause/resume retains phase, no stale callbacks resetting fresh events |
+| Terminal/restart | First-terminal/straight/Missile/Cluster boundaries, frozen world and build, five fresh events; exact old disposal versus fresh Build/slots/modifiers/base and lifecycle/RNG/input/diagnostics/API; capture and invoke old callbacks/cleanup against fresh owner |
+
+**Required real browser/native validation for later implementation**
+
+1. Normal DEV root boot: RUNNING, seed/diagnostic bootstrap unchanged, correct detached build,
+   all3 prototype weapons active, HP5/movement300, five existing events/five commands.
+2. Real movement/input/Dash at baseline; actual current Thruster/Hull pointer selections:
+   +30 normal speed, fixed Dash, +1 max/Heal1/HUD, fractional/full/damaged HP semantics.
+   Current three-choice presentation/order, weapon tuning and exact Reward budget retained.
+3. Actual Laser/Missile/Drone paths before/after controlled INTERNAL shared modifiers:
+   Reactor, FireControl intervals/reset policy, Velocity/Scale visual AND collision behavior,
+   Engineering Drone-only. No public mutation API. Verify legacy C once, Spatial/Replication
+   composition, unchanged enemy fire/cap/homing and non-consumers. Same seed/decision/delta
+   zero-modifier scenario reproduces current gameplay/diagnostics, reads draw0/mutate0.
+4. Real Prism/Cluster/Twin evolution selections and attacks remain functional, with correct
+   recipes/cursors, full volleys/atomic explosions/companion targeting and no new slot/timer.
+5. Real manual/reward/focus pause composition and terminal Death/Victory freeze with no
+   unrequested Build mutation; capture five TimerEvent phases, meaningful paused wall time,
+   resume without reset/catch-up. Actual browser BLUR is distinct from synthetic HIDDEN tests.
+6. At least TWO Victory -> actual NEW RUN, ONE Death -> actual RETRY and ONE nonterminal
+   native restart (include PAUSED to retain Clock regression). EACH old Build disposed, old
+   reads/mutations throw, fresh owner/defaults/zero modifiers/3 full Combat/empty Active/Core,
+   full HP/current compatibility baseline, fresh lifecycle/RNG/input/diagnostics/API,
+   unpaused Clock and five fresh events. Saved old callbacks cannot mutate fresh Build,
+   synchronize fresh timers, alter HP or draw fresh RNG. Reload/manual create is not proof.
+7. Unmodified production preview boots, movement/Space/pause/current combat still work,
+   DEV absent and no Build debug UI. Inspect console; separate known favicon404 and bundle
+   >500kB warnings from new errors. Report tracked/synthetic/actual native evidence honestly;
+   these checks are future requirements, not runtime claims in this definition handoff.
+
+**Scope exclusions, definition validation and later documentation**
+
+No Tags/contributions/full BuildSnapshot (GAME-047), Shield/defense (048), formal Attack/
+Hit/Damage/Launch Snapshot (049), EnemyDefinition/death pipeline (050/051), new XP/reward
+transaction/generator/Analyzer weighting (053..055), target weapon tuning/specialization
+cutovers (056..059), Active (070), Core catalog/replacement/events (077+), Doctrine,
+Director/World, Build Screen (097), starting-system selection (094) or acquisition pacing.
+No callbacks/conditions/per-target/close-range/shield-break/specialization multipliers,
+status framework, temporary durations, Core sources, generic inventory, ECS, RunContext,
+DI/service locator/event bus/plugin framework, networking/save/profile or dependencies.
+
+Now modify only TASK_GRAPH: GAME-046 BACKLOG->READY and current roadmap consistency.
+Run npm run check and git diff --check; verify only docs/TASK_GRAPH.md modified; stage it
+explicitly, inspect complete cached diff, run cached check/stat and create ignored
+.codex-review/GAME-046-review.txt with branch/base, inventory/contracts and complete staged
+diff under AGENTS.md. Never stage the packet or commit. No runtime/tests or other docs
+(CURRENT_STATE/PROJECT_GRAPH/ARCHITECTURE/GAME_DESIGN/CONTENT_MANIFEST/BALANCE) change now.
+After successful separately authorized implementation/validation, GAME-046 may become DONE;
+update only factual CURRENT_STATE/PROJECT_GRAPH ownership then, without architectural rewrite.
+GAME-047+ remain BACKLOG pending separate definition/review. GAME-042/043/044/045 stay DONE,
+GAME-040/041 SUPERSEDED. GATE A remains PASSED; do not create/close a new Gate or pass GATE B.
 
 **GATE B — Modern Combat on Legacy Spawning** — review the preceding phase capabilities before its cutover/next proof.
 
