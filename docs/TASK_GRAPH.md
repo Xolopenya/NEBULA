@@ -339,7 +339,7 @@ Never reuse these IDs for unrelated tasks.
 
 ## Mechanical Vertical Slice roadmap
 
-GAME-042 and GAME-043 are DONE; GAME-044 is DONE; GAME-045+ remain BACKLOG. Each row gives phase membership, exact dependencies and a
+GAME-042/043/044 are DONE; GAME-045 is READY; GAME-046+ remain BACKLOG. Each row gives phase membership, exact dependencies and a
 short capability; gates are review checkpoints, not automatic authorization.
 Dependency ranges are inclusive.
 
@@ -350,7 +350,7 @@ Dependency ranges are inclusive.
 | GAME-042 | Run Lifecycle & Fresh Run Boundary | DESIGN-005, GAME-039 | Run lifecycle, terminal and fresh-restart authority; preserve GAME-038 first-terminal semantics. | DONE |
 | GAME-043 | Seeded RNG Streams | GAME-042 | runSeed and independent Encounter/Reward/World/Boss RNG streams. | DONE |
 | GAME-044 | Authoritative Pause & Input Boundary | GAME-042 | Single gameplay pause authority, movement/Active/Pause intents and focus-loss semantics. | DONE |
-| GAME-045 | Telemetry & Diagnostics Foundation | GAME-042 | Run timeline, aggregates and diagnostics foundation. | BACKLOG |
+| GAME-045 | Telemetry & Diagnostics Foundation | GAME-042 | Run timeline, aggregates and diagnostics foundation. | READY |
 
 #### GAME-042 — Run Lifecycle & Fresh Run Boundary
 
@@ -547,7 +547,7 @@ Production preview boots with DEV API absent. Known favicon404 and Vite bundle-s
 no new pageerrors observed.
 
 CURRENT_STATE and real PROJECT_GRAPH ownership are updated. DESIGN-005/GAME-039 stay DONE,
-GAME-040/041 SUPERSEDED; GAME-043 DONE; GAME-044 DONE; GAME-045+ BACKLOG. GATE A remains incomplete. Explicit staging
+GAME-040/041 SUPERSEDED; GAME-043 DONE; GAME-044 DONE; GAME-045 READY; GAME-046+ BACKLOG. GATE A remains incomplete. Explicit staging
 and ignored .codex-review/GAME-042-review.txt follow AGENTS.md; no commit is created.
 
 #### GAME-043 — Seeded RNG Streams
@@ -769,7 +769,7 @@ fixed-seed spawn/offer sequences and cross-stream isolation. Two actual Victory 
 cycles and one Death RETRY (plus nonterminal/Missile/Cluster native restarts) dispose old
 streams and retain fresh RNG/lifecycle/API/five events with inert stale callbacks.
 Production canvas boots with DEV API absent; only known favicon404 and build chunk-size
-warnings remain. GAME-044 DONE; GAME-045+ BACKLOG; GAME-040/041 SUPERSEDED; GATE A incomplete.
+warnings remain. GAME-044 DONE; GAME-045 READY; GAME-046+ BACKLOG; GAME-040/041 SUPERSEDED; GATE A incomplete.
 
 **Definition validation and documentation (historical definition-only instructions)**
 
@@ -783,7 +783,7 @@ After successful later implementation and tracked/native checks, GAME-043 may be
 CURRENT_STATE describes actual seed/streams/consumers/determinism and PROJECT_GRAPH maps
 real files/exports/consumers. ARCHITECTURE normally stays unchanged except a factual stale
 implementation-status correction if necessary. Keep DESIGN-005/GAME-039/GAME-042 DONE,
-GAME-040/041 SUPERSEDED; GAME-044 DONE; GAME-045+ BACKLOG. GATE A remains incomplete pending GAME-045.
+GAME-040/041 SUPERSEDED; GAME-044 DONE; GAME-045 READY; GAME-046+ BACKLOG. GATE A remains incomplete pending GAME-045.
 
 #### GAME-044 — Authoritative Pause & Input Boundary
 
@@ -1057,7 +1057,7 @@ scheduler/timers/dependencies, rebinding/controller/gamepad/mouse aiming, access
 settings or input recording/replay. No implementation is authorized in this definition task.
 
 Now change only TASK_GRAPH: GAME-044 BACKLOG->READY, source-grounded definition and necessary
-roadmap/status consistency. GAME-042/043 DONE; GAME-040/041 SUPERSEDED; GAME-045+ BACKLOG.
+roadmap/status consistency. GAME-042/043 DONE; GAME-040/041 SUPERSEDED; GAME-045 READY; GAME-046+ BACKLOG.
 Run npm run check and git diff --check; stage only docs/TASK_GRAPH.md, inspect complete
 git diff --cached, run cached check/stat, create ignored .codex-review/GAME-044-review.txt
 with branch/base, complete ownership inventory/contracts/validation and full staged diff.
@@ -1090,7 +1090,238 @@ Missile/Cluster cycles pass: fresh authority/adapter/RNG/API, zero reasons, unpa
 five fresh events, old streams throw and saved stale callbacks draw zero on all fresh streams.
 Unmodified production preview passes keyboard/Space/Escape and 700ms rendered pause freeze
 without DEV API/debug controls. Only known favicon404 and Vite chunk-size warnings remain.
-GAME-042/043/044 DONE; GAME-040/041 SUPERSEDED; GAME-045+ BACKLOG; GATE A incomplete.
+GAME-042/043/044 DONE; GAME-040/041 SUPERSEDED; GAME-045 READY; GAME-046+ BACKLOG; GATE A incomplete.
+
+#### GAME-045 — Telemetry & Diagnostics Foundation
+
+STATUS: READY
+
+**Dependencies:** GAME-042 DONE; preserve implemented GAME-043/044 contracts (DONE).
+Definition only; runtime implementation requires its own task. Add one focused Phaser-free
+run-scoped RunDiagnostics observer (for example src/game/run/RunDiagnostics.ts plus tests).
+GameplayScene remains composition root and explicitly records actual accepted boundaries.
+Diagnostics never decides damage, rewards, RNG, difficulty, spawning, pause or terminal outcome.
+RunLifecycle keeps lifecycle/pause/terminal authority; RunRandom keeps seed/stream ownership.
+No global manager, service locator, DI, plugin, event bus or generic track(name,payload) API.
+
+**Current observable-boundary inventory and source audit**
+
+Audited tracked src at HEAD 30684cc5f6e937d74059a9e3901eb2de197c5d03 after GAME-044,
+including tests, for telemetry/diagnostics/metrics/counters/report/performance, elapsed/
+duration/time, successfulTimedSpawns and enemy/damage/XP/level/reward observations.
+No diagnostics collector, historical kill/damage totals, gameplay elapsed accumulator,
+analytics transport, profiling infrastructure or report generator exists. DevSnapshot is
+current detached state, not history. Encounter stream names are not encounter counters;
+weapon/Dash/protection lifetimes and TimerEvent elapsed are gameplay mechanisms, not metrics.
+
+| Current source / anchor | Observable fact and integration constraint |
+| --- | --- |
+| `RunLifecycle.ts` | PREPARING/RUNNING/PAUSED/TERMINAL/DISPOSED, concrete reason membership, accepted transitions/immutable first outcome; no telemetry state belongs here |
+| `RunRandom.ts` | Immutable uint32 seed, four streams, captured-owner disposal; observer receives only numeric seed, never a stream/owner reference |
+| `KeyboardInput.ts` | Physical held/suppressed controls and sampled intents; do not log key/frame histories or add input/focus ownership |
+| `GameplayScene.create` | Initial Chaser created at player.x+600 during PREPARING, before successful start and crypto RunRandom; five guarded events exist before RUNNING; DEV publishes after seed. Construct diagnostics after seed, before publication; bootstrap initial spawn observation once without moving enemy creation |
+| `update` | Sample intents, handle PauseRequest with early return, lifecycle guard, player/intent availability, then active delta-based simulation. Advance diagnostic time at the first active-simulation line after those returns, before movement/combat |
+| `createEnemy`, `spawnEnemy` | One EnemyRuntime has chaser/shooter/tank/boss, isElite, health/contactDamage/xpValue/radius. Common creation covers timed CCCSCT/Elite/Warden and deterministic DEV Warden; initial creation precedes diagnostics. Count successful creations only, never blocked spawn attempts |
+| `successfulTimedSpawns` | Scene-authoritative timed count incremented after successful placement; initial/DEV creation excluded. Existing snapshot already exposes it; do not duplicate this mutable scheduling counter in observer |
+| `killEnemy` | Collection-membership guard rejects duplicate removal; Boss flag, exactly one pickup.value from enemy.xpValue, visual destruction/splice. Observe actual completed removal/XP creation once, not damage attempts or kill prediction |
+| `updateProjectiles`, `explodeMissile`, `explodeClusterSatellites` | Common kill path; straight lethal hit/cleanup or full primary/satellite union and Missile cleanup precedes Victory. Observe aggregates inside common removal, terminal only after authority accepts; no projectile/hit timeline |
+| `damagePlayer` | Lifecycle/player/zero-HP/GodMode/protection guards precede clamped HP subtraction; HUD/protection update then lethal terminal. Record accepted positive beforeHP-afterHP, not requested damage, before lethal terminal record |
+| `updateXpPickups`, `creditExperience` | Real collection calls creditExperience(value,pickup); credit computes level/XP, removes pickup before Level-Up. DEV forceLevelUp calls the same helper without pickup. Observe credited amount and level difference once here, not also in attraction loop |
+| `enterLevelUpPause`, `levelUpPool`, `LevelUpChoice` | Guarded REWARD acquisition, input reset, three choices built with current Reward samples/cursors, pointer callbacks. One offered observation only after all three actual options/texts are constructed; derive typed identities from choices, not labels |
+| `acceptLevelUpChoice` | Exact run/PAUSED/REWARD/transaction/text/eligibility guards precede existing upgrade effects; destroys presentation and releases REWARD. Record selected option once after successful application and before reason release |
+| `handlePauseRequest`, `bindRunInput.loseFocus`, reward entry/acceptance | Actual request/release calls compose reasons; FOCUS/VISIBLE only restore bookkeeping; projectPause projects Clock/UI and is also called for terminal. Observe before/after accepted lifecycle changes, not UI visibility or every projectPause call |
+| `enterPlayerDeath`, `enterRunVictory` | tryEnterTerminal acceptance precedes concrete input/UI cleanup; Victory requires bossDefeated after completed owning attack. Record accepted outcome once at this existing boundary; never inside killEnemy |
+| `publishDevTools`, `devTools.ts` | Exactly five commands; snapshot has runSeed/runState/copied reasons/current progression/Boss/counts/timer count. Add one detached nested diagnostics field only, no collector or sixth command |
+| `create` disposeRun/disposeRandom/disposeInput, DEV invalidate; RETRY/NEW RUN | Captured exact-create lifetime and native Scene reuse; observer disposal must capture that exact owner too. Retain stale timer/input/focus/reward/result/API guards |
+| Existing tracked tests | 264 cases/20 files; pure lifecycle/RNG/input plus real Scene methods and installed Clock fixture. Browser/native evidence is separate; preserve all assertions and deterministic behavior |
+
+ARCHITECTURE specifies observation-only diagnostics and GAME-100 reporting, without a
+precreated telemetry framework. BALANCE contains future pacing/playtest hypotheses, not
+current Director/Build/World identities or authority to implement those domains. Current
+elapsed/XP/offer counts support investigation; full performance profiling is deferred below.
+
+**Owner, startup and exact lifetime**
+
+RunDiagnostics retains validated immutable uint32 runSeed only; constructor has no Phaser,
+lifecycle, RNG, input, Clock or gameplay references. A fresh pure owner starts elapsed0,
+zero aggregates, empty timeline, terminal null. Explicit recordRunStarted() records once.
+Scene order: existing initialization/five events -> successful run.start -> crypto/RunRandom
+-> fresh diagnostics -> RUN_STARTED -> observe already-created initial enemy once -> DEV API.
+No usable diagnostics mutation during PREPARING, no entropy/extra draws and no initial enemy
+recreation. Pure fresh-zero baseline differs intentionally from post-create Scene baseline:
+one RUN_STARTED row at0ms, spawned.total1/chaser1, all other counters0. Restart repeats this
+same fresh bootstrap, not a zero-spawn scene or retained prior history.
+
+Capture const diagnostics from that create for shutdown/destroy disposal; dispose idempotent.
+Direct record/advance and snapshot on a disposed owner throw a clear invariant Error.
+Old callbacks must fail their existing exact-run/identity guards before recording; never
+redirect captured old callbacks via this.currentDiagnostics into a fresh owner. Synchronous
+Scene methods may use current owner only after their current-run guards; retained callbacks
+must preserve captured run/owner identity. No broad try/catch hiding observer defects.
+
+**Gameplay elapsed observation, not scheduling**
+
+Use only gameplayElapsedMs += delta at the active update point identified above, after the
+PauseRequest/authority/player/intent early returns and before simulation work. Sum the actual
+finite nonnegative frame delta once, even if that frame later enters reward pause or terminal.
+Do not split/reinterpret delta around collision timing. A frame returning for pause/resume
+adds nothing, matching current simulation. This fixes timestamp convention: update-produced
+records use the accumulated end-of-active-frame time; Phaser Clock callbacks dispatched before
+Scene.update use the last accumulated time. Equal timestamps are legal; insertion order wins.
+
+PREPARING/PAUSED/TERMINAL/DISPOSED never advance through integration. Freeze final elapsed
+at accepted terminal; no Date.now/performance.now/Clock.now, wall time, setInterval, TimerEvent
+or new scheduler/Run clock. This is one observation scalar, never read by gameplay decisions.
+Observer advance validates delta but does not own/run a lifecycle or pause policy.
+
+**Exact bounded semantic timeline and concrete API**
+
+Authorize only the following discriminated plain record union. Every row has type and
+gameplayElapsedMs; all arrays/identities are copied on input and snapshot. No arbitrary
+event strings/payload dictionaries. Explicit record methods may follow repository naming:
+
+| Record / explicit method | Additional typed fields / effect |
+| --- | --- |
+| RUN_STARTED / recordRunStarted() | No payload; once at0ms, does not increment gameplay counters |
+| PAUSE_ENTERED / recordPauseEntered(reasons) | Copied nonempty fixed-order PauseReason[] at accepted RUNNING->PAUSED; increments pauseEntries |
+| PAUSE_RESUMED / recordPauseResumed(previousReasons) | Copied prior PauseReason[] for accepted final PAUSED->RUNNING; increments pauseResumes |
+| LEVEL_UP_OFFERED / recordLevelUpOffered(choices) | Exactly three distinct current ChoiceIdentity values in slot order; increments offersPresented |
+| LEVEL_UP_SELECTED / recordLevelUpSelected(choice) | Actual accepted ChoiceIdentity; increments choicesAccepted, before any PAUSE_RESUMED row |
+| TERMINAL / recordTerminal(outcome) | DEATH or VICTORY; freezes terminal {outcome, gameplayElapsedMs}, exactly once |
+
+Bound timeline to256 retained rows using oldest-row eviction, retaining newest rows in
+insertion order; increment droppedTimelineRecords on each eviction. Aggregates never derive
+from retained rows and remain complete after eviction. RUN_STARTED may be evicted; seed stays
+in snapshot identity. Final TERMINAL is newest and retained because no later records are
+accepted. No unbounded buffer even with repeated manual pauses; test capacity/overflow.
+
+Additional explicit aggregate operations: recordEnemySpawned(archetype,isElite),
+recordEnemyKilled(archetype,isElite,xpValue), recordPlayerDamage(actualHpLost),
+recordXpCredited(amount,levelsGained,source), advance(delta), snapshot(), dispose().
+These are typed concrete boundaries, not a generic track API or event subscriber system.
+
+ChoiceIdentity is an explicit literal union derived from actual LevelUpChoice data:
+laser.power/fireRate/speed; missile.warheadPower/propulsion/blastExpansion;
+drone.boltPower/firingSystem/boltPropulsion; passive.hull/thruster/collector/combat/spatial/
+replication; prism/cluster/twin. Slash notation here abbreviates each prefix's individual
+literal IDs (for example laser.fireRate). No Phaser Text labels, future Core/System/Active
+IDs or exported mutable Scene data. Use a small typed conversion at the Scene boundary.
+EnemyArchetype is exactly chaser/shooter/tank/boss; isElite true is valid only for tank.
+
+**Authorized aggregates and exact counting rules**
+
+| Snapshot field / category | Concrete accounting |
+| --- | --- |
+| spawned {total, byArchetype:{chaser,shooter,tank,boss}, eliteTanks} | Common completed createEnemy once; bootstrap initial Chaser as above. Includes timed and DEV Boss. Boss total is byArchetype.boss, Elite is a subset of tank, not another archetype |
+| killed {total, byArchetype:{chaser,shooter,tank,boss}, eliteTanks} | Completed killEnemy membership-guarded removal once. Duplicate kill no increment; no kill credit for nonlethal hit |
+| acceptedDamagingHits, hpLost | One positive accepted damagePlayer HP difference; actual loss clamped by available HP. GodMode/protection/paused/missing/dead rejections count0; defer rejected-hit counters |
+| xpDropped | Sum actual value of each successfully created kill pickup via recordEnemyKilled; no collection or direct Boss XP credit inferred |
+| xpCredited, xpCollected, xpDevCredited, levelsGained | Common creditExperience after award/removal: source pickup increments xpCollected and xpCredited; source dev increments xpDevCredited and xpCredited. levelsGained is newLevel-oldLevel, may exceed1. No second count in updateXpPickups; remaining progression XP is not total credited XP |
+| offersPresented, choicesAccepted | One actual constructed Level-Up presentation / one guarded accepted choice. offersPresented is also the Level-Up presentation count; do not duplicate it under another name |
+| pauseEntries, pauseResumes | Accepted high-level transitions only, independent of number of reasons. Defer per-reason acquisition/rejection counts and pause wall durations |
+| terminal | Null until one accepted result, then immutable DEATH/VICTORY and final gameplayElapsedMs |
+| droppedTimelineRecords | Eviction count only; cannot affect gameplay or historical aggregate totals |
+
+No second mutable successfulTimedSpawns counter, active-enemy count, current HP/level/XP,
+pause reason authority or Boss flag in diagnostics; existing DevSnapshot reads Scene/run
+truth for those current values. Counters above are observation history, never gameplay truth.
+Real pickup XP is tracked independently of DEV XP so forced progression is not mislabeled
+as collection. Fractional positive HP loss is supported; XP/levels/counts are integers.
+
+**Pause, terminal, read models and invariants**
+
+At Scene pause integration sites capture prior state/reasons, perform existing accepted
+request/release operations, then observe an actual RUNNING->PAUSED or PAUSED->RUNNING pair.
+Manual resume releases its two user-resumable reasons before recording one final resume;
+reward acceptance releases REWARD only. Adding FOCUS_LOSS while already PAUSED, duplicate
+loss/request, rejected Escape and focus restoration produce no extra entry/resume row.
+Do not instrument projectPause as a transition (it also projects UI/terminal). Terminal from
+PAUSED records TERMINAL only, never a synthetic resume even though Clock.paused becomes false.
+
+Record terminal immediately after successful tryEnterTerminal at enterPlayerDeath or
+enterRunVictory, preserving their existing placement after owned attack completion. Do not
+move terminal into killEnemy, before straight cleanup or before full Missile/Cluster removal.
+Accepted lethal damage is observed before DEATH; Boss removal/XP drop before later VICTORY.
+Rejected terminal conflicts/duplicates return false with no second record; other postterminal
+record/advance requests return false without mutation. Before RUN_STARTED, recording/advancing
+is an invariant error. Invalid numeric/identity input throws before any partial counter/time/
+timeline change: finite nonnegative delta, finite positive HP loss, nonnegative integer XP/
+levels, safe integer counters and no overflowing/nonfinite sums, exact supported identities.
+Validate seed like RunRandom, including zero; no clamping/coercion, repair or broad catch.
+
+snapshot() returns detached JSON-serializable {runSeed, gameplayElapsedMs, aggregates,
+timeline, droppedTimelineRecords, terminal}; nested records, reason arrays, offered identities,
+archetype counters and terminal data must be copied. Repeated reads mutate nothing and draw
+zero RNG. Existing five-command DEV snapshot adds only diagnostics: RunDiagnosticsSnapshot;
+no collector/reference/mutation/reset/export API or sixth command. Production DEV API absent.
+
+Diagnostics receives no Encounter/Reward/World/Boss handles and makes zero draws/reseeds;
+candidate ordering and exact GAME-043 budgets remain unchanged. Same seed/code/content,
+relevant decision history AND supplied active deltas reproduce deterministic diagnostics;
+seed alone does not reproduce elapsed time across FPS/machines. Never promise replay.
+Observer does not request/release pause, set time.paused, reset input, attach focus listeners
+or schedule anything. Exactly five existing gameplay TimerEvents remain, zero added here.
+
+**Performance decision and excluded volume**
+
+Defer active frame count and maximum delta as well as p95/p99, FPS history, rolling windows,
+memory sampling, adaptation, final RunReport/export and performance investigation to GAME-100:
+current source has no demonstrated profiling consumer. gameplayElapsedMs is the only frame
+observation here. Do not retain per-frame deltas, projectile launch/hit/collision/targeting/
+movement/RNG records, or individual enemy spawn/death timeline rows. Enemy data aggregates only.
+No network/SDK/backend/upload, persistence/localStorage/save/profile/meta, statistics UI,
+download button, crash service, replay/daily-run or nonexistent Director/Build/Core/World/
+Event/BossController metrics; no new dependency or generic analytics architecture.
+
+**Required tests for later implementation**
+
+Preserve all264 current tests/20 files and GAME-039/042/043/044 assertions. Add pure owner
+tests and actual Scene production-path integration, not parallel fake gameplay algorithms:
+
+| Boundary | Required evidence |
+| --- | --- |
+| Owner/invariants | Zero seed/max identity; invalid seeds/numbers/identities and overflow rejected atomically; fresh zero/empty/null state; RUN_STARTED once; delta sums; all counters; detached nested input/snapshot copies; equal-time insertion order;256-row eviction and dropped count with intact aggregates; single terminal/frozen time; disposed mutation/snapshot throw, idempotent dispose, fresh independence |
+| Boot/spawn/kill | Post-create one initial Chaser, one start row, correct seed, zero RNG; normal timed/Elite/Boss30/DEV Boss increments once, blocked attempts0, no timed-counter duplicate. Real nonlethal/kill/common XP drop and duplicate removal count correctly, no projectile timeline |
+| Damage/XP | Actual clamped HP loss/hit count, GodMode/protection/paused rejects0; lethal damage precedes terminal. Real pickup creation/collection once, DEV forceLevelUp source distinct, integer level difference/multilevel award, no double collection/credit |
+| Reward | One fully constructed offer tuple and selected typed identity; existing exact offers/budget preserved. Repeated snapshots/stable paused UI/duplicate force/stale or double choice add no record. Selection before final REWARD resume, composed focus retains pause |
+| Pause/time | Manual/reward/focus entry; duplicate/composed loss no fake transition; focus return no resume; last release one resume; terminal from PAUSED no resume. Only active update delta advances; real pause/resume early-return frames and non-RUNNING states freeze diagnostics |
+| Isolation/terminal | Record/snapshot draws0 all four streams; fixed-seed/state/delta scenarios match telemetry and gameplay; no clock/input/eligibility/damage mutations. Death-first/victory-first, straight/Missile/Cluster atomicity, exact one terminal with frozen elapsed |
+| Lifetime/DEV | Fresh collector identity/bootstrap after native reset; old disposed and captured old timer/input/focus/reward/control callbacks cannot write fresh history. Existing RNG/API/input/Clock ownership and five events intact; nested DEV diagnostics detached; five commands only |
+
+**Required real browser/native validation for later implementation**
+
+1. Normal DEV root boot: RUNNING, valid stable seed, defined initial bootstrap baseline,
+   five events/five commands; no instrumentation RNG draws.
+2. Active elapsed increases; actual manual pause for meaningful real wall time leaves elapsed,
+   counters and timeline stable after entry; focused explicit resume advances again. Repeated
+   reads and duplicate pause attempts do nothing; verify all four streams unchanged by observation.
+3. Actual timed spawn, common enemy kill/XP drop/collection, accepted player damage and real
+   Level-Up/pointer choice produce the specified counters/semantic order. Check GodMode and
+   protection rejections, stale/double choice and repeated snapshot produce no extra record.
+4. Genuine browser BLUR path and reward+focus composition retain GAME-044 behavior; telemetry
+   neither changes input/Clock nor resumes. Separate actual focus evidence from synthetic tests.
+5. Real death-first/victory-first and straight/Missile/Cluster completed-attack boundaries:
+   exactly one terminal, final elapsed frozen, no artificial resume from PAUSED.
+6. TWO Victory NEW RUN cycles, ONE Death RETRY and ONE paused nonterminal native restart.
+   Each old owner disposed/inert, fresh owner identity/correct seed and fresh bootstrap (not
+   previous history), RUNNING/no reasons, fresh input/RNG/API, unpaused Clock and five fresh
+   events; saved stale callbacks cannot write new counters/timeline or consume fresh RNG.
+   Page reload/manual create is not native restart evidence.
+7. Unchanged production gameplay/keyboard/Space/pause works, DEV API absent, no telemetry UI,
+   no introduced analytics/network traffic. Inspect console, separate known favicon/bundle
+   warnings and report actual evidence apart from tracked fixtures; no new runtime claims now.
+
+**Definition validation and future documentation**
+
+Now change only TASK_GRAPH, GAME-045 BACKLOG->READY and necessary roadmap consistency.
+Run npm run check and git diff --check; stage only docs/TASK_GRAPH.md; inspect full cached
+diff and run cached check/stat. Create ignored .codex-review/GAME-045-review.txt with
+AGENTS.md sections, full source inventory/contracts and complete staged diff; never stage
+review packet or commit. CURRENT_STATE/PROJECT_GRAPH/ARCHITECTURE/BALANCE/runtime/tests stay
+unchanged in this definition. Successful later implementation may set GAME-045 DONE and
+update factual runtime docs/map. GAME-046+ remain BACKLOG pending separate authorization.
+GATE A remains incomplete until implementation, validation AND architect gate review;
+GAME-045 DONE by itself must not automatically close the gate or unlock later tasks.
 
 **GATE A — Runtime Foundation** — review the preceding phase capabilities before its cutover/next proof.
 
