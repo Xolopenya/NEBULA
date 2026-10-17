@@ -1,7 +1,9 @@
 import type { PauseReason, RunState } from './run/RunLifecycle';
+import type { RunDiagnosticsSnapshot } from './run/RunDiagnostics';
 
 export type DevSnapshot = {
   runSeed: number;
+  diagnostics: RunDiagnosticsSnapshot;
   runState: RunState;
   pauseReasons: PauseReason[];
   isPlayerDead: boolean;

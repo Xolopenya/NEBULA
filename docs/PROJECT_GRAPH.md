@@ -4,8 +4,8 @@
 
 - Project: NEBULA.
 - Milestone: First Playable / GAME-015 complete.
-- Source baseline HEAD: `55ea5c1975b90fae771605723336f78abfe03f84`.
-- This map reflects that source baseline plus the staged GAME-044 pause/input ownership; current Scene retains combat/presentation and GAME-039 DEV wiring.
+- Source baseline HEAD: `7e5bf975d3cf13b016146ebeb99be5e7eb518961`.
+- This map reflects that source baseline plus the staged GAME-045 diagnostics ownership; current Scene retains combat/presentation and GAME-039 DEV wiring.
 - Active task request defines task-specific requirements.
 - AGENTS.md defines repository policy.
 - TASK_GRAPH.md defines task scope, dependencies and status.
@@ -32,8 +32,10 @@ IDs are repository-relative paths; symbols use `path#export`.
 | `src/game/input/KeyboardInput.test.ts` | 17 adapter mapping/edge/repeat/reset/held/fresh/disposal cases |
 | `src/game/run/RunRandom.ts` | Phaser-free uint32 seed, four independent explicit Mulberry32 streams, exact-owner disposal |
 | `src/game/run/RunRandom.test.ts` | 21 pure seed/golden/range/independence/disposal cases |
-| `src/game/devTools.ts` | DevSnapshot with numeric runSeed/runState/copied ordered pauseReasons; five-command DevTools types, no runtime registry |
-| `src/game/scenes/GameplayScene.devTools.test.ts` | 61 tracked Scene/DevTools/lifecycle/RNG/pause/input cases, including installed Phaser Clock phase integration |
+| `src/game/run/RunDiagnostics.ts` | Phaser-free run observation: seed identity, active elapsed, aggregates, bounded semantic timeline and exact-owner disposal |
+| `src/game/run/RunDiagnostics.test.ts` | 35 pure seed/lifetime/numeric/identity/atomicity/copy/eviction/terminal cases |
+| `src/game/devTools.ts` | DevSnapshot with numeric runSeed/runState/copied ordered pauseReasons and detached nested diagnostics; five-command DevTools types, no runtime registry |
+| `src/game/scenes/GameplayScene.devTools.test.ts` | 71 tracked Scene/DevTools/lifecycle/RNG/pause/input/diagnostics cases, including installed Phaser Clock phase integration |
 | `src/game/combat/collision.ts` | Pure numeric collision math |
 | `src/game/combat/collision.test.ts` | Tracked geometry tests |
 | `src/game/progression/experience.ts` | Pure XP threshold/award arithmetic and state type |
@@ -87,6 +89,11 @@ IDs are repository-relative paths; symbols use `path#export`.
 | `src/game/input/KeyboardInput.ts#GameplayIntent` | Raw moveX/moveY and activatePressed/pausePressed edges |
 | `src/game/input/KeyboardInput.ts#KeyboardInput` | Desktop adapter only; no gameplay movement/Dash simulation |
 | `src/game/run/RunRandom.ts#RunRandom` | Immutable runSeed; encounter/reward/world/boss next(); dispose invalidates captured handles |
+| `src/game/run/RunDiagnostics.ts#RunDiagnostics` | Explicit record/advance/snapshot/dispose API; observation only, no gameplay references |
+| `src/game/run/RunDiagnostics.ts#ChoiceIdentity` | Exact 18 current typed Level-Up identities, independent of UI labels |
+| `src/game/run/RunDiagnostics.ts#DiagnosticArchetype` | chaser/shooter/tank/boss; Elite valid only for tank |
+| `src/game/run/RunDiagnostics.ts#DiagnosticRecord` | Six semantic timeline variants, timestamped with active elapsed |
+| `src/game/run/RunDiagnostics.ts#RunDiagnosticsSnapshot` | Detached plain seed/elapsed/aggregates/timeline/evictions/terminal view |
 | `src/game/combat/collision.ts#segmentCircleHitTime` | First segment-circle hit in [0,1], else Infinity |
 | `src/game/progression/experience.ts#ExperienceState` | Numeric level and XP toward next level |
 | `src/game/progression/experience.ts#xpForNextLevel` | Prototype threshold calculation |
@@ -135,6 +142,10 @@ Runtime labels below describe scene-owned concepts, not separate modules/classes
 | `src/game/scenes/GameplayScene.ts` | CREATES | `src/game/input/KeyboardInput.ts#KeyboardInput` bound to exact owning run |
 | `src/game/input/KeyboardInput.ts#KeyboardInput` | TESTED_BY | `src/game/input/KeyboardInput.test.ts` |
 | `src/game/run/RunRandom.ts#RunRandom` | TESTED_BY | `src/game/run/RunRandom.test.ts` |
+| `src/game/scenes/GameplayScene.ts` | CREATES | `src/game/run/RunDiagnostics.ts#RunDiagnostics` after RunRandom; captures exact shutdown/destroy disposal |
+| `src/game/scenes/GameplayScene.ts` | RECORDS | RunDiagnostics at accepted create/update/spawn/kill/damage/XP/reward/pause/terminal boundaries |
+| `src/game/devTools.ts` | IMPORTS_TYPE | `src/game/run/RunDiagnostics.ts#RunDiagnosticsSnapshot` |
+| `src/game/run/RunDiagnostics.ts#RunDiagnostics` | TESTED_BY | `src/game/run/RunDiagnostics.test.ts` and actual Scene integration tests |
 | `src/game/progression/selectChoices.ts#selectChoices` | TESTED_BY | `src/game/progression/selectChoices.test.ts` |
 | `src/game/scenes/GameplayScene.ts` | IMPORTS | `src/game/progression/prismLaser.ts` (LaserRanks, canEvolvePrismLaser) |
 | `src/game/scenes/GameplayScene.ts` | IMPORTS | `src/game/combat/prismSpread.ts#prismSpread` |
@@ -191,6 +202,7 @@ All private names below are navigation anchors, not exported symbol nodes.
 | Run lifecycle | run; RunLifecycle; create | PREPARING/RUNNING/PAUSED/TERMINAL/DISPOSED; concrete composed reasons; first terminal from RUNNING/PAUSED; captured exact disposal |
 | Pause/input projection | bindRunInput; handlePauseRequest; projectPause; canResume; pausePresentation | Exact-owner BLUR/HIDDEN loss, separate FOCUS/VISIBLE bookkeeping, explicit focused Escape resume; Scene Clock.paused freezes five events; minimal non-reward UI |
 | Run RNG | runRandom; RunRandom; create | Fresh owner after successful RUNNING; crypto uint32 seed; exact captured shutdown/destroy disposal; old handles throw; World/Boss dormant |
+| Run diagnostics | runDiagnostics; RunDiagnostics; create/update/observePause | Fresh owner from numeric seed after RNG construction; bootstrap initial Chaser; active delta once; history only, 256-row timeline; captured disposal; no Clock/input/RNG references |
 | Spawn randomness | spawnEnemy → runRandom.encounter.next | Two draws after guards: fixed side mapping then varying coordinate; deterministic fallback adds none |
 | Choice randomness | enterLevelUpPause → selectChoices → runRandom.reward.next | Explicit source at three sampling sites; one draw per sampled slot, none for focus/evolution/stable UI/acceptance |
 | Death/retry | derived isPlayerDead; enterPlayerDeath | Accepted DEATH precedes existing UI; RETRY bound to owning run; rejects Victory |
@@ -235,7 +247,7 @@ All private names below are navigation anchors, not exported symbol nodes.
 BootScene.create → scene.start('GameplayScene') → GameplayScene.create
 → fresh player/enemy/collections → spawn/Laser/Missile/Drone/hostile timers → update.
 
-update: sample intents / handle PauseRequest → lifecycle simulation guard → player movement/Dash split/bounds → Drone orbit → Chaser/Tank/Warden pursuit / Shooter band movement → target/highlight
+update: sample intents / handle PauseRequest → lifecycle/player/intent guards → diagnostics.advance(delta) once → player movement/Dash split/bounds → Drone orbit → Chaser/Tank/Warden pursuit / Shooter band movement → target/highlight
 → protection countdown → straight projectiles/impacts → Missiles/homing/explosions → contact damage → XP magnet/collection (simulation active only).
 
 Lethal player damage → damagePlayer → enterPlayerDeath → frozen simulation
@@ -279,6 +291,7 @@ detonation and cleanup → enterRunVictory → frozen gameplay / fixed result
 | TRACKED TESTS | warden.test.ts → shouldSpawnWarden / wardenPhase / wardenBurstDirections | Fourteen cases: spawn29/30/31/flag, phase thresholds/dead, exact unit angles and independent deterministic results |
 | TRACKED TESTS | eliteTank.test.ts → shouldSpawnEliteTank | Seven cases: Tank6/12/18/24, Chaser/Shooter12 exclusion, deterministic input stability |
 | TRACKED TESTS | shooterMovement.test.ts → shooterMovement | 7 tests: speed/diagonal, inclusive edges, retreat, large steps, coincident center, zero time, partitions |
+| TRACKED TESTS | RunDiagnostics.test.ts / GameplayScene.devTools.test.ts | 35 pure observer cases plus 10 Scene cases; total 309 across 21 files, preserving 264 prior tests |
 | RUNTIME / MANUAL EVIDENCE | GameplayScene combat/death/restart | Browser smoke and ignored validation harnesses; not tracked Vitest coverage |
 
 Ignored harnesses are not graph nodes and do not run in npm run check.
@@ -330,10 +343,24 @@ RunRandom IMPLEMENTS_TASK GAME-043: fixed Mulberry32 and root-XOR-salt avalanche
 
 RunLifecycle pause operations + KeyboardInput + GameplayScene.bindRunInput/handlePauseRequest/projectPause IMPLEMENT_TASK GAME-044. Scene projects authority onto the existing Clock.paused and minimal UI; REWARD acceptance releases only its reason, focused/visible Escape explicitly releases MANUAL/FOCUS_LOSS. Captured adapter/listener cleanup cannot change a fresh reused Clock/run. DEV snapshot adds detached runState/ordered reasons. Actual keyboard, 2300ms phase freeze, genuine browser BLUR, native restart and unmodified production preview checks pass; HIDDEN/VISIBLE combinations are covered separately by tracked synthetic tests.
 
+RunDiagnostics + GameplayScene.runDiagnostics/choiceIdentity/observePause IMPLEMENT_TASK GAME-045.
+create bootstraps RUN_STARTED and one initial Chaser after RunRandom. update advances full active
+delta before movement. createEnemy observes completed current creation; killEnemy observes
+membership-guarded removal/drop before later Victory. damagePlayer records actual clamped HP
+loss before Death; creditExperience records credited XP/level difference once, split pickup/dev.
+enterLevelUpPause records a constructed typed offer; acceptLevelUpChoice records applied selection
+before REWARD release. observePause surrounds concrete manual/focus/reward operations, recording
+only actual RUNNING/PAUSED transitions, never projectPause or terminal-as-resume. enterPlayerDeath/
+enterRunVictory record only accepted authority outcomes after existing attack boundaries.
+publishDevTools adds detached diagnostics only; exact captured cleanup disposes old history.
+Tracked invariants and real browser aggregate/elapsed/focus/native restart checks verify no added
+RNG draws, Clock/input authority, events, persistence or network transport.
+
 ## Common navigation queries
 
 | Question | Likely path / anchor |
 | --- | --- |
+| Where is diagnostic history observed? | RunDiagnostics.ts; GameplayScene.ts → create/update/createEnemy/killEnemy/damagePlayer/creditExperience/enterLevelUpPause/acceptLevelUpChoice/observePause/enterPlayerDeath/enterRunVictory/publishDevTools |
 | Where does enemy death happen? | GameplayScene.ts → updateProjectiles / updateMissiles → explodeMissile / killEnemy |
 | Where are XP drops/magnet/collection owned? | GameplayScene.ts → killEnemy, xpPickups, updateXpPickups; create resets |
 | Where are XP thresholds and levels calculated? | src/game/progression/experience.ts; scene playerExperience |

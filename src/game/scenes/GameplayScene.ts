@@ -1,6 +1,7 @@
 import type { DevTools } from '../devTools';
-import { RunLifecycle } from '../run/RunLifecycle';
+import { RunLifecycle, type PauseReason, type RunState } from '../run/RunLifecycle';
 import { RunRandom } from '../run/RunRandom';
+import { RunDiagnostics, type ChoiceIdentity } from '../run/RunDiagnostics';
 import { KeyboardInput } from '../input/KeyboardInput';
 import * as Phaser from 'phaser';
 import { segmentCircleHitTime } from '../combat/collision';
@@ -26,6 +27,17 @@ type OrdinaryChoice = { kind: 'laser'; upgrade: LaserUpgrade }
   | { kind: 'missile'; upgrade: keyof MissileRanks }
   | { kind: 'drone'; upgrade: keyof DroneRanks } | { kind: 'passive'; module: PassiveModule };
 type LevelUpChoice = OrdinaryChoice | { kind: 'prism' } | { kind: 'cluster' } | { kind: 'twin' };
+
+function choiceIdentity(option: LevelUpChoice): ChoiceIdentity {
+  switch (option.kind) {
+    case 'laser': return `laser.${option.upgrade}`;
+    case 'missile': return `missile.${option.upgrade}`;
+    case 'drone': return `drone.${option.upgrade}`;
+    case 'passive': return `passive.${option.module}`;
+    case 'prism': case 'cluster': case 'twin': return option.kind;
+    default: { const unreachable: never = option; throw new Error(`Unsupported choice: ${unreachable}`); }
+  }
+}
 
 const levelUpPool: readonly OrdinaryChoice[] = [
   { kind: 'laser', upgrade: 'power' },
@@ -120,6 +132,7 @@ export class GameplayScene extends Phaser.Scene {
   private playerExperience: ExperienceState = { level: 1, xp: 0 };
   private run?: RunLifecycle;
   private runRandom?: RunRandom;
+  private runDiagnostics?: RunDiagnostics;
   private get isPlayerDead(): boolean { return this.run?.outcome === 'DEATH'; }
   private get isRunVictorious(): boolean { return this.run?.outcome === 'VICTORY'; }
   private victoryPresentation: Phaser.GameObjects.Text[] = [];
@@ -194,6 +207,7 @@ export class GameplayScene extends Phaser.Scene {
   create(): void {
     const run = new RunLifecycle();
     this.run = run;
+    this.runDiagnostics = undefined;
     this.time.paused = false;
     this.pausePresentation = undefined;
     const disposeRun = () => {
@@ -335,6 +349,17 @@ export class GameplayScene extends Phaser.Scene {
     };
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, disposeRandom);
     this.events.once(Phaser.Scenes.Events.DESTROY, disposeRandom);
+    const diagnostics = new RunDiagnostics(random.runSeed);
+    this.runDiagnostics = diagnostics;
+    diagnostics.recordRunStarted();
+    diagnostics.recordEnemySpawned('chaser', false);
+    const disposeDiagnostics = () => {
+      diagnostics.dispose();
+      this.events.off(Phaser.Scenes.Events.SHUTDOWN, disposeDiagnostics);
+      this.events.off(Phaser.Scenes.Events.DESTROY, disposeDiagnostics);
+    };
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, disposeDiagnostics);
+    this.events.once(Phaser.Scenes.Events.DESTROY, disposeDiagnostics);
     if (import.meta.env.DEV) this.publishDevTools();
   }
 
@@ -352,6 +377,7 @@ export class GameplayScene extends Phaser.Scene {
     if (intent?.pausePressed) { this.handlePauseRequest(); return; }
     if (this.isSimulationPaused()) return;
     if (!this.player || !intent) return;
+    this.runDiagnostics!.advance(delta);
 
     this.movementDirection.set(intent.moveX, intent.moveY);
     this.movementDirection.normalize();
@@ -428,7 +454,9 @@ export class GameplayScene extends Phaser.Scene {
     this.canResume = () => current() && focused && visible && document.hasFocus() && !document.hidden;
     const loseFocus = () => {
       if (!current() || (run.state !== 'RUNNING' && run.state !== 'PAUSED')) return;
+      const before = run.state, reasons = run.pauseReasons;
       run.requestPause('FOCUS_LOSS');
+      this.observePause(before, reasons);
       adapter.reset();
       this.projectPause();
     };
@@ -456,11 +484,13 @@ export class GameplayScene extends Phaser.Scene {
   private handlePauseRequest(): void {
     const run = this.run;
     if (!run || run.hasPauseReason('REWARD')) return;
+    const before = run.state, reasons = run.pauseReasons;
     if (run.state === 'RUNNING') run.requestPause('MANUAL');
     else if (run.state === 'PAUSED' && this.canResume?.()) {
       run.releasePause('MANUAL');
       run.releasePause('FOCUS_LOSS');
     } else return;
+    this.observePause(before, reasons);
     this.inputAdapter?.reset();
     this.projectPause();
   }
@@ -475,6 +505,14 @@ export class GameplayScene extends Phaser.Scene {
         'PAUSED\nESC to resume', { fontFamily: 'Arial, sans-serif', fontSize: '48px', color: '#e2e8f0',
           backgroundColor: '#050816', padding: { x: 24, y: 16 }, align: 'center' })
         .setOrigin(0.5).setScrollFactor(0).setDepth(2);
+    }
+  }
+
+  private observePause(before: RunState, reasons: PauseReason[]): void {
+    if (before === 'RUNNING' && this.run?.state === 'PAUSED') {
+      this.runDiagnostics!.recordPauseEntered(this.run.pauseReasons);
+    } else if (before === 'PAUSED' && this.run?.state === 'RUNNING') {
+      this.runDiagnostics!.recordPauseResumed(reasons);
     }
   }
 
@@ -506,6 +544,7 @@ export class GameplayScene extends Phaser.Scene {
   private enterLevelUpPause(): void {
     const run = this.run;
     if (this.isLevelUpPaused || run?.state !== 'RUNNING' || !run.requestPause('REWARD')) return;
+    this.observePause('RUNNING', []);
     this.inputAdapter?.reset();
     this.projectPause();
     this.isLevelUpPaused = true;
@@ -552,6 +591,7 @@ export class GameplayScene extends Phaser.Scene {
       this.levelUpPresentation.push(choice);
       choice.once('pointerdown', () => this.acceptLevelUpChoice(choice, option, run));
     });
+    this.runDiagnostics!.recordLevelUpOffered(choices.map(choiceIdentity));
   }
 
   private choiceLabel(choice: LevelUpChoice): string {
@@ -663,11 +703,14 @@ export class GameplayScene extends Phaser.Scene {
         callback: () => { if (run.state === 'RUNNING') this.fireLaser(); },
       });
     }
+    this.runDiagnostics!.recordLevelUpSelected(choiceIdentity(option));
     this.isLevelUpPaused = false;
     for (const text of this.levelUpPresentation) text.destroy();
     this.levelUpPresentation = [];
     this.inputAdapter?.reset();
+    const reasons = run.pauseReasons;
     run.releasePause('REWARD');
+    this.observePause('PAUSED', reasons);
     this.projectPause();
   }
 
@@ -727,7 +770,10 @@ export class GameplayScene extends Phaser.Scene {
     if (!this.player || this.playerHealth === 0) return;
     if (import.meta.env.DEV && this.godMode) return;
     if (this.playerDamageProtectionRemaining > 0) return;
+    const beforeHp = this.playerHealth;
     this.playerHealth = Math.max(0, this.playerHealth - amount);
+    const lost = beforeHp - this.playerHealth;
+    if (lost > 0) this.runDiagnostics!.recordPlayerDamage(lost);
     this.updateHud();
     this.playerDamageProtectionRemaining = this.playerDamageProtectionDuration;
     this.player.setAlpha(0.5);
@@ -737,6 +783,7 @@ export class GameplayScene extends Phaser.Scene {
   private enterPlayerDeath(): void {
     const run = this.run;
     if (!run?.tryEnterTerminal('DEATH')) return;
+    this.runDiagnostics!.recordTerminal('DEATH');
     this.clearTerminalInput();
     this.player?.setAlpha(0.25);
     this.add.text(this.scale.width / 2, this.scale.height / 2, 'SHIP DESTROYED', {
@@ -765,6 +812,7 @@ export class GameplayScene extends Phaser.Scene {
   private enterRunVictory(): void {
     const run = this.run;
     if (!this.bossDefeated || !run?.tryEnterTerminal('VICTORY')) return;
+    this.runDiagnostics!.recordTerminal('VICTORY');
     this.clearTerminalInput();
     const centerX = this.scale.width / 2;
     const centerY = this.scale.height / 2;
@@ -1093,6 +1141,7 @@ export class GameplayScene extends Phaser.Scene {
     if (this.currentTarget === enemy) this.currentTarget = undefined;
     enemy.visual.destroy();
     this.enemies.splice(index, 1);
+    this.runDiagnostics!.recordEnemyKilled(enemy.archetype, enemy.isElite, enemy.xpValue);
   }
 
   private createEnemy(x: number, y: number, archetype: EnemyArchetype, eliteTank = false): void {
@@ -1105,6 +1154,8 @@ export class GameplayScene extends Phaser.Scene {
       xpValue: archetype === 'boss' ? 10 : isElite ? eliteTankData.xpValue : 1,
       collisionRadius: archetype === 'boss' ? 40 : this.enemyRadius });
     if (archetype === 'boss') this.bossSpawned = true;
+    // Initial Chaser is constructed during PREPARING and bootstrapped after seed creation.
+    if (this.run?.state === 'RUNNING') this.runDiagnostics!.recordEnemySpawned(archetype, isElite);
   }
 
   private creditExperience(amount: number, collectedPickup?: XpPickup): void {
@@ -1115,6 +1166,7 @@ export class GameplayScene extends Phaser.Scene {
       collectedPickup.visual.destroy();
       this.xpPickups.splice(this.xpPickups.indexOf(collectedPickup), 1);
     }
+    this.runDiagnostics!.recordXpCredited(amount, this.playerExperience.level - previousLevel, collectedPickup ? 'pickup' : 'dev');
     if (this.playerExperience.level > previousLevel) this.enterLevelUpPause();
   }
 
@@ -1129,6 +1181,7 @@ export class GameplayScene extends Phaser.Scene {
         const boss = activeWarden();
         return {
           runSeed: this.runRandom!.runSeed,
+          diagnostics: this.runDiagnostics!.snapshot(),
           runState: this.run!.state, pauseReasons: this.run!.pauseReasons,
           isPlayerDead: this.isPlayerDead, isRunVictorious: this.isRunVictorious,
           isLevelUpPaused: this.isLevelUpPaused, godMode: this.godMode,

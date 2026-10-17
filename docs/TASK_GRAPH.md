@@ -339,7 +339,7 @@ Never reuse these IDs for unrelated tasks.
 
 ## Mechanical Vertical Slice roadmap
 
-GAME-042/043/044 are DONE; GAME-045 is READY; GAME-046+ remain BACKLOG. Each row gives phase membership, exact dependencies and a
+GAME-042/043/044/045 are DONE; GAME-046+ remain BACKLOG. Each row gives phase membership, exact dependencies and a
 short capability; gates are review checkpoints, not automatic authorization.
 Dependency ranges are inclusive.
 
@@ -350,7 +350,7 @@ Dependency ranges are inclusive.
 | GAME-042 | Run Lifecycle & Fresh Run Boundary | DESIGN-005, GAME-039 | Run lifecycle, terminal and fresh-restart authority; preserve GAME-038 first-terminal semantics. | DONE |
 | GAME-043 | Seeded RNG Streams | GAME-042 | runSeed and independent Encounter/Reward/World/Boss RNG streams. | DONE |
 | GAME-044 | Authoritative Pause & Input Boundary | GAME-042 | Single gameplay pause authority, movement/Active/Pause intents and focus-loss semantics. | DONE |
-| GAME-045 | Telemetry & Diagnostics Foundation | GAME-042 | Run timeline, aggregates and diagnostics foundation. | READY |
+| GAME-045 | Telemetry & Diagnostics Foundation | GAME-042 | Run timeline, aggregates and diagnostics foundation. | DONE |
 
 #### GAME-042 — Run Lifecycle & Fresh Run Boundary
 
@@ -547,7 +547,7 @@ Production preview boots with DEV API absent. Known favicon404 and Vite bundle-s
 no new pageerrors observed.
 
 CURRENT_STATE and real PROJECT_GRAPH ownership are updated. DESIGN-005/GAME-039 stay DONE,
-GAME-040/041 SUPERSEDED; GAME-043 DONE; GAME-044 DONE; GAME-045 READY; GAME-046+ BACKLOG. GATE A remains incomplete. Explicit staging
+GAME-040/041 SUPERSEDED; GAME-043 DONE; GAME-044 DONE; GAME-045 DONE; GAME-046+ BACKLOG. GATE A PASSED — Runtime Foundation approved; GAME-046+ remain BACKLOG pending separate definition. Explicit staging
 and ignored .codex-review/GAME-042-review.txt follow AGENTS.md; no commit is created.
 
 #### GAME-043 — Seeded RNG Streams
@@ -749,7 +749,7 @@ Out of scope: GAME-044 Pause/Input, GAME-045 telemetry, GAME-046 Build, Encounte
 templates/pressure/portals/weights, full Reward Generator/Analyzer/pity/recent offers,
 World Scheduler/events, BossController/Juggernaut, RunResult/RunReport, replay recording,
 daily seeds, seed entry/query/settings/reseed DEV command, save/meta/profile, arbitrary
-named/forkable RNG framework, service locator or new dependency. GATE A stays incomplete.
+named/forkable RNG framework, service locator or new dependency. GATE A PASSED — Runtime Foundation approved; GAME-046+ remain BACKLOG pending separate definition.
 
 **Implementation completion evidence**
 
@@ -769,7 +769,7 @@ fixed-seed spawn/offer sequences and cross-stream isolation. Two actual Victory 
 cycles and one Death RETRY (plus nonterminal/Missile/Cluster native restarts) dispose old
 streams and retain fresh RNG/lifecycle/API/five events with inert stale callbacks.
 Production canvas boots with DEV API absent; only known favicon404 and build chunk-size
-warnings remain. GAME-044 DONE; GAME-045 READY; GAME-046+ BACKLOG; GAME-040/041 SUPERSEDED; GATE A incomplete.
+warnings remain. GAME-044 DONE; GAME-045 DONE; GAME-046+ BACKLOG; GAME-040/041 SUPERSEDED; GATE A PASSED — Runtime Foundation approved; GAME-046+ remain BACKLOG pending separate definition.
 
 **Definition validation and documentation (historical definition-only instructions)**
 
@@ -783,7 +783,7 @@ After successful later implementation and tracked/native checks, GAME-043 may be
 CURRENT_STATE describes actual seed/streams/consumers/determinism and PROJECT_GRAPH maps
 real files/exports/consumers. ARCHITECTURE normally stays unchanged except a factual stale
 implementation-status correction if necessary. Keep DESIGN-005/GAME-039/GAME-042 DONE,
-GAME-040/041 SUPERSEDED; GAME-044 DONE; GAME-045 READY; GAME-046+ BACKLOG. GATE A remains incomplete pending GAME-045.
+GAME-040/041 SUPERSEDED; GAME-044 DONE; GAME-045 DONE; GAME-046+ BACKLOG. GATE A PASSED — Runtime Foundation approved; GAME-046+ remain BACKLOG pending separate definition.
 
 #### GAME-044 — Authoritative Pause & Input Boundary
 
@@ -1057,7 +1057,7 @@ scheduler/timers/dependencies, rebinding/controller/gamepad/mouse aiming, access
 settings or input recording/replay. No implementation is authorized in this definition task.
 
 Now change only TASK_GRAPH: GAME-044 BACKLOG->READY, source-grounded definition and necessary
-roadmap/status consistency. GAME-042/043 DONE; GAME-040/041 SUPERSEDED; GAME-045 READY; GAME-046+ BACKLOG.
+roadmap/status consistency. GAME-042/043 DONE; GAME-040/041 SUPERSEDED; GAME-045 DONE; GAME-046+ BACKLOG.
 Run npm run check and git diff --check; stage only docs/TASK_GRAPH.md, inspect complete
 git diff --cached, run cached check/stat, create ignored .codex-review/GAME-044-review.txt
 with branch/base, complete ownership inventory/contracts/validation and full staged diff.
@@ -1090,21 +1090,21 @@ Missile/Cluster cycles pass: fresh authority/adapter/RNG/API, zero reasons, unpa
 five fresh events, old streams throw and saved stale callbacks draw zero on all fresh streams.
 Unmodified production preview passes keyboard/Space/Escape and 700ms rendered pause freeze
 without DEV API/debug controls. Only known favicon404 and Vite chunk-size warnings remain.
-GAME-042/043/044 DONE; GAME-040/041 SUPERSEDED; GAME-045 READY; GAME-046+ BACKLOG; GATE A incomplete.
+GAME-042/043/044 DONE; GAME-040/041 SUPERSEDED; GAME-045 DONE; GAME-046+ BACKLOG; GATE A PASSED — Runtime Foundation approved; GAME-046+ remain BACKLOG pending separate definition.
 
 #### GAME-045 — Telemetry & Diagnostics Foundation
 
-STATUS: READY
+STATUS: DONE
 
 **Dependencies:** GAME-042 DONE; preserve implemented GAME-043/044 contracts (DONE).
-Definition only; runtime implementation requires its own task. Add one focused Phaser-free
-run-scoped RunDiagnostics observer (for example src/game/run/RunDiagnostics.ts plus tests).
+Implemented focused Phaser-free run-scoped RunDiagnostics observer in
+src/game/run/RunDiagnostics.ts with pure and actual Scene integration tests.
 GameplayScene remains composition root and explicitly records actual accepted boundaries.
 Diagnostics never decides damage, rewards, RNG, difficulty, spawning, pause or terminal outcome.
 RunLifecycle keeps lifecycle/pause/terminal authority; RunRandom keeps seed/stream ownership.
 No global manager, service locator, DI, plugin, event bus or generic track(name,payload) API.
 
-**Current observable-boundary inventory and source audit**
+**Pre-implementation observable-boundary inventory and source audit**
 
 Audited tracked src at HEAD 30684cc5f6e937d74059a9e3901eb2de197c5d03 after GAME-044,
 including tests, for telemetry/diagnostics/metrics/counters/report/performance, elapsed/
@@ -1273,7 +1273,7 @@ No network/SDK/backend/upload, persistence/localStorage/save/profile/meta, stati
 download button, crash service, replay/daily-run or nonexistent Director/Build/Core/World/
 Event/BossController metrics; no new dependency or generic analytics architecture.
 
-**Required tests for later implementation**
+**Implementation test requirements**
 
 Preserve all264 current tests/20 files and GAME-039/042/043/044 assertions. Add pure owner
 tests and actual Scene production-path integration, not parallel fake gameplay algorithms:
@@ -1288,7 +1288,7 @@ tests and actual Scene production-path integration, not parallel fake gameplay a
 | Isolation/terminal | Record/snapshot draws0 all four streams; fixed-seed/state/delta scenarios match telemetry and gameplay; no clock/input/eligibility/damage mutations. Death-first/victory-first, straight/Missile/Cluster atomicity, exact one terminal with frozen elapsed |
 | Lifetime/DEV | Fresh collector identity/bootstrap after native reset; old disposed and captured old timer/input/focus/reward/control callbacks cannot write fresh history. Existing RNG/API/input/Clock ownership and five events intact; nested DEV diagnostics detached; five commands only |
 
-**Required real browser/native validation for later implementation**
+**Implementation browser/native validation requirements**
 
 1. Normal DEV root boot: RUNNING, valid stable seed, defined initial bootstrap baseline,
    five events/five commands; no instrumentation RNG draws.
@@ -1311,7 +1311,7 @@ tests and actual Scene production-path integration, not parallel fake gameplay a
    no introduced analytics/network traffic. Inspect console, separate known favicon/bundle
    warnings and report actual evidence apart from tracked fixtures; no new runtime claims now.
 
-**Definition validation and future documentation**
+**Original definition validation and implementation documentation rules**
 
 Now change only TASK_GRAPH, GAME-045 BACKLOG->READY and necessary roadmap consistency.
 Run npm run check and git diff --check; stage only docs/TASK_GRAPH.md; inspect full cached
@@ -1323,7 +1323,33 @@ update factual runtime docs/map. GAME-046+ remain BACKLOG pending separate autho
 GATE A remains incomplete until implementation, validation AND architect gate review;
 GAME-045 DONE by itself must not automatically close the gate or unlock later tasks.
 
-**GATE A — Runtime Foundation** — review the preceding phase capabilities before its cutover/next proof.
+**GAME-045 implementation completion evidence**
+
+RunDiagnostics owns validated immutable uint32 seed, full active-update elapsed, independent
+historical aggregates, exactly six typed semantic records/newest 256 retention with eviction
+count, terminal freeze and explicit start/disposal invariants. Numeric/identity/overflow checks
+reject atomically; input/snapshot nested data is copied. Scene bootstraps the existing initial
+Chaser once after RNG; common spawn/kill/drop/damage/XP paths observe accepted results only.
+Typed constructed offers and applied selections retain selection-before-final-resume order.
+Actual composed pause transitions add no fake rows; terminal remains at existing completed
+attack boundaries, including no resume from PAUSED. Nested DEV diagnostics adds no command.
+Captured exact-owner disposal and old callback guards preserve native fresh-run boundaries.
+No gameplay authority, extra RNG draws/timer, generic tracking API, performance volume,
+network/persistence/UI or dependency was added.
+
+npm run check passes 309 tests/21 files: all 264 prior cases plus 35 pure observer and 10 actual
+Scene integration cases. Real Chrome validates active elapsed and 1500ms pause stability,
+timed spawn/common kill/drop/collection/damage, real pointer selection, genuine BLUR/reward
+composition, terminal races and straight/Missile/Cluster atomicity. Two Victory NEW RUN cycles,
+Death RETRY and paused nonterminal native restart validate fresh bootstrap/five events and
+inert stale owners/callbacks. Unmodified production preview verifies keyboard/Dash/pause,
+DEV absence and local static-only network requests. HIDDEN/VISIBLE combinations remain
+separately identified synthetic tracked coverage; known favicon404/bundle-size warnings only.
+
+GAME-045 DONE; GAME-040/041 SUPERSEDED; GAME-046+ remain BACKLOG.
+GATE A PASSED — Runtime Foundation approved; GAME-046+ remain BACKLOG pending separate definition. No later task is unlocked.
+
+**GATE A — Runtime Foundation — PASSED**
 
 ### PHASE B — PlayerBuild / Combat / Enemy Runtime
 

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { GameplayScene } from './GameplayScene';
 import { RunLifecycle } from '../run/RunLifecycle';
 import { RunRandom } from '../run/RunRandom';
+import { RunDiagnostics } from '../run/RunDiagnostics';
 
 class EventEmitter {
   private callbacks = new Map<string, Set<(...args: unknown[]) => void>>();
@@ -50,8 +51,11 @@ function fixture() {
   const created: ReturnType<typeof visual>[] = [];
   const run = new RunLifecycle();
   run.start();
+  const runDiagnostics = new RunDiagnostics(0);
+  runDiagnostics.recordRunStarted();
   Object.assign(scene, {
     run,
+    runDiagnostics,
     time: { paused: false }, input: {}, game: { events: new EventEmitter() },
     runRandom: new RunRandom(0),
     cameras: { main: { worldView: { left: 1440, right: 3360, top: 810, bottom: 1890 } } },
@@ -400,7 +404,7 @@ describe('GAME-042 real Scene terminal integration', () => {
     expect(oldApi.snapshot()).toBeNull();
     expect(scene['gameplayTimers']).toHaveLength(5);
     expect(scene['gameplayTimers'].every(t => !timers.includes(t))).toBe(true);
-    for (const callback of lifecycleCallbacks.slice(0, 4)) callback();
+    for (const callback of lifecycleCallbacks.slice(0, 5)) callback();
     for (const callback of callbacks) callback();
     expect(encounter).not.toHaveBeenCalled();
     expect(reward).not.toHaveBeenCalled();
@@ -727,5 +731,122 @@ describe('GAME-044 authoritative pause and input production paths', () => {
     expect(s.time.paused).toBe(true); oldInput.reset(); oldInput.dispose();
     expect(s['run']!.pauseReasons).toEqual(['MANUAL']);
     expect(snapshot).toMatchObject({ runState: 'RUNNING', pauseReasons: [], gameplayTimerCount: 5 });
+  });
+});
+
+describe('GAME-045 concrete diagnostics production observations', () => {
+  const shot = (s: GameplayScene) => s['launchPlayerProjectile']({ x: 2800, y: 1350 }, { x: 1, y: 0 }, 1, 1200, 2000, 6, 0xffffff);
+  const boss = (s: GameplayScene) => { s['createEnemy'](2800, 1350, 'boss'); const e = s['enemies'].at(-1)!; e.health = 1; return e; };
+  it('actual create bootstraps the existing Chaser after start/seed, with detached diagnostics and five commands', () => {
+    const { scene: s } = fixture(); allowCreate(s); s.create();
+    const api = window.__NEBULA_DEV__!, d = api.snapshot()!.diagnostics;
+    expect(d.runSeed).toBe(s['runRandom']!.runSeed);
+    expect(d).toMatchObject({ gameplayElapsedMs: 0, aggregates: { spawned: { total: 1, byArchetype: { chaser: 1 } } },
+      timeline: [{ type: 'RUN_STARTED', gameplayElapsedMs: 0 }], terminal: null });
+    expect(Object.keys(api)).toEqual(['snapshot', 'forceLevelUp', 'spawnWarden', 'setWardenHealth', 'setGodMode']);
+    d.aggregates.spawned.byArchetype.chaser = 99; d.timeline.length = 0;
+    const draws = spyStreams(s); for (let i = 0; i < 5; i++) api.snapshot();
+    expect(api.snapshot()!.diagnostics.aggregates.spawned.total).toBe(1);
+    expect(api.snapshot()!.diagnostics.timeline).toHaveLength(1);
+    for (const draw of draws) expect(draw).not.toHaveBeenCalled();
+  });
+  it('observes timed/Elite/Warden and deterministic DEV spawns but not blocked attempts', () => {
+    const { scene: s } = fixture();
+    for (let i = 0; i < 30; i++) { s['enemies'] = []; s['spawnEnemy'](); }
+    const d = s['runDiagnostics']!.snapshot();
+    expect(d.aggregates.spawned).toEqual({ total: 30, byArchetype: { chaser: 20, shooter: 5, tank: 4, boss: 1 }, eliteTanks: 2 });
+    s['spawnEnemy'](); expect(s['runDiagnostics']!.snapshot()).toEqual(d);
+    expect(s['successfulTimedSpawns']).toBe(30);
+    const other = fixture(); expect(other.api.spawnWarden()).toBe(true); expect(other.api.spawnWarden()).toBe(false);
+    expect(other.api.snapshot()!.diagnostics.aggregates.spawned.byArchetype.boss).toBe(1);
+    expect(other.scene['successfulTimedSpawns']).toBe(0);
+    const capped = fixture(); for (let i = 0; i < 10; i++) capped.scene['createEnemy'](100, 100, 'chaser');
+    const before = capped.api.snapshot()!.diagnostics; capped.scene['spawnEnemy'](); expect(capped.api.snapshot()!.diagnostics).toEqual(before);
+  });
+  it('actual nonlethal/hit/removal records a kill/drop once, Boss aggregates precede atomic terminal', () => {
+    const { scene: s, api } = fixture();
+    s['createEnemy'](2800, 1350, 'chaser'); const enemy = s['enemies'][0]; shot(s); s['updateProjectiles'](0);
+    expect(api.snapshot()!.diagnostics.aggregates.killed.total).toBe(0);
+    enemy.health = 1; shot(s); s['updateProjectiles'](0); s['killEnemy'](enemy);
+    expect(api.snapshot()!.diagnostics.aggregates).toMatchObject({ killed: { total: 1 }, xpDropped: 1 });
+    const other = fixture(); const e = boss(other.scene); shot(other.scene); other.scene['updateProjectiles'](0);
+    const d = other.api.snapshot()!.diagnostics;
+    expect(e.visual.active).toBe(false); expect(d.aggregates).toMatchObject({ killed: { byArchetype: { boss: 1 } }, xpDropped: 10 });
+    expect(d.timeline.at(-1)).toMatchObject({ type: 'TERMINAL', outcome: 'VICTORY' });
+    expect(d.timeline.filter(row => row.type === 'TERMINAL')).toHaveLength(1);
+  });
+  it('counts accepted actual HP loss, ignores GodMode/protection/pause and clamps lethal damage before terminal', () => {
+    const { scene: s, api } = fixture(); api.setGodMode(true); s['damagePlayer'](3); api.setGodMode(false);
+    s['damagePlayer'](0.5); s['damagePlayer'](3);
+    expect(api.snapshot()!.diagnostics.aggregates).toMatchObject({ acceptedDamagingHits: 1, hpLost: 0.5 });
+    s['handlePauseRequest'](); s['damagePlayer'](100); s['canResume'] = () => true; s['handlePauseRequest']();
+    s['playerDamageProtectionRemaining'] = 0; s['damagePlayer'](100);
+    const d = api.snapshot()!.diagnostics;
+    expect(d.aggregates).toMatchObject({ acceptedDamagingHits: 2, hpLost: 5 });
+    expect(d.timeline.at(-1)).toMatchObject({ type: 'TERMINAL', outcome: 'DEATH' });
+    s['enterRunVictory'](); s['enterPlayerDeath'](); expect(api.snapshot()!.diagnostics).toEqual(d);
+  });
+  it('common XP credit splits real pickup/DEV, preserving drop/credit/pause and no duplicate collection', () => {
+    const { scene: s, api } = fixture(); s['createEnemy'](2400, 1350, 'tank', true); s['killEnemy'](s['enemies'][0]);
+    s['updateXpPickups'](0); s['updateXpPickups'](0);
+    expect(api.snapshot()!.diagnostics.aggregates).toMatchObject({ xpDropped: 5, xpCollected: 5, xpCredited: 5, xpDevCredited: 0, levelsGained: 1, offersPresented: 1 });
+    s['levelUpPresentation'][1].emit('pointerdown'); api.forceLevelUp();
+    expect(api.snapshot()!.diagnostics.aggregates).toMatchObject({ xpCredited: 15, xpCollected: 5, xpDevCredited: 10, levelsGained: 2, offersPresented: 2 });
+  });
+  it('typed offer and once-only selected identity precede resume, stable/rejected reads add nothing', () => {
+    const f = inputFixture(), s = f.scene; const draws = spyStreams(s); f.api.forceLevelUp();
+    let d = f.api.snapshot()!.diagnostics;
+    expect(d.timeline.map(row => row.type)).toEqual(['RUN_STARTED', 'PAUSE_ENTERED', 'LEVEL_UP_OFFERED']);
+    expect(d.timeline.at(-1)).toMatchObject({ choices: ['laser.power', 'passive.combat', 'laser.speed'] });
+    f.escape(); s.update(0, 3000); f.api.forceLevelUp(); expect(f.api.snapshot()!.diagnostics).toEqual(d);
+    const choice = s['levelUpPresentation'][1]; choice.emit('pointerdown');
+    s['acceptLevelUpChoice'](choice, { kind: 'laser', upgrade: 'power' });
+    d = f.api.snapshot()!.diagnostics;
+    expect(d.timeline.slice(-2).map(row => row.type)).toEqual(['LEVEL_UP_SELECTED', 'PAUSE_RESUMED']);
+    expect(d.timeline.at(-2)).toMatchObject({ choice: 'laser.power' }); expect(d.aggregates.choicesAccepted).toBe(1);
+    expect(draws.map(draw => draw.mock.calls.length)).toEqual([0, 2, 0, 0]);
+    f.api.forceLevelUp(); const before = f.api.snapshot()!.diagnostics;
+    s['acceptLevelUpChoice'](choice, { kind: 'laser', upgrade: 'power' }); expect(f.api.snapshot()!.diagnostics).toEqual(before);
+  });
+  it('observes only high-level manual/focus/reward transitions, never reason composition or focus restoration', () => {
+    const f = inputFixture(), s = f.scene; f.escape(); s.game.events.emit('blur'); s.game.events.emit('hidden'); s.game.events.emit('blur');
+    let d = f.api.snapshot()!.diagnostics; expect(d.aggregates).toMatchObject({ pauseEntries: 1, pauseResumes: 0 });
+    s.game.events.emit('focus'); s.game.events.emit('visible'); expect(f.api.snapshot()!.diagnostics).toEqual(d);
+    f.escape(); expect(f.api.snapshot()!.diagnostics.aggregates.pauseResumes).toBe(1);
+    f.api.forceLevelUp(); s.game.events.emit('blur'); s['levelUpPresentation'][1].emit('pointerdown');
+    d = f.api.snapshot()!.diagnostics; expect(d.aggregates).toMatchObject({ pauseEntries: 2, pauseResumes: 1 });
+    s.game.events.emit('focus'); f.escape(); expect(f.api.snapshot()!.diagnostics.aggregates.pauseResumes).toBe(2);
+  });
+  it('advances once after active guards, never pause/resume frames or terminal, no extra RNG', () => {
+    const f = inputFixture(), s = f.scene; s.update(0, 16.5); s.update(0, 23.5);
+    expect(f.api.snapshot()!.diagnostics.gameplayElapsedMs).toBe(40);
+    f.escape(); s.update(0, 9999); f.escape(); expect(f.api.snapshot()!.diagnostics.gameplayElapsedMs).toBe(40);
+    f.api.forceLevelUp(); s.update(0, 9999); s['levelUpPresentation'][1].emit('pointerdown');
+    s.game.events.emit('blur'); s.update(0, 9999); s.game.events.emit('focus'); f.escape();
+    s.update(0, 10); s['enterPlayerDeath'](); const d = f.api.snapshot()!.diagnostics; s.update(0, 9999);
+    expect(d.terminal).toEqual({ outcome: 'DEATH', gameplayElapsedMs: 50 }); expect(f.api.snapshot()!.diagnostics).toEqual(d);
+    const scenario = () => {
+      const next = inputFixture(); next.scene.update(0, 16.5); next.scene['spawnEnemy'](); next.api.forceLevelUp();
+      next.scene['levelUpPresentation'][1].emit('pointerdown'); next.scene.update(0, 23.5);
+      return { snapshot: next.api.snapshot(), enemies: next.scene['enemies'].map(e => [e.archetype, e.visual.x, e.visual.y]) };
+    };
+    expect(scenario()).toEqual(scenario()); // Same seed, decisions and active deltas reproduce gameplay and observations.
+  });
+  it('terminal from REWARD pause emits no artificial resume, snapshots/recording do not consume RNG', () => {
+    const { scene: s, api } = fixture(); api.forceLevelUp(); const draws = spyStreams(s);
+    s['enterPlayerDeath'](); const d = api.snapshot()!.diagnostics;
+    expect(d.aggregates.pauseResumes).toBe(0); expect(d.timeline.at(-1)?.type).toBe('TERMINAL');
+    api.snapshot(); s['enterPlayerDeath'](); expect(api.snapshot()!.diagnostics).toEqual(d);
+    for (const draw of draws) expect(draw).not.toHaveBeenCalled();
+  });
+  it('captured old cleanup/callbacks cannot record into fresh diagnostics on Scene reuse', () => {
+    const { scene: s, shutdown } = fixture(); allowCreate(s);
+    const cleanups: Array<() => void> = [], once = s.events.once.bind(s.events);
+    vi.spyOn(s.events, 'once').mockImplementation((key, fn, ctx) => { if (key === 'shutdown') cleanups.push(fn as () => void); return once(key, fn, ctx); });
+    s.create(); const old = s['runDiagnostics']!, callbacks = s['gameplayTimers'].map(t => t.callback);
+    s['handlePauseRequest'](); shutdown(); s.create(); const fresh = s['runDiagnostics']!, before = fresh.snapshot();
+    expect(fresh).not.toBe(old); expect(() => old.advance(1)).toThrow('disposed'); expect(() => old.snapshot()).toThrow('disposed');
+    for (const callback of cleanups.slice(0, 5)) callback(); for (const callback of callbacks) callback();
+    expect(fresh.snapshot()).toEqual(before); expect(before.aggregates.spawned.total).toBe(1); expect(before.timeline).toHaveLength(1);
   });
 });

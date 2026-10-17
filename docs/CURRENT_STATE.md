@@ -14,7 +14,7 @@ Do not place future plans or speculative features here.
 
 Current phase:
 
-FIRST PLAYABLE CORE LOOP COMPLETE / GAME-044 COMPLETE
+FIRST PLAYABLE CORE LOOP COMPLETE / GAME-045 COMPLETE
 
 The project has a working browser application, development toolchain and placeholder gameplay scene.
 
@@ -237,7 +237,7 @@ This is intentional.
 In Vite development runtime, the current GameplayScene publishes `window.__NEBULA_DEV__`
 with exactly snapshot(), forceLevelUp(), spawnWarden(), setWardenHealth(health) and
 setGodMode(enabled). Production preview boots without this property.
-snapshot() returns detached numeric runSeed, runState and ordered pauseReasons, plain terminal/God Mode, HP/protection, nested level/XP/threshold,
+snapshot() returns detached numeric runSeed, nested diagnostics, runState and ordered pauseReasons, plain terminal/God Mode, HP/protection, nested level/XP/threshold,
 Boss flags/current Warden HP/derived phase, timed-spawn count, enemy count and actual
 owned TimerEvent count. It changes no gameplay state or offers.
 
@@ -263,6 +263,38 @@ real choice acceptance, Warden phase movement/bursts and attack-triggered Victor
 projectile/contact behavior, two actual Victory NEW RUN native restarts and one ordinary
 Death RETRY. Each restart has baseline flags/XP/God Mode, fresh API, five fresh events and
 inert old captured API.
+
+## Run diagnostics
+
+GameplayScene owns one Phaser-free RunDiagnostics per create, constructed from RunRandom.runSeed
+after successful lifecycle start. It records RUN_STARTED at 0 and the existing PREPARING-created
+Chaser once (spawned.total 1/chaser 1); no enemy recreation or extra RNG draw occurs.
+Only valid active updates add their full delta once before movement/combat. Pause/resume
+frames returning early, paused frames and terminal frames add nothing. Update observations
+use end-of-active-frame time; earlier Clock callbacks use the last accumulated time.
+
+Historical aggregates count completed spawns/kills by chaser/shooter/tank/boss (Elite Tank
+subset), actual accepted HP loss/hits, dropped XP, credited XP split into pickup/DEV sources,
+levels gained, constructed offers, accepted choices and actual pause entries/resumes.
+The semantic timeline contains only RUN_STARTED, PAUSE_ENTERED, PAUSE_RESUMED,
+LEVEL_UP_OFFERED, LEVEL_UP_SELECTED and TERMINAL. It retains the newest 256 records, counting
+each oldest-row eviction without losing aggregate totals. Typed choice identities come from
+LevelUpChoice data. Selection precedes final reward resume; composed reasons do not add fake
+transitions, and terminal from PAUSED adds no resume. Accepted terminal freezes diagnostics
+after the existing completed attack boundary; diagnostics never decides gameplay outcomes.
+
+The five-command DEV snapshot exposes a deeply detached JSON-serializable diagnostics field;
+reads neither mutate history nor consume RNG. Exact captured shutdown/destroy cleanup disposes
+only that create's owner. Disposed mutation/snapshot calls throw; native restart creates a new
+seed-matched bootstrap with no retained history. No new timer, authority, transport, persistence,
+performance counter or UI is added.
+
+Tracked pure/Scene tests and real Chrome checks cover active elapsed, a 1500ms manual-pause
+freeze, actual spawn/kill/drop/collection/damage, real pointer selection and genuine browser
+BLUR with reward/focus composition. HIDDEN/VISIBLE combinations have synthetic tracked
+coverage. Two native Victory NEW RUN cycles, Death RETRY and paused nonterminal restart
+verify fresh owners/five events and inert stale callbacks. Unmodified production preview
+retains keyboard/Dash/pause, omits DEV API and makes only local static asset requests.
 
 ## Run lifecycle and fresh-run ownership
 
@@ -380,7 +412,7 @@ Gameplay prototypes will initially use placeholders and simple geometry.
 
 Nine unit tests cover collision.ts, eight cover progression/experience.ts, six cover player/dash.ts timing/expiry partitions, seven cover enemies/shooterMovement.ts band rules, and six cover progression/selectChoices.ts size, distinctness, membership, nonmutation, controlled randomness, repeated offers and input boundaries.
 
-Eight pure Prism eligibility cases, seven pure spread cases and seventeen focused-upgrade cases also pass, for 264 tracked tests across twenty files. All 223 pre-GAME-044 cases remain, including 21 pure RunRandom and 17 Scene RNG cases; GAME-044 adds 11 lifecycle, 17 keyboard and 13 Scene integration cases. Coverage includes five Replication radius cases, six Spatial radius cases, eight Cluster eligibility cases, six Cluster geometry cases, eight Twin eligibility cases and twenty-four evolution-offer cases. Fourteen Warden schedule/phase/burst cases cover spawn30, HP60/31/30/1/0, normalized world-angle bursts and deterministic independent outputs. Seven Elite schedule cases cover Tank6/12/18/24, non-Tanks and deterministic input stability. Real-browser scene validation covers rank caps, next-pause offers, volley/snapshot behavior and two native RETRY cycles restoring five gameplay timers.
+Eight pure Prism eligibility cases, seven pure spread cases and seventeen focused-upgrade cases also pass, for 309 tracked tests across twenty-one files. GAME-045 preserves all 264 prior cases and adds 35 pure diagnostics plus 10 actual Scene integration cases. All 223 pre-GAME-044 cases remain, including 21 pure RunRandom and 17 Scene RNG cases; GAME-044 adds 11 lifecycle, 17 keyboard and 13 Scene integration cases. Coverage includes five Replication radius cases, six Spatial radius cases, eight Cluster eligibility cases, six Cluster geometry cases, eight Twin eligibility cases and twenty-four evolution-offer cases. Fourteen Warden schedule/phase/burst cases cover spawn30, HP60/31/30/1/0, normalized world-angle bursts and deterministic independent outputs. Seven Elite schedule cases cover Tank6/12/18/24, non-Tanks and deterministic input stability. Real-browser scene validation covers rank caps, next-pause offers, volley/snapshot behavior and two native RETRY cycles restoring five gameplay timers.
 
 Vitest is installed and configured.
 
@@ -434,7 +466,7 @@ These should only be introduced when real project requirements justify them.
 
 The placeholder arena, bounded desktop movement, camera follow, repeated enemy spawning/chase, nearest-enemy targeting and Laser projectile impacts with enemy damage/death are implemented and browser-verified.
 
-GAME-001 through GAME-039 and GAME-042/043/044 are complete. GAME-040/041 are SUPERSEDED; GAME-045+ remain BACKLOG. GATE A remains incomplete.
+GAME-001 through GAME-039 and GAME-042/043/044/045 are complete. GAME-040/041 are SUPERSEDED; GAME-046+ remain BACKLOG. GATE A PASSED — Runtime Foundation approved; GAME-046+ remain BACKLOG pending separate definition.
 
 ---
 
