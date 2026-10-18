@@ -4,8 +4,8 @@
 
 - Project: NEBULA.
 - Milestone: First Playable / GAME-015 complete.
-- Source baseline HEAD: `4ef10beb8e9d517bba300ae48fc5a14ab03189a8`.
-- This map reflects that source baseline plus the staged GAME-048 PlayerDefense ownership; current Scene retains combat/presentation and GAME-039 DEV wiring.
+- Source baseline HEAD: `102879220f6264c3a7477550530f264f0634ea90`.
+- This map reflects that source baseline plus the staged GAME-049 combat resolution/immutable launch snapshots; current Scene retains geometry/death/presentation and GAME-039 DEV wiring.
 - Active task request defines task-specific requirements.
 - AGENTS.md defines repository policy.
 - TASK_GRAPH.md defines task scope, dependencies and status.
@@ -39,7 +39,9 @@ IDs are repository-relative paths; symbols use `path#export`.
 | `src/game/player/PlayerDefense.ts` | Phaser-free current Hull/Shield/protection arithmetic, detached snapshot and exact-owner disposal; no maximum or lifecycle ownership |
 | `src/game/player/PlayerDefense.test.ts` | 35 pure validation/Shield-first/loss/protection/heal/cap/detachment/lifetime cases |
 | `src/game/devTools.ts` | DevSnapshot with numeric runSeed/runState/copied ordered pauseReasons and detached nested diagnostics/build; five-command DevTools types, no runtime registry |
-| `src/game/scenes/GameplayScene.devTools.test.ts` | 158 tracked Scene/DevTools/lifecycle/RNG/pause/input/diagnostics/Build/Tag/Defense cases, including installed Phaser Clock phase integration |
+| `src/game/scenes/GameplayScene.devTools.test.ts` | 174 tracked Scene/DevTools/lifecycle/RNG/pause/input/diagnostics/Build/Tag/Defense/combat cases, including installed Phaser Clock phase integration |
+| `src/game/combat/combat.ts` | Phaser-free exact Attack/source/snapshot/Damage contracts, validated immutable factory and pure composition/hit/enemy arithmetic |
+| `src/game/combat/combat.test.ts` | 71 pure kind/variant/shape/copy/freeze/numeric/composition/phase/actual-loss cases |
 | `src/game/combat/collision.ts` | Pure numeric collision math |
 | `src/game/combat/collision.test.ts` | Tracked geometry tests |
 | `src/game/progression/experience.ts` | Pure XP threshold/award arithmetic and state type |
@@ -109,6 +111,12 @@ IDs are repository-relative paths; symbols use `path#export`.
 | `src/game/player/PlayerDefense.ts#PlayerDefense` | constructor(initialHull), snapshot, advanceProtection, applyIncomingDamage, healHull, reconcileMaxHull, setCurrentShield, dispose; Shield setter has no production caller |
 | `src/game/player/PlayerDefense.ts#PlayerDefenseSnapshot` | Detached currentHull/currentShield/protectionRemaining only |
 | `src/game/player/PlayerDefense.ts#IncomingDefenseResult` | Local accepted/protectionRejected/shieldLost/hullLost/hullDepleted arithmetic result |
+| `src/game/combat/combat.ts#Attack` | Closed LaserAttack/MissileAttack/DroneAttack/HostileAttack/ContactAttack; FlightSnapshot/MissileSnapshot/ContactSnapshot, AttackSnapshot, PlayerAttackSource/AttackSource |
+| `src/game/combat/combat.ts#Damage` | EnemyDamage separates calculatedDamage/healthAfter/hpLost/depleted; PlayerDamage wraps existing IncomingDefenseResult; HitPhase is DIRECT/PRIMARY/SATELLITE/CONTACT |
+| `src/game/combat/combat.ts#createAttack` | Copies exact positive finite bounded primitives; freezes outer and snapshot; validates Cluster half-damage before mutation |
+| `src/game/combat/combat.ts#composePlayerDamage` | Left-to-right local*C*R, Drone-only E; no intermediate cap or other stat factors |
+| `src/game/combat/combat.ts#calculateHitDamage` | Closed legal source/phase rules; snapshot-only full or Cluster-half damage |
+| `src/game/combat/combat.ts#calculateEnemyDamage` | Pure positive HP/damage validation, negative transient overkill HP and actual stored loss |
 | `src/game/combat/collision.ts#segmentCircleHitTime` | First segment-circle hit in [0,1], else Infinity |
 | `src/game/progression/experience.ts#ExperienceState` | Numeric level and XP toward next level |
 | `src/game/progression/experience.ts#xpForNextLevel` | Prototype threshold calculation |
@@ -138,6 +146,9 @@ Runtime labels below describe scene-owned concepts, not separate modules/classes
 | `src/main.ts` | IMPORTS | `src/game/config.ts#gameConfig` |
 | `src/game/config.ts` | IMPORTS | `src/game/scenes/BootScene.ts#BootScene` |
 | `src/game/config.ts` | IMPORTS | `src/game/scenes/GameplayScene.ts#GameplayScene` |
+| `src/game/scenes/GameplayScene.ts` | IMPORTS | `src/game/combat/combat.ts` (factory/composition/hit/enemy results and concrete types) |
+| `src/game/combat/combat.ts` | TYPE_IMPORTS | `src/game/player/PlayerDefense.ts#IncomingDefenseResult` |
+| `src/game/combat/combat.ts` | TESTED_BY | `src/game/combat/combat.test.ts` |
 | `src/game/scenes/GameplayScene.ts` | IMPORTS | `src/game/combat/collision.ts#segmentCircleHitTime` |
 | `src/game/combat/collision.test.ts` | IMPORTS | `src/game/combat/collision.ts#segmentCircleHitTime` |
 | `src/game/combat/collision.ts#segmentCircleHitTime` | TESTED_BY | `src/game/combat/collision.test.ts` |
@@ -236,21 +247,21 @@ All private names below are navigation anchors, not exported symbol nodes.
 | Spawning | spawnEnemy; timedSpawnSequence, successfulTimedSpawns, spawnInterval, maximumEnemies | Same2000ms timer/successful CCCSCT mix; shouldSpawnEliteTank promotes Tank12/24; Warden replaces30, active Boss suppresses spawns/count only; blocked cap10 callbacks retain pending count; create resets0 |
 | Enemy movement | update; chaseDirection; shooterMovement | Shared Chaser/Tank pursuit (regular100/Elite120) / Shooter350–500 inclusive band; Warden70/100 current-HP pursuit; scene clamp max(25, collisionRadius), pure Shooter step |
 | Target/highlight | selectNearestEnemy, currentTarget; update | Nearest active enemy; optional origin/archetype filter reused by Missile/Shooter; temporary outline restores current Boss phase3px/Elite3px/regular2px style |
-| Enemy death | updateProjectiles / updateMissiles → killEnemy | Create one pickup with runtime xpValue (regular1/Elite5/Warden10), destroy visual, splice enemy, clear dead target |
+| Enemy death | updateProjectiles / updateMissiles → applyEnemyHit → killEnemy | Create one pickup with runtime xpValue (regular1/Elite5/Warden10), destroy visual, splice enemy, clear dead target |
 | XP drops | xpPickups; XpPickup; killEnemy | World-space visual + per-kill value1/5/10 + speed; common magnet/collection, create resets collection |
 | XP magnet/collection | updateXpPickups | Stationary outside range; accelerated approach; arrival credits pickup.value then destroys/removes |
 | Player XP/levels | playerExperience; create; updateXpPickups → addExperience | Scene owns state/reset/collection; pure module owns thresholds and carry |
-| Shared projectiles | projectiles; ProjectileRuntime | source, damage, required radius, visual, velocity, remainingLifetime |
+| Shared projectiles | projectiles; ProjectileRuntime | readonly typed Laser/Drone/Hostile Attack + exact run; source/damage/radius derived read-only; visual/velocity/remainingLifetime |
 | Projectile stepping | updateProjectiles | Lifetime-clipped motion; swept impact; reverse removal; lethal Boss projectile cleanup precedes Victory and stops later shots |
 | Projectile cleanup | updateProjectiles | Impact, lifetime and world-exit destruction |
 | Player Laser | laser; laserTimer; fireLaser | Mutable Laser-only damage/interval/speed, baseline 600 ms; existing timer reset for cadence upgrades |
 | Drone / Twin | drone, twinDrone, twinDroneEvolved, droneAngle, droneConfig; updateDrone, positionDrone, fireDrone, fireDroneFrom | One initial companion; Twin adds exactly one mirrored visual at shared angle+PI; same active-time 110px / 2rad orbit, independent center clamp, one shared firing event and per-origin targets/suppression |
 | Replication Matrix | moduleLevels.replication; fireDroneFrom → effectiveDroneBoltRadius | +1 px per level added to baseline Drone bolt radius5 at launch; existing runtime radius owns swept collision/cleanup; acceptance does not change focus/cursors/timers; create resets0 |
 | Drone upgrades | droneRanks, droneAttackValues, droneTimer; acceptLevelUpChoice / fireDrone | Explicit ranks0..2, damage1/2/3, interval1200/1050/900, speed800/1000/1200; same event reset/elapsed0; launch snapshots; create resets |
-| Straight player-shot creation | firePlayerProjectile → launchPlayerProjectile; fireLaser, fireDrone | Existing target aim wrapper and shared direction-based launch snapshot; Prism directions enter launch directly; fireLaser/fireDroneFrom compose local*C*Reactor (Drone adds Engineering), Velocity and physical Scale before this helper stores final values; local radii Laser6/Drone5+Replication |
-| Missile | missile, missileValues, missiles; MissileRuntime; fireMissile, aimMissile, updateMissiles | Separate concrete homing target/heading/lifetime and readonly launch clusterEnabled/damage/speed/explosionRadius/radius; immutable maxActiveMissiles = 1; cap blocks launch without resetting the one 1800 ms timer |
+| Straight player-shot creation | aimProjectile → launchPlayerProjectile; fireLaser, fireDrone | Concrete target aim and exact-run guarded direction launch; fireLaser/fireDroneFrom use composePlayerDamage and createAttack before any visual; Prism shares one Attack, Twin has one per origin; Velocity and physical Scale are stored only in frozen snapshots; local radii Laser6/Drone5+Replication |
+| Missile | missile, missileValues, missiles; MissileRuntime; fireMissile, aimMissile, updateMissiles | Readonly MissileAttack + exact run, concrete homing target/heading/lifetime; read-only variant/numeric getters derive from immutable snapshot; immutable maxActiveMissiles = 1; cap blocks launch without resetting the one 1800 ms timer |
 | Spatial Amplifier | moduleLevels.spatial; fireMissile → effectiveMissileExplosionRadius | Repeatable +15 px per level added to Missile-specific radius at launch; stored MissileRuntime.explosionRadius owns later explosion; no focus/cursor mutation or other consumers |
-| Missile explosion | updateMissiles → explodeMissile → killEnemy | Earliest swept hit point, center-radius snapshot damage once, common XP/death; primary and optional satellites plus Missile cleanup finish before Victory; no direct hit |
+| Missile explosion | updateMissiles → explodeMissile → applyEnemyHit → killEnemy | Earliest swept hit point, center-radius snapshot damage once, common XP/death; primary and optional satellites plus Missile cleanup finish before Victory; no direct hit |
 | Laser upgrades | laserRanks, LaserUpgrade; acceptLevelUpChoice | Explicit independent ranks 0..2; capped upgrades filtered out, numeric effects and same timer reset retained; create resets ranks |
 | Prism Laser | prismEvolved; enterLevelUpPause → canEvolvePrismLaser; fireLaser → prismSpread | New-presentation eligibility only; sole-eligible Slot 3 guarantee or three-evolution arbitration after focused/passive slots; same Laser timer/runtime, three full-damage shots; create resets evolved state |
 | Cluster Missile | clusterEvolved; fireMissile → MissileRuntime.clusterEnabled; updateMissiles → explodeMissile then explodeClusterSatellites | Explicit mastery/Spatial eligibility; primary-first union of six launch-derived satellite circles, one satellite hit per surviving enemy; no extra timer/child projectile |
@@ -391,7 +402,7 @@ level/HP mutation. R/F/V/S/E compose current firing values, C stays separate; Mi
 radius for consistent visual/collision/world exit. Shared FireControl resets only the three same
 player events; local cadence resets stay weapon-specific. snapshot.build is detached, reads do not
 alter RNG/diagnostics. Real pointer/modifier/collision/evolution/focus/native/production checks
-cover the boundary; incoming defense is mapped below, outgoing Attack architecture remains absent.
+cover the boundary; incoming defense and outgoing Attack/Hit boundaries are mapped below.
 
 PlayerBuild TAG_IDS/TagId/TagPoints/BuildIdentity/BuildSnapshot/addTagPoints IMPLEMENT_TASK GAME-047.
 Twelve explicit stored totals start0; existing prototype slots/choices contribute nothing.
@@ -419,12 +430,25 @@ are tests/internal ignored harnesses; Shield Systems has no consumer. No new tim
 Tags/Analyzer/reward behavior. Captured disposal makes old reads/mutations throw; fresh
 native create and saved callback isolation are verified by tracked and actual Phaser tests.
 
+combat.ts + GameplayScene Hit/applyEnemyHit/damagePlayer/ProjectileRuntime/MissileRuntime IMPLEMENT_TASK GAME-049.
+All launch paths create frozen copied concrete Attack snapshots. Exact-run typed Hits use one
+EnemyDamage arithmetic adapter; killEnemy retains removal/Boss flag/XP-drop/diagnostics, with
+source available in the synchronous Hit and no retained death/source registry. Incoming
+PlayerDamage wraps current Defense results with God/protection/Shield/actual-Hull semantics.
+Swept geometry, strict ties, cap/expiry/world exits, Prism independent beams, Twin independent
+origins and Cluster primary then survivor union remain concrete Scene behavior. Complete
+owning cleanup precedes Victory; first-terminal authority stays RunLifecycle. Stale Hits/
+flights guard exact run before fresh enemies/Defense. Five events/five DEV methods and zero
+additional RNG draws remain. Impact/GAME-050+ are deferred. 71 pure +16 new Scene cases,
+actual Chrome offensive/old-new snapshot/pause/BLUR/native terminal/restart and unmodified
+production ordinary Death/real RETRY checks pass. GATE A PASSED; GATE B NOT PASSED.
+
 ## Common navigation queries
 
 | Question | Likely path / anchor |
 | --- | --- |
 | Where is diagnostic history observed? | RunDiagnostics.ts; GameplayScene.ts → create/update/createEnemy/killEnemy/damagePlayer/creditExperience/enterLevelUpPause/acceptLevelUpChoice/observePause/enterPlayerDeath/enterRunVictory/publishDevTools |
-| Where does enemy death happen? | GameplayScene.ts → updateProjectiles / updateMissiles → explodeMissile / killEnemy |
+| Where does enemy death happen? | GameplayScene.ts → updateProjectiles / updateMissiles → applyEnemyHit → killEnemy |
 | Where are XP drops/magnet/collection owned? | GameplayScene.ts → killEnemy, xpPickups, updateXpPickups; create resets |
 | Where are XP thresholds and levels calculated? | src/game/progression/experience.ts; scene playerExperience |
 | Where are level-up choices/resume owned? | GameplayScene.ts → enterLevelUpPause, levelUpPresentation, acceptLevelUpChoice |
@@ -433,9 +457,10 @@ native create and saved callback isolation are verified by tracked and actual Ph
 | Where is player damage controlled? | PlayerDefense.ts numeric Shield/Hull/protection; GameplayScene.ts → damagePlayer ownership/God/diagnostics/HUD/terminal adapter |
 | Where are contact separation and Hull healing owned? | GameplayScene.ts → updatePlayerContact geometry; applyBuildChange/acceptLevelUpChoice → PlayerDefense.reconcileMaxHull/healHull, Build maximum |
 | Who owns projectile movement/lifetime/cleanup? | GameplayScene.ts → updateProjectiles (straight shots), updateMissiles (homing) |
-| Where are Drone orbit/bolts owned? | GameplayScene.ts → droneConfig, droneAttackValues, droneRanks, droneTimer, droneAngle, twinDrone, twinDroneEvolved, updateDrone, positionDrone, fireDrone, fireDroneFrom, firePlayerProjectile / updateProjectiles |
+| Where are Drone orbit/bolts owned? | GameplayScene.ts → droneConfig, droneAttackValues, droneRanks, droneTimer, droneAngle, twinDrone, twinDroneEvolved, updateDrone, positionDrone, fireDrone, fireDroneFrom, aimProjectile / updateProjectiles |
 | Where are Missile homing/explosion owned? | GameplayScene.ts → fireMissile, aimMissile, updateMissiles, explodeMissile; collision.ts sweep |
 | Where is collision math implemented? | collision.ts#segmentCircleHitTime |
+| Where are Attack/Hit/Damage and launch truth owned? | combat/combat.ts types/four pure APIs; GameplayScene.ts → local Hit, applyEnemyHit, damagePlayer and exact-run typed flight runtimes |
 | Where is collision math tested? | src/game/combat/collision.test.ts |
 | Where are enemy archetypes/movement owned? | GameplayScene.ts → EnemyArchetype, enemyData, update; enemies/shooterMovement.ts; eliteTankData / enemies/eliteTank.ts; wardenPhase / enemies/warden.ts |
 | Where are enemy spawn callbacks? | GameplayScene.ts → create timer / spawnEnemy / timedSpawnSequence / successfulTimedSpawns |

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { createAttack, type LaserAttack, type HostileAttack, type ContactAttack } from '../combat/combat';
 import { GameplayScene } from './GameplayScene';
 import { RunLifecycle } from '../run/RunLifecycle';
 import { RunRandom } from '../run/RunRandom';
@@ -47,6 +48,16 @@ vi.mock('phaser', () => ({
   Core: { Events: { BLUR: 'blur', HIDDEN: 'hidden', FOCUS: 'focus', VISIBLE: 'visible' } },
 }));
 
+function playerHit(scene: GameplayScene, amount: number, run = scene['run']!, defense = scene['playerDefense']!) {
+  return scene['damagePlayer']({ kind: 'PLAYER_CONTACT', run, target: defense,
+    attack: createAttack({ kind: 'ENEMY_CONTACT', snapshot: { damage: amount } }) as ContactAttack });
+}
+function playerShot(scene: GameplayScene, x = 2800, damage = 1) {
+  scene['launchPlayerProjectile']({ x, y: 1350 }, { x: 1, y: 0 },
+    createAttack({ kind: 'LASER', variant: 'BASE', snapshot: { damage, speed: 1200, lifetime: 2000, radius: 6 } }) as LaserAttack,
+    scene['run']!, 0xffffff);
+  return scene['projectiles'].at(-1)!;
+}
 function primeProtection(scene: GameplayScene, remaining: number) {
   const defense = scene['playerDefense']!;
   defense.advanceProtection(Number.MAX_VALUE);
@@ -180,12 +191,12 @@ describe('current scene DevTools production operations', () => {
     scene['updatePlayerContact']();
     expect(scene['playerHealth']).toBe(5);
     expect(scene['player']!.x).toBe(2444);
-    scene['launchHostileProjectile'](scene['player']!, 1, 0);
+    scene['launchHostileProjectile'](scene['player']!, 1, 0, scene['run']!);
     scene['updateProjectiles'](0);
     expect(scene['projectiles']).toHaveLength(0);
     expect(scene['playerDamageProtectionRemaining']).toBe(0);
     primeProtection(scene, 50);
-    scene['damagePlayer'](1);
+    playerHit(scene, 1);
     expect(scene['playerDamageProtectionRemaining']).toBe(50);
     api.setGodMode(false);
     scene['playerDefense']!.advanceProtection(500);
@@ -245,7 +256,7 @@ describe('current scene DevTools production operations', () => {
 
 describe('GAME-042 real Scene terminal integration', () => {
   function shot(scene: GameplayScene, x = 2800, damage = 1) {
-    scene['launchPlayerProjectile']({ x, y: 1350 }, { x: 1, y: 0 }, damage, 1200, 2000, 6, 0xffffff);
+    playerShot(scene, x, damage);
     return scene['projectiles'].at(-1)!;
   }
   function boss(scene: GameplayScene, x = 2800) {
@@ -256,7 +267,7 @@ describe('GAME-042 real Scene terminal integration', () => {
   }
   it('real lethal damage accepts one Death/presentation, rejects conflicting/duplicate terminal UI', () => {
     const { scene, api, created } = fixture();
-    scene['damagePlayer'](100);
+    playerHit(scene, 100);
     expect([scene['run']!.state, scene['run']!.outcome]).toEqual(['TERMINAL', 'DEATH']);
     expect([scene['isPlayerDead'], scene['isRunVictorious'], scene['isSimulationPaused']()]).toEqual([true, false, true]);
     scene['enterPlayerDeath']();
@@ -291,7 +302,7 @@ describe('GAME-042 real Scene terminal integration', () => {
     const ui = [...scene['victoryPresentation']];
     scene['enterRunVictory']();
     scene['enterPlayerDeath']();
-    scene['damagePlayer'](100);
+    playerHit(scene, 100);
     expect(scene['victoryPresentation']).toEqual(ui);
     expect(scene['playerHealth']).toBe(5);
     expect(run.outcome).toBe('VICTORY');
@@ -325,7 +336,7 @@ describe('GAME-042 real Scene terminal integration', () => {
   it.each(['DEATH', 'VICTORY'] as const)('actual reverse projectile processing gives %s-first race to the first completed operation', first => {
     const { scene } = fixture();
     const enemy = boss(scene);
-    const hostile = () => scene['launchHostileProjectile']({ x: 2400, y: 1350 }, 1, 0);
+    const hostile = () => scene['launchHostileProjectile']({ x: 2400, y: 1350 }, 1, 0, scene['run']!);
     scene['playerDefense'] = new PlayerDefense(1);
     if (first === 'DEATH') { shot(scene); hostile(); }
     else { hostile(); shot(scene); }
@@ -357,12 +368,12 @@ describe('GAME-042 real Scene terminal integration', () => {
   });
   it('PREPARING and DISPOSED suppress real gameplay and DevTools mutations', () => {
     const { scene, api } = fixture();
-    scene['run'] = new RunLifecycle();
     const p = shot(scene);
+    scene['run'] = new RunLifecycle();
     expect(scene['isSimulationPaused']()).toBe(true);
     expect(api.forceLevelUp()).toBe(false);
     scene['updateProjectiles'](100);
-    scene['damagePlayer'](1);
+    playerHit(scene, 1);
     expect(p.remainingLifetime).toBe(2000);
     expect(scene['playerHealth']).toBe(5);
     scene['run'].dispose();
@@ -391,7 +402,7 @@ describe('GAME-042 real Scene terminal integration', () => {
     const oldApi = window.__NEBULA_DEV__!;
     expect([old.state, old.outcome]).toEqual(['RUNNING', null]);
     expect([scene['drone']!.x, scene['drone']!.y]).toEqual([scene['player']!.x + 110, scene['player']!.y]);
-    scene['damagePlayer'](100);
+    playerHit(scene, 100);
     const retry = created.find(t => t.text === 'RETRY')!;
     const timers = [...scene['gameplayTimers']];
     const callbacks = timers.map(t => t.callback);
@@ -421,7 +432,7 @@ describe('GAME-042 real Scene terminal integration', () => {
     expect(scene['projectiles']).toHaveLength(0);
     expect(fresh.state).toBe('RUNNING');
     // Even if the new run dies, the old retained RETRY cannot restart it.
-    scene['damagePlayer'](100);
+    playerHit(scene, 100);
     retry.emit('pointerdown');
     expect(restart).not.toHaveBeenCalled();
   });
@@ -572,7 +583,7 @@ describe('Scene run-scoped randomness production boundaries', () => {
     expect(Object.keys(api)).toEqual(['snapshot', 'forceLevelUp', 'spawnWarden', 'setWardenHealth', 'setGodMode']);
     expect(Object.values(api.snapshot()!).every(v => typeof v !== 'function')).toBe(true);
     api.spawnWarden(); api.setWardenHealth(30); scene['fireHostileProjectile']();
-    scene['damagePlayer'](1); scene['updateHud']();
+    playerHit(scene, 1); scene['updateHud']();
     for (const draw of draws) expect(draw).not.toHaveBeenCalled();
     api.forceLevelUp(); scene['levelUpPresentation'][1].emit('pointerdown');
     const before = draws.map(draw => draw.mock.calls.length);
@@ -684,7 +695,7 @@ describe('GAME-044 authoritative pause and input production paths', () => {
       enemies: s['enemies'], projectiles: s['projectiles'], missiles: s['missiles'], pickups: s['xpPickups'] });
     const before = state(), draws = spyStreams(s);
     s.update(0, 5000); s['spawnEnemy'](); s['fireLaser'](); s['fireMissile'](); s['fireDrone'](); s['fireHostileProjectile']();
-    s['updateProjectiles'](5000); s['updateMissiles'](5000); s['updateXpPickups'](5000); s['updatePlayerContact'](); s['damagePlayer'](100);
+    s['updateProjectiles'](5000); s['updateMissiles'](5000); s['updateXpPickups'](5000); s['updatePlayerContact'](); playerHit(s, 100);
     expect(state()).toBe(before); for (const draw of draws) expect(draw).not.toHaveBeenCalled();
   });
   it('actual installed Phaser Clock preserves five event phases and resumes same objects without catch-up', async () => {
@@ -743,7 +754,7 @@ describe('GAME-044 authoritative pause and input production paths', () => {
 });
 
 describe('GAME-045 concrete diagnostics production observations', () => {
-  const shot = (s: GameplayScene) => s['launchPlayerProjectile']({ x: 2800, y: 1350 }, { x: 1, y: 0 }, 1, 1200, 2000, 6, 0xffffff);
+  const shot = (s: GameplayScene) => playerShot(s);
   const boss = (s: GameplayScene) => { s['createEnemy'](2800, 1350, 'boss'); const e = s['enemies'].at(-1)!; e.health = 1; return e; };
   it('actual create bootstraps the existing Chaser after start/seed, with detached diagnostics and five commands', () => {
     const { scene: s } = fixture(); allowCreate(s); s.create();
@@ -784,11 +795,11 @@ describe('GAME-045 concrete diagnostics production observations', () => {
     expect(d.timeline.filter(row => row.type === 'TERMINAL')).toHaveLength(1);
   });
   it('counts accepted actual HP loss, ignores GodMode/protection/pause and clamps lethal damage before terminal', () => {
-    const { scene: s, api } = fixture(); api.setGodMode(true); s['damagePlayer'](3); api.setGodMode(false);
-    s['damagePlayer'](0.5); s['damagePlayer'](3);
+    const { scene: s, api } = fixture(); api.setGodMode(true); playerHit(s, 3); api.setGodMode(false);
+    playerHit(s, 0.5); playerHit(s, 3);
     expect(api.snapshot()!.diagnostics.aggregates).toMatchObject({ acceptedDamagingHits: 1, hpLost: 0.5 });
-    s['handlePauseRequest'](); s['damagePlayer'](100); s['canResume'] = () => true; s['handlePauseRequest']();
-    s['playerDefense']!.advanceProtection(500); s['damagePlayer'](100);
+    s['handlePauseRequest'](); playerHit(s, 100); s['canResume'] = () => true; s['handlePauseRequest']();
+    s['playerDefense']!.advanceProtection(500); playerHit(s, 100);
     const d = api.snapshot()!.diagnostics;
     expect(d.aggregates).toMatchObject({ acceptedDamagingHits: 2, hpLost: 5 });
     expect(d.timeline.at(-1)).toMatchObject({ type: 'TERMINAL', outcome: 'DEATH' });
@@ -977,7 +988,7 @@ describe('GAME-046 PlayerBuild production consumers', () => {
     const f = armed(), s = f.scene, before = f.api.snapshot()!.diagnostics;
     s['applyBuildChange']({ kind: 'percent', stat: 'shieldSystems', delta: 1 }); s['applyBuildChange']({ kind: 'percent', stat: 'impact', delta: 1 }); s['playerBuild']!.addCombatAnalyzerLevels(3);
     s['applyBuildChange']({ kind: 'percent', stat: 'projectileScale', delta: 1 }); s['applyBuildChange']({ kind: 'percent', stat: 'projectileVelocity', delta: 1 });
-    s['launchHostileProjectile']({ x: 100, y: 100 }, 1, 0); expect(s['projectiles'][0]).toMatchObject({ damage: 1, radius: 6, velocityX: 600 });
+    s['launchHostileProjectile']({ x: 100, y: 100 }, 1, 0, s['run']!); expect(s['projectiles'][0]).toMatchObject({ damage: 1, radius: 6, velocityX: 600 });
     expect(s['xpMagnetRadius']).toBe(180); expect(s['playerRadius']).toBe(20); expect(s['missileValues'].explosionRadius).toBe(120);
     expect(s['droneConfig']).toMatchObject({ orbitRadius: 110, visualRadius: 10 });
     expect(f.api.snapshot()!.diagnostics).toEqual(before);
@@ -987,7 +998,7 @@ describe('GAME-046 PlayerBuild production consumers', () => {
     s['applyBuildChange']({ kind: 'percent', stat: 'reactorPower', delta: Number.MAX_SAFE_INTEGER - 1 });
     const circle = vi.spyOn(s.add, 'circle');
     for (const fire of [() => s['fireLaser'](), () => s['fireMissile'](), () => s['fireDrone']()]) {
-      expect(fire).toThrow('Invalid composed'); expect(s['projectiles']).toHaveLength(0); expect(s['missiles']).toHaveLength(0);
+      expect(fire).toThrow(RangeError); expect(s['projectiles']).toHaveLength(0); expect(s['missiles']).toHaveLength(0);
     }
     expect(circle).not.toHaveBeenCalled();
   });
@@ -1173,7 +1184,10 @@ describe('GAME-048 defense production boundary', () => {
     'Scene Shield%s incoming%s consumes through real hostile collision with Hull-only diagnostics', (shield, amount, nextShield, hull, lost) => {
       const f = fixture(), s = f.scene; s['playerDefense']!.setCurrentShield(shield);
       s['applyBuildChange']({ kind: 'percent', stat: 'shieldSystems', delta: 10 });
-      s['launchHostileProjectile'](s['player']!, 1, 0); s['projectiles'][0].damage = amount;
+      s['launchHostileProjectile'](s['player']!, 1, 0, s['run']!);
+      const flight = s['projectiles'][0];
+      s['projectiles'][0] = { ...flight, attack: createAttack({ kind: 'HOSTILE_PROJECTILE',
+        snapshot: { ...flight.attack.snapshot, damage: amount } }) as HostileAttack };
       s['updateProjectiles'](0);
       expect(s['projectiles']).toHaveLength(0);
       expect(f.api.snapshot()).toMatchObject({ playerHealth: hull, playerShield: nextShield, protectionRemaining: 500 });
@@ -1189,14 +1203,14 @@ describe('GAME-048 defense production boundary', () => {
   it('God and protection reject without extending, but collisions consume shots and expiry allows the next hit', () => {
     const f = fixture(), s = f.scene, d = s['playerDefense']!, incoming = vi.spyOn(d, 'applyIncomingDamage');
     d.setCurrentShield(2); f.api.setGodMode(true);
-    s['launchHostileProjectile'](s['player']!, 1, 0); s['updateProjectiles'](0);
+    s['launchHostileProjectile'](s['player']!, 1, 0, s['run']!); s['updateProjectiles'](0);
     expect(incoming).not.toHaveBeenCalled(); expect(s['projectiles']).toHaveLength(0);
     expect(d.snapshot()).toEqual({ currentHull: 5, currentShield: 2, protectionRemaining: 0 });
-    f.api.setGodMode(false); s['damagePlayer'](1); s['updatePlayerProtection'](200);
-    const protectedState = d.snapshot(); s['launchHostileProjectile'](s['player']!, 1, 0); s['updateProjectiles'](0);
+    f.api.setGodMode(false); playerHit(s, 1); s['updatePlayerProtection'](200);
+    const protectedState = d.snapshot(); s['launchHostileProjectile'](s['player']!, 1, 0, s['run']!); s['updateProjectiles'](0);
     expect(s['projectiles']).toHaveLength(0); expect(d.snapshot()).toEqual(protectedState);
     s['updatePlayerProtection'](300); expect(s['player']!.alpha).toBe(1);
-    s['damagePlayer'](2); expect(d.snapshot()).toEqual({ currentHull: 4, currentShield: 0, protectionRemaining: 500 });
+    playerHit(s, 2); expect(d.snapshot()).toEqual({ currentHull: 4, currentShield: 0, protectionRemaining: 500 });
   });
   const contacts = [
     ['chaser', false, 2400, 1350, 2430, 1350, 2444, 1350, true],
@@ -1215,7 +1229,7 @@ describe('GAME-048 defense production boundary', () => {
     const f = fixture(), s = f.scene, draws = spyStreams(s);
     s['applyBuildChange']({ kind: 'percent', stat: 'impact', delta: 10 });
     s['player']!.x = px; s['player']!.y = py; s['createEnemy'](ex, ey, kind, elite);
-    const routing = vi.spyOn(s as unknown as { damagePlayer(amount: number): void }, 'damagePlayer');
+    const routing = vi.spyOn(s as unknown as { damagePlayer(hit: unknown): unknown }, 'damagePlayer');
     s['updatePlayerContact'](); expect(s['player']!.x).toBeCloseTo(x); expect(s['player']!.y).toBeCloseTo(y);
     expect(routing).toHaveBeenCalledTimes(touches ? 1 : 0);
     expect(s['playerHealth']).toBe(touches ? (elite || kind === 'boss' ? 3 : 4) : 5);
@@ -1247,14 +1261,132 @@ describe('GAME-048 defense production boundary', () => {
     const once = s.events.once.bind(s.events);
     vi.spyOn(s.events, 'once').mockImplementation((key, fn, ctx) => { if (key === 'shutdown') cleanups.push(fn as () => void); return once(key, fn, ctx); });
     s.create(); const old = s['playerDefense']!, oldRun = s['run']!, oldCleanup = [...cleanups];
-    old.setCurrentShield(2); s['damagePlayer'](3); window.__NEBULA_DEV__!.forceLevelUp();
+    old.setCurrentShield(2); playerHit(s, 3); window.__NEBULA_DEV__!.forceLevelUp();
     const choice = s['levelUpPresentation'][2]; f.shutdown(); s.create();
     const fresh = s['playerDefense']!, before = window.__NEBULA_DEV__!.snapshot();
     expect(fresh).not.toBe(old); expect(() => old.snapshot()).toThrow('disposed PlayerDefense');
     expect(() => old.healHull(0, 5)).toThrow('disposed PlayerDefense');
-    s['damagePlayer'](100, oldRun, old); s['acceptLevelUpChoice'](choice, { kind: 'passive', module: 'hull' }, oldRun);
+    playerHit(s, 100, oldRun, old); s['acceptLevelUpChoice'](choice, { kind: 'passive', module: 'hull' }, oldRun);
     for (const callback of oldCleanup) callback();
     expect(window.__NEBULA_DEV__!.snapshot()).toEqual(before);
     expect(fresh.snapshot()).toEqual({ currentHull: 5, currentShield: 0, protectionRemaining: 0 });
   });
+});
+
+
+describe('GAME-049 concrete Attack/Hit integration', () => {
+  function armed() {
+    const f = fixture(), s = f.scene;
+    s['createEnemy'](2800, 1350, 'tank'); s['currentTarget'] = s['enemies'][0];
+    Object.assign(s, { drone: visual(2510, 1350) });
+    return f;
+  }
+  it.each([false, true])('Laser/Prism evolved%s shares one frozen Attack with independent nonpiercing hits', evolved => {
+    const { scene: s } = armed(); s['prismEvolved'] = evolved; s['fireLaser']();
+    const shots = [...s['projectiles']], attack = shots[0].attack;
+    expect(shots).toHaveLength(evolved ? 3 : 1);
+    expect(shots.every(p => p.attack === attack && p.run === s['run'])).toBe(true);
+    expect(attack).toMatchObject({ kind: 'LASER', variant: evolved ? 'PRISM' : 'BASE' });
+    expect(Object.isFrozen(attack.snapshot) && Object.isFrozen(attack)).toBe(true);
+    for (const p of shots) { p.visual.x = 2800; p.visual.y = 1350; }
+    s['updateProjectiles'](0); expect(s['enemies'][0].health).toBe(evolved ? 3 : 5);
+    expect(s['projectiles']).toHaveLength(0);
+  });
+  it.each([false, true])('Drone/Twin evolved%s uses independent origin Attack/nearest target and full damage', evolved => {
+    const { scene: s } = armed(); s['twinDroneEvolved'] = evolved;
+    if (evolved) Object.assign(s, { twinDrone: visual(2290, 1350) });
+    s['fireDrone'](); const shots = s['projectiles'];
+    expect(shots).toHaveLength(evolved ? 2 : 1); expect(shots[0].attack).toMatchObject({ kind: 'COMBAT_DRONE', variant: evolved ? 'TWIN' : 'BASE' });
+    if (evolved) { expect(shots[0].attack).not.toBe(shots[1].attack); expect(shots[0].visual.x).not.toBe(shots[1].visual.x); }
+    for (const p of shots) { p.visual.x = 2800; p.visual.y = 1350; }
+    s['updateProjectiles'](0); expect(s['enemies'][0].health).toBe(evolved ? 4 : 5);
+  });
+  it('captures all shared/local values and evolution without writable parallel launch truth', () => {
+    const { scene: s } = armed(); s['fireLaser'](); s['fireDrone'](); s['fireMissile']();
+    const p = s['projectiles'][0], d = s['projectiles'][1], m = s['missiles'][0];
+    const before = [p, d, m].map(f => JSON.stringify(f.attack));
+    for (const [stat, delta] of [['reactorPower', 1], ['engineering', 2], ['projectileVelocity', 1], ['projectileScale', 1]] as const) {
+      s['applyBuildChange']({ kind: 'percent', stat, delta });
+    }
+    s['globalDamageMultiplier'] = 1.25; s['laser'].damage = 2; s['droneAttackValues'].damage = 2;
+    s['missileValues'] = { damage: 3, speed: 525, explosionRadius: 150 };
+    s['moduleLevels'].spatial = 2; s['moduleLevels'].replication = 2; s['clusterEvolved'] = true; s['prismEvolved'] = true;
+    expect([p, d, m].map(f => JSON.stringify(f.attack))).toEqual(before);
+    expect(() => { (p as unknown as { damage: number }).damage = 999; }).toThrow(TypeError);
+    expect(() => { (m as unknown as { radius: number }).radius = 999; }).toThrow(TypeError);
+    s['fireLaser'](); s['fireDrone'](); s['missiles'] = []; s['fireMissile']();
+    expect(s['projectiles'][2].attack).toMatchObject({ kind: 'LASER', variant: 'PRISM', snapshot: { damage: 5, speed: 2400, radius: 12 } });
+    expect(s['projectiles'].at(-1)!.attack).toMatchObject({ kind: 'COMBAT_DRONE', snapshot: { damage: 15, speed: 1600, radius: 14 } });
+    expect(s['missiles'][0].attack).toMatchObject({ kind: 'MISSILE', variant: 'CLUSTER', snapshot: { damage: 7.5, speed: 1050, radius: 16, explosionRadius: 180 } });
+    expect(m.attack).toMatchObject({ variant: 'BASE', snapshot: { damage: 2, speed: 450, radius: 8, explosionRadius: 120 } });
+  });
+  it('returns calculated versus actual loss, negative overkill HP and exactly one kill/XP', () => {
+    const { scene: s } = armed(), enemy = s['enemies'][0]; enemy.health = 3;
+    const p = playerShot(s, 2800, 10), hit = { kind: 'ENEMY_DIRECT' as const, run: s['run']!, target: enemy, attack: p.attack as LaserAttack };
+    expect(s['applyEnemyHit'](hit)).toEqual({ target: 'ENEMY', calculatedDamage: 10, healthAfter: -7, hpLost: 3, healthDepleted: true });
+    expect(enemy.health).toBe(-7); expect(s['xpPickups']).toHaveLength(1); expect(s['applyEnemyHit'](hit)).toBeNull();
+    expect(s['xpPickups']).toHaveLength(1);
+  });
+  it('rejects dead/missing/stale/paused targets before HP, fresh collection or Defense mutation', () => {
+    const { scene: s } = armed(), enemy = s['enemies'][0], run = s['run']!, defense = s['playerDefense']!;
+    const p = playerShot(s), hit = { kind: 'ENEMY_DIRECT' as const, run, target: enemy, attack: p.attack as LaserAttack };
+    enemy.health = 0; expect(s['applyEnemyHit'](hit)).toBeNull(); enemy.health = 6;
+    s['enemies'] = []; expect(s['applyEnemyHit'](hit)).toBeNull(); s['enemies'] = [enemy];
+    run.requestPause('MANUAL'); expect(s['applyEnemyHit'](hit)).toBeNull(); run.releasePause('MANUAL');
+    const fresh = new RunLifecycle(); fresh.start(); s['run'] = fresh; s['playerDefense'] = new PlayerDefense(5);
+    const before = s['playerDefense'].snapshot();
+    expect(s['applyEnemyHit'](hit)).toBeNull(); expect(playerHit(s, 100, run, defense)).toBeNull();
+    s['updateProjectiles'](1000); s['launchPlayerProjectile'](s['player']!, { x: 1, y: 0 }, hit.attack, run, 0xffffff);
+    s['launchHostileProjectile'](s['player']!, 1, 0, run);
+    expect(enemy.health).toBe(6); expect(s['projectiles']).toHaveLength(1); expect(p.remainingLifetime).toBe(2000);
+    expect(s['playerDefense'].snapshot()).toEqual(before);
+  });
+  it.each([false, true])('swept straight hit selects earliest and collection tie first (tie%s)', tie => {
+    const { scene: s } = fixture(); s['createEnemy'](3000, 1350, 'tank'); s['createEnemy'](tie ? 3000 : 2900, 1350, 'tank');
+    playerShot(s, 2800); s['updateProjectiles'](500);
+    expect(s['enemies'].map(e => e.health)).toEqual(tie ? [5, 6] : [6, 5]); expect(s['projectiles']).toHaveLength(0);
+  });
+  it('Cluster snapshots primary then the survivor union, allowing one of each without overlap duplicates', () => {
+    const { scene: s } = armed(); s['enemies'][0].visual.x = 2460; s['clusterEvolved'] = true; s['fireMissile']();
+    const m = s['missiles'][0]; s['explodeMissile'](2400, 1350, m); s['explodeClusterSatellites'](2400, 1350, m);
+    expect(s['enemies'][0].health).toBe(3); // 6 - primary2 - satellite1 at inclusive tangent.
+    s['createEnemy'](2580, 1350, 'tank'); const outer = s['enemies'].at(-1)!;
+    s['explodeClusterSatellites'](2400, 1350, m); expect(outer.health).toBe(5);
+  });
+  it('validates tiny Cluster half-damage before visual, array, HP or timer mutation', () => {
+    const { scene: s } = armed(); s['clusterEvolved'] = true; s['missileValues'].damage = Number.MIN_VALUE;
+    const circle = vi.spyOn(s.add, 'circle'), before = s['gameplayTimers'].map(t => t.elapsed);
+    expect(() => s['fireMissile']()).toThrow(RangeError); expect(circle).not.toHaveBeenCalled(); expect(s['missiles']).toHaveLength(0);
+    expect(s['enemies'][0].health).toBe(6); expect(s['gameplayTimers'].map(t => t.elapsed)).toEqual(before);
+  });
+  it.each([0, 0.0009])('near-zero aim%s suppresses Laser/Drone without creating visuals', distance => {
+    const { scene: s } = armed(); s['enemies'][0].visual.x = 2400 + distance;
+    s['drone']!.x = 2400; const circle = vi.spyOn(s.add, 'circle');
+    s['fireLaser'](); s['fireDrone'](); expect(s['projectiles']).toHaveLength(0); expect(circle).not.toHaveBeenCalled();
+  });
+  it('collision precedes lifetime expiry/world exit, including initial overlap and inclusive tangency', () => {
+    const { scene: s } = fixture(); s['createEnemy'](4800, 1350, 'tank');
+    const p = playerShot(s, 4800); p.remainingLifetime = 0; s['updateProjectiles'](0);
+    expect(s['enemies'][0].health).toBe(5); expect(s['projectiles']).toHaveLength(0);
+    s['enemies'][0].visual.x = 2900; s['enemies'][0].visual.y = 1380;
+    playerShot(s, 2800); s['updateProjectiles'](100); expect(s['enemies'][0].health).toBe(4);
+    s['enemies'] = []; const expired = playerShot(s); s['updateProjectiles'](3000);
+    expect(s['projectiles']).toHaveLength(0); expect(expired.visual.active).toBe(false);
+  });
+  it('Missile hits an intervening non-target at interpolated center and reacquires only after target loss', () => {
+    const { scene: s } = fixture(); s['createEnemy'](3000, 1350, 'tank'); s['fireMissile'](); const m = s['missiles'][0];
+    const target = m.target; s['createEnemy'](2600, 1350, 'tank'); const interceptor = s['enemies'][1];
+    const explosion = vi.spyOn(s as unknown as { explodeMissile(x: number, y: number, missile: unknown): void }, 'explodeMissile');
+    s['updateMissiles'](1000); expect(m.target).toBe(target); expect(explosion.mock.calls[0].slice(0, 2)).toEqual([2568, 1350]);
+    expect(interceptor.health).toBe(4); expect(target!.health).toBe(6);
+    s['fireMissile'](); const next = s['missiles'][0]; s['enemies'] = [target!]; s['updateMissiles'](0); expect(next.target).toBe(target);
+  });
+  it('stale Missile explosion cannot access fresh enemies and invalid BASE satellite fails before HP', () => {
+    const { scene: s } = armed(); s['fireMissile'](); const m = s['missiles'][0], enemy = s['enemies'][0];
+    expect(() => s['applyEnemyHit']({ kind: 'ENEMY_BLAST', run: s['run']!, target: enemy, attack: m.attack, phase: 'SATELLITE' })).toThrow(RangeError);
+    expect(enemy.health).toBe(6); const fresh = new RunLifecycle(); fresh.start(); s['run'] = fresh;
+    s['explodeMissile'](2800, 1350, m); s['explodeClusterSatellites'](2800, 1350, m); s['updateMissiles'](10000);
+    expect(enemy.health).toBe(6); expect(m.remainingLifetime).toBe(4000);
+  });
+
 });

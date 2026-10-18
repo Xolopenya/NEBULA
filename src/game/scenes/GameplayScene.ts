@@ -4,6 +4,9 @@ import { RunRandom } from '../run/RunRandom';
 import { RunDiagnostics, type ChoiceIdentity } from '../run/RunDiagnostics';
 import { KeyboardInput } from '../input/KeyboardInput';
 import * as Phaser from 'phaser';
+import { createAttack, composePlayerDamage, calculateHitDamage, calculateEnemyDamage,
+  type LaserAttack, type DroneAttack, type MissileAttack, type HostileAttack, type ContactAttack,
+  type EnemyDamage, type PlayerDamage } from '../combat/combat';
 import { segmentCircleHitTime } from '../combat/collision';
 import { prismSpread } from '../combat/prismSpread';
 import { clusterSatelliteOffsets } from '../combat/clusterSatellites';
@@ -102,10 +105,19 @@ type XpPickup = {
   speed: number;
 };
 
+type Hit = Readonly<{ run: RunLifecycle } & (
+  { kind: 'ENEMY_DIRECT'; target: EnemyRuntime; attack: LaserAttack | DroneAttack }
+  | { kind: 'ENEMY_BLAST'; target: EnemyRuntime; attack: MissileAttack; phase: 'PRIMARY' | 'SATELLITE' }
+  | { kind: 'PLAYER_PROJECTILE'; target: PlayerDefense; attack: HostileAttack }
+  | { kind: 'PLAYER_CONTACT'; target: PlayerDefense; attack: ContactAttack }
+)>;
+
 type ProjectileRuntime = {
-  source: 'player' | 'enemy';
-  damage: number;
-  radius: number;
+  readonly attack: LaserAttack | DroneAttack | HostileAttack;
+  readonly run: RunLifecycle;
+  readonly source: 'player' | 'enemy';
+  readonly damage: number;
+  readonly radius: number;
   visual: Phaser.GameObjects.Arc;
   velocityX: number;
   velocityY: number;
@@ -113,6 +125,8 @@ type ProjectileRuntime = {
 };
 
 type MissileRuntime = {
+  readonly attack: MissileAttack;
+  readonly run: RunLifecycle;
   readonly radius: number;
   readonly clusterEnabled: boolean;
   readonly damage: number;
@@ -821,6 +835,7 @@ export class GameplayScene extends Phaser.Scene {
       const dy = enemy.visual.y - this.player.y;
       const distance = Math.hypot(dx, dy);
       if (distance <= radius) {
+        const attack = createAttack({ kind: 'ENEMY_CONTACT', snapshot: { damage: enemy.contactDamage } }) as ContactAttack;
         const step = Math.max(0, radius - distance);
         const marginX = this.player.width / 2 + this.player.lineWidth / 2;
         const marginY = this.player.height / 2 + this.player.lineWidth / 2;
@@ -828,22 +843,35 @@ export class GameplayScene extends Phaser.Scene {
           marginX, this.arenaWidth - marginX);
         this.player.y = Phaser.Math.Clamp(this.player.y + (distance > 0 ? -dy / distance : 0) * step,
           marginY, this.arenaHeight - marginY);
-        this.damagePlayer(enemy.contactDamage);
+        this.damagePlayer({ kind: 'PLAYER_CONTACT', run: this.run!, target: this.playerDefense, attack });
         break;
       }
     }
   }
 
-  private damagePlayer(amount: number, run = this.run, defense = this.playerDefense): void {
-    if (!run || this.run !== run || run.state !== 'RUNNING' || !defense || this.playerDefense !== defense) return;
-    if (!this.player || defense.snapshot().currentHull === 0) return;
-    if (import.meta.env.DEV && this.godMode) return;
-    const result = defense.applyIncomingDamage(amount);
-    if (result.hullLost > 0) this.runDiagnostics!.recordPlayerDamage(result.hullLost);
-    if (!result.accepted) return;
+  private applyEnemyHit(hit: Extract<Hit, { kind: 'ENEMY_DIRECT' | 'ENEMY_BLAST' }>): EnemyDamage | null {
+    if (hit.run !== this.run || hit.run.state !== 'RUNNING') return null;
+    if (!this.enemies.includes(hit.target) || hit.target.health <= 0) return null;
+    const amount = calculateHitDamage(hit.attack, hit.kind === 'ENEMY_DIRECT' ? 'DIRECT' : hit.phase);
+    const result = calculateEnemyDamage(hit.target.health, amount);
+    hit.target.health = result.healthAfter;
+    if (result.healthDepleted) this.killEnemy(hit.target);
+    return result;
+  }
+
+  private damagePlayer(hit: Extract<Hit, { kind: 'PLAYER_PROJECTILE' | 'PLAYER_CONTACT' }>): PlayerDamage | null {
+    if (hit.run !== this.run || hit.run.state !== 'RUNNING' || hit.target !== this.playerDefense) return null;
+    if (!this.player || hit.target.snapshot().currentHull === 0) return null;
+    if (import.meta.env.DEV && this.godMode) return null;
+    const calculatedDamage = calculateHitDamage(hit.attack, hit.kind === 'PLAYER_PROJECTILE' ? 'DIRECT' : 'CONTACT');
+    const defense = hit.target.applyIncomingDamage(calculatedDamage);
+    const result: PlayerDamage = { target: 'PLAYER', calculatedDamage, defense };
+    if (defense.hullLost > 0) this.runDiagnostics!.recordPlayerDamage(defense.hullLost);
+    if (!defense.accepted) return result;
     this.updateHud();
     this.player.setAlpha(0.5);
-    if (result.hullDepleted) this.enterPlayerDeath();
+    if (defense.hullDepleted) this.enterPlayerDeath();
+    return result;
   }
 
   private enterPlayerDeath(): void {
@@ -916,21 +944,16 @@ export class GameplayScene extends Phaser.Scene {
     if (!this.player || !this.currentTarget) return;
     if (!this.playerBuild!.getSlots().combat.includes('LASER')) return;
     const stats = this.playerBuild!.getEffectiveStats();
-    const damage = this.laser.damage * this.globalDamageMultiplier * stats.reactorPower;
-    const speed = this.laser.projectileSpeed * stats.projectileVelocity;
-    const radius = this.projectileRadius * stats.projectileScale;
-
-    if (this.prismEvolved) {
-      const directions = prismSpread(this.currentTarget.visual.x - this.player.x,
-        this.currentTarget.visual.y - this.player.y);
-      for (const direction of directions) {
-        this.launchPlayerProjectile(this.player, direction, damage,
-          speed, this.projectileLifetime, radius, 0x67e8f9);
-      }
-      return;
-    }
-    this.firePlayerProjectile(this.player, this.currentTarget, damage,
-      speed, this.projectileLifetime, radius, 0x67e8f9);
+    const directions = this.prismEvolved
+      ? prismSpread(this.currentTarget.visual.x - this.player.x, this.currentTarget.visual.y - this.player.y)
+      : this.aimProjectile(this.player, this.currentTarget);
+    if (directions.length === 0) return;
+    const attack = createAttack({ kind: 'LASER', variant: this.prismEvolved ? 'PRISM' : 'BASE', snapshot: {
+      damage: composePlayerDamage('LASER', this.laser.damage, this.globalDamageMultiplier, stats.reactorPower, stats.engineering),
+      speed: this.laser.projectileSpeed * stats.projectileVelocity,
+      radius: this.projectileRadius * stats.projectileScale, lifetime: this.projectileLifetime,
+    } }) as LaserAttack;
+    for (const direction of directions) this.launchPlayerProjectile(this.player, direction, attack, this.run!, 0x67e8f9);
   }
 
   private updateDrone(delta: number): void {
@@ -958,35 +981,35 @@ export class GameplayScene extends Phaser.Scene {
   private fireDroneFrom(origin: Phaser.GameObjects.Arc): void {
     const target = this.selectNearestEnemy(undefined, origin);
     if (!target) return;
+    const directions = this.aimProjectile(origin, target);
+    if (directions.length === 0) return;
     const stats = this.playerBuild!.getEffectiveStats();
-    this.firePlayerProjectile(origin, target,
-      this.droneAttackValues.damage * this.globalDamageMultiplier * stats.reactorPower * stats.engineering,
-      this.droneAttackValues.projectileSpeed * stats.projectileVelocity, this.droneConfig.lifetime,
-      effectiveDroneBoltRadius(this.droneConfig.boltRadius, this.moduleLevels.replication) * stats.projectileScale, 0xc084fc);
+    const attack = createAttack({ kind: 'COMBAT_DRONE', variant: this.twinDroneEvolved ? 'TWIN' : 'BASE', snapshot: {
+      damage: composePlayerDamage('COMBAT_DRONE', this.droneAttackValues.damage, this.globalDamageMultiplier, stats.reactorPower, stats.engineering),
+      speed: this.droneAttackValues.projectileSpeed * stats.projectileVelocity, lifetime: this.droneConfig.lifetime,
+      radius: effectiveDroneBoltRadius(this.droneConfig.boltRadius, this.moduleLevels.replication) * stats.projectileScale,
+    } }) as DroneAttack;
+    this.launchPlayerProjectile(origin, directions[0], attack, this.run!, 0xc084fc);
   }
 
-  private firePlayerProjectile(
-    origin: { x: number; y: number }, target: EnemyRuntime,
-    damage: number, speed: number, lifetime: number, radius: number, color: number,
-  ): void {
+  private aimProjectile(origin: { x: number; y: number }, target: EnemyRuntime): { x: number; y: number }[] {
     const dx = target.visual.x - origin.x;
     const dy = target.visual.y - origin.y;
     const distance = Math.hypot(dx, dy);
-    if (distance < 0.001) return;
-
-    this.launchPlayerProjectile(origin, { x: dx / distance, y: dy / distance },
-      damage, speed, lifetime, radius, color);
+    return distance < 0.001 ? [] : [{ x: dx / distance, y: dy / distance }];
   }
 
   private launchPlayerProjectile(
     origin: { x: number; y: number }, direction: { x: number; y: number },
-    damage: number, speed: number, lifetime: number, radius: number, color: number,
+    attack: LaserAttack | DroneAttack, run: RunLifecycle, color: number,
   ): void {
-    combatValue(damage); combatValue(speed); combatValue(radius);
+    if (this.run !== run || run.state !== 'RUNNING') return;
+    const { radius, speed, lifetime } = attack.snapshot;
     this.projectiles.push({
-      source: 'player',
-      damage,
-      radius,
+      attack, run,
+      get source() { return attack.kind === 'LASER' || attack.kind === 'COMBAT_DRONE' ? 'player' : 'enemy'; },
+      get damage() { return attack.snapshot.damage; },
+      get radius() { return attack.snapshot.radius; },
       visual: this.add.circle(origin.x, origin.y, radius, color),
       velocityX: direction.x * speed,
       velocityY: direction.y * speed,
@@ -1002,26 +1025,30 @@ export class GameplayScene extends Phaser.Scene {
       const dx = this.player.x - enemy.visual.x;
       const dy = this.player.y - enemy.visual.y;
       const distance = Math.hypot(dx, dy);
-      if (distance >= 0.001) this.launchHostileProjectile(enemy.visual, dx / distance, dy / distance);
+      if (distance >= 0.001) this.launchHostileProjectile(enemy.visual, dx / distance, dy / distance, this.run!);
     }
     const boss = this.enemies.find(candidate => candidate.archetype === 'boss' && candidate.health > 0);
     if (boss) {
       const phase = wardenPhase(boss.health);
       if (phase) for (const direction of wardenBurstDirections(phase)) {
-        this.launchHostileProjectile(boss.visual, direction.x, direction.y);
+        this.launchHostileProjectile(boss.visual, direction.x, direction.y, this.run!);
       }
     }
   }
 
-  private launchHostileProjectile(origin: { x: number; y: number }, directionX: number, directionY: number): void {
+  private launchHostileProjectile(origin: { x: number; y: number }, directionX: number, directionY: number, run: RunLifecycle): void {
+    if (this.run !== run || run.state !== 'RUNNING') return;
+    const attack = createAttack({ kind: 'HOSTILE_PROJECTILE', snapshot: { damage: this.hostileDamage,
+      speed: this.hostileSpeed, radius: this.projectileRadius, lifetime: this.hostileLifetime } }) as HostileAttack;
     this.projectiles.push({
-      source: 'enemy',
-      damage: this.hostileDamage,
-      radius: this.projectileRadius,
-      visual: this.add.circle(origin.x, origin.y, this.projectileRadius, 0xfb923c),
-      velocityX: directionX * this.hostileSpeed,
-      velocityY: directionY * this.hostileSpeed,
-      remainingLifetime: this.hostileLifetime,
+      attack, run,
+      get source() { return attack.kind === 'HOSTILE_PROJECTILE' ? 'enemy' : 'player'; },
+      get damage() { return attack.snapshot.damage; },
+      get radius() { return attack.snapshot.radius; },
+      visual: this.add.circle(origin.x, origin.y, attack.snapshot.radius, 0xfb923c),
+      velocityX: directionX * attack.snapshot.speed,
+      velocityY: directionY * attack.snapshot.speed,
+      remainingLifetime: attack.snapshot.lifetime,
     });
   }
 
@@ -1029,23 +1056,25 @@ export class GameplayScene extends Phaser.Scene {
     for (let i = this.projectiles.length - 1; i >= 0; i -= 1) {
       if (this.isSimulationPaused()) return;
       const projectile = this.projectiles[i];
+      if (projectile.run !== this.run || projectile.run.state !== 'RUNNING') continue;
       const deltaSeconds = Math.min(delta, projectile.remainingLifetime) / 1000;
       const startX = projectile.visual.x;
       const startY = projectile.visual.y;
       const stepX = projectile.velocityX * deltaSeconds;
       const stepY = projectile.velocityY * deltaSeconds;
-      if (projectile.source === 'enemy' && this.player && segmentCircleHitTime(
+      if (projectile.attack.kind === 'HOSTILE_PROJECTILE' && this.player && segmentCircleHitTime(
         startX, startY, stepX, stepY,
         this.player.x, this.player.y, this.playerRadius + projectile.radius,
       ) !== Infinity) {
-        this.damagePlayer(projectile.damage);
+        if (this.playerDefense) this.damagePlayer({ kind: 'PLAYER_PROJECTILE', run: projectile.run,
+          target: this.playerDefense, attack: projectile.attack });
         projectile.visual.destroy();
         this.projectiles.splice(i, 1);
         continue;
       }
       let hitEnemy: EnemyRuntime | undefined;
       let firstHit = Infinity;
-      for (const enemy of projectile.source === 'player' ? this.enemies : []) {
+      for (const enemy of projectile.attack.kind !== 'HOSTILE_PROJECTILE' ? this.enemies : []) {
         const hit = segmentCircleHitTime(
           startX, startY, stepX, stepY,
           enemy.visual.x, enemy.visual.y, enemy.collisionRadius + projectile.radius,
@@ -1055,12 +1084,9 @@ export class GameplayScene extends Phaser.Scene {
           hitEnemy = enemy;
         }
       }
-      if (hitEnemy) {
+      if (hitEnemy && projectile.attack.kind !== 'HOSTILE_PROJECTILE') {
         const bossWasDefeated = this.bossDefeated;
-        hitEnemy.health -= projectile.damage;
-        if (hitEnemy.health <= 0) {
-          this.killEnemy(hitEnemy);
-        }
+        this.applyEnemyHit({ kind: 'ENEMY_DIRECT', run: projectile.run, target: hitEnemy, attack: projectile.attack });
         projectile.visual.destroy();
         this.projectiles.splice(i, 1);
         // Finish this hit's cleanup before the terminal boundary, not inside killEnemy.
@@ -1109,18 +1135,25 @@ export class GameplayScene extends Phaser.Scene {
     const target = this.selectNearestEnemy();
     if (!target) return;
     const stats = this.playerBuild!.getEffectiveStats();
-    const damage = combatValue(this.missileValues.damage * this.globalDamageMultiplier * stats.reactorPower);
-    const speed = combatValue(this.missileValues.speed * stats.projectileVelocity);
-    const radius = combatValue(this.missile.radius * stats.projectileScale);
-    const explosionRadius = combatValue(effectiveMissileExplosionRadius(this.missileValues.explosionRadius, this.moduleLevels.spatial));
+    const attack = createAttack({ kind: 'MISSILE', variant: this.clusterEvolved ? 'CLUSTER' : 'BASE', snapshot: {
+      damage: composePlayerDamage('MISSILE', this.missileValues.damage, this.globalDamageMultiplier, stats.reactorPower, stats.engineering),
+      speed: this.missileValues.speed * stats.projectileVelocity,
+      radius: this.missile.radius * stats.projectileScale,
+      explosionRadius: effectiveMissileExplosionRadius(this.missileValues.explosionRadius, this.moduleLevels.spatial),
+      lifetime: this.missile.lifetime,
+    } }) as MissileAttack;
     const missile: MissileRuntime = {
-      clusterEnabled: this.clusterEvolved,
-      damage, speed, radius, explosionRadius,
-      visual: this.add.circle(this.player.x, this.player.y, radius, 0xfacc15),
+      attack, run: this.run!,
+      get clusterEnabled() { return attack.variant === 'CLUSTER'; },
+      get damage() { return attack.snapshot.damage; },
+      get speed() { return attack.snapshot.speed; },
+      get radius() { return attack.snapshot.radius; },
+      get explosionRadius() { return attack.snapshot.explosionRadius; },
+      visual: this.add.circle(this.player.x, this.player.y, attack.snapshot.radius, 0xfacc15),
       target,
       headingX: 0,
       headingY: 0,
-      remainingLifetime: this.missile.lifetime,
+      remainingLifetime: attack.snapshot.lifetime,
     };
     this.aimMissile(missile);
     this.missiles.push(missile);
@@ -1140,6 +1173,7 @@ export class GameplayScene extends Phaser.Scene {
     for (let i = this.missiles.length - 1; i >= 0; i -= 1) {
       if (this.isSimulationPaused()) return;
       const missile = this.missiles[i];
+      if (missile.run !== this.run || missile.run.state !== 'RUNNING') continue;
       if (!missile.target || !this.enemies.includes(missile.target)) {
         missile.target = this.selectNearestEnemy(undefined, missile.visual);
       }
@@ -1160,7 +1194,7 @@ export class GameplayScene extends Phaser.Scene {
         const impactX = startX + stepX * firstHit;
         const impactY = startY + stepY * firstHit;
         const bossWasDefeated = this.bossDefeated;
-        this.explodeMissile(impactX, impactY, missile.damage, missile.explosionRadius);
+        this.explodeMissile(impactX, impactY, missile);
         if (missile.clusterEnabled) this.explodeClusterSatellites(impactX, impactY, missile);
         defeatedBoss = !bossWasDefeated && this.bossDefeated;
       } else {
@@ -1180,7 +1214,9 @@ export class GameplayScene extends Phaser.Scene {
     }
   }
 
-  private explodeMissile(x: number, y: number, damage: number, explosionRadius: number): void {
+  private explodeMissile(x: number, y: number, missile: MissileRuntime): void {
+    if (missile.run !== this.run || missile.run.state !== 'RUNNING') return;
+    const { explosionRadius } = missile.attack.snapshot;
     // Snapshot before lethal removals mutate the shared enemy collection.
     const affected = this.enemies.filter(enemy => {
       const dx = enemy.visual.x - x;
@@ -1188,12 +1224,12 @@ export class GameplayScene extends Phaser.Scene {
       return dx * dx + dy * dy <= explosionRadius ** 2;
     });
     for (const enemy of affected) {
-      enemy.health -= damage;
-      if (enemy.health <= 0) this.killEnemy(enemy);
+      this.applyEnemyHit({ kind: 'ENEMY_BLAST', run: missile.run, target: enemy, attack: missile.attack, phase: 'PRIMARY' });
     }
   }
 
   private explodeClusterSatellites(x: number, y: number, missile: MissileRuntime): void {
+    if (missile.run !== this.run || missile.run.state !== 'RUNNING' || missile.attack.variant !== 'CLUSTER') return;
     const offsets = clusterSatelliteOffsets(missile.explosionRadius);
     const radiusSquared = (missile.explosionRadius * 0.5) ** 2;
     // The union is evaluated after primary deaths; snapshot before satellite kills splice enemies.
@@ -1203,8 +1239,7 @@ export class GameplayScene extends Phaser.Scene {
       return dx * dx + dy * dy <= radiusSquared;
     }));
     for (const enemy of affected) {
-      enemy.health -= missile.damage * 0.5;
-      if (enemy.health <= 0) this.killEnemy(enemy);
+      this.applyEnemyHit({ kind: 'ENEMY_BLAST', run: missile.run, target: enemy, attack: missile.attack, phase: 'SATELLITE' });
     }
   }
 
