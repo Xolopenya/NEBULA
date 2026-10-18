@@ -4,7 +4,7 @@ import { RunRandom } from '../run/RunRandom';
 import { RunDiagnostics, type ChoiceIdentity } from '../run/RunDiagnostics';
 import { KeyboardInput } from '../input/KeyboardInput';
 import * as Phaser from 'phaser';
-import { createAttack, composePlayerDamage, calculateHitDamage, calculateEnemyDamage,
+import { createAttack, composePlayerDamage, composePlayerImpact, calculateHitDamage, calculateEnemyDamage,
   type LaserAttack, type DroneAttack, type MissileAttack, type HostileAttack, type ContactAttack,
   type EnemyDamage, type PlayerDamage } from '../combat/combat';
 import { segmentCircleHitTime } from '../combat/collision';
@@ -12,6 +12,8 @@ import { prismSpread } from '../combat/prismSpread';
 import { clusterSatelliteOffsets } from '../combat/clusterSatellites';
 import { ENEMY_DEFINITIONS, DEFAULT_ENEMY_SPAWN_CONTEXT, createEnemySpawnSnapshot,
   type EnemyArchetype, type EnemySpawnSnapshot } from '../enemies/EnemyDefinitions';
+import { knockbackDirection, withKnockbackImpulse, stepKnockback, type Vector } from '../enemies/knockback';
+import { initialChargerState, stepCharger, type ChargerState } from '../enemies/chargerMovement';
 import { shooterMovement } from '../enemies/shooterMovement';
 import { createEnemyDamageSource, validateEnemyDeathRecord, createEnemyDeathRecord,
   type EnemyDamageSource, type EnemyDeathRecord } from '../enemies/EnemyDeath';
@@ -76,6 +78,8 @@ const levelUpPool: readonly OrdinaryChoice[] = [
 ];
 
 const enemyPresentation = {
+  swarm: { points: [0, 12, 12, 0, 24, 12, 12, 24], color: 0x84cc16, outline: 0xd9f99d },
+  charger: { points: [0, 0, 44, 22, 0, 44, 10, 22], color: 0xef4444, outline: 0xfecaca },
   chaser: { points: [24, 0, 48, 24, 24, 48, 0, 24], color: 0xf43f5e, outline: 0xffcdd2 },
   shooter: { points: [8, 8, 40, 8, 40, 40, 8, 40], color: 0xa855f7, outline: 0xe9d5ff },
   tank: { points: [12, 4, 36, 4, 48, 24, 36, 44, 12, 44, 0, 24], color: 0xf59e0b, outline: 0xfef3c7 },
@@ -89,7 +93,7 @@ const eliteTankData = {
 
 const wardenPhaseTwo = { color: 0xdc2626, outline: 0xfb923c } as const;
 
-const timedSpawnSequence: readonly Exclude<EnemyArchetype, 'boss'>[] = ['chaser', 'chaser', 'chaser', 'shooter', 'chaser', 'tank'];
+const timedSpawnSequence: readonly ('chaser' | 'shooter' | 'tank')[] = ['chaser', 'chaser', 'chaser', 'shooter', 'chaser', 'tank'];
 
 type EnemyRuntime = {
   readonly spawnSnapshot: EnemySpawnSnapshot;
@@ -102,7 +106,11 @@ type EnemyRuntime = {
   visual: Phaser.GameObjects.Polygon;
   health: number;
   lastDamagingSource: EnemyDamageSource | null;
+  knockbackVelocity: Vector;
+  charger?: { state: ChargerState; telegraph: Phaser.GameObjects.Graphics };
 };
+
+type ChargeContact = Readonly<{ run: RunLifecycle; position: Vector }>;
 
 type XpPickup = {
   visual: Phaser.GameObjects.Arc;
@@ -111,8 +119,8 @@ type XpPickup = {
 };
 
 type Hit = Readonly<{ run: RunLifecycle } & (
-  { kind: 'ENEMY_DIRECT'; target: EnemyRuntime; attack: LaserAttack | DroneAttack }
-  | { kind: 'ENEMY_BLAST'; target: EnemyRuntime; attack: MissileAttack; phase: 'PRIMARY' | 'SATELLITE' }
+  { kind: 'ENEMY_DIRECT'; target: EnemyRuntime; attack: LaserAttack | DroneAttack; direction: Vector }
+  | { kind: 'ENEMY_BLAST'; target: EnemyRuntime; attack: MissileAttack; phase: 'PRIMARY' | 'SATELLITE'; origin: Vector }
   | { kind: 'PLAYER_PROJECTILE'; target: PlayerDefense; attack: HostileAttack }
   | { kind: 'PLAYER_CONTACT'; target: PlayerDefense; attack: ContactAttack }
 )>;
@@ -305,6 +313,14 @@ export class GameplayScene extends Phaser.Scene {
     this.isLevelUpPaused = false;
     this.levelUpPresentation = [];
     this.enemies = [];
+    const enemies = this.enemies;
+    const disposeTelegraphs = () => {
+      for (const enemy of enemies) enemy.charger?.telegraph.destroy();
+      this.events.off(Phaser.Scenes.Events.SHUTDOWN, disposeTelegraphs);
+      this.events.off(Phaser.Scenes.Events.DESTROY, disposeTelegraphs);
+    };
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, disposeTelegraphs);
+    this.events.once(Phaser.Scenes.Events.DESTROY, disposeTelegraphs);
     this.successfulTimedSpawns = 0;
     this.bossSpawned = false;
     this.bossDefeated = false;
@@ -455,31 +471,74 @@ export class GameplayScene extends Phaser.Scene {
     this.updateDrone(delta);
     if (previousCooldownDisplay !== Math.ceil(this.dashCooldownRemaining / 100)) this.updateHud();
 
+    const run = this.run!;
+    const chargeContacts = new Map<EnemyRuntime, ChargeContact>();
     for (const enemy of this.enemies) {
-      this.chaseDirection.set(this.player.x - enemy.visual.x, this.player.y - enemy.visual.y);
-      const movement = enemy.spawnSnapshot.movement;
-      let speed = movement.speed;
-      if (movement.kind === 'WARDEN_PURSUIT') {
-        const phase = wardenPhase(enemy.health);
-        if (!phase) continue;
-        speed = phase === 2 ? movement.phaseTwoSpeed : movement.speed;
-        enemy.visual.setFillStyle(phase === 2 ? wardenPhaseTwo.color : enemyPresentation.boss.color);
-        if (enemy !== this.currentTarget) this.restoreEnemyOutline(enemy);
-      }
-      if (movement.kind === 'SHOOTER_BAND') {
-        const step = shooterMovement(this.chaseDirection.x, this.chaseDirection.y, speed, delta,
-          movement.minimumRange, movement.maximumRange);
-        this.chaseDirection.set(step.x, step.y);
-      } else {
-        const chaseDistance = this.chaseDirection.length();
-        const chaseStep = Math.min(speed * (delta / 1000), chaseDistance);
-        this.chaseDirection.normalize().scale(chaseStep);
-      }
-      enemy.visual.x += this.chaseDirection.x;
-      enemy.visual.y += this.chaseDirection.y;
+      if (this.run !== run || run.state !== 'RUNNING' || enemy.run !== run
+        || !this.enemies.includes(enemy) || !(enemy.health > 0)) continue;
       const margin = Math.max(this.enemyMargin, enemy.collisionRadius);
-      enemy.visual.x = Phaser.Math.Clamp(enemy.visual.x, margin, this.arenaWidth - margin);
-      enemy.visual.y = Phaser.Math.Clamp(enemy.visual.y, margin, this.arenaHeight - margin);
+      if (!Number.isFinite(margin) || margin * 2 >= this.arenaWidth || margin * 2 >= this.arenaHeight) {
+        throw new RangeError('Enemy body does not fit arena');
+      }
+      const bounds = { minX: margin, maxX: this.arenaWidth - margin, minY: margin, maxY: this.arenaHeight - margin };
+      let x = enemy.visual.x, y = enemy.visual.y;
+      let chargerState = enemy.charger?.state;
+      const movement = enemy.spawnSnapshot.movement;
+      if (movement.kind === 'CHARGER') {
+        if (!chargerState) throw new RangeError('Missing Charger state');
+        const step = stepCharger({ x, y }, this.player, chargerState, movement, bounds, delta);
+        x = step.position.x; y = step.position.y; chargerState = step.state;
+        if (step.contact) chargeContacts.set(enemy, { run, position: step.contact });
+      } else {
+        this.chaseDirection.set(this.player.x - x, this.player.y - y);
+        let speed = movement.speed;
+        if (movement.kind === 'WARDEN_PURSUIT') {
+          const phase = wardenPhase(enemy.health);
+          if (!phase) continue;
+          speed = phase === 2 ? movement.phaseTwoSpeed : movement.speed;
+          enemy.visual.setFillStyle(phase === 2 ? wardenPhaseTwo.color : enemyPresentation.boss.color);
+          if (enemy !== this.currentTarget) this.restoreEnemyOutline(enemy);
+        }
+        if (movement.kind === 'SHOOTER_BAND') {
+          const step = shooterMovement(this.chaseDirection.x, this.chaseDirection.y, speed, delta,
+            movement.minimumRange, movement.maximumRange);
+          this.chaseDirection.set(step.x, step.y);
+        } else {
+          const chaseDistance = this.chaseDirection.length();
+          const chaseStep = Math.min(speed * (delta / 1000), chaseDistance);
+          this.chaseDirection.normalize().scale(chaseStep);
+        }
+        x += this.chaseDirection.x; y += this.chaseDirection.y;
+      }
+      const external = stepKnockback(enemy.knockbackVelocity, delta);
+      x += external.displacement.x; y += external.displacement.y;
+      for (const value of [x, y]) {
+        if (!Number.isFinite(value) || Math.abs(value) > Number.MAX_SAFE_INTEGER) throw new RangeError('Invalid enemy position');
+      }
+      const nextX = Phaser.Math.Clamp(x, bounds.minX, bounds.maxX);
+      const nextY = Phaser.Math.Clamp(y, bounds.minY, bounds.maxY);
+      const velocity = {
+        x: (x <= bounds.minX && external.velocity.x < 0) || (x >= bounds.maxX && external.velocity.x > 0) ? 0 : external.velocity.x,
+        y: (y <= bounds.minY && external.velocity.y < 0) || (y >= bounds.maxY && external.velocity.y > 0) ? 0 : external.velocity.y,
+      };
+      if (chargerState?.phase === 'WINDUP' && delta > 0) {
+        const aim = knockbackDirection(this.player.x - nextX, this.player.y - nextY);
+        chargerState = { ...chargerState, directionX: aim.x, directionY: aim.y };
+      }
+      enemy.visual.x = nextX; enemy.visual.y = nextY;
+      enemy.knockbackVelocity = velocity;
+      if (enemy.charger && chargerState) {
+        enemy.charger.state = chargerState;
+        enemy.visual.rotation = Math.atan2(chargerState.directionY, chargerState.directionX);
+        const graphic = enemy.charger.telegraph;
+        graphic.clear();
+        if (chargerState.phase === 'WINDUP') {
+          graphic.lineStyle(3, 0xfb7185, 0.75);
+          graphic.lineBetween(nextX, nextY,
+            Phaser.Math.Clamp(nextX + chargerState.directionX * 325, bounds.minX, bounds.maxX),
+            Phaser.Math.Clamp(nextY + chargerState.directionY * 325, bounds.minY, bounds.maxY));
+        }
+      }
     }
 
     const target = this.selectNearestEnemy();
@@ -494,7 +553,7 @@ export class GameplayScene extends Phaser.Scene {
     this.updatePlayerProtection(delta);
     this.updateProjectiles(delta);
     this.updateMissiles(delta);
-    this.updatePlayerContact();
+    this.updatePlayerContact(chargeContacts);
     this.updateXpPickups(delta);
   }
 
@@ -841,15 +900,23 @@ export class GameplayScene extends Phaser.Scene {
     this.player.setAlpha(1);
   }
 
-  private updatePlayerContact(): void {
+  private updatePlayerContact(chargeContacts?: ReadonlyMap<EnemyRuntime, ChargeContact>): void {
     if (this.isSimulationPaused()) return;
     if (!this.player || !this.playerDefense || this.playerHealth === 0) return;
 
     for (const enemy of this.enemies) {
+      if (enemy.run !== this.run || !(enemy.health > 0)) continue;
       const radius = this.playerRadius + enemy.collisionRadius;
-      const dx = enemy.visual.x - this.player.x;
-      const dy = enemy.visual.y - this.player.y;
-      const distance = Math.hypot(dx, dy);
+      let dx = enemy.visual.x - this.player.x;
+      let dy = enemy.visual.y - this.player.y;
+      let distance = Math.hypot(dx, dy);
+      const contact = chargeContacts?.get(enemy);
+      if (distance > radius && contact?.run === this.run && enemy.charger) {
+        dx = contact.position.x - this.player.x; dy = contact.position.y - this.player.y;
+        distance = Math.hypot(dx, dy);
+        // The intersection is inclusive; roundoff at the computed boundary must not lose it.
+        distance = Math.min(radius, distance);
+      }
       if (distance <= radius) {
         const attack = createAttack({ kind: 'ENEMY_CONTACT', snapshot: { damage: enemy.contactDamage } }) as ContactAttack;
         const step = Math.max(0, radius - distance);
@@ -868,6 +935,20 @@ export class GameplayScene extends Phaser.Scene {
   private applyEnemyHit(hit: EnemyHit): EnemyDamage | null {
     if (hit.run !== this.run || hit.run.state !== 'RUNNING') return null;
     if (hit.target.run !== hit.run || !this.enemies.includes(hit.target) || hit.target.health <= 0) return null;
+    if (hit.kind === 'ENEMY_DIRECT' ? !hit.direction : !hit.origin) throw new RangeError('Missing physical Hit geometry');
+    const phaseImpact = composePlayerImpact(hit.attack.snapshot.impact,
+      hit.kind === 'ENEMY_BLAST' && hit.phase === 'SATELLITE' ? 0.5 : 1);
+    const magnitude = composePlayerImpact(phaseImpact, hit.target.spawnSnapshot.interaction.knockbackResponse);
+    if (hit.kind === 'ENEMY_BLAST') {
+      for (const value of [hit.origin.x, hit.origin.y, hit.target.visual.x, hit.target.visual.y]) {
+        if (typeof value !== 'number' || !Number.isFinite(value) || Math.abs(value) > Number.MAX_SAFE_INTEGER) {
+          throw new RangeError('Invalid blast geometry');
+        }
+      }
+    }
+    const direction = hit.kind === 'ENEMY_DIRECT' ? knockbackDirection(hit.direction.x, hit.direction.y)
+      : knockbackDirection(hit.target.visual.x - hit.origin.x, hit.target.visual.y - hit.origin.y);
+    const velocity = withKnockbackImpulse(hit.target.knockbackVelocity, direction, magnitude);
     const amount = calculateHitDamage(hit.attack, hit.kind === 'ENEMY_DIRECT' ? 'DIRECT' : hit.phase);
     const result = calculateEnemyDamage(hit.target.health, amount);
     const source = result.hpLost > 0 ? enemyHitSource(hit) : null;
@@ -875,6 +956,8 @@ export class GameplayScene extends Phaser.Scene {
     hit.target.health = result.healthAfter;
     if (source) hit.target.lastDamagingSource = source;
     if (result.healthDepleted && source) this.killEnemy(hit, result, source);
+    else if (hit.run === this.run && hit.run.state === 'RUNNING' && hit.target.run === hit.run
+      && this.enemies.includes(hit.target) && hit.target.health > 0) hit.target.knockbackVelocity = velocity;
     return result;
   }
 
@@ -971,6 +1054,7 @@ export class GameplayScene extends Phaser.Scene {
       damage: composePlayerDamage('LASER', this.laser.damage, this.globalDamageMultiplier, stats.reactorPower, stats.engineering),
       speed: this.laser.projectileSpeed * stats.projectileVelocity,
       radius: this.projectileRadius * stats.projectileScale, lifetime: this.projectileLifetime,
+      impact: composePlayerImpact(200, stats.impact),
     } }) as LaserAttack;
     for (const direction of directions) this.launchPlayerProjectile(this.player, direction, attack, this.run!, 0x67e8f9);
   }
@@ -1007,6 +1091,7 @@ export class GameplayScene extends Phaser.Scene {
       damage: composePlayerDamage('COMBAT_DRONE', this.droneAttackValues.damage, this.globalDamageMultiplier, stats.reactorPower, stats.engineering),
       speed: this.droneAttackValues.projectileSpeed * stats.projectileVelocity, lifetime: this.droneConfig.lifetime,
       radius: effectiveDroneBoltRadius(this.droneConfig.boltRadius, this.moduleLevels.replication) * stats.projectileScale,
+      impact: composePlayerImpact(160, stats.impact),
     } }) as DroneAttack;
     this.launchPlayerProjectile(origin, directions[0], attack, this.run!, 0xc084fc);
   }
@@ -1105,7 +1190,8 @@ export class GameplayScene extends Phaser.Scene {
       }
       if (hitEnemy && projectile.attack.kind !== 'HOSTILE_PROJECTILE') {
         const bossWasDefeated = this.bossDefeated;
-        this.applyEnemyHit({ kind: 'ENEMY_DIRECT', run: projectile.run, target: hitEnemy, attack: projectile.attack });
+        this.applyEnemyHit({ kind: 'ENEMY_DIRECT', run: projectile.run, target: hitEnemy, attack: projectile.attack,
+          direction: { x: projectile.velocityX, y: projectile.velocityY } });
         projectile.visual.destroy();
         this.projectiles.splice(i, 1);
         // Finish this hit's cleanup before the terminal boundary, not inside killEnemy.
@@ -1159,7 +1245,7 @@ export class GameplayScene extends Phaser.Scene {
       speed: this.missileValues.speed * stats.projectileVelocity,
       radius: this.missile.radius * stats.projectileScale,
       explosionRadius: effectiveMissileExplosionRadius(this.missileValues.explosionRadius, this.moduleLevels.spatial),
-      lifetime: this.missile.lifetime,
+      lifetime: this.missile.lifetime, impact: composePlayerImpact(400, stats.impact),
     } }) as MissileAttack;
     const missile: MissileRuntime = {
       attack, run: this.run!,
@@ -1243,7 +1329,7 @@ export class GameplayScene extends Phaser.Scene {
       return dx * dx + dy * dy <= explosionRadius ** 2;
     });
     for (const enemy of affected) {
-      this.applyEnemyHit({ kind: 'ENEMY_BLAST', run: missile.run, target: enemy, attack: missile.attack, phase: 'PRIMARY' });
+      this.applyEnemyHit({ kind: 'ENEMY_BLAST', run: missile.run, target: enemy, attack: missile.attack, phase: 'PRIMARY', origin: { x, y } });
     }
   }
 
@@ -1252,13 +1338,17 @@ export class GameplayScene extends Phaser.Scene {
     const offsets = clusterSatelliteOffsets(missile.explosionRadius);
     const radiusSquared = (missile.explosionRadius * 0.5) ** 2;
     // The union is evaluated after primary deaths; snapshot before satellite kills splice enemies.
-    const affected = this.enemies.filter(enemy => offsets.some(offset => {
-      const dx = enemy.visual.x - (x + offset.x);
-      const dy = enemy.visual.y - (y + offset.y);
-      return dx * dx + dy * dy <= radiusSquared;
-    }));
-    for (const enemy of affected) {
-      this.applyEnemyHit({ kind: 'ENEMY_BLAST', run: missile.run, target: enemy, attack: missile.attack, phase: 'SATELLITE' });
+    const affected: { enemy: EnemyRuntime; origin: Vector }[] = [];
+    for (const enemy of this.enemies) {
+      const offset = offsets.find(offset => {
+        const dx = enemy.visual.x - (x + offset.x);
+        const dy = enemy.visual.y - (y + offset.y);
+        return dx * dx + dy * dy <= radiusSquared;
+      });
+      if (offset) affected.push({ enemy, origin: { x: x + offset.x, y: y + offset.y } });
+    }
+    for (const { enemy, origin } of affected) {
+      this.applyEnemyHit({ kind: 'ENEMY_BLAST', run: missile.run, target: enemy, attack: missile.attack, phase: 'SATELLITE', origin });
     }
   }
 
@@ -1282,6 +1372,7 @@ export class GameplayScene extends Phaser.Scene {
       speed: 0,
     });
     if (this.currentTarget === enemy) this.currentTarget = undefined;
+    enemy.charger?.telegraph.destroy();
     enemy.visual.destroy();
     this.enemies.splice(index, 1);
     this.runDiagnostics!.recordEnemyKilled(record.archetype, record.isElite, record.xpValue, record.killSource);
@@ -1306,6 +1397,8 @@ export class GameplayScene extends Phaser.Scene {
     visual.setStrokeStyle(spawnSnapshot.isElite || archetype === 'boss' ? 3 : 2, data.outline);
     const enemy: EnemyRuntime = {
       spawnSnapshot, run, visual, health: spawnSnapshot.maxHealth, lastDamagingSource: null,
+      knockbackVelocity: { x: 0, y: 0 },
+      ...(archetype === 'charger' ? { charger: { state: initialChargerState(), telegraph: this.add.graphics() } } : {}),
       get archetype() { return spawnSnapshot.archetype; },
       get isElite() { return spawnSnapshot.isElite; },
       get contactDamage() { return spawnSnapshot.contactDamage; },

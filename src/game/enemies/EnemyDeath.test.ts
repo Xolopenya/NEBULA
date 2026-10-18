@@ -55,7 +55,7 @@ describe('EnemyDeath primitive boundary', () => {
     expect(record.x).toBe(0); expect(record.killSource).toEqual(s);
     expect(structuredClone(record)).toEqual(record);
   });
-  it.each([['chaser', false, 1], ['shooter', false, 1], ['tank', false, 1], ['tank', true, 5], ['boss', false, 10]] as const)(
+  it.each([['swarm', false, 1], ['charger', false, 1], ['chaser', false, 1], ['shooter', false, 1], ['tank', false, 1], ['tank', true, 5], ['boss', false, 10]] as const)(
     'copies %s elite%s XP%s from its spawn snapshot', (archetype, isElite, xpValue) => {
       const snapshot = createEnemySpawnSnapshot(ENEMY_DEFINITIONS[archetype], { ...DEFAULT_ENEMY_SPAWN_CONTEXT,
         variant: isElite ? 'ELITE_TANK' : 'BASE' });

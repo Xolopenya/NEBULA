@@ -20,7 +20,7 @@ function killSourceKey(input: EnemyDamageSource): EnemyKillSourceKey {
   }
 }
 
-export type DiagnosticArchetype = 'chaser' | 'shooter' | 'tank' | 'boss';
+export type DiagnosticArchetype = 'swarm' | 'chaser' | 'charger' | 'shooter' | 'tank' | 'boss';
 const choices = [
   'laser.power', 'laser.fireRate', 'laser.speed',
   'missile.warheadPower', 'missile.propulsion', 'missile.blastExpansion',
@@ -69,11 +69,11 @@ function reasons(values: readonly PauseReason[]): PauseReason[] {
   return pauseOrder.filter(value => values.includes(value));
 }
 function enemy(archetype: DiagnosticArchetype, isElite: boolean): void {
-  if (!['chaser', 'shooter', 'tank', 'boss'].includes(archetype)
+  if (!['swarm', 'chaser', 'charger', 'shooter', 'tank', 'boss'].includes(archetype)
     || typeof isElite !== 'boolean' || (isElite && archetype !== 'tank')) throw new RangeError('Invalid enemy identity');
 }
 function emptyEnemies(): EnemyCounts {
-  return { total: 0, byArchetype: { chaser: 0, shooter: 0, tank: 0, boss: 0 }, eliteTanks: 0 };
+  return { total: 0, byArchetype: { swarm: 0, chaser: 0, charger: 0, shooter: 0, tank: 0, boss: 0 }, eliteTanks: 0 };
 }
 function countEnemy(current: EnemyCounts, archetype: DiagnosticArchetype, isElite: boolean): EnemyCounts {
   return { total: add(current.total, 1),

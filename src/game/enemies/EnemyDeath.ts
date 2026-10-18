@@ -36,7 +36,7 @@ export function createEnemyDamageSource(input: EnemyDamageSource): EnemyDamageSo
 /** Prospective lethal data only: no completed record or gameplay mutation. */
 export function validateEnemyDeathRecord(input: EnemyDeathRecord): void {
   fields(input, ['archetype', 'isElite', 'xpValue', 'x', 'y', 'lastDamagingSource', 'killSource']);
-  if (!['chaser', 'shooter', 'tank', 'boss'].includes(input.archetype)
+  if (!['swarm', 'chaser', 'charger', 'shooter', 'tank', 'boss'].includes(input.archetype)
     || typeof input.isElite !== 'boolean' || (input.isElite && input.archetype !== 'tank')) {
     throw new RangeError('Invalid enemy death identity');
   }

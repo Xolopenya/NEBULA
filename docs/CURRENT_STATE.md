@@ -14,7 +14,7 @@ Do not place future plans or speculative features here.
 
 Current phase:
 
-FIRST PLAYABLE CORE LOOP COMPLETE / GAME-051 COMPLETE
+FIRST PLAYABLE CORE LOOP COMPLETE / GAME-052 COMPLETE
 
 The project has a working browser application, development toolchain and placeholder gameplay scene.
 
@@ -60,6 +60,8 @@ npm run typecheck
 Runs TypeScript without emitting files.
 
 ### Tests
+
+Current validation:1078 tracked tests in28 files pass, including all904 pre-GAME-052 cases.
 
 npm test
 
@@ -167,9 +169,9 @@ Spawn positions are chosen just outside a random camera edge, clamped with a 25-
 Chasers and Tanks share direct pursuit of the player's current world position at 180 and 100 pixels per second respectively (Elite Tank120). Shooters move at 140 pixels per second toward the player above 500 pixels, retreat below 350 and hold within the inclusive 350–500 world-center band. Movement stops at the nearest band edge even for large deltas; coincident centers retreat deterministically right. Arena clamping may prevent further retreat at an edge.
 Chaser/Tank pursuit uses frame delta and caps each step at the remaining distance to avoid overshoot at the player.
 Chaser/Shooter/Tank respect the 25-pixel arena margin; Warden uses a 40-pixel body margin.
-Enemies use one Scene-local EnemyRuntime collection with readonly spawnSnapshot and exact creating RunLifecycle, mutable current health and polygon visual/position. EnemyDefinitions.ts owns four deeply frozen authored definitions (chaser/shooter/tank/boss), a fixed ELITE_TANK_PROFILE and required explicit LEGACY_NEUTRAL scaling context. Neutral construction performs no scaling arithmetic and reads no run, Build, Tags, Analyzer, time or RNG. The pure factory validates exact record shapes, role/movement/variant pairing and positive finite safe values (XP a positive safe integer), copies primitive fields and a new nested movement, validates final values and freezes both records. Each successful createEnemy constructs exactly one detached snapshot; rejected stale/non-running or blocked pipeline attempts construct none.
+Enemies use one Scene-local EnemyRuntime collection with readonly spawnSnapshot and exact creating RunLifecycle, mutable current health, polygon visual/position, lastDamagingSource and external knockbackVelocity; only Charger owns transient phase state and one Graphics telegraph. EnemyDefinitions.ts owns six deeply frozen authored definitions (swarm/chaser/charger/shooter/tank/boss), a fixed ELITE_TANK_PROFILE and required explicit LEGACY_NEUTRAL scaling context. Neutral construction performs no scaling arithmetic and reads no run, Build, Tags, Analyzer, time or RNG. The pure factory validates exact record shapes, role/movement/variant pairing and positive finite safe values (XP a positive safe integer), copies primitive fields, a new nested movement and two-field interaction, validates final values and freezes all three records. Interaction response allows finite0..MAX_SAFE_INTEGER; susceptibility is boolean. Each successful createEnemy constructs exactly one detached snapshot; rejected stale/non-running or blocked pipeline attempts construct none.
 
-Spawn values are Chaser3/180/24/1/1, Shooter2/140/24/1/1 with inclusive350..500 band, Tank6/100/24/1/1, Elite Tank18/120/24/2/5, Warden60/70+100/40/2/10 (maxHP/speed/radius/contact/XP). Current health initializes once from maxHealth, then only the existing typed Hit damage path or DEV Warden HP setter changes it. Identity/contact/XP/radius getters derive from the frozen snapshot; movement reads that enemy's own movement record. Scene-local enemyPresentation/eliteTankData/wardenPhaseTwo retain only original polygon points/fills/outlines. No armor, authored interaction coefficients, new enemy role or difficulty engine exists.
+Spawn values are Chaser3/180/24/1/1, Shooter2/140/24/1/1 with inclusive350..500 band, Tank6/100/24/1/1, Elite Tank18/120/24/2/5, Warden60/70+100/40/2/10 (maxHP/speed/radius/contact/XP). Current health initializes once from maxHealth, then only the existing typed Hit damage path or DEV Warden HP setter changes it. Identity/contact/XP/radius getters derive from the frozen snapshot; movement reads that enemy's own movement record. Scene-local enemyPresentation/eliteTankData/wardenPhaseTwo retain only original polygon points/fills/outlines. Swarm and Charger plus authored interaction coefficients are implemented as described below; no Armor or difficulty engine exists.
 
 Initial Chaser construction uses the captured PREPARING run at3000/1350 before five timers/start/entropy and is observed once after RUN_STARTED. Timed and DEV creation pass captured run tokens; stale owners are rejected before factory or Encounter draws. applyEnemyHit additionally requires target.run===hit.run; killEnemy requires current RUNNING owner and membership before flags/XP/removal/diagnostics. Old immutable spawn values stay readable after native restart but grant no mutation authority. Native restart restores one fresh Chaser/currentHP3/snapshot, count0/flagsfalse, new run/Build/Defense/RNG/Input/Diagnostics/API, zero Tags and five fresh events. Existing schedule/placement/draw budgets, movement/targeting/contact/hostile fire, six Attack/Hit paths, one XP pickup and atomic terminal cleanup are unchanged; GAME-051 adds the accepted lethal Hit/death record/source boundary described below.
 
@@ -299,7 +301,7 @@ velocity multiplies Velocity, physical visual/collision radii multiply Scale. Mi
 its scaled launch body radius as well as its existing launch values. Straight shots also
 retain their launch values. Shared Scale never changes explosions, Cluster centers/radii,
 Prism spread/count, Drone body/orbit, player/enemy bodies or XP. Replication's local bolt
-addition occurs before Scale. Shield Systems, Impact and Analyzer have no gameplay consumers.
+addition occurs before Scale. Shield Systems and Analyzer have no gameplay consumers. Impact now resolves immutable outgoing physical force at player launch; it never changes damage or incoming Defense.
 
 Exactly five events remain. A changed shared Fire Control resets the same three player
 weapon events in place to composed delays/elapsed0, retaining callbacks and Clock pause;
@@ -348,11 +350,10 @@ There is no production setCurrentShield caller: fresh Shield stays0; Shield Syst
 still an unused stat. Nonzero Shield is exercised only by tests/internal ignored harnesses.
 No Shield content, regeneration, capacity, healing source or extra DEV command is added.
 
-Contact uses first collection d<=R, R44 regular/Elite or60 Warden; correction is
+Contact uses first collection d<=R, R32 Swarm,42 Charger,44 legacy regular/Elite or60 Warden; correction is
 unit(player-enemy)*max(0,R-d), coincident unit(+1,0), clamped x[21,4779]/y[25,2675].
 It precedes damage, including God/protected rejection. Tangency routes damage with step0;
-edge residual overlap is allowed. No Impact, enemy displacement, velocity or extra pass
-is involved. PAUSED/terminal do neither geometry nor damage; active protection countdown
+edge residual overlap is allowed. Charger additionally supplies its current-update earliest CHARGING AI sweep pose when its final endpoint misses; final overlap takes priority. Impact never scales incoming damage or player separation; external knockback motion adds no swept contact. PAUSED/terminal do neither geometry nor damage; active protection countdown
 stays at its existing phase before projectiles/contact. Manual/reward/focus pause freeze
 Hull/Shield/protection and the same five event phases; resume continues the remainder.
 
@@ -377,7 +378,7 @@ actual RETRY pointer back to HP5/5, with no DEV API/debug UI or new runtime erro
 The Phaser-free combat.ts exports the closed Attack/source/snapshot/HitPhase/Damage
 contracts and createAttack, composePlayerDamage, calculateHitDamage, calculateEnemyDamage.
 The factory copies exact primitive snapshot fields and freezes both snapshot and Attack.
-Values must be actual finite positive numbers <=MAX_SAFE_INTEGER; fractions are allowed.
+Damage/speed/radius/lifetime/blast values must be actual finite positive numbers <=MAX_SAFE_INTEGER; fractions are allowed. Required player-only impact is finite0..MAX_SAFE_INTEGER. Hostile FlightSnapshot retains exactly four fields and ContactSnapshot remains damage-only.
 Invalid shapes/variants, unsafe products and zero underflow throw RangeError before affected
 visual/array/HP mutation; Cluster half-damage is validated at launch. Composition preserves
 left-to-right (local*C)*Reactor, with one further Engineering factor only for Drone.
@@ -401,7 +402,7 @@ representational no-op loss0. GAME-051 projects the actual Hit into frozen kind/
 attribution and one immutable death record, as described below; no death registry is retained. Incoming typed hostile/
 contact Hits retain PlayerDefense authority, God bypass, Shield-first protection and actual
 Hull-only diagnostics. Hostile collision always consumes the projectile. Contact preserves
-first inclusive bounded separation before incoming damage; Impact remains unused.
+first inclusive bounded separation before incoming damage; Impact affects outgoing survivor control only.
 
 Straight shot cleanup, or full primary + satellite union + Missile cleanup, precedes
 Victory. Death-first/Victory-first authority and unrelated postterminal freeze remain.
@@ -474,6 +475,88 @@ before Victory. Unmodified built production uses real keyboard/mouse/rendered ou
 Dash/pause/combat, ordinary deaths/physical XP, incoming damage to HP0/5 and actual RETRY to
 HP5/5/XP0/5/one Chaser; DEV absent and no pageerrors. Known favicon404/bundle-size warning remain.
 
+## Enemy interaction, Swarm and Charger
+
+Six identities comprise five normal roles plus legacy Warden; fixed Elite is still tank+isElite.
+Required LEGACY_NEUTRAL context and every legacy HP/speed/body/contact/XP value remain unchanged.
+
+| Profile | HP | AI speed / timings | Radius | Contact | XP | Knockback response | Decoy susceptible |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Swarm | 1 | PURSUIT240 | 12 | 1 | 1 | 1.5 | true |
+| Chaser | 3 | PURSUIT180 | 24 | 1 | 1 | 1 | true |
+| Charger | 4 | APPROACH110/range350; WINDUP650ms; CHARGING650px/s for500ms; RECOVERY800ms | 22 | 1 in every phase | 1 | 0.75 | true |
+| Shooter | 2 | band140/inclusive350..500 | 24 | 1 | 1 | 1 | true |
+| Tank | 6 | PURSUIT100 | 24 | 1 | 1 | 0.25 | true |
+| Fixed Elite Tank | 18 | PURSUIT120 | 24 | 2 | 5 | 0.125 | true |
+| Warden | 60 | HP>30:70; positiveHP<=30:100 | 40 | 2 | 10 | 0.05 | false |
+
+Each spawn owns independent frozen movement and interaction:{knockbackResponse,decoySusceptible}.
+Elite has its own explicit frozen interaction override. Susceptibility is data only; no actual
+Decoy, target switching, equipment, entity or activation exists. Charger is retargetable only
+before commitment (APPROACH/WINDUP); current targeting remains the player in every role.
+
+Laser/Prism and Drone/Twin use required PlayerFlightSnapshot impact; Missile/Cluster adds
+explosionRadius to that schema. createAttack validates/copies/freezes the player value; hostile
+and contact reject it. Concrete launch impact is local200/160/400px/s respectively times Ship
+Impact once. Hit strength=(frozen launch impact * phase1, or Cluster satellite0.5) * owned
+response. Damage/C/Reactor/Engineering/body/blast/cadence remain independent. Old launches keep
+old impact after Build changes. Exact zero means no force; nonzero force-product underflow
+and unsafe values fail before publication or HP/source/velocity mutation.
+
+Pure knockbackDirection/withKnockbackImpulse normalize actual flight velocity or radial blast
+geometry (zero -> +X), sum vectors with scaled-safe arithmetic and cap the sum at600px/s.
+stepKnockback integrates linear decay1200px/s² analytically once after concrete AI movement.
+At600 the maximum external travel is150px over500 active ms; Laser/Chaser Impact1 starts200,
+stops after1/6sec and contributes16 2/3px without AI/bounds. Scene clamps at max(25,bodyRadius),
+clears blocked outward components and retains tangential velocity. Hit changes velocity only;
+movement starts next active update, preserving Cluster membership and death positions. Actual
+hpLost0 can receive force without changing attribution/XP/kill counters; lethal removal receives
+no new force. applyEnemyHit remains the single HP adapter and killEnemy the single death/XP
+consequence path; seven source identities and seven-field EnemyDeathRecord remain unchanged.
+Satellite survivors retain one Hit with the FIRST covering circle's origin in existing order.
+
+Pure stepCharger owns only phase/time/position/aim calculations and charge-contact geometry.
+Exact residual phase time traverses at most the current cycle; after recovery residual time
+approaches and rearm waits for the next positive update. No wall clock, extra event or scheduler.
+Windup tracks current aim; charging locks it, never homes or redirects on contact/bounds. Scene
+integrates external force once, refreshes still-windup aim from final displaced center and
+commits validated state. One reused Scene-owned Graphics draws only WINDUP:3px/0xfb7185/0.75,
+325px clamped endpoint. Charger is a red44 chevron, Swarm a green24 diamond; yellow target
+outline retains priority. Death and captured native shutdown destroy Charger Graphics.
+
+Only CHARGING AI segments supply same-update exact-run swept contact evidence, inclusive at
+combined radius42. Final overlap wins, otherwise earliest crossing uses existing minimum player
+separation and ENEMY_CONTACT -> PlayerDefense once, in original enemy collection order. Projectiles/
+Missiles/death still precede contact. Killed/stale Chargers cannot contact; external force alone
+never creates a sweep, collision damage, enemy death or another damage source.
+
+Spawn option B preserves natural CCCSCT2000ms/cap10/Elite12+24/Warden30 and exactly two Encounter
+draws per accepted timed placement. Swarm/Charger currently enter via guarded internal verification
+of the real private factory, never natural scheduling or extra DEV commands. Diagnostics has
+six spawned/killed archetype keys and the unchanged seven source keys; both new roles drop XP1.
+Fresh killed buckets are all zero; spawned bootstrap observes initial Chaser exactly once.
+There are exactly five original TimerEvents and five DEV commands. No additional RNG consumers,
+dependencies, general movement framework, actual Decoy or GAME-053+ runtime were added.
+
+Validation:1078 tests/28 files retain all904 baseline cases through only approved schema/physical
+consumer migrations. Actual installed Chrome/Phaser checks all seven physical phases, response
+matrix, OLD Impact1/NEW Impact2, decay/cancellation/cap, first-circle union, loss0/preflight/lethal,
+new-role contact/death/XP/diagnostics and legacy AI/Warden phases/styles/bursts. Visible windup
+tracking/committed nonhoming charge/recovery were observed at normal and12FPS; separate controlled
+large-delta/swept/bounds checks pass. Actual Clock first30/cap-delayed12+30 yields60 Encounter draws
+with explicitly internal collection clearing. Real W/Space/Escape, MANUAL1100ms, REWARD700ms and
+genuine visible-tab BLUR800ms freeze Charger/Graphics/force/HP/source/flights/XP/Defense/diagnostics/
+five event identities+phases/four RNG counts. Composed REWARD+FOCUS_LOSS800ms and actual pointer
+selection preserve focus pause until explicit Escape; an authored Hull choice may heal1 normally.
+Two Victory NEW RUN cycles, Death RETRY and PAUSED nonterminal native restart each dirty new
+roles/force/telegraph, destroy old visuals/Graphics and restore fresh owners/ChaserHP3/null source/
+zero velocity/frozen interaction/zero Tags/six zero kill+seven zero source buckets/count0/flagsfalse/
+unpaused Clock/five fresh events; retained old callbacks/values cannot mutate fresh owners or draw
+fresh RNG. Straight/Missile/Cluster primary/satellite terminal atomicity and frozen BossXP10 pass.
+Unmodified production preview uses actual keyboard/mouse/rendered output: movement/Dash/pause,
+automatic combat, surviving Chaser knockback, physical XP, ordinary incoming Death and actual RETRY
+to a fresh active run, with DEV absent and no pageerrors. Known favicon404/bundle warning remain.
+
 ## Tags and canonical BuildSnapshot
 
 PlayerBuild owns exactly twelve Tag identities in immutable TAG_IDS order: PRECISION,
@@ -527,7 +610,7 @@ Only valid active updates add their full delta once before movement/combat. Paus
 frames returning early, paused frames and terminal frames add nothing. Update observations
 use end-of-active-frame time; earlier Clock callbacks use the last accumulated time.
 
-Historical aggregates count completed spawns/kills by chaser/shooter/tank/boss (Elite Tank
+Aggregates count completed spawns/kills by swarm/chaser/charger/shooter/tank/boss (Elite Tank
 subset), actual accepted HP loss/hits, dropped XP, credited XP split into pickup/DEV sources,
 levels gained, constructed offers, accepted choices and actual pause entries/resumes.
 The semantic timeline contains only RUN_STARTED, PAUSE_ENTERED, PAUSE_RESUMED,
@@ -720,7 +803,7 @@ These should only be introduced when real project requirements justify them.
 
 The placeholder arena, bounded desktop movement, camera follow, repeated enemy spawning/chase, nearest-enemy targeting and Laser projectile impacts with enemy damage/death are implemented and browser-verified.
 
-GAME-001 through GAME-039 and GAME-042/043/044/045/046/047/048/049/050/051 are complete. GAME-040/041 are SUPERSEDED. GATE A PASSED — Runtime Foundation approved; GAME-052+ remain BACKLOG pending separate definition. GATE B PASSED — Modern Combat on Legacy Spawning architect-approved.
+GAME-001 through GAME-039 and GAME-042/043/044/045/046/047/048/049/050/051/052 are complete. GAME-040/041 are SUPERSEDED. GATE A PASSED — Runtime Foundation approved; GAME-053+ remain BACKLOG pending separate definition. GATE B PASSED — Modern Combat on Legacy Spawning architect-approved.
 
 ---
 

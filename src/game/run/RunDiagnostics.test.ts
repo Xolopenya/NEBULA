@@ -17,7 +17,7 @@ describe('RunDiagnostics', () => {
     const d = new RunDiagnostics(seed), s = d.snapshot();
     expect(s).toMatchObject({ runSeed: seed, gameplayElapsedMs: 0, timeline: [], terminal: null, droppedTimelineRecords: 0 });
     expect(Object.values(s.aggregates).filter(v => typeof v === 'number').every(v => v === 0)).toBe(true);
-    expect(s.aggregates.spawned).toEqual({ total: 0, byArchetype: { chaser: 0, shooter: 0, tank: 0, boss: 0 }, eliteTanks: 0 });
+    expect(s.aggregates.spawned).toEqual({ total: 0, byArchetype: { swarm: 0, chaser: 0, charger: 0, shooter: 0, tank: 0, boss: 0 }, eliteTanks: 0 });
     expect(Reflect.set(d, 'runSeed', 1)).toBe(false);
     expect(d.recordRunStarted()).toBe(true); expect(d.recordRunStarted()).toBe(false);
     expect(d.snapshot().timeline).toEqual([{ type: 'RUN_STARTED', gameplayElapsedMs: 0 }]);
@@ -166,6 +166,26 @@ describe('GAME-051 source counters', () => {
     if (field === 'source') a.killsBySource['LASER.BASE.DIRECT'] = Number.MAX_SAFE_INTEGER;
     if (field === 'xp') a.xpDropped = Number.MAX_SAFE_INTEGER;
     const before = d.snapshot(); expect(() => d.recordEnemyKilled('tank', true, 5, source)).toThrow(RangeError);
+    expect(d.snapshot()).toEqual(before);
+  });
+});
+
+
+describe('six closed enemy diagnostic identities', () => {
+  it.each(['swarm', 'charger'] as const)('%s observes actual spawn/death XP1 without another source or timeline kind', archetype => {
+    const d = started(); d.recordEnemySpawned(archetype, false); d.recordEnemyKilled(archetype, false, 1, source);
+    const a = d.snapshot().aggregates;
+    expect(a.spawned.byArchetype[archetype]).toBe(1); expect(a.killed.byArchetype[archetype]).toBe(1);
+    expect(a.xpDropped).toBe(1); expect(a.killed.eliteTanks).toBe(0);
+    expect(Object.keys(a.killed.byArchetype).sort()).toEqual(['swarm', 'chaser', 'charger', 'shooter', 'tank', 'boss'].sort());
+    expect(Object.values(a.killsBySource).reduce((sum, n) => sum + n, 0)).toBe(a.killed.total);
+    expect(Object.keys(a.killsBySource)).toHaveLength(7); expect(d.snapshot().timeline).toHaveLength(1);
+    const before = d.snapshot(); expect(() => d.recordEnemySpawned(archetype, true)).toThrow(RangeError);
+    expect(() => d.recordEnemyKilled(archetype, true, 1, source)).toThrow(RangeError); expect(d.snapshot()).toEqual(before);
+  });
+  it.each(['swarm', 'charger'] as const)('%s archetype overflow leaves XP/source/total atomic', archetype => {
+    const d = started(); d['aggregates'].killed.byArchetype[archetype] = Number.MAX_SAFE_INTEGER;
+    const before = d.snapshot(); expect(() => d.recordEnemyKilled(archetype, false, 1, source)).toThrow(RangeError);
     expect(d.snapshot()).toEqual(before);
   });
 });

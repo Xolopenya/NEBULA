@@ -34,6 +34,14 @@ function visual(x = 0, y = 0, radius = 0) {
   };
   return object;
 }
+function graphics() {
+  return Object.assign(visual(), { commands: [] as unknown[],
+    clear() { this.commands = []; return this; },
+    lineStyle(...args: number[]) { this.commands.push(['style', ...args]); return this; },
+    lineBetween(...args: number[]) { this.commands.push(['line', ...args]); return this; },
+    fillStyle() {}, fillCircle() {}, strokeRect() {},
+  });
+}
 vi.mock('phaser', () => ({
   Scene: class {},
   Math: { Vector2: class {
@@ -56,7 +64,7 @@ function playerHit(scene: GameplayScene, amount: number, run = scene['run']!, de
 }
 function playerShot(scene: GameplayScene, x = 2800, damage = 1) {
   scene['launchPlayerProjectile']({ x, y: 1350 }, { x: 1, y: 0 },
-    createAttack({ kind: 'LASER', variant: 'BASE', snapshot: { damage, speed: 1200, lifetime: 2000, radius: 6 } }) as LaserAttack,
+    createAttack({ kind: 'LASER', variant: 'BASE', snapshot: { damage, speed: 1200, lifetime: 2000, radius: 6, impact: 200 } }) as LaserAttack,
     scene['run']!, 0xffffff);
   return scene['projectiles'].at(-1)!;
 }
@@ -87,6 +95,7 @@ function fixture() {
       },
       circle: (x: number, y: number, radius: number) => visual(x, y, radius),
       polygon: (x: number, y: number) => visual(x, y),
+      graphics,
     },
     events: {
       once: (key: string, fn: () => void) => {
@@ -104,8 +113,8 @@ function fixture() {
 beforeEach(() => { vi.stubGlobal('window', {}); vi.stubGlobal('document', { hasFocus: () => true, hidden: false }); });
 describe('GAME-051 authoritative death', () => {
   function context(s: GameplayScene, damage = 1, variant: 'BASE' | 'PRISM' = 'BASE') {
-    return { kind: 'ENEMY_DIRECT' as const, run: s['run']!, target: s['enemies'][0],
-      attack: createAttack({ kind: 'LASER', variant, snapshot: { damage, speed: 1200, radius: 6, lifetime: 2000 } }) as LaserAttack };
+    return { kind: 'ENEMY_DIRECT' as const, direction: { x: 1200, y: 0 }, run: s['run']!, target: s['enemies'][0],
+      attack: createAttack({ kind: 'LASER', variant, snapshot: { damage, speed: 1200, radius: 6, lifetime: 2000, impact: 200 } }) as LaserAttack };
   }
   function watch(s: GameplayScene) { return vi.spyOn(s as unknown as { killEnemy: typeof s['killEnemy'] }, 'killEnemy'); }
   it('initial, normal, Elite and DEV enemies start with null attribution; DEV HP changes preserve a real source', () => {
@@ -349,13 +358,13 @@ describe('GAME-050 frozen spawn ownership', () => {
     const f = fixture(), s = f.scene; allowCreate(s); s.create();
     const oldRun = s['run']!, old = s['enemies'][0], snapshot = old.spawnSnapshot;
     const callback = s['gameplayTimers'][0].callback!;
-    const attack = createAttack({ kind: 'LASER', variant: 'BASE', snapshot: { damage: 100, speed: 1200, radius: 6, lifetime: 2000 } }) as LaserAttack;
+    const attack = createAttack({ kind: 'LASER', variant: 'BASE', snapshot: { damage: 100, speed: 1200, radius: 6, lifetime: 2000, impact: 200 } }) as LaserAttack;
     f.shutdown(); s.create(); const draws = spyStreams(s), before = window.__NEBULA_DEV__!.snapshot();
     callback(); s['spawnEnemy'](oldRun); expect(s['createEnemy'](3000, 1350, 'boss', oldRun)).toBeNull();
     // Even accidental old-runtime membership cannot grant ownership to a fresh Hit/removal.
     s['enemies'].push(old);
-    expect(s['applyEnemyHit']({ kind: 'ENEMY_DIRECT', run: s['run']!, target: old, attack })).toBeNull();
-    expect(s['killEnemy']({ kind: 'ENEMY_DIRECT', run: oldRun, target: old, attack },
+    expect(s['applyEnemyHit']({ kind: 'ENEMY_DIRECT', direction: { x: 1200, y: 0 }, run: s['run']!, target: old, attack })).toBeNull();
+    expect(s['killEnemy']({ kind: 'ENEMY_DIRECT', direction: { x: 1200, y: 0 }, run: oldRun, target: old, attack },
       { target: 'ENEMY', calculatedDamage: 100, healthAfter: -97, hpLost: 3, healthDepleted: true },
       enemyDeath.createEnemyDamageSource({ kind: 'LASER', variant: 'BASE', phase: 'DIRECT' }))).toBeNull(); expect(old.health).toBe(3); s['enemies'].pop();
     expect(snapshot).toEqual({ ...enemyDefinitions.ENEMY_DEFINITIONS.chaser, isElite: false });
@@ -572,7 +581,7 @@ describe('current scene DevTools production operations', () => {
       input: {},
       time: { addEvent: (config: object) => ({ ...config, elapsed: 0 }) },
     });
-    Object.assign(scene.add, { graphics: () => ({ fillStyle() {}, fillCircle() {}, lineStyle() {}, strokeRect() {} }) });
+    Object.assign(scene.add, { graphics });
     scene.create();
     const fresh = window.__NEBULA_DEV__!;
     expect(fresh).not.toBe(api);
@@ -731,7 +740,7 @@ describe('GAME-042 real Scene terminal integration', () => {
       input: {}, scene: { restart },
       time: { addEvent: (config: object) => ({ ...config, elapsed: 0 }) },
     });
-    Object.assign(scene.add, { graphics: () => ({ fillStyle() {}, fillCircle() {}, lineStyle() {}, strokeRect() {} }) });
+    Object.assign(scene.add, { graphics });
     scene.create();
     const old = scene['run']!;
     const oldRandom = scene['runRandom']!;
@@ -780,7 +789,7 @@ function allowCreate(scene: GameplayScene) {
     cameras: { main: { setBackgroundColor() {}, setBounds() {}, startFollow() {}, centerOn() {} } },
     input: {}, time: { addEvent: (config: object) => ({ ...config, elapsed: 0 }) },
   });
-  Object.assign(scene.add, { graphics: () => ({ fillStyle() {}, fillCircle() {}, lineStyle() {}, strokeRect() {} }) });
+  Object.assign(scene.add, { graphics });
 }
 const streams = ['encounter', 'reward', 'world', 'boss'] as const;
 function spyStreams(scene: GameplayScene) {
@@ -924,8 +933,8 @@ describe('Scene run-scoped randomness production boundaries', () => {
     for (const draw of draws) expect(draw).not.toHaveBeenCalled();
     api.forceLevelUp(); scene['levelUpPresentation'][1].emit('pointerdown');
     const before = draws.map(draw => draw.mock.calls.length);
-    scene['applyEnemyHit']({ kind: 'ENEMY_DIRECT', run: scene['run']!, target: scene['enemies'].find(e => e.archetype === 'boss')!,
-      attack: createAttack({ kind: 'LASER', variant: 'BASE', snapshot: { damage: 30, speed: 1200, radius: 6, lifetime: 2000 } }) as LaserAttack });
+    scene['applyEnemyHit']({ kind: 'ENEMY_DIRECT', direction: { x: 1200, y: 0 }, run: scene['run']!, target: scene['enemies'].find(e => e.archetype === 'boss')!,
+      attack: createAttack({ kind: 'LASER', variant: 'BASE', snapshot: { damage: 30, speed: 1200, radius: 6, lifetime: 2000, impact: 200 } }) as LaserAttack });
     scene['enterRunVictory'](); scene['spawnEnemy'](scene['run']!); scene['enterLevelUpPause'](); api.snapshot();
     expect(draws.map(draw => draw.mock.calls.length)).toEqual(before);
     expect(draws[2]).not.toHaveBeenCalled(); expect(draws[3]).not.toHaveBeenCalled();
@@ -1111,7 +1120,7 @@ describe('GAME-045 concrete diagnostics production observations', () => {
     const { scene: s } = fixture();
     for (let i = 0; i < 30; i++) { s['enemies'] = []; s['spawnEnemy'](s['run']!); }
     const d = s['runDiagnostics']!.snapshot();
-    expect(d.aggregates.spawned).toEqual({ total: 30, byArchetype: { chaser: 20, shooter: 5, tank: 4, boss: 1 }, eliteTanks: 2 });
+    expect(d.aggregates.spawned).toEqual({ total: 30, byArchetype: { swarm: 0, chaser: 20, charger: 0, shooter: 5, tank: 4, boss: 1 }, eliteTanks: 2 });
     s['spawnEnemy'](s['run']!); expect(s['runDiagnostics']!.snapshot()).toEqual(d);
     expect(s['successfulTimedSpawns']).toBe(30);
     const other = fixture(); expect(other.api.spawnWarden()).toBe(true); expect(other.api.spawnWarden()).toBe(false);
@@ -1150,8 +1159,8 @@ describe('GAME-045 concrete diagnostics production observations', () => {
   });
   it('common XP credit splits real pickup/DEV, preserving drop/credit/pause and no duplicate collection', () => {
     const { scene: s, api } = fixture(); s['createEnemy'](2400, 1350, 'tank', s['run']!, true);
-    s['applyEnemyHit']({ kind: 'ENEMY_DIRECT', run: s['run']!, target: s['enemies'][0],
-      attack: createAttack({ kind: 'LASER', variant: 'BASE', snapshot: { damage: 18, speed: 1200, radius: 6, lifetime: 2000 } }) as LaserAttack });
+    s['applyEnemyHit']({ kind: 'ENEMY_DIRECT', direction: { x: 1200, y: 0 }, run: s['run']!, target: s['enemies'][0],
+      attack: createAttack({ kind: 'LASER', variant: 'BASE', snapshot: { damage: 18, speed: 1200, radius: 6, lifetime: 2000, impact: 200 } }) as LaserAttack });
     s['updateXpPickups'](0); s['updateXpPickups'](0);
     expect(api.snapshot()!.diagnostics.aggregates).toMatchObject({ xpDropped: 5, xpCollected: 5, xpCredited: 5, xpDevCredited: 0, levelsGained: 1, offersPresented: 1 });
     s['levelUpPresentation'][1].emit('pointerdown'); api.forceLevelUp();
@@ -1329,7 +1338,7 @@ describe('GAME-046 PlayerBuild production consumers', () => {
     expect(s['projectiles']).toHaveLength(2); expect(s['twinDroneEvolved']).toBe(true);
     expect(f.api.snapshot()!.build.slots.combat).toEqual(['LASER', 'MISSILE', 'COMBAT_DRONE']);
   });
-  it('unused stats have no gameplay consumer, and no shared Scale leaks into hostile/XP/blast/orbit', () => {
+  it('unused Shield/Analyzer and outgoing-only Impact leave incoming behavior unchanged; no shared Scale leaks into hostile/XP/blast/orbit', () => {
     const f = armed(), s = f.scene, before = f.api.snapshot()!.diagnostics;
     s['applyBuildChange']({ kind: 'percent', stat: 'shieldSystems', delta: 1 }); s['applyBuildChange']({ kind: 'percent', stat: 'impact', delta: 1 }); s['playerBuild']!.addCombatAnalyzerLevels(3);
     s['applyBuildChange']({ kind: 'percent', stat: 'projectileScale', delta: 1 }); s['applyBuildChange']({ kind: 'percent', stat: 'projectileVelocity', delta: 1 });
@@ -1667,14 +1676,14 @@ describe('GAME-049 concrete Attack/Hit integration', () => {
   });
   it('returns calculated versus actual loss, negative overkill HP and exactly one kill/XP', () => {
     const { scene: s } = armed(), enemy = s['enemies'][0]; enemy.health = 3;
-    const p = playerShot(s, 2800, 10), hit = { kind: 'ENEMY_DIRECT' as const, run: s['run']!, target: enemy, attack: p.attack as LaserAttack };
+    const p = playerShot(s, 2800, 10), hit = { kind: 'ENEMY_DIRECT' as const, direction: { x: 1200, y: 0 }, run: s['run']!, target: enemy, attack: p.attack as LaserAttack };
     expect(s['applyEnemyHit'](hit)).toEqual({ target: 'ENEMY', calculatedDamage: 10, healthAfter: -7, hpLost: 3, healthDepleted: true });
     expect(enemy.health).toBe(-7); expect(s['xpPickups']).toHaveLength(1); expect(s['applyEnemyHit'](hit)).toBeNull();
     expect(s['xpPickups']).toHaveLength(1);
   });
   it('rejects dead/missing/stale/paused targets before HP, fresh collection or Defense mutation', () => {
     const { scene: s } = armed(), enemy = s['enemies'][0], run = s['run']!, defense = s['playerDefense']!;
-    const p = playerShot(s), hit = { kind: 'ENEMY_DIRECT' as const, run, target: enemy, attack: p.attack as LaserAttack };
+    const p = playerShot(s), hit = { kind: 'ENEMY_DIRECT' as const, direction: { x: 1200, y: 0 }, run, target: enemy, attack: p.attack as LaserAttack };
     enemy.health = 0; expect(s['applyEnemyHit'](hit)).toBeNull(); enemy.health = 6;
     s['enemies'] = []; expect(s['applyEnemyHit'](hit)).toBeNull(); s['enemies'] = [enemy];
     run.requestPause('MANUAL'); expect(s['applyEnemyHit'](hit)).toBeNull(); run.releasePause('MANUAL');
@@ -1728,10 +1737,206 @@ describe('GAME-049 concrete Attack/Hit integration', () => {
   });
   it('stale Missile explosion cannot access fresh enemies and invalid BASE satellite fails before HP', () => {
     const { scene: s } = armed(); s['fireMissile'](); const m = s['missiles'][0], enemy = s['enemies'][0];
-    expect(() => s['applyEnemyHit']({ kind: 'ENEMY_BLAST', run: s['run']!, target: enemy, attack: m.attack, phase: 'SATELLITE' })).toThrow(RangeError);
+    expect(() => s['applyEnemyHit']({ kind: 'ENEMY_BLAST', origin: { x: 2400, y: 1350 }, run: s['run']!, target: enemy, attack: m.attack, phase: 'SATELLITE' })).toThrow(RangeError);
     expect(enemy.health).toBe(6); const fresh = new RunLifecycle(); fresh.start(); s['run'] = fresh;
     s['explodeMissile'](2800, 1350, m); s['explodeClusterSatellites'](2800, 1350, m); s['updateMissiles'](10000);
     expect(enemy.health).toBe(6); expect(m.remainingLifetime).toBe(4000);
   });
 
+});
+
+
+describe('GAME-052 physical interaction and Charger integration', () => {
+  function direct(s: GameplayScene, target: typeof s['enemies'][number], impact = 200, damage = 1, x = 1, y = 0) {
+    return { kind: 'ENEMY_DIRECT' as const, run: s['run']!, target, direction: { x, y },
+      attack: createAttack({ kind: 'LASER', variant: 'BASE', snapshot: { damage, impact, speed: 1200, radius: 6, lifetime: 2000 } }) as LaserAttack };
+  }
+  it.each(['swarm', 'charger', 'chaser', 'shooter', 'tank', 'boss'] as const)('%s starts with owned frozen interaction and zero external velocity', kind => {
+    const f = inputFixture(), s = f.scene, draws = spyStreams(s), e = s['createEnemy'](2800, 1350, kind, s['run']!)!;
+    expect(e.knockbackVelocity).toEqual({ x: 0, y: 0 }); expect(e.lastDamagingSource).toBeNull();
+    expect(e.spawnSnapshot.interaction).toEqual(enemyDefinitions.ENEMY_DEFINITIONS[kind].interaction);
+    expect(e.spawnSnapshot.interaction).not.toBe(enemyDefinitions.ENEMY_DEFINITIONS[kind].interaction);
+    expect(Object.isFrozen(e.spawnSnapshot.interaction)).toBe(true);
+    expect(!!e.charger).toBe(kind === 'charger');
+    if (e.charger) expect(e.charger.state).toEqual({ phase: 'APPROACH', remainingMs: 0, directionX: 1, directionY: 0 });
+    expect(s['successfulTimedSpawns']).toBe(0); for (const draw of draws) expect(draw).not.toHaveBeenCalled();
+  });
+  it.each([['swarm', 1.5], ['chaser', 1], ['charger', 0.75], ['shooter', 1], ['tank', 0.25], ['boss', 0.05]] as const)(
+    '%s response%s changes physical force, never damage or immediate position', (kind, response) => {
+      const { scene: s } = inputFixture(), e = s['createEnemy'](2800, 1350, kind, s['run']!)!; e.health = 10;
+      const result = s['applyEnemyHit'](direct(s, e)); expect(result!.healthAfter).toBe(9);
+      expect(e.knockbackVelocity.x).toBe(200 * response); expect(e.knockbackVelocity.y).toBe(0);
+      expect(e.visual.x).toBe(2800); expect(e.visual.y).toBe(1350);
+    });
+  it('Elite response is its explicit0.125 snapshot, independent of HP', () => {
+    const { scene: s } = inputFixture(), e = s['createEnemy'](2800, 1350, 'tank', s['run']!, true)!;
+    e.health = 100; s['applyEnemyHit'](direct(s, e)); expect(e.knockbackVelocity.x).toBe(25); expect(e.health).toBe(99);
+  });
+  it('integrates original AI first then one analytic external step and decay', () => {
+    const { scene: s } = inputFixture(), e = s['createEnemy'](3000, 1350, 'chaser', s['run']!)!;
+    s['applyEnemyHit'](direct(s, e)); expect(e.visual.x).toBe(3000);
+    s.update(0, 100); expect(e.visual.x).toBeCloseTo(3000 - 18 + 14); expect(e.knockbackVelocity.x).toBeCloseTo(80);
+    expect(e.health).toBe(2); s.update(0, 100); expect(e.knockbackVelocity).toEqual({ x: 0, y: 0 });
+  });
+  it('clears blocked outward velocity and retains its tangential component', () => {
+    const { scene: s } = inputFixture(), e = s['createEnemy'](4775, 1350, 'shooter', s['run']!)!;
+    s['player']!.x = 4775; s['player']!.y = 1800; e.knockbackVelocity = { x: 360, y: 480 };
+    s.update(0, 100); expect(e.visual.x).toBe(4775); expect(e.visual.y).toBeCloseTo(1393.2);
+    expect(e.knockbackVelocity.x).toBe(0); expect(e.knockbackVelocity.y).toBeCloseTo(384); expect(e.health).toBe(2);
+  });
+  it('Swarm pursues at240, contacts with32 radius and dies through one source/XP observer', () => {
+    const { scene: s } = inputFixture(), e = s['createEnemy'](2800, 1350, 'swarm', s['run']!)!;
+    s.update(0, 100); expect(e.visual.x).toBe(2776);
+    e.visual.x = 2431; s['updatePlayerContact'](); expect(s['player']!.x).toBe(2399); expect(s['playerHealth']).toBe(4);
+    const factory = vi.spyOn(enemyDeath, 'createEnemyDeathRecord');
+    try { s['applyEnemyHit'](direct(s, e)); expect(factory).toHaveBeenCalledTimes(1); }
+    finally { factory.mockRestore(); }
+    expect(e.knockbackVelocity).toEqual({ x: 0, y: 0 }); expect(s['xpPickups'].map(p => p.value)).toEqual([1]);
+    expect(s['runDiagnostics']!.snapshot().aggregates).toMatchObject({ killed: { total: 1, byArchetype: { swarm: 1 } },
+      xpDropped: 1, killsBySource: { 'LASER.BASE.DIRECT': 1 } });
+  });
+  it('Charger tracks final displaced center during WINDUP, reuses Graphics and locks heading', () => {
+    const { scene: s } = inputFixture(), e = s['createEnemy'](2700, 1350, 'charger', s['run']!)!;
+    const graphic = e.charger!.telegraph as unknown as ReturnType<typeof graphics>;
+    s.update(0, 100); expect(e.charger!.state.phase).toBe('WINDUP'); expect(e.charger!.state.remainingMs).toBe(550);
+    expect(graphic.commands).toEqual([['style', 3, 0xfb7185, 0.75], ['line', 2700, 1350, 2375, 1350]]);
+    e.knockbackVelocity = { x: 0, y: 200 }; s.update(0, 100);
+    const aim = e.charger!.state; expect(aim.directionY).toBeLessThan(0); expect(e.visual.y).toBeCloseTo(1364);
+    s.update(0, 450); expect(e.charger!.state.phase).toBe('CHARGING'); expect(graphic.commands).toEqual([]);
+    const locked = e.charger!.state; s['player']!.y += 200; const x = e.visual.x, y = e.visual.y;
+    s.update(0, 100); expect(e.charger!.state.directionX).toBe(locked.directionX); expect(e.charger!.state.directionY).toBe(locked.directionY);
+    expect(e.visual.x - x).toBeCloseTo(locked.directionX * 65); expect(e.visual.y - y).toBeCloseTo(locked.directionY * 65);
+    expect(e.charger!.telegraph).toBe(graphic); s.update(0, 400); expect(e.charger!.state.phase).toBe('RECOVERY');
+    s.update(0, 800); expect(e.charger!.state.phase).toBe('APPROACH'); s.update(0, 1); expect(e.charger!.state.phase).toBe('WINDUP');
+  });
+  it('actual charge crossing goes through contact/Defense once and leaves committed motion intact', () => {
+    const { scene: s } = inputFixture(), e = s['createEnemy'](2200, 1350, 'charger', s['run']!)!;
+    e.charger!.state = { phase: 'CHARGING', remainingMs: 500, directionX: 1, directionY: 0 };
+    const damage = vi.spyOn(s as unknown as { damagePlayer: typeof s['damagePlayer'] }, 'damagePlayer');
+    s.update(0, 500); expect(e.visual.x).toBe(2525); expect(s['playerHealth']).toBe(4); expect(s['player']!.x).toBe(2400);
+    expect(damage).toHaveBeenCalledTimes(1); expect(damage.mock.calls[0][0]).toMatchObject({ kind: 'PLAYER_CONTACT', attack: { snapshot: { damage: 1 } } });
+    expect(e.charger!.state.phase).toBe('RECOVERY'); expect(s['playerDamageProtectionRemaining']).toBe(500);
+    s.update(0, 1); expect(damage).toHaveBeenCalledTimes(1); expect(s['playerHealth']).toBe(4);
+  });
+  it('contact prefers final overlap and current collection order over retained charge pose', () => {
+    const { scene: s } = inputFixture(), first = s['createEnemy'](2400, 1350, 'tank', s['run']!, true)!;
+    const e = s['createEnemy'](2200, 1350, 'charger', s['run']!)!;
+    e.charger!.state = { phase: 'CHARGING', remainingMs: 500, directionX: 1, directionY: 0 };
+    s.update(0, 500); expect(s['playerHealth']).toBe(3); expect(s['player']!.x).toBe(2444); expect(first.health).toBe(18);
+  });
+  it('lethal projectile removes Charger/Graphics before its same-update sweep can contact', () => {
+    const { scene: s } = inputFixture(), e = s['createEnemy'](2200, 1350, 'charger', s['run']!)!;
+    e.charger!.state = { phase: 'CHARGING', remainingMs: 500, directionX: 1, directionY: 0 };
+    playerShot(s, 2500, 10); const originalVelocity = e.knockbackVelocity;
+    s.update(0, 500); expect(s['enemies']).not.toContain(e); expect(s['playerHealth']).toBe(5);
+    expect(e.knockbackVelocity).toEqual(originalVelocity); expect(e.charger!.telegraph.active).toBe(false);
+    expect(s['runDiagnostics']!.snapshot().aggregates).toMatchObject({ killed: { byArchetype: { charger: 1 } }, xpDropped: 1, xpCollected: 1 });
+    expect(s['xpPickups']).toHaveLength(0); expect(s['playerExperience'].xp).toBe(1);
+  });
+  it.each(['MANUAL', 'REWARD', 'FOCUS_LOSS'] as const)('%s freezes Charger, Graphics and force then resumes remaining time', reason => {
+    const { scene: s } = inputFixture(), e = s['createEnemy'](2700, 1350, 'charger', s['run']!)!; s.update(0, 100);
+    e.knockbackVelocity = { x: 0, y: 200 }; const before = JSON.stringify([e.charger!.state, e.knockbackVelocity, e.visual.x, e.visual.y,
+      (e.charger!.telegraph as unknown as ReturnType<typeof graphics>).commands]);
+    s['run']!.requestPause(reason); s['projectPause'](); const draws = spyStreams(s);
+    s.update(0, 5000); expect(JSON.stringify([e.charger!.state, e.knockbackVelocity, e.visual.x, e.visual.y,
+      (e.charger!.telegraph as unknown as ReturnType<typeof graphics>).commands])).toBe(before);
+    for (const draw of draws) expect(draw).not.toHaveBeenCalled(); s['run']!.releasePause(reason); s.update(0, 100);
+    expect(e.charger!.state.remainingMs).toBe(450); expect(e.knockbackVelocity.y).toBe(80);
+  });
+  it('contact prefers actual final overlap over the earlier swept boundary pose', () => {
+    const { scene: s } = inputFixture(), e = s['createEnemy'](2200, 1350, 'charger', s['run']!)!;
+    e.charger!.state = { phase: 'CHARGING', remainingMs: 500, directionX: 1, directionY: 0 };
+    s.update(0, 300); expect(e.visual.x).toBe(2395); expect(s['player']!.x).toBe(2437); expect(s['playerHealth']).toBe(4);
+  });
+  it('knockback-only crossing during recovery adds no swept contact', () => {
+    const { scene: s } = inputFixture(), e = s['createEnemy'](2300, 1350, 'charger', s['run']!)!;
+    e.charger!.state = { phase: 'RECOVERY', remainingMs: 800, directionX: 1, directionY: 0 };
+    e.knockbackVelocity = { x: 600, y: 0 }; s.update(0, 500);
+    expect(e.visual.x).toBe(2450); expect(s['playerHealth']).toBe(5); expect(e.knockbackVelocity).toEqual({ x: 0, y: 0 });
+  });
+  it('captured native cleanup destroys Charger Graphics and never touches a fresh create', () => {
+    const f = fixture(), s = f.scene; allowCreate(s); s.create();
+    const old = s['createEnemy'](2700, 1350, 'charger', s['run']!)!, oldRun = s['run']!;
+    old.knockbackVelocity = { x: 200, y: 0 };
+    f.shutdown(); expect(old.charger!.telegraph.active).toBe(false); expect(oldRun.state).toBe('DISPOSED');
+    s.create(); const fresh = s['createEnemy'](2700, 1350, 'charger', s['run']!)!;
+    expect(fresh.charger!.telegraph).not.toBe(old.charger!.telegraph); expect(fresh.knockbackVelocity).toEqual({ x: 0, y: 0 });
+    expect(s['enemies'][0].spawnSnapshot.interaction).not.toBe(old.spawnSnapshot.interaction);
+    expect(s['enemies'][0].knockbackVelocity).toEqual({ x: 0, y: 0 }); expect(s['gameplayTimers']).toHaveLength(5);
+  });
+  it('old enemies accidentally retained in a fresh collection cannot move, charge, receive Hits or contact', () => {
+    const { scene: s } = inputFixture(), e = s['createEnemy'](2400, 1350, 'charger', s['run']!)!, oldHit = direct(s, e);
+    e.knockbackVelocity = { x: 300, y: 0 }; const fresh = new RunLifecycle(); fresh.start(); s['run'] = fresh;
+    s.update(0, 100); expect(e.visual.x).toBe(2400); expect(e.charger!.state.phase).toBe('APPROACH'); expect(e.knockbackVelocity.x).toBe(300);
+    expect(s['applyEnemyHit'](oldHit)).toBeNull(); expect(s['applyEnemyHit']({ ...oldHit, run: fresh })).toBeNull(); expect(s['playerHealth']).toBe(5);
+  });
+  it.each(['impact', 'direction', 'response', 'velocity', 'product'] as const)('malformed %s fails preflight before HP/source/force mutation', field => {
+    const { scene: s } = inputFixture(), e = s['createEnemy'](2800, 1350, 'tank', s['run']!)!, hit = direct(s, e);
+    if (field === 'impact') Reflect.set(hit, 'attack', { ...hit.attack, snapshot: { ...hit.attack.snapshot, impact: NaN } });
+    if (field === 'direction') hit.direction.x = Infinity;
+    if (field === 'response' || field === 'product') Reflect.set(e, 'spawnSnapshot', { ...e.spawnSnapshot,
+      interaction: { knockbackResponse: field === 'response' ? -1 : Number.MAX_SAFE_INTEGER, decoySusceptible: true } });
+    if (field === 'velocity') e.knockbackVelocity = { x: 601, y: 0 };
+    const velocity = e.knockbackVelocity, before = s['runDiagnostics']!.snapshot();
+    expect(() => s['applyEnemyHit'](hit)).toThrow(RangeError); expect(e.health).toBe(6); expect(e.lastDamagingSource).toBeNull();
+    expect(e.knockbackVelocity).toBe(velocity); expect(s['runDiagnostics']!.snapshot()).toEqual(before); expect(s['xpPickups']).toHaveLength(0);
+  });
+  it('representational hpLost0 still accepts control without attribution or kill metrics', () => {
+    const { scene: s } = inputFixture(), e = s['createEnemy'](2800, 1350, 'chaser', s['run']!)!; e.health = Number.MAX_SAFE_INTEGER;
+    const before = s['runDiagnostics']!.snapshot(), hit = direct(s, e, 200, Number.MIN_VALUE); const result = s['applyEnemyHit'](hit)!;
+    expect(result.hpLost).toBe(0); expect(e.knockbackVelocity.x).toBe(200); expect(e.lastDamagingSource).toBeNull();
+    expect(s['runDiagnostics']!.snapshot()).toEqual(before); expect(s['xpPickups']).toHaveLength(0);
+  });
+  it('explicit zero force deals ordinary damage without clearing retained velocity', () => {
+    const { scene: s } = inputFixture(), e = s['createEnemy'](2800, 1350, 'tank', s['run']!)!; e.knockbackVelocity = { x: 100, y: 0 };
+    s['applyEnemyHit'](direct(s, e, 0)); expect(e.health).toBe(5); expect(e.knockbackVelocity).toEqual({ x: 100, y: 0 });
+  });
+  it('an owned explicit zero response preserves ordinary damage and retained velocity', () => {
+    const { scene: s } = inputFixture(), real = enemyDefinitions.createEnemySpawnSnapshot;
+    const factory = vi.spyOn(enemyDefinitions, 'createEnemySpawnSnapshot').mockImplementation((definition, context) =>
+      real({ ...definition, interaction: { ...definition.interaction, knockbackResponse: 0 } }, context));
+    let e: typeof s['enemies'][number];
+    try { e = s['createEnemy'](2800, 1350, 'tank', s['run']!)!; } finally { factory.mockRestore(); }
+    e.knockbackVelocity = { x: -100, y: 0 }; s['applyEnemyHit'](direct(s, e));
+    expect(e.health).toBe(5); expect(e.knockbackVelocity).toEqual({ x: -100, y: 0 });
+  });
+  it('launches real default200/160/400, keeps OLD Impact1 and NEW Impact2 independently frozen', () => {
+    const { scene: s } = inputFixture(), e = s['createEnemy'](2800, 1350, 'tank', s['run']!)!; s['currentTarget'] = e;
+    s['drone'] = visual(2500, 1350) as unknown as NonNullable<typeof s['drone']>;
+    s['fireLaser'](); s['fireDrone'](); s['fireMissile'](); const old = [...s['projectiles'].map(p => p.attack), s['missiles'][0].attack];
+    expect(old.map(a => 'impact' in a.snapshot ? a.snapshot.impact : null)).toEqual([200, 160, 400]);
+    s['applyBuildChange']({ kind: 'percent', stat: 'impact', delta: 1 }); s['missiles'] = []; s['projectiles'] = [];
+    s['fireLaser'](); s['fireDrone'](); s['fireMissile'](); const next = [...s['projectiles'].map(p => p.attack), s['missiles'][0].attack];
+    expect(next.map(a => 'impact' in a.snapshot ? a.snapshot.impact : null)).toEqual([400, 320, 800]);
+    for (let i = 0; i < old.length; i++) expect(next[i]).toEqual({ ...old[i], snapshot: { ...old[i].snapshot, impact: Reflect.get(old[i].snapshot, 'impact') * 2 } });
+    expect(old.map(a => Reflect.get(a.snapshot, 'impact'))).toEqual([200, 160, 400]);
+  });
+  it.each(['laser', 'prism', 'drone', 'twin', 'missile', 'cluster-primary', 'cluster-satellite'] as const)('%s actual collision applies positive physical force once per accepted Hit', mode => {
+    const { scene: s } = inputFixture(), e = s['createEnemy'](2800, 1350, 'chaser', s['run']!)!; e.health = 100;
+    s['currentTarget'] = e; s['prismEvolved'] = mode === 'prism'; s['twinDroneEvolved'] = mode === 'twin';
+    if (mode === 'laser' || mode === 'prism') { s['fireLaser'](); s['updateProjectiles'](400); }
+    else if (mode === 'drone' || mode === 'twin') {
+      s['drone'] = visual(2500, 1350) as unknown as NonNullable<typeof s['drone']>;
+      if (mode === 'twin') s['twinDrone'] = visual(2450, 1350) as unknown as NonNullable<typeof s['twinDrone']>;
+      s['fireDrone'](); s['updateProjectiles'](500);
+    } else {
+      s['clusterEvolved'] = mode !== 'missile'; s['fireMissile'](); const m = s['missiles'][0];
+      if (mode === 'cluster-satellite') s['explodeClusterSatellites'](2620, 1350, m);
+      else s['explodeMissile'](2800, 1350, m);
+    }
+    const expected = mode === 'twin' ? 320 : mode.includes('satellite') ? 200 : mode.includes('primary') || mode === 'missile' ? 400 : mode === 'drone' ? 160 : 200;
+    expect(e.knockbackVelocity.x).toBeCloseTo(expected); expect(e.visual.x).toBe(2800); expect(e.health).toBeLessThan(100);
+    expect(s['xpPickups']).toHaveLength(0);
+  });
+  it('Cluster uses FIRST covering satellite origin once and preserves primary survivor positions/membership', () => {
+    const { scene: s } = inputFixture(), e = s['createEnemy'](2680, 1350, 'chaser', s['run']!)!; e.health = 100;
+    s['clusterEvolved'] = true; s['fireMissile'](); const m = s['missiles'][0];
+    // Target at offset120 is primary-inclusive and satellite-center coincident: both directions +X.
+    s['explodeMissile'](2560, 1350, m); s['explodeClusterSatellites'](2560, 1350, m);
+    expect(e.health).toBe(97); expect(e.knockbackVelocity).toEqual({ x: 600, y: 0 }); expect(e.visual.x).toBe(2680);
+    e.visual.x = 2650; e.visual.y = 1350 + Math.sqrt(3) * 30; e.knockbackVelocity = { x: 0, y: 0 };
+    const hit = vi.spyOn(s as unknown as { applyEnemyHit: typeof s['applyEnemyHit'] }, 'applyEnemyHit');
+    s['explodeClusterSatellites'](2560, 1350, m); expect(hit).toHaveBeenCalledTimes(1);
+    expect(hit.mock.calls[0][0]).toMatchObject({ origin: { x: 2680, y: 1350 } }); expect(e.knockbackVelocity.x).toBeLessThan(0);
+  });
 });

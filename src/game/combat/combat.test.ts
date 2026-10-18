@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { createAttack, composePlayerDamage, calculateHitDamage, calculateEnemyDamage,
+import { createAttack, composePlayerDamage, composePlayerImpact, calculateHitDamage, calculateEnemyDamage,
   type Attack, type HitPhase } from './combat';
 
 const flight = { damage: 2.5, speed: 600, radius: 6, lifetime: 2000 };
+const playerFlight = { ...flight, impact: 200 };
 const inputs: Attack[] = [
-  { kind: 'LASER', variant: 'BASE', snapshot: flight }, { kind: 'LASER', variant: 'PRISM', snapshot: flight },
-  { kind: 'MISSILE', variant: 'BASE', snapshot: { ...flight, explosionRadius: 100 } },
-  { kind: 'MISSILE', variant: 'CLUSTER', snapshot: { ...flight, explosionRadius: 100 } },
-  { kind: 'COMBAT_DRONE', variant: 'BASE', snapshot: flight }, { kind: 'COMBAT_DRONE', variant: 'TWIN', snapshot: flight },
+  { kind: 'LASER', variant: 'BASE', snapshot: playerFlight }, { kind: 'LASER', variant: 'PRISM', snapshot: playerFlight },
+  { kind: 'MISSILE', variant: 'BASE', snapshot: { ...playerFlight, explosionRadius: 100 } },
+  { kind: 'MISSILE', variant: 'CLUSTER', snapshot: { ...playerFlight, explosionRadius: 100 } },
+  { kind: 'COMBAT_DRONE', variant: 'BASE', snapshot: playerFlight }, { kind: 'COMBAT_DRONE', variant: 'TWIN', snapshot: playerFlight },
   { kind: 'HOSTILE_PROJECTILE', snapshot: flight }, { kind: 'ENEMY_CONTACT', snapshot: { damage: 0.5 } },
 ];
 const invalid = [0, -1, NaN, Infinity, -Infinity, Number.MAX_SAFE_INTEGER + 1, '2', null, undefined];
@@ -28,6 +29,7 @@ describe('immutable concrete attacks', () => {
   });
   it.each(invalid)('rejects invalid value %s in every snapshot field', value => {
     for (const input of inputs) for (const field of Object.keys(input.snapshot)) {
+      if (field === 'impact' && value === 0) continue; // Explicit no-force is the approved player-only exception.
       expect(() => createAttack({ ...input, snapshot: { ...input.snapshot, [field]: value } } as Attack)).toThrow(RangeError);
     }
   });
@@ -37,7 +39,7 @@ describe('immutable concrete attacks', () => {
     expect(() => createAttack(input as Attack)).toThrow(RangeError);
   });
   it('accepts positive fractions and safe endpoints, validates half-damage before Cluster creation', () => {
-    const snapshot = { damage: Number.MIN_VALUE, speed: Number.MAX_SAFE_INTEGER, radius: 0.25, lifetime: 0.5, explosionRadius: 1 };
+    const snapshot = { damage: Number.MIN_VALUE, speed: Number.MAX_SAFE_INTEGER, radius: 0.25, lifetime: 0.5, explosionRadius: 1, impact: 400 };
     expect(createAttack({ kind: 'MISSILE', variant: 'BASE', snapshot }).snapshot.damage).toBe(Number.MIN_VALUE);
     expect(() => createAttack({ kind: 'MISSILE', variant: 'CLUSTER', snapshot })).toThrow(RangeError);
   });
@@ -91,5 +93,31 @@ describe('enemy arithmetic without death side effects', () => {
   it.each(invalid)('rejects invalid current health or damage %s', value => {
     expect(() => calculateEnemyDamage(value as number, 1)).toThrow(RangeError);
     expect(() => calculateEnemyDamage(1, value as number)).toThrow(RangeError);
+  });
+});
+
+describe('player-only immutable Impact', () => {
+  it.each(inputs.slice(0, 6))('$kind/$variant requires and copies player impact, including explicit zero', input => {
+    const original = structuredClone(input), attack = createAttack(original);
+    Reflect.set(original.snapshot, 'impact', 999);
+    expect(Reflect.get(attack.snapshot, 'impact')).toBe(200);
+    expect(Object.keys(attack.snapshot)).toContain('impact');
+    expect(Reflect.get(createAttack({ ...input, snapshot: { ...input.snapshot, impact: 0 } } as Attack).snapshot, 'impact')).toBe(0);
+    const missing = structuredClone(input); Reflect.deleteProperty(missing.snapshot, 'impact');
+    expect(() => createAttack(missing)).toThrow(RangeError);
+  });
+  it.each(inputs.slice(6))('$kind rejects player physical fields', input => {
+    expect(() => createAttack({ ...input, snapshot: { ...input.snapshot, impact: 0 } } as Attack)).toThrow(RangeError);
+  });
+  it.each([200, 160, 400])('resolves authored %s * Ship Impact once at launch', local => {
+    expect(composePlayerImpact(local, 1)).toBe(local); expect(composePlayerImpact(local, 2)).toBe(local * 2);
+    expect(composePlayerImpact(local, 0)).toBe(0); expect(composePlayerImpact(0, 2)).toBe(0);
+  });
+  it('rejects overflow and nonzero underflow before publishing a force', () => {
+    expect(() => composePlayerImpact(Number.MAX_SAFE_INTEGER, 2)).toThrow(RangeError);
+    expect(() => composePlayerImpact(Number.MIN_VALUE, 0.5)).toThrow(RangeError);
+    const snapshot = { ...playerFlight, impact: Number.MIN_VALUE, explosionRadius: 120 };
+    expect(() => createAttack({ kind: 'MISSILE', variant: 'CLUSTER', snapshot })).toThrow(RangeError);
+    expect(createAttack({ kind: 'MISSILE', variant: 'BASE', snapshot }).snapshot).toEqual(snapshot);
   });
 });

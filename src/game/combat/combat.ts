@@ -1,11 +1,12 @@
 import type { IncomingDefenseResult } from '../player/PlayerDefense';
 
 export type FlightSnapshot = Readonly<{ damage: number; speed: number; radius: number; lifetime: number }>;
-export type MissileSnapshot = Readonly<FlightSnapshot & { explosionRadius: number }>;
+export type PlayerFlightSnapshot = Readonly<FlightSnapshot & { impact: number }>;
+export type MissileSnapshot = Readonly<PlayerFlightSnapshot & { explosionRadius: number }>;
 export type ContactSnapshot = Readonly<{ damage: number }>;
-export type LaserAttack = Readonly<{ kind: 'LASER'; variant: 'BASE' | 'PRISM'; snapshot: FlightSnapshot }>;
+export type LaserAttack = Readonly<{ kind: 'LASER'; variant: 'BASE' | 'PRISM'; snapshot: PlayerFlightSnapshot }>;
 export type MissileAttack = Readonly<{ kind: 'MISSILE'; variant: 'BASE' | 'CLUSTER'; snapshot: MissileSnapshot }>;
-export type DroneAttack = Readonly<{ kind: 'COMBAT_DRONE'; variant: 'BASE' | 'TWIN'; snapshot: FlightSnapshot }>;
+export type DroneAttack = Readonly<{ kind: 'COMBAT_DRONE'; variant: 'BASE' | 'TWIN'; snapshot: PlayerFlightSnapshot }>;
 export type HostileAttack = Readonly<{ kind: 'HOSTILE_PROJECTILE'; snapshot: FlightSnapshot }>;
 export type ContactAttack = Readonly<{ kind: 'ENEMY_CONTACT'; snapshot: ContactSnapshot }>;
 export type Attack = LaserAttack | MissileAttack | DroneAttack | HostileAttack | ContactAttack;
@@ -39,22 +40,38 @@ export function createAttack(input: Attack): Attack {
   }
   const snapshot = input.snapshot;
   const fields = kind === 'ENEMY_CONTACT' ? ['damage']
-    : kind === 'MISSILE' ? ['damage', 'speed', 'radius', 'lifetime', 'explosionRadius']
-      : ['damage', 'speed', 'radius', 'lifetime'];
+    : kind === 'MISSILE' ? ['damage', 'speed', 'radius', 'lifetime', 'impact', 'explosionRadius']
+      : playerKind ? ['damage', 'speed', 'radius', 'lifetime', 'impact'] : ['damage', 'speed', 'radius', 'lifetime'];
   if (!snapshot || typeof snapshot !== 'object' || Reflect.ownKeys(snapshot).length !== fields.length
     || !fields.every(field => Object.hasOwn(snapshot, field))) throw new RangeError('Invalid Attack snapshot shape');
   const damage = positive(snapshot.damage);
   if (kind === 'ENEMY_CONTACT') return Object.freeze({ kind, snapshot: Object.freeze({ damage }) });
   const flight = { damage, speed: positive(input.snapshot.speed), radius: positive(input.snapshot.radius),
     lifetime: positive(input.snapshot.lifetime) };
-  if (input.kind === 'MISSILE') {
-    if (input.variant === 'CLUSTER') positive(damage * 0.5);
-    return Object.freeze({ kind: input.kind, variant: input.variant,
-      snapshot: Object.freeze({ ...flight, explosionRadius: positive(input.snapshot.explosionRadius) }) });
-  }
   if (input.kind === 'HOSTILE_PROJECTILE') return Object.freeze({ kind: input.kind, snapshot: Object.freeze(flight) });
-  if (input.kind === 'LASER') return Object.freeze({ kind: input.kind, variant: input.variant, snapshot: Object.freeze(flight) });
-  return Object.freeze({ kind: input.kind, variant: input.variant, snapshot: Object.freeze(flight) });
+  const playerFlight = { ...flight, impact: forceValue(input.snapshot.impact) };
+  if (input.kind === 'MISSILE') {
+    if (input.variant === 'CLUSTER') { positive(damage * 0.5); composePlayerImpact(playerFlight.impact, 0.5); }
+    return Object.freeze({ kind: input.kind, variant: input.variant,
+      snapshot: Object.freeze({ ...playerFlight, explosionRadius: positive(input.snapshot.explosionRadius) }) });
+  }
+  if (input.kind === 'LASER') return Object.freeze({ kind: input.kind, variant: input.variant, snapshot: Object.freeze(playerFlight) });
+  return Object.freeze({ kind: input.kind, variant: input.variant, snapshot: Object.freeze(playerFlight) });
+}
+
+function forceValue(value: number): number {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > Number.MAX_SAFE_INTEGER) {
+    throw new RangeError('Invalid impact value');
+  }
+  return value;
+}
+
+/** Used by all three concrete player launch paths; explicit zero means no force. */
+export function composePlayerImpact(localImpact: number, shipImpact: number): number {
+  forceValue(localImpact); forceValue(shipImpact);
+  const result = forceValue(localImpact * shipImpact);
+  if (localImpact !== 0 && shipImpact !== 0 && result === 0) throw new RangeError('Impact underflow');
+  return result;
 }
 
 export function composePlayerDamage(system: PlayerAttackSource['kind'], localDamage: number,
