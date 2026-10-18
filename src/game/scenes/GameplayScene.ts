@@ -13,6 +13,8 @@ import { clusterSatelliteOffsets } from '../combat/clusterSatellites';
 import { ENEMY_DEFINITIONS, DEFAULT_ENEMY_SPAWN_CONTEXT, createEnemySpawnSnapshot,
   type EnemyArchetype, type EnemySpawnSnapshot } from '../enemies/EnemyDefinitions';
 import { shooterMovement } from '../enemies/shooterMovement';
+import { createEnemyDamageSource, validateEnemyDeathRecord, createEnemyDeathRecord,
+  type EnemyDamageSource, type EnemyDeathRecord } from '../enemies/EnemyDeath';
 import { shouldSpawnEliteTank } from '../enemies/eliteTank';
 import { shouldSpawnWarden, wardenPhase, wardenBurstDirections } from '../enemies/warden';
 import { stepDash } from '../player/dash';
@@ -99,6 +101,7 @@ type EnemyRuntime = {
   readonly collisionRadius: number;
   visual: Phaser.GameObjects.Polygon;
   health: number;
+  lastDamagingSource: EnemyDamageSource | null;
 };
 
 type XpPickup = {
@@ -113,6 +116,20 @@ type Hit = Readonly<{ run: RunLifecycle } & (
   | { kind: 'PLAYER_PROJECTILE'; target: PlayerDefense; attack: HostileAttack }
   | { kind: 'PLAYER_CONTACT'; target: PlayerDefense; attack: ContactAttack }
 )>;
+
+type EnemyHit = Extract<Hit, { kind: 'ENEMY_DIRECT' | 'ENEMY_BLAST' }>;
+
+function enemyHitSource(hit: EnemyHit): EnemyDamageSource {
+  // The closed factory validates the correlated kind/variant/phase combination at runtime.
+  return createEnemyDamageSource({ kind: hit.attack.kind, variant: hit.attack.variant,
+    phase: hit.kind === 'ENEMY_DIRECT' ? 'DIRECT' : hit.phase } as EnemyDamageSource);
+}
+
+function enemyDeathInput(enemy: EnemyRuntime, source: EnemyDamageSource): EnemyDeathRecord {
+  const { archetype, isElite, xpValue } = enemy.spawnSnapshot;
+  return { archetype, isElite, xpValue, x: enemy.visual.x, y: enemy.visual.y,
+    lastDamagingSource: source, killSource: source };
+}
 
 type ProjectileRuntime = {
   readonly attack: LaserAttack | DroneAttack | HostileAttack;
@@ -848,13 +865,16 @@ export class GameplayScene extends Phaser.Scene {
     }
   }
 
-  private applyEnemyHit(hit: Extract<Hit, { kind: 'ENEMY_DIRECT' | 'ENEMY_BLAST' }>): EnemyDamage | null {
+  private applyEnemyHit(hit: EnemyHit): EnemyDamage | null {
     if (hit.run !== this.run || hit.run.state !== 'RUNNING') return null;
     if (hit.target.run !== hit.run || !this.enemies.includes(hit.target) || hit.target.health <= 0) return null;
     const amount = calculateHitDamage(hit.attack, hit.kind === 'ENEMY_DIRECT' ? 'DIRECT' : hit.phase);
     const result = calculateEnemyDamage(hit.target.health, amount);
+    const source = result.hpLost > 0 ? enemyHitSource(hit) : null;
+    if (result.healthDepleted && source) validateEnemyDeathRecord(enemyDeathInput(hit.target, source));
     hit.target.health = result.healthAfter;
-    if (result.healthDepleted) this.killEnemy(hit.target);
+    if (source) hit.target.lastDamagingSource = source;
+    if (result.healthDepleted && source) this.killEnemy(hit, result, source);
     return result;
   }
 
@@ -1242,21 +1262,30 @@ export class GameplayScene extends Phaser.Scene {
     }
   }
 
-  private killEnemy(enemy: EnemyRuntime): void {
-    if (enemy.run !== this.run || enemy.run.state !== 'RUNNING') return;
+  private killEnemy(hit: EnemyHit, damage: EnemyDamage, source: EnemyDamageSource): EnemyDeathRecord | null {
+    if (hit.run !== this.run || hit.run.state !== 'RUNNING' || hit.target.run !== hit.run) return null;
+    const enemy = hit.target;
     const index = this.enemies.indexOf(enemy);
-    if (index === -1) return;
-    if (enemy.archetype === 'boss') this.bossDefeated = true;
+    if (index === -1 || !damage.healthDepleted || !(damage.hpLost > 0)
+      || enemy.health !== damage.healthAfter || !(enemy.health <= 0)) return null;
+    const actual = enemyHitSource(hit);
+    createEnemyDamageSource(source);
+    if (actual.kind !== source.kind || actual.variant !== source.variant || actual.phase !== source.phase
+      || enemy.lastDamagingSource?.kind !== source.kind || enemy.lastDamagingSource.variant !== source.variant
+      || enemy.lastDamagingSource.phase !== source.phase) throw new RangeError('Mismatched lethal Hit source');
+    const record = createEnemyDeathRecord(enemyDeathInput(enemy, source));
+    if (record.archetype === 'boss') this.bossDefeated = true;
     this.xpPickups.push({
-      visual: this.add.circle(enemy.visual.x, enemy.visual.y, 10, 0xa3e635)
+      visual: this.add.circle(record.x, record.y, 10, 0xa3e635)
         .setStrokeStyle(2, 0xecfccb),
-      value: enemy.xpValue,
+      value: record.xpValue,
       speed: 0,
     });
     if (this.currentTarget === enemy) this.currentTarget = undefined;
     enemy.visual.destroy();
     this.enemies.splice(index, 1);
-    this.runDiagnostics!.recordEnemyKilled(enemy.archetype, enemy.isElite, enemy.xpValue);
+    this.runDiagnostics!.recordEnemyKilled(record.archetype, record.isElite, record.xpValue, record.killSource);
+    return record;
   }
 
   private createEnemy(
@@ -1276,7 +1305,7 @@ export class GameplayScene extends Phaser.Scene {
     const visual = this.add.polygon(x, y, data.points, data.color);
     visual.setStrokeStyle(spawnSnapshot.isElite || archetype === 'boss' ? 3 : 2, data.outline);
     const enemy: EnemyRuntime = {
-      spawnSnapshot, run, visual, health: spawnSnapshot.maxHealth,
+      spawnSnapshot, run, visual, health: spawnSnapshot.maxHealth, lastDamagingSource: null,
       get archetype() { return spawnSnapshot.archetype; },
       get isElite() { return spawnSnapshot.isElite; },
       get contactDamage() { return spawnSnapshot.contactDamage; },

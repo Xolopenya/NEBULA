@@ -14,7 +14,7 @@ Do not place future plans or speculative features here.
 
 Current phase:
 
-FIRST PLAYABLE CORE LOOP COMPLETE / GAME-050 COMPLETE
+FIRST PLAYABLE CORE LOOP COMPLETE / GAME-051 COMPLETE
 
 The project has a working browser application, development toolchain and placeholder gameplay scene.
 
@@ -171,7 +171,7 @@ Enemies use one Scene-local EnemyRuntime collection with readonly spawnSnapshot 
 
 Spawn values are Chaser3/180/24/1/1, Shooter2/140/24/1/1 with inclusive350..500 band, Tank6/100/24/1/1, Elite Tank18/120/24/2/5, Warden60/70+100/40/2/10 (maxHP/speed/radius/contact/XP). Current health initializes once from maxHealth, then only the existing typed Hit damage path or DEV Warden HP setter changes it. Identity/contact/XP/radius getters derive from the frozen snapshot; movement reads that enemy's own movement record. Scene-local enemyPresentation/eliteTankData/wardenPhaseTwo retain only original polygon points/fills/outlines. No armor, authored interaction coefficients, new enemy role or difficulty engine exists.
 
-Initial Chaser construction uses the captured PREPARING run at3000/1350 before five timers/start/entropy and is observed once after RUN_STARTED. Timed and DEV creation pass captured run tokens; stale owners are rejected before factory or Encounter draws. applyEnemyHit additionally requires target.run===hit.run; killEnemy requires current RUNNING owner and membership before flags/XP/removal/diagnostics. Old immutable spawn values stay readable after native restart but grant no mutation authority. Native restart restores one fresh Chaser/currentHP3/snapshot, count0/flagsfalse, new run/Build/Defense/RNG/Input/Diagnostics/API, zero Tags and five fresh events. Existing schedule/placement/draw budgets, movement/targeting/contact/hostile fire, six Attack/Hit paths, one XP pickup and atomic terminal cleanup are unchanged; GAME-051 death records/attribution remain unimplemented.
+Initial Chaser construction uses the captured PREPARING run at3000/1350 before five timers/start/entropy and is observed once after RUN_STARTED. Timed and DEV creation pass captured run tokens; stale owners are rejected before factory or Encounter draws. applyEnemyHit additionally requires target.run===hit.run; killEnemy requires current RUNNING owner and membership before flags/XP/removal/diagnostics. Old immutable spawn values stay readable after native restart but grant no mutation authority. Native restart restores one fresh Chaser/currentHP3/snapshot, count0/flagsfalse, new run/Build/Defense/RNG/Input/Diagnostics/API, zero Tags and five fresh events. Existing schedule/placement/draw budgets, movement/targeting/contact/hostile fire, six Attack/Hit paths, one XP pickup and atomic terminal cleanup are unchanged; GAME-051 adds the accepted lethal Hit/death record/source boundary described below.
 
 Validation:739 tests/25 files (136 new pure enemy-definition and33 new Scene cases; all570 baseline cases retained). Actual Chrome/Phaser verifies controlled Clock CCCSCT/Elite12+24/Warden30 with cap-delayed12/30 and60 Encounter draws, pursuit/Shooter/Warden HP phases/styles/hostile fire, six offensive paths, immutable values, genuine BLUR/manual/reward freezes, two Victory NEW RUN cycles, Death RETRY and paused nonterminal native restart. Controlled long-schedule collection clearing is internal fixture setup. Unmodified production input/combat/ordinary Death/real pointer RETRY passes without DEV API or pageerrors.
 
@@ -217,7 +217,7 @@ Replication Matrix is the sixth explicit repeatable run-local passive, starting/
 
 Twin Drone Formation requires explicit Drone ranks2/2/2 + Replication level>=1 and unevolved state. The passive is not consumed. Both final-prerequisite categories apply only to the next presentation; accepted Twin sets twinDroneEvolved once, preserves ranks/values, sets Drone focus and immediately adds one opposite teal radius10 companion at current droneAngle+PI. It retains the primary position/shared angle and the SAME Drone TimerEvent delay/elapsed phase, without a volley or existing-bolt duplication. One shared angle positions primary/Twin at radius110 and 2rad/s; each center is independently clamped. The synchronized callback queries nearest enemies independently from each actual origin, with stable ties and independent near-zero/no-target suppression, and launches full-damage normal bolts from each valid origin. Both origins use current Drone damage x Combat, speed, radius5+Replication and lifetime1800 at launch; old bolts retain snapshots. Pause/death freeze both companions/angle/bolts. Native restart destroys Twin/old shots/timers, clears its reference/flag and recreates exactly one angle0 primary and five fresh gameplay timers. Real-runtime validation covers all offer combinations/cursors, immediate acceptance/phase, orbit/targeting/suppression, real Clock boundaries, both-origin snapshots and two actual native retries. No generic companion or Amount architecture is added.
 
-Every killed enemy creates exactly one lime-green world-space XP pickup at its death position: regular value1, Elite Tank value5, Warden value10. killEnemy reads the killed runtime xpValue; duplicate removal attempts create no second pickup. Scene-owned pickup records preserve visual, value and magnet speed; create resets the array and restart destroys old visuals. Pickups stay stationary outside the current player-center magnet radius (baseline 180 pixels). Within range they accelerate toward the current player position at 900 px/s² up to 600 px/s, using frame delta; leaving range resets speed. Reaching a 20-pixel player-center collection radius credits pickup.value to player XP before destroying/removing the pickup. Motion is capped by collection to avoid overshoot. Magnet processing stops during level-up pause, death and Victory. Scene-owned playerExperience starts at level 1 with 0 XP toward the next level. The pure experience module requires 5 × current level XP, subtracts each reached threshold, carries excess forward and allows multiple levels per award. Restart resets this state and clears the separate isLevelUpPaused flag. Collection that increases level credits/removes the triggering pickup, then enters level-up pause immediately; subsequent pickups remain untouched. Screen-fixed LEVEL UP — CHOOSE ONE text and exactly three distinct selectable options appear, built once from uncapped Laser, Missile and Drone upgrades plus Hull Plating, Thruster Module, Collector Field, Combat Processor, Spatial Amplifier and Replication Matrix, using the focused/passive/open slot policy above. The pure selectChoices helper accepts a supplied pool, count and random source, leaves the pool unchanged and permits repeats across later presentations. Choices stay stable during a pause. Each Laser upgrade has an explicit run-local rank starting at 0, increments only on its accepted selection and becomes ineligible at rank 2; all six passives remain repeatable. An eligible evolution occupies Slot 3 as described below. isSimulationPaused derives only from non-RUNNING lifecycle state (PREPARING, PAUSED, TERMINAL or DISPOSED) to freeze movement, chase/targeting, projectiles, damage/protection, XP movement/collection and all spawn/fire callbacks. Level-up pause itself is not death and offers no retry. Clicking one current choice destroys the level-up title/options and releases REWARD; simulation resumes only if no other reason remains, and duplicate/stale callbacks are rejected. Selected effects apply before resume and accumulate across level-ups. Scene-owned laser data starts at damage 1, fireInterval 600 ms and projectileSpeed 1200 px/s and resets on each create. Fire Rate resets the existing laserTimer in place to the new interval with elapsed time zero, preserving one Laser event rather than adding another. New straight player shots snapshot weapon-specific damage multiplied by the run-wide damage multiplier, plus current speed; already-fired shots keep their launch values. Missiles likewise snapshot multiplied explosion damage at launch, including Missiles that span a choice pause. Hostile shots are unchanged. Restart clears presentation references and native scene shutdown destroys the texts.
+Every killed enemy creates exactly one lime-green world-space XP pickup at its death position: regular value1, Elite Tank value5, Warden value10. killEnemy uses the immutable death record xpValue copied from that enemy's spawn snapshot; duplicate removal attempts create no second pickup. Scene-owned pickup records preserve visual, value and magnet speed; create resets the array and restart destroys old visuals. Pickups stay stationary outside the current player-center magnet radius (baseline 180 pixels). Within range they accelerate toward the current player position at 900 px/s² up to 600 px/s, using frame delta; leaving range resets speed. Reaching a 20-pixel player-center collection radius credits pickup.value to player XP before destroying/removing the pickup. Motion is capped by collection to avoid overshoot. Magnet processing stops during level-up pause, death and Victory. Scene-owned playerExperience starts at level 1 with 0 XP toward the next level. The pure experience module requires 5 × current level XP, subtracts each reached threshold, carries excess forward and allows multiple levels per award. Restart resets this state and clears the separate isLevelUpPaused flag. Collection that increases level credits/removes the triggering pickup, then enters level-up pause immediately; subsequent pickups remain untouched. Screen-fixed LEVEL UP — CHOOSE ONE text and exactly three distinct selectable options appear, built once from uncapped Laser, Missile and Drone upgrades plus Hull Plating, Thruster Module, Collector Field, Combat Processor, Spatial Amplifier and Replication Matrix, using the focused/passive/open slot policy above. The pure selectChoices helper accepts a supplied pool, count and random source, leaves the pool unchanged and permits repeats across later presentations. Choices stay stable during a pause. Each Laser upgrade has an explicit run-local rank starting at 0, increments only on its accepted selection and becomes ineligible at rank 2; all six passives remain repeatable. An eligible evolution occupies Slot 3 as described below. isSimulationPaused derives only from non-RUNNING lifecycle state (PREPARING, PAUSED, TERMINAL or DISPOSED) to freeze movement, chase/targeting, projectiles, damage/protection, XP movement/collection and all spawn/fire callbacks. Level-up pause itself is not death and offers no retry. Clicking one current choice destroys the level-up title/options and releases REWARD; simulation resumes only if no other reason remains, and duplicate/stale callbacks are rejected. Selected effects apply before resume and accumulate across level-ups. Scene-owned laser data starts at damage 1, fireInterval 600 ms and projectileSpeed 1200 px/s and resets on each create. Fire Rate resets the existing laserTimer in place to the new interval with elapsed time zero, preserving one Laser event rather than adding another. New straight player shots snapshot weapon-specific damage multiplied by the run-wide damage multiplier, plus current speed; already-fired shots keep their launch values. Missiles likewise snapshot multiplied explosion damage at launch, including Missiles that span a choice pause. Hostile shots are unchanged. Restart clears presentation references and native scene shutdown destroys the texts.
 
 Laser → Prism Laser and the GAME-030 open-slot integration are validated in the real Phaser runtime. Power, Fire Rate and Projectile Speed ranks reset to 0 and cap at 2 independently, preserving +1 damage, -50 ms (minimum 100) and +200 px/s per accepted selection. Full mastery retains damage 3, interval 500 ms and speed 1600 px/s before global damage multiplication. Prism requires all three ranks >=2, Combat Processor level >=1 and unevolved state. Eligibility is checked only on entering a new presentation: sole eligible Prism owns Slot 3 exactly once; if multiple evolutions qualify, the cursor arbitrates; Slots 1 and 2 follow the focused/passive policy above. Completing the final prerequisite resumes normally; ignoring sole eligible Prism offers it again next level, while multiple-eligible offers scan cyclically. Selecting it once retains Combat Processor and mastered Laser values, then removes the evolution offer for that run.
 
@@ -397,8 +397,8 @@ Scene-local Hit carries exact RunLifecycle, current target and typed Attack. One
 applyEnemyHit adapter rejects stale/nonrunning/dead/missing targets, computes EnemyDamage,
 writes healthAfter and delegates lethal removal/one XP drop to existing killEnemy. Results
 separate calculated damage from actual hpLost, preserve transient negative overkill HP and
-representational no-op loss0. Source kind/variant remains in the synchronous Hit; no death
-record/source registry or persistent kill attribution is introduced. Incoming typed hostile/
+representational no-op loss0. GAME-051 projects the actual Hit into frozen kind/variant/phase
+attribution and one immutable death record, as described below; no death registry is retained. Incoming typed hostile/
 contact Hits retain PlayerDefense authority, God bypass, Shield-first protection and actual
 Hull-only diagnostics. Hostile collision always consumes the projectile. Contact preserves
 first inclusive bounded separation before incoming damage; Impact remains unused.
@@ -419,6 +419,60 @@ checks also pass. Native result controls invoke production pointerdown handlers.
 production preview uses only real keyboard/mouse and rendered pixels: movement/Dash/pause/
 combat, ordinary damage to HP0/5 Death, real RETRY to HP5/5 and fresh world progress, no DEV
 API/debug UI/new pageerrors. Favicon404 and the existing large Phaser bundle warning remain.
+
+## Authoritative EnemyDeath and source attribution
+
+EnemyDeath.ts is Phaser-free and exports EnemyDamageSource, EnemyDeathRecord,
+createEnemyDamageSource, validateEnemyDeathRecord and createEnemyDeathRecord. Sources contain
+exactly kind/variant/phase: LASER BASE/PRISM DIRECT, COMBAT_DRONE BASE/TWIN DIRECT, MISSILE
+BASE PRIMARY and CLUSTER PRIMARY/SATELLITE. Sources are copied/frozen values, without Attack,
+flight, runtime, run or Build references. Each EnemyRuntime starts with lastDamagingSource=null;
+only a valid accepted Hit with actual hpLost>0 replaces it. Representational loss0 preserves
+null/prior attribution. DEV Warden HP changes preserve it without inventing a source.
+
+applyEnemyHit remains the only enemy HP arithmetic adapter. It guards exact current RUNNING
+Hit.run/target.run/member/alive ownership, computes unchanged damage once, projects the actual
+Hit, and preflights lethal identity/XP/position/source before HP or last-source mutation.
+Invalid authored data throws RangeError. It writes healthAfter once, preserving negative
+overkill, then synchronously calls killEnemy(hit, damage, source) for actual lethal loss.
+killEnemy rechecks current owner/member/depletion/current HP and source equality with the Hit
+and just-stored last source. Alive, removed, duplicate and stale contexts return null before
+record construction/effects. No source-less successful kill, administrative API or death flag exists.
+
+One completed record copies exactly archetype/isElite/xpValue/x/y/lastDamagingSource/killSource,
+freezing outer and two fresh nested sources. Elite requires Tank; XP is positive safe integer
+from that enemy's spawn snapshot; death coordinates are finite signed/fractional world values
+bounded by MAX_SAFE_INTEGER. Current lethal combat replaces last source, so both source fields
+match by value. Records remain readable after restart but grant no consequence authority.
+
+Concrete consequences retain order: record, Boss defeated flag (spawned remains true), one
+existing lime radius10 XP pickup at record position/value1/5/10/speed0, clear dead target,
+destroy visual, splice enemy, then source-aware diagnostics. Death grants no player XP;
+physical attraction/collection/Level-Up remains unchanged. Straight projectile cleanup, or
+full Missile primary plus Cluster survivor union and Missile cleanup, precedes Victory.
+Primary Boss death cannot truncate satellites. First terminal wins; Boss XP10 stays frozen.
+
+RunDiagnostics aggregates.killsBySource contains exactly seven flat kind.variant.phase
+counters. recordEnemyKilled requires a valid source and prepares all killed/Elite/archetype,
+XP and selected source sums before one aggregate commit; overflow leaves all fields unchanged.
+Source totals equal killed.total for completed deaths. Snapshots detach the map; fresh runs
+start seven zeros, terminal freezes it and disposed reads/mutations still throw. Six timeline
+kinds/newest256 and the five-command nested DEV surface remain unchanged.
+
+Validation:904 tests/26 files retain all739 baseline cases and add125 pure EnemyDeath,
+26 Scene (233 total) and14 diagnostics (49 total). Actual Chrome/installed Phaser verifies all
+seven sources, A->B attribution, loss0, Cluster primary-survivor/satellite overlap/multiple own
+positions, XP1/5/10, real collection/choice pointer, zero added four-stream draws and five events.
+MANUAL1100ms, REWARD700ms and genuine visible-tab BLUR800ms freeze HP/source/spawn/death/Attack
+values, active flights/heading/lifetime, XP/Defense/diagnostics and same-event elapsed/remaining
+phases. Focus return needs Escape; reward+focus composition preserves its remaining reason.
+Two Victory NEW RUN cycles, Death RETRY and PAUSED nonterminal native restart verify fresh
+Chaser HP3/null source, seven zero counters/new owners/zero Tags/unpaused Clock/five new events;
+retained old sources/records stay readable and old Hit/completion/callbacks draw zero fresh RNG.
+Additional Missile/Cluster Boss terminal cycles verify every death/observer and owning cleanup
+before Victory. Unmodified built production uses real keyboard/mouse/rendered output: movement,
+Dash/pause/combat, ordinary deaths/physical XP, incoming damage to HP0/5 and actual RETRY to
+HP5/5/XP0/5/one Chaser; DEV absent and no pageerrors. Known favicon404/bundle-size warning remain.
 
 ## Tags and canonical BuildSnapshot
 
@@ -666,7 +720,7 @@ These should only be introduced when real project requirements justify them.
 
 The placeholder arena, bounded desktop movement, camera follow, repeated enemy spawning/chase, nearest-enemy targeting and Laser projectile impacts with enemy damage/death are implemented and browser-verified.
 
-GAME-001 through GAME-039 and GAME-042/043/044/045/046/047/048/049/050 are complete. GAME-040/041 are SUPERSEDED. GATE A PASSED — Runtime Foundation approved; GAME-051+ remain BACKLOG pending separate definition. GATE B PASSED — Modern Combat on Legacy Spawning architect-approved.
+GAME-001 through GAME-039 and GAME-042/043/044/045/046/047/048/049/050/051 are complete. GAME-040/041 are SUPERSEDED. GATE A PASSED — Runtime Foundation approved; GAME-052+ remain BACKLOG pending separate definition. GATE B PASSED — Modern Combat on Legacy Spawning architect-approved.
 
 ---
 

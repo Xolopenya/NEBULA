@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createAttack, type LaserAttack, type HostileAttack, type ContactAttack } from '../combat/combat';
+import * as enemyDeath from '../enemies/EnemyDeath';
 import * as enemyDefinitions from '../enemies/EnemyDefinitions';
 import { GameplayScene } from './GameplayScene';
 import { RunLifecycle } from '../run/RunLifecycle';
@@ -101,6 +102,167 @@ function fixture() {
     shutdown: () => { for (const fn of [...listeners.get('shutdown') ?? []]) fn(); } };
 }
 beforeEach(() => { vi.stubGlobal('window', {}); vi.stubGlobal('document', { hasFocus: () => true, hidden: false }); });
+describe('GAME-051 authoritative death', () => {
+  function context(s: GameplayScene, damage = 1, variant: 'BASE' | 'PRISM' = 'BASE') {
+    return { kind: 'ENEMY_DIRECT' as const, run: s['run']!, target: s['enemies'][0],
+      attack: createAttack({ kind: 'LASER', variant, snapshot: { damage, speed: 1200, radius: 6, lifetime: 2000 } }) as LaserAttack };
+  }
+  function watch(s: GameplayScene) { return vi.spyOn(s as unknown as { killEnemy: typeof s['killEnemy'] }, 'killEnemy'); }
+  it('initial, normal, Elite and DEV enemies start with null attribution; DEV HP changes preserve a real source', () => {
+    const f = fixture(), s = f.scene; allowCreate(s); s.create();
+    expect(s['enemies'][0].lastDamagingSource).toBeNull();
+    s['createEnemy'](2800, 1350, 'tank', s['run']!, true);
+    window.__NEBULA_DEV__!.spawnWarden(); expect(s['enemies'].every(e => e.lastDamagingSource === null)).toBe(true);
+    const e = s['enemies'].find(e => e.archetype === 'boss')!;
+    s['applyEnemyHit']({ ...context(s), target: e }); const source = e.lastDamagingSource;
+    window.__NEBULA_DEV__!.setWardenHealth(30); expect(e.lastDamagingSource).toBe(source);
+  });
+  it('A nonlethal then B lethal writes HP once per Hit, preflights first and creates one detached record', () => {
+    const { scene: s, api } = fixture(), e = s['createEnemy'](-12.5, 0, 'chaser', s['run']!)!;
+    let health = e.health; const writes: number[] = [];
+    Object.defineProperty(e, 'health', { get: () => health, set: n => { writes.push(n); health = n; } });
+    const factory = vi.spyOn(enemyDeath, 'createEnemyDeathRecord'), preflight = vi.spyOn(enemyDeath, 'validateEnemyDeathRecord'), completed = watch(s);
+    try {
+      const build = s['playerBuild']!.snapshot(), defense = s['playerDefense']!.snapshot(), timers = [...s['gameplayTimers']], draws = spyStreams(s);
+      s['applyEnemyHit'](context(s)); const a = e.lastDamagingSource;
+      expect(a).toEqual({ kind: 'LASER', variant: 'BASE', phase: 'DIRECT' }); expect(factory).not.toHaveBeenCalled();
+      s['currentTarget'] = e;
+      const hit = context(s, 10, 'PRISM'), result = s['applyEnemyHit'](hit)!;
+      expect(result).toMatchObject({ calculatedDamage: 10, hpLost: 2, healthAfter: -8 }); expect(writes).toEqual([2, -8]);
+      expect(preflight).toHaveBeenCalledTimes(1); expect(factory).toHaveBeenCalledTimes(1);
+      const record = completed.mock.results[0].value!;
+      expect(record).toEqual({ archetype: 'chaser', isElite: false, xpValue: 1, x: -12.5, y: 0,
+        lastDamagingSource: { kind: 'LASER', variant: 'PRISM', phase: 'DIRECT' }, killSource: { kind: 'LASER', variant: 'PRISM', phase: 'DIRECT' } });
+      expect(record.lastDamagingSource).not.toBe(e.lastDamagingSource); expect(a!.variant).toBe('BASE');
+      expect(s['currentTarget']).toBeUndefined(); expect(e.visual.active).toBe(false); expect(s['enemies']).toHaveLength(0);
+      expect(s['xpPickups'].map(p => [p.visual.x, p.visual.y, p.value, p.speed, p.visual.radius])).toEqual([[-12.5, 0, 1, 0, 10]]);
+      expect(api.snapshot()!.diagnostics.aggregates).toMatchObject({ xpCollected: 0, xpCredited: 0, killsBySource: { 'LASER.PRISM.DIRECT': 1 } });
+      expect(s['killEnemy'](...completed.mock.calls[0])).toBeNull(); expect(s['applyEnemyHit'](hit)).toBeNull();
+      expect(factory).toHaveBeenCalledTimes(1); expect(s['xpPickups']).toHaveLength(1);
+      expect(s['playerBuild']!.snapshot()).toEqual(build); expect(s['playerDefense']!.snapshot()).toEqual(defense);
+      expect(s['gameplayTimers']).toEqual(timers); for (const draw of draws) expect(draw).not.toHaveBeenCalled();
+    } finally { factory.mockRestore(); preflight.mockRestore(); completed.mockRestore(); }
+  });
+  it.each([false, true])('representational no-loss keeps prior attribution=%s and creates no record', prior => {
+    const { scene: s } = fixture(), e = s['createEnemy'](2800, 1350, 'tank', s['run']!)!;
+    if (prior) s['applyEnemyHit'](context(s)); const source = e.lastDamagingSource;
+    e.health = Number.MAX_SAFE_INTEGER; const factory = vi.spyOn(enemyDeath, 'createEnemyDeathRecord');
+    try {
+      const before = s['runDiagnostics']!.snapshot(), result = s['applyEnemyHit'](context(s, Number.MIN_VALUE, 'PRISM'))!;
+      expect(result).toMatchObject({ hpLost: 0, calculatedDamage: Number.MIN_VALUE, healthAfter: Number.MAX_SAFE_INTEGER, healthDepleted: false });
+      expect(e.lastDamagingSource).toBe(source); expect(factory).not.toHaveBeenCalled(); expect(s['runDiagnostics']!.snapshot()).toEqual(before);
+    } finally { factory.mockRestore(); }
+  });
+  it.each(['source', 'phase', 'x', 'y', 'xp', 'identity', 'elite'] as const)('invalid lethal %s fails before HP/source and any consequences', field => {
+    const { scene: s } = fixture(), e = s['createEnemy'](2800, 1350, 'chaser', s['run']!)!;
+    const hit = context(s, 10);
+    if (field === 'source') Reflect.set(hit, 'attack', { ...hit.attack, variant: 'TWIN' });
+    if (field === 'phase') Reflect.set(hit, 'kind', 'ENEMY_BLAST');
+    if (field === 'x') e.visual.x = Infinity;
+    if (field === 'y') e.visual.y = Number.MAX_SAFE_INTEGER + 1;
+    if (field === 'xp' || field === 'identity' || field === 'elite') Object.defineProperty(e, 'spawnSnapshot', {
+      value: { ...e.spawnSnapshot, ...(field === 'xp' ? { xpValue: 0 } : field === 'identity' ? { archetype: 'alien' } : { isElite: true }) },
+    });
+    const before = s['runDiagnostics']!.snapshot(), factory = vi.spyOn(enemyDeath, 'createEnemyDeathRecord');
+    try {
+      expect(() => s['applyEnemyHit'](hit)).toThrow(RangeError); expect(e.health).toBe(3); expect(e.lastDamagingSource).toBeNull();
+      expect(e.visual.active).toBe(true); expect(s['enemies']).toContain(e); expect(s['xpPickups']).toHaveLength(0);
+      expect(s['bossDefeated']).toBe(false); expect(s['runDiagnostics']!.snapshot()).toEqual(before); expect(factory).not.toHaveBeenCalled();
+    } finally { factory.mockRestore(); }
+  });
+  it.each(['LASER', 'PRISM', 'DRONE', 'TWIN', 'MISSILE', 'CLUSTER_PRIMARY', 'CLUSTER_SATELLITE'] as const)('actual production %s creates exact source/record once', mode => {
+    const { scene: s } = fixture(); Object.assign(s, { drone: visual(2510, 1350), twinDrone: visual(2290, 1350) });
+    const e = s['createEnemy'](2800, 1350, 'chaser', s['run']!)!; e.health = 1; s['currentTarget'] = e;
+    const completed = watch(s);
+    try {
+      if (mode === 'LASER' || mode === 'PRISM' || mode === 'DRONE' || mode === 'TWIN') {
+        s['prismEvolved'] = mode === 'PRISM'; s['twinDroneEvolved'] = mode === 'TWIN';
+        if (mode === 'LASER' || mode === 'PRISM') s['fireLaser'](); else s['fireDrone']();
+        const attacks = s['projectiles'].map(p => p.attack);
+        for (const p of s['projectiles']) { p.visual.x = 2800; p.visual.y = 1350; }
+        s['updateProjectiles'](0); expect(attacks.every(a => Object.isFrozen(a) && Object.isFrozen(a.snapshot))).toBe(true);
+      } else {
+        s['clusterEvolved'] = mode !== 'MISSILE'; s['fireMissile'](); const m = s['missiles'][0];
+        if (mode === 'CLUSTER_SATELLITE') { s['explodeMissile'](2620, 1350, m); s['explodeClusterSatellites'](2620, 1350, m); }
+        else { m.visual.x = 2800; m.visual.y = 1350; s['updateMissiles'](0); }
+      }
+      const source = { kind: mode === 'LASER' || mode === 'PRISM' ? 'LASER' : mode === 'DRONE' || mode === 'TWIN' ? 'COMBAT_DRONE' : 'MISSILE',
+        variant: mode === 'PRISM' ? 'PRISM' : mode === 'TWIN' ? 'TWIN' : mode.startsWith('CLUSTER') ? 'CLUSTER' : 'BASE',
+        phase: mode === 'CLUSTER_SATELLITE' ? 'SATELLITE' : mode === 'MISSILE' || mode === 'CLUSTER_PRIMARY' ? 'PRIMARY' : 'DIRECT' };
+      expect(completed).toHaveBeenCalledTimes(1); expect(completed.mock.results[0].value).toMatchObject({ lastDamagingSource: source, killSource: source, x: 2800, y: 1350 });
+      expect(s['xpPickups']).toHaveLength(1); const a = s['runDiagnostics']!.snapshot().aggregates;
+      expect(a.killsBySource[`${source.kind}.${source.variant}.${source.phase}` as keyof typeof a.killsBySource]).toBe(1);
+      expect(Object.values(a.killsBySource).reduce((a, b) => a + b, 0)).toBe(1);
+    } finally { completed.mockRestore(); }
+  });
+  it('Cluster primary survivor dies to satellite and multiple overlapping deaths each keep their position/XP', () => {
+    const { scene: s } = fixture(); s['clusterEvolved'] = true;
+    for (const x of [2460, 2461, 2580]) s['createEnemy'](x, 1350, 'chaser', s['run']!);
+    s['enemies'][2].health = 1; s['fireMissile'](); const m = s['missiles'][0], completed = watch(s);
+    try {
+      s['explodeMissile'](2400, 1350, m); expect(s['enemies'].map(e => e.health)).toEqual([1, 1, 1]);
+      expect(s['enemies'][0].lastDamagingSource?.phase).toBe('PRIMARY');
+      s['explodeClusterSatellites'](2400, 1350, m); expect(completed).toHaveBeenCalledTimes(3);
+      expect(completed.mock.results.every(r => r.value?.killSource.phase === 'SATELLITE')).toBe(true);
+      expect(s['xpPickups'].map(p => [p.visual.x, p.value])).toEqual([[2460, 1], [2461, 1], [2580, 1]]);
+      s['explodeClusterSatellites'](2400, 1350, m); expect(completed).toHaveBeenCalledTimes(3);
+      expect(s['runDiagnostics']!.snapshot().aggregates).toMatchObject({ killed: { total: 3 }, xpDropped: 3, killsBySource: { 'MISSILE.CLUSTER.SATELLITE': 3 } });
+    } finally { completed.mockRestore(); }
+  });
+  it.each([['chaser', false, 1], ['tank', true, 5], ['boss', false, 10]] as const)('XP%s elite%s stays physical and diagnostics observe completed removal', (kind, elite, xp) => {
+    const { scene: s, api } = fixture(), e = s['createEnemy'](2800, 1350, kind, s['run']!, elite)!;
+    const observe = vi.spyOn(s['runDiagnostics']!, 'recordEnemyKilled');
+    const method = RunDiagnostics.prototype.recordEnemyKilled;
+    observe.mockImplementation((...args) => {
+      expect(e.visual.active).toBe(false); expect(s['enemies']).not.toContain(e); expect(s['xpPickups']).toHaveLength(1);
+      expect(s['bossDefeated']).toBe(kind === 'boss'); return method.apply(s['runDiagnostics']!, args);
+    });
+    try {
+      s['applyEnemyHit'](context(s, 100)); expect(s['xpPickups'][0].value).toBe(xp);
+      expect(api.snapshot()!.diagnostics.aggregates).toMatchObject({ xpDropped: xp, xpCredited: 0 });
+      expect(s['run']!.state).toBe('RUNNING'); if (kind === 'boss') expect(s['bossSpawned']).toBe(true);
+    } finally { observe.mockRestore(); }
+  });
+  it.each(['BASE', 'CLUSTER_PRIMARY', 'CLUSTER_SATELLITE'] as const)('%s completes all death records and Missile cleanup before a single Victory', mode => {
+    const { scene: s, api } = fixture(), boss = s['createEnemy'](mode === 'CLUSTER_SATELLITE' ? 2980 : 2800, 1350, 'boss', s['run']!)!;
+    boss.health = 1; const primary = s['createEnemy'](2800, 1350, 'chaser', s['run']!)!, outer = s['createEnemy'](2980, 1350, 'chaser', s['run']!)!;
+    primary.health = 1; outer.health = 1; s['clusterEvolved'] = mode !== 'BASE'; s['fireMissile']();
+    const missile = s['missiles'][0]; missile.visual.x = 2800; missile.visual.y = 1350;
+    const completed = watch(s), enter = s['enterRunVictory'].bind(s);
+    const terminal = vi.spyOn(s as unknown as { enterRunVictory: typeof enter }, 'enterRunVictory');
+    terminal.mockImplementation(() => {
+      expect(s['missiles']).toHaveLength(0); expect(missile.visual.active).toBe(false);
+      expect(completed.mock.results.filter(r => r.value)).toHaveLength(mode === 'BASE' ? 2 : 3);
+      expect(s['runDiagnostics']!.snapshot().aggregates.killed.total).toBe(mode === 'BASE' ? 2 : 3);
+      enter();
+    });
+    try {
+      s['updateMissiles'](0); expect(terminal).toHaveBeenCalledTimes(1); expect(s['run']!.outcome).toBe('VICTORY');
+      const record = completed.mock.results.find(r => r.value?.archetype === 'boss')!.value!;
+      expect(record.killSource).toEqual({ kind: 'MISSILE', variant: mode === 'BASE' ? 'BASE' : 'CLUSTER',
+        phase: mode === 'CLUSTER_SATELLITE' ? 'SATELLITE' : 'PRIMARY' });
+      const before = api.snapshot()!.diagnostics, pickups = s['xpPickups'].map(p => [p.visual.x, p.visual.y, p.value, p.speed]);
+      expect(pickups.some(p => p[2] === 10)).toBe(true); expect(before.aggregates.xpCredited).toBe(0);
+      s['updateXpPickups'](10000); s['updateMissiles'](10000); s['enterPlayerDeath']();
+      expect(api.snapshot()!.diagnostics).toEqual(before); expect(s['xpPickups'].map(p => [p.visual.x, p.visual.y, p.value, p.speed])).toEqual(pickups);
+      expect(Object.values(before.aggregates.killsBySource).reduce((a, b) => a + b, 0)).toBe(before.aggregates.killed.total);
+    } finally { completed.mockRestore(); terminal.mockRestore(); }
+  });
+  it('completion rejects living/nondepleted context without a record and rejects an incorrect source after an actual HP transition', () => {
+    const { scene: s } = fixture(), e = s['createEnemy'](2800, 1350, 'chaser', s['run']!)!, hit = context(s, 3);
+    const source = enemyDeath.createEnemyDamageSource({ kind: 'LASER', variant: 'BASE', phase: 'DIRECT' });
+    const damage = { target: 'ENEMY' as const, calculatedDamage: 3, healthAfter: 0, hpLost: 3, healthDepleted: true };
+    const factory = vi.spyOn(enemyDeath, 'createEnemyDeathRecord');
+    try {
+      expect(s['killEnemy'](hit, damage, source)).toBeNull(); expect(factory).not.toHaveBeenCalled();
+      e.health = 0; e.lastDamagingSource = source;
+      expect(s['killEnemy'](hit, { ...damage, healthDepleted: false }, source)).toBeNull();
+      expect(() => s['killEnemy'](hit, damage, { kind: 'LASER', variant: 'PRISM', phase: 'DIRECT' })).toThrow(RangeError);
+      expect(factory).not.toHaveBeenCalled(); expect(s['enemies']).toContain(e); expect(s['xpPickups']).toHaveLength(0);
+    } finally { factory.mockRestore(); }
+  });
+});
+
 describe('GAME-050 frozen spawn ownership', () => {
   it('creates the initial snapshot during PREPARING before start/entropy and bootstraps it once', () => {
     const { scene: s } = fixture(); allowCreate(s);
@@ -193,7 +355,9 @@ describe('GAME-050 frozen spawn ownership', () => {
     // Even accidental old-runtime membership cannot grant ownership to a fresh Hit/removal.
     s['enemies'].push(old);
     expect(s['applyEnemyHit']({ kind: 'ENEMY_DIRECT', run: s['run']!, target: old, attack })).toBeNull();
-    s['killEnemy'](old); expect(old.health).toBe(3); s['enemies'].pop();
+    expect(s['killEnemy']({ kind: 'ENEMY_DIRECT', run: oldRun, target: old, attack },
+      { target: 'ENEMY', calculatedDamage: 100, healthAfter: -97, hpLost: 3, healthDepleted: true },
+      enemyDeath.createEnemyDamageSource({ kind: 'LASER', variant: 'BASE', phase: 'DIRECT' }))).toBeNull(); expect(old.health).toBe(3); s['enemies'].pop();
     expect(snapshot).toEqual({ ...enemyDefinitions.ENEMY_DEFINITIONS.chaser, isElite: false });
     expect(s['enemies'][0].spawnSnapshot).not.toBe(snapshot); expect(window.__NEBULA_DEV__!.snapshot()).toEqual(before);
     for (const draw of draws) expect(draw).not.toHaveBeenCalled();
@@ -760,7 +924,8 @@ describe('Scene run-scoped randomness production boundaries', () => {
     for (const draw of draws) expect(draw).not.toHaveBeenCalled();
     api.forceLevelUp(); scene['levelUpPresentation'][1].emit('pointerdown');
     const before = draws.map(draw => draw.mock.calls.length);
-    scene['killEnemy'](scene['enemies'].find(e => e.archetype === 'boss')!);
+    scene['applyEnemyHit']({ kind: 'ENEMY_DIRECT', run: scene['run']!, target: scene['enemies'].find(e => e.archetype === 'boss')!,
+      attack: createAttack({ kind: 'LASER', variant: 'BASE', snapshot: { damage: 30, speed: 1200, radius: 6, lifetime: 2000 } }) as LaserAttack });
     scene['enterRunVictory'](); scene['spawnEnemy'](scene['run']!); scene['enterLevelUpPause'](); api.snapshot();
     expect(draws.map(draw => draw.mock.calls.length)).toEqual(before);
     expect(draws[2]).not.toHaveBeenCalled(); expect(draws[3]).not.toHaveBeenCalled();
@@ -959,7 +1124,12 @@ describe('GAME-045 concrete diagnostics production observations', () => {
     const { scene: s, api } = fixture();
     s['createEnemy'](2800, 1350, 'chaser', s['run']!); const enemy = s['enemies'][0]; shot(s); s['updateProjectiles'](0);
     expect(api.snapshot()!.diagnostics.aggregates.killed.total).toBe(0);
-    enemy.health = 1; shot(s); s['updateProjectiles'](0); s['killEnemy'](enemy);
+    const completed = vi.spyOn(s as unknown as { killEnemy: typeof s['killEnemy'] }, 'killEnemy');
+    const records = vi.spyOn(enemyDeath, 'createEnemyDeathRecord');
+    enemy.health = 1; shot(s); s['updateProjectiles'](0);
+    const context = completed.mock.calls[0] as unknown as Parameters<typeof s['killEnemy']>;
+    expect(s['killEnemy'](...context)).toBeNull(); expect(records).toHaveBeenCalledTimes(1);
+    completed.mockRestore(); records.mockRestore();
     expect(api.snapshot()!.diagnostics.aggregates).toMatchObject({ killed: { total: 1 }, xpDropped: 1 });
     const other = fixture(); const e = boss(other.scene); shot(other.scene); other.scene['updateProjectiles'](0);
     const d = other.api.snapshot()!.diagnostics;
@@ -979,7 +1149,9 @@ describe('GAME-045 concrete diagnostics production observations', () => {
     s['enterRunVictory'](); s['enterPlayerDeath'](); expect(api.snapshot()!.diagnostics).toEqual(d);
   });
   it('common XP credit splits real pickup/DEV, preserving drop/credit/pause and no duplicate collection', () => {
-    const { scene: s, api } = fixture(); s['createEnemy'](2400, 1350, 'tank', s['run']!, true); s['killEnemy'](s['enemies'][0]);
+    const { scene: s, api } = fixture(); s['createEnemy'](2400, 1350, 'tank', s['run']!, true);
+    s['applyEnemyHit']({ kind: 'ENEMY_DIRECT', run: s['run']!, target: s['enemies'][0],
+      attack: createAttack({ kind: 'LASER', variant: 'BASE', snapshot: { damage: 18, speed: 1200, radius: 6, lifetime: 2000 } }) as LaserAttack });
     s['updateXpPickups'](0); s['updateXpPickups'](0);
     expect(api.snapshot()!.diagnostics.aggregates).toMatchObject({ xpDropped: 5, xpCollected: 5, xpCredited: 5, xpDevCredited: 0, levelsGained: 1, offersPresented: 1 });
     s['levelUpPresentation'][1].emit('pointerdown'); api.forceLevelUp();

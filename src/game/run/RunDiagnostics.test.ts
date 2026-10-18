@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { RunDiagnostics, type ChoiceIdentity } from './RunDiagnostics';
+import { createEnemyDamageSource } from '../enemies/EnemyDeath';
 import type { PauseReason } from './RunLifecycle';
 
+const source = createEnemyDamageSource({ kind: 'LASER', variant: 'BASE', phase: 'DIRECT' });
 const offered: ChoiceIdentity[] = ['laser.power', 'passive.hull', 'prism'];
 function started(seed = 0) { const d = new RunDiagnostics(seed); d.recordRunStarted(); return d; }
 function operations(d: RunDiagnostics) {
-  return [() => d.advance(1), () => d.recordEnemySpawned('tank', true), () => d.recordEnemyKilled('boss', false, 10),
+  return [() => d.advance(1), () => d.recordEnemySpawned('tank', true), () => d.recordEnemyKilled('boss', false, 10, source),
     () => d.recordPlayerDamage(1), () => d.recordXpCredited(5, 1, 'pickup'), () => d.recordPauseEntered(['REWARD']),
     () => d.recordPauseResumed(['REWARD']), () => d.recordLevelUpOffered(offered), () => d.recordLevelUpSelected('prism'),
     () => d.recordTerminal('VICTORY')];
@@ -37,8 +39,8 @@ describe('RunDiagnostics', () => {
   });
   it('counts all archetypes and Elite subset, with XP drops but no enemy timeline rows', () => {
     const d = started();
-    for (const a of ['chaser', 'shooter', 'tank', 'boss'] as const) { d.recordEnemySpawned(a, false); d.recordEnemyKilled(a, false, a === 'boss' ? 10 : 1); }
-    d.recordEnemySpawned('tank', true); d.recordEnemyKilled('tank', true, 5);
+    for (const a of ['chaser', 'shooter', 'tank', 'boss'] as const) { d.recordEnemySpawned(a, false); d.recordEnemyKilled(a, false, a === 'boss' ? 10 : 1, source); }
+    d.recordEnemySpawned('tank', true); d.recordEnemyKilled('tank', true, 5, source);
     expect(d.snapshot().aggregates).toMatchObject({ spawned: { total: 5, eliteTanks: 1, byArchetype: { chaser: 1, shooter: 1, tank: 2, boss: 1 } },
       killed: { total: 5, eliteTanks: 1 }, xpDropped: 18 });
     expect(d.snapshot().timeline).toHaveLength(1);
@@ -46,8 +48,8 @@ describe('RunDiagnostics', () => {
   it('rejects enemy identity/elite/XP errors before any partial kill count', () => {
     const d = started(), before = d.snapshot();
     for (const op of [() => d.recordEnemySpawned('boss', true), () => d.recordEnemySpawned('alien' as 'chaser', false),
-      () => d.recordEnemySpawned('tank', 1 as unknown as boolean), () => d.recordEnemyKilled('tank', false, 0.5),
-      () => d.recordEnemyKilled('tank', false, -1), () => d.recordEnemyKilled('tank', false, NaN)]) {
+      () => d.recordEnemySpawned('tank', 1 as unknown as boolean), () => d.recordEnemyKilled('tank', false, 0.5, source),
+      () => d.recordEnemyKilled('tank', false, -1, source), () => d.recordEnemyKilled('tank', false, NaN, source)]) {
       expect(op).toThrow(RangeError); expect(d.snapshot()).toEqual(before);
     }
   });
@@ -99,8 +101,8 @@ describe('RunDiagnostics', () => {
   it('rejects overflow atomically across all multi-field and timeline operations', () => {
     const d = started(); d.recordXpCredited(0, Number.MAX_SAFE_INTEGER, 'dev');
     let before = d.snapshot(); expect(() => d.recordXpCredited(1, 1, 'pickup')).toThrow(); expect(d.snapshot()).toEqual(before);
-    d.recordEnemyKilled('chaser', false, Number.MAX_SAFE_INTEGER); before = d.snapshot();
-    expect(() => d.recordEnemyKilled('tank', true, 1)).toThrow(); expect(d.snapshot()).toEqual(before);
+    d.recordEnemyKilled('chaser', false, Number.MAX_SAFE_INTEGER, source); before = d.snapshot();
+    expect(() => d.recordEnemyKilled('tank', true, 1, source)).toThrow(); expect(d.snapshot()).toEqual(before);
     d.advance(Number.MAX_SAFE_INTEGER); before = d.snapshot(); expect(() => d.advance(1)).toThrow(); expect(d.snapshot()).toEqual(before);
     d['aggregates'].spawned.byArchetype.chaser = Number.MAX_SAFE_INTEGER; before = d.snapshot();
     expect(() => d.recordEnemySpawned('chaser', false)).toThrow(); expect(d.snapshot()).toEqual(before);
@@ -119,5 +121,51 @@ describe('RunDiagnostics', () => {
     const d = started(); d.dispose(); d.dispose();
     for (const op of [...operations(d), () => d.recordRunStarted(), () => d.snapshot()]) expect(op).toThrow('disposed RunDiagnostics');
     const fresh = started(); expect(fresh.snapshot().timeline).toEqual([{ type: 'RUN_STARTED', gameplayElapsedMs: 0 }]);
+  });
+});
+
+
+describe('GAME-051 source counters', () => {
+  const sources = [
+    { kind: 'LASER', variant: 'BASE', phase: 'DIRECT' }, { kind: 'LASER', variant: 'PRISM', phase: 'DIRECT' },
+    { kind: 'MISSILE', variant: 'BASE', phase: 'PRIMARY' }, { kind: 'MISSILE', variant: 'CLUSTER', phase: 'PRIMARY' },
+    { kind: 'MISSILE', variant: 'CLUSTER', phase: 'SATELLITE' },
+    { kind: 'COMBAT_DRONE', variant: 'BASE', phase: 'DIRECT' }, { kind: 'COMBAT_DRONE', variant: 'TWIN', phase: 'DIRECT' },
+  ] as const;
+  it('owns exactly seven fresh zero buckets, increments only each selected bucket and retains the sum invariant', () => {
+    const d = started(), zero = Object.fromEntries(sources.map(s => [`${s.kind}.${s.variant}.${s.phase}`, 0]));
+    expect(d.snapshot().aggregates.killsBySource).toEqual(zero);
+    const expected = { ...zero };
+    for (const s of sources) {
+      d.recordEnemyKilled('tank', true, 5, s); expected[`${s.kind}.${s.variant}.${s.phase}`]++;
+      const a = d.snapshot().aggregates; expect(a.killsBySource).toEqual(expected);
+      expect(Object.values(a.killsBySource).reduce((a, b) => a + b, 0)).toBe(a.killed.total);
+    }
+    expect(d.snapshot().aggregates).toMatchObject({ killed: { total: 7, eliteTanks: 7 }, xpDropped: 35 });
+    expect(d.snapshot().timeline).toHaveLength(1);
+    const detached = structuredClone(d.snapshot()); detached.aggregates.killsBySource['LASER.BASE.DIRECT'] = 999;
+    expect(d.snapshot().aggregates.killsBySource['LASER.BASE.DIRECT']).toBe(1);
+    expect(started().snapshot().aggregates.killsBySource).toEqual(zero);
+    d.recordTerminal('VICTORY'); const before = d.snapshot();
+    for (const s of sources) expect(d.recordEnemyKilled('chaser', false, 1, s)).toBe(false);
+    expect(d.snapshot()).toEqual(before);
+  });
+  it.each([undefined, null, {}, { ...source, extra: 1 }, { ...source, kind: 'UNKNOWN' },
+    { kind: 'MISSILE', variant: 'BASE', phase: 'SATELLITE' }, { ...source, [Symbol('extra')]: 1 },
+    Object.defineProperty({ ...source }, 'extra', { value: 1 }),
+  ])('rejects invalid/missing source %# without partial aggregates or timeline', value => {
+    const d = started(), before = d.snapshot();
+    expect(() => d.recordEnemyKilled('boss', false, 10, value as typeof source)).toThrow(RangeError);
+    expect(d.snapshot()).toEqual(before);
+  });
+  it.each(['total', 'archetype', 'elite', 'source', 'xp'] as const)('rejects %s overflow atomically', field => {
+    const d = started(), a = d['aggregates'];
+    if (field === 'total') a.killed.total = Number.MAX_SAFE_INTEGER;
+    if (field === 'archetype') a.killed.byArchetype.tank = Number.MAX_SAFE_INTEGER;
+    if (field === 'elite') a.killed.eliteTanks = Number.MAX_SAFE_INTEGER;
+    if (field === 'source') a.killsBySource['LASER.BASE.DIRECT'] = Number.MAX_SAFE_INTEGER;
+    if (field === 'xp') a.xpDropped = Number.MAX_SAFE_INTEGER;
+    const before = d.snapshot(); expect(() => d.recordEnemyKilled('tank', true, 5, source)).toThrow(RangeError);
+    expect(d.snapshot()).toEqual(before);
   });
 });

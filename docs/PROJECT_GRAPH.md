@@ -4,8 +4,8 @@
 
 - Project: NEBULA.
 - Milestone: First Playable / GAME-015 complete.
-- Source baseline HEAD: `61b395a32fb5321751abf29af74685c22362f1c7`.
-- This map reflects that source baseline plus the staged GAME-050 enemy definitions/frozen spawn snapshots; current Scene retains combat/death/presentation and GAME-039 DEV wiring.
+- Source baseline HEAD: `e4d1cdba24c4befa444507f5d189058fede74470`.
+- This map reflects that source baseline plus the staged GAME-051 EnemyDeath/source counters; current Scene retains Hit/death consequence authority, combat/presentation and GAME-039 DEV wiring.
 - Active task request defines task-specific requirements.
 - AGENTS.md defines repository policy.
 - TASK_GRAPH.md defines task scope, dependencies and status.
@@ -33,13 +33,15 @@ IDs are repository-relative paths; symbols use `path#export`.
 | `src/game/run/RunRandom.ts` | Phaser-free uint32 seed, four independent explicit Mulberry32 streams, exact-owner disposal |
 | `src/game/run/RunRandom.test.ts` | 21 pure seed/golden/range/independence/disposal cases |
 | `src/game/run/RunDiagnostics.ts` | Phaser-free run observation: seed identity, active elapsed, aggregates, bounded semantic timeline and exact-owner disposal |
-| `src/game/run/RunDiagnostics.test.ts` | 35 pure seed/lifetime/numeric/identity/atomicity/copy/eviction/terminal cases |
+| `src/game/run/RunDiagnostics.test.ts` | 49 pure seed/lifetime/numeric/identity/source-bucket/atomicity/copy/eviction/terminal cases |
 | `src/game/player/PlayerBuild.ts` | Phaser-free run Build: exact3/1/6 slots, ten bases/modifiers/effective cache, twelve Tag totals/derived identity, detached canonical snapshot and captured disposal |
 | `src/game/player/PlayerBuild.test.ts` | 52 pure slot/base/percentage/flat/Analyzer/Tag/identity/copy/atomicity/lifetime cases |
 | `src/game/player/PlayerDefense.ts` | Phaser-free current Hull/Shield/protection arithmetic, detached snapshot and exact-owner disposal; no maximum or lifecycle ownership |
 | `src/game/player/PlayerDefense.test.ts` | 35 pure validation/Shield-first/loss/protection/heal/cap/detachment/lifetime cases |
 | `src/game/devTools.ts` | DevSnapshot with numeric runSeed/runState/copied ordered pauseReasons and detached nested diagnostics/build; five-command DevTools types, no runtime registry |
-| `src/game/scenes/GameplayScene.devTools.test.ts` | 207 tracked Scene/DevTools/lifecycle/RNG/pause/input/diagnostics/Build/Tag/Defense/combat/enemy-snapshot cases, including installed Phaser Clock phase integration |
+| `src/game/scenes/GameplayScene.devTools.test.ts` | 233 tracked Scene/DevTools/lifecycle/RNG/pause/input/diagnostics/Build/Tag/Defense/combat/enemy-snapshot/death-attribution cases, including installed Phaser Clock phase integration |
+| `src/game/enemies/EnemyDeath.ts` | Phaser-free exact source/death values, source/record factories and independent lethal-data preflight; no consequence authority |
+| `src/game/enemies/EnemyDeath.test.ts` | 125 pure seven-source/exact-shape/identity/numeric/preflight/freeze/detachment cases |
 | `src/game/enemies/EnemyDefinitions.ts` | Phaser-free four authored definitions, fixed Tank Elite/neutral context, exact validation and copied frozen per-spawn snapshots |
 | `src/game/enemies/EnemyDefinitions.test.ts` | 136 pure exact-content/shape/numeric/pairing/freeze/detachment/neutral-isolation cases |
 | `src/game/combat/combat.ts` | Phaser-free exact Attack/source/snapshot/Damage contracts, validated immutable factory and pure composition/hit/enemy arithmetic |
@@ -132,6 +134,13 @@ IDs are repository-relative paths; symbols use `path#export`.
 | `src/game/progression/prismLaser.ts#canEvolvePrismLaser` | Concrete 2/2/2 + Combat >=1 + unevolved recipe |
 | `src/game/combat/prismSpread.ts#prismSpread` | Normalized fixed three-beam directions; empty for near-zero aim |
 | `src/game/player/dash.ts#stepDash` | Active-time burst/normal split and duration/cooldown stepping |
+| `src/game/enemies/EnemyDeath.ts#EnemyDamageSource` | Exactly kind/variant/phase; seven closed current offensive combinations; readonly primitives |
+| `src/game/enemies/EnemyDeath.ts#EnemyDeathRecord` | Exactly archetype/isElite/xpValue/x/y/lastDamagingSource/killSource; no runtime/run/Hit/Attack references |
+| `src/game/enemies/EnemyDeath.ts#createEnemyDamageSource` | Exact own-field/legal-combination validation, copy three primitives/freeze |
+| `src/game/enemies/EnemyDeath.ts#validateEnemyDeathRecord` | Independent prospective lethal-data preflight, exact identity/positive safe XP/finite signed coordinates/equal nonnull sources; RangeError without record construction |
+| `src/game/enemies/EnemyDeath.ts#createEnemyDeathRecord` | Reuses validation, copies identity/position/XP and two fresh frozen nested sources, freezes outer |
+| `src/game/run/RunDiagnostics.ts#EnemyKillSourceKey` | Seven flat LASER.BASE/PRISM.DIRECT, MISSILE.BASE/CLUSTER.PRIMARY, MISSILE.CLUSTER.SATELLITE, COMBAT_DRONE.BASE/TWIN.DIRECT keys |
+| `src/game/run/RunDiagnostics.ts#EnemyKillSourceCounts` | Closed seven-key numeric counts in aggregates.killsBySource; detached/zero-reset/terminal-frozen |
 | `src/game/enemies/EnemyDefinitions.ts#EnemyArchetype` | Exactly chaser/shooter/tank/boss |
 | `src/game/enemies/EnemyDefinitions.ts#EnemyDefinition` | EnemyNumbers plus closed PursuitMovement / ShooterMovement / WardenMovement pairing |
 | `src/game/enemies/EnemyDefinitions.ts#ENEMY_DEFINITIONS` | Deeply frozen four-entry authored table; all current HP/speed/band/body/contact/XP defaults |
@@ -209,6 +218,14 @@ Runtime labels below describe scene-owned concepts, not separate modules/classes
 | `src/game/progression/replicationMatrix.ts#effectiveDroneBoltRadius` | TESTED_BY | `src/game/progression/replicationMatrix.test.ts` |
 | `src/game/scenes/GameplayScene.ts` | IMPORTS | `src/game/progression/twinDrone.ts#canEvolveTwinDrone` |
 | `src/game/progression/twinDrone.ts#canEvolveTwinDrone` | TESTED_BY | `src/game/progression/twinDrone.test.ts` |
+| `src/game/scenes/GameplayScene.ts` | IMPORTS | `src/game/enemies/EnemyDeath.ts` (source projection, lethal preflight, one completed record) |
+| `src/game/enemies/EnemyDeath.ts` | TYPE_IMPORTS | combat.ts LaserAttack/DroneAttack; EnemyDefinitions.ts EnemyArchetype |
+| `src/game/enemies/EnemyDeath.ts` | TESTED_BY | `src/game/enemies/EnemyDeath.test.ts` |
+| `src/game/run/RunDiagnostics.ts` | IMPORTS | EnemyDeath.ts createEnemyDamageSource/type; validates killSource before closed bucket mapping |
+| GameplayScene.applyEnemyHit | USES | enemyHitSource -> createEnemyDamageSource and enemyDeathInput -> validateEnemyDeathRecord before lethal HP/source commit |
+| EnemyRuntime.lastDamagingSource | OWNS | null initially, newly copied frozen actual Hit source only after hpLost>0 |
+| GameplayScene.killEnemy(hit,damage,source) | CREATES | One EnemyDeathRecord only after exact current RUNNING run/member/actual depleted HP/source guards |
+| EnemyDeathRecord | SUPPLIES | killEnemy concrete Boss flag, one physical XP pickup, target/visual/member cleanup, source-aware recordEnemyKilled; data grants no lifetime authority |
 | `src/game/scenes/GameplayScene.ts` | IMPORTS | `src/game/enemies/EnemyDefinitions.ts` (fixed table/context/factory and archetype/snapshot types) |
 | GameplayScene.createEnemy | CONSTRUCTS | One EnemySpawnSnapshot per successful exact-run creation; zero for rejected requests |
 | EnemyRuntime.spawnSnapshot | SUPPLIES | update movement, contact Attack value, collision body and killEnemy XP; compatibility getters derive values |
@@ -256,12 +273,12 @@ All private names below are navigation anchors, not exported symbol nodes.
 | Choice randomness | enterLevelUpPause → selectChoices → runRandom.reward.next | Explicit source at three sampling sites; one draw per sampled slot, none for focus/evolution/stable UI/acceptance |
 | Death/retry | derived isPlayerDead; enterPlayerDeath | Accepted DEATH precedes existing UI; RETRY bound to owning run; rejects Victory |
 | Victory/result | derived isRunVictorious, victoryPresentation; enterRunVictory | Atomic attack completion after new common Boss defeat, first terminal wins; fixed current-level result and identity/duplicate-guarded native NEW RUN; create clears state/UI references |
-| Enemy runtime | enemies; EnemyRuntime; createEnemy | One collection with readonly spawnSnapshot/run, mutable current health/visual, derived identity/contact/XP/radius getters; EnemyDefinitions owns frozen spawn values, enemyPresentation/eliteTankData/wardenPhaseTwo own only presentation |
+| Enemy runtime | enemies; EnemyRuntime; createEnemy | One collection with readonly spawnSnapshot/run, mutable current health/visual/lastDamagingSource (initial null), derived identity/contact/XP/radius getters; EnemyDefinitions owns frozen spawn values, enemyPresentation/eliteTankData/wardenPhaseTwo own only presentation |
 | Spawning | spawnEnemy; timedSpawnSequence, successfulTimedSpawns, spawnInterval, maximumEnemies | Captured exact run through spawnEnemy/createEnemy, PREPARING initial Chaser only, RUNNING timed/DEV; same2000ms timer/successful CCCSCT mix; shouldSpawnEliteTank promotes Tank12/24; Warden replaces30, active Boss suppresses spawns/count only; blocked cap10 callbacks retain pending count; create resets0 |
 | Enemy movement | update; chaseDirection; shooterMovement | Own frozen movement record supplies Chaser180/Tank100/Elite120 pursuit and Shooter140/350–500 inclusive band; Warden70/100 current-HP pursuit; scene clamp max(25, collisionRadius), pure Shooter step |
 | Target/highlight | selectNearestEnemy, currentTarget; update | Nearest active enemy; optional origin/archetype filter reused by Missile/Shooter; temporary outline restores current Boss phase3px/Elite3px/regular2px style |
-| Enemy death | updateProjectiles / updateMissiles → applyEnemyHit → killEnemy | Current RUNNING enemy.run and membership guard; create one pickup with spawn-derived xpValue (regular1/Elite5/Warden10), destroy visual, splice enemy, clear dead target |
-| XP drops | xpPickups; XpPickup; killEnemy | World-space visual + per-kill value1/5/10 + speed; common magnet/collection, create resets collection |
+| Enemy death | updateProjectiles / updateMissiles → applyEnemyHit → killEnemy | Exact RUNNING Hit.run/target.run/member/actual depleted HP/source guard; one copied frozen record, Boss flag, physical pickup1/5/10, clear target, destroy visual, splice member, observe source; owning cleanup precedes Victory |
+| XP drops | xpPickups; XpPickup; killEnemy | World-space visual at death record x/y + record value1/5/10 + speed; common magnet/collection, create resets collection |
 | XP magnet/collection | updateXpPickups | Stationary outside range; accelerated approach; arrival credits pickup.value then destroys/removes |
 | Player XP/levels | playerExperience; create; updateXpPickups → addExperience | Scene owns state/reset/collection; pure module owns thresholds and carry |
 | Shared projectiles | projectiles; ProjectileRuntime | readonly typed Laser/Drone/Hostile Attack + exact run; source/damage/radius derived read-only; visual/velocity/remainingLifetime |
@@ -446,13 +463,13 @@ native create and saved callback isolation are verified by tracked and actual Ph
 combat.ts + GameplayScene Hit/applyEnemyHit/damagePlayer/ProjectileRuntime/MissileRuntime IMPLEMENT_TASK GAME-049.
 All launch paths create frozen copied concrete Attack snapshots. Exact-run typed Hits use one
 EnemyDamage arithmetic adapter; killEnemy retains removal/Boss flag/XP-drop/diagnostics, with
-source available in the synchronous Hit and no retained death/source registry. Incoming
+actual Hit source projected by GAME-051; no retained death/source registry. Incoming
 PlayerDamage wraps current Defense results with God/protection/Shield/actual-Hull semantics.
 Swept geometry, strict ties, cap/expiry/world exits, Prism independent beams, Twin independent
 origins and Cluster primary then survivor union remain concrete Scene behavior. Complete
 owning cleanup precedes Victory; first-terminal authority stays RunLifecycle. Stale Hits/
 flights guard exact run before fresh enemies/Defense. Five events/five DEV methods and zero
-additional RNG draws remain. Impact/GAME-051+ are deferred. 71 pure +16 new Scene cases,
+additional RNG draws remain. Impact/GAME-052+ are deferred. 71 pure +16 new Scene cases,
 actual Chrome offensive/old-new snapshot/pause/BLUR/native terminal/restart and unmodified
 production ordinary Death/real RETRY checks pass. GATE A PASSED; GATE B PASSED.
 
@@ -464,18 +481,38 @@ behavior. Initial PREPARING Chaser precedes five events/start/entropy, then one 
 bootstrap. Timed/DEV callbacks pass captured owner; applyEnemyHit requires enemy.run===hit.run,
 killEnemy requires current RUNNING owner plus membership. Native restart gives a fresh Chaser
 snapshot and owners; stale values stay readable without mutation authority. No extra timers,
-RNG, dependency, content, difficulty/Build/Tags coupling or GAME-051 death/attribution pipeline.
+RNG, dependency, content or difficulty/Build/Tags coupling. GAME-051 adds the death/attribution boundary below.
 136 pure +33 added Scene cases pass (739 total/25 files). Actual Chrome Clock schedule,
 movement/hostile/six-path combat/real BLUR and active-flight pauses/native restart checks pass;
-unmodified production ordinary Death/real pointer RETRY passes. GAME-050 DONE; GAME-051+
+unmodified production ordinary Death/real pointer RETRY passes. GAME-050/051 DONE; GAME-052+
 BACKLOG; GATE A/B PASSED.
+
+EnemyDeath.ts + GameplayScene EnemyHit/lastDamagingSource/applyEnemyHit/killEnemy and
+RunDiagnostics killsBySource IMPLEMENT_TASK GAME-051. Pure values/factories perform no gameplay
+or RNG work. Exact captured Hit.run guards precede current owner/member/HP/source access;
+applyEnemyHit remains one HP calculation/write, with positive-loss source projection and lethal
+primitive preflight first. killEnemy requires actual lethal result/current HP/provenance, then
+constructs one detached frozen seven-field record and applies ordered concrete Boss/pickup/
+target/visual/removal/observer consequences. No source-less success, dead registry/history or
+new authority. Repeating accepted/old completion contexts returns null before another record.
+XP1/5/10 is physical; straight or full primary/satellite union and owning flight cleanup finish
+before first-terminal Victory. Boss XP stays frozen/uncollected. Observer recordEnemyKilled
+requires source, explicitly maps seven keys, prepares killed/XP/source sums atomically and keeps
+six timeline kinds/newest256. Native restart resets attribution/counters and exact owners;
+old immutable values remain readable, old callbacks cannot mutate/draw in the new run.
+125 pure +26 added Scene +14 observer cases (904 total/26 files, 233 Scene/49 observer) and actual
+seven-source/A->B/loss0/Cluster/XP/pause/genuine BLUR/native terminal/restart Chrome checks pass.
+Unmodified production ordinary enemy death/XP, incoming Death and actual pointer RETRY pass
+without DEV or pageerrors. Five events/four RNG budgets/Build/Tags/Analyzer/Defense/rewards and
+GAME-049/050 contracts remain. GAME-051 DONE; GAME-052+ BACKLOG; GATE A/B PASSED.
 
 ## Common navigation queries
 
 | Question | Likely path / anchor |
 | --- | --- |
 | Where is diagnostic history observed? | RunDiagnostics.ts; GameplayScene.ts → create/update/createEnemy/killEnemy/damagePlayer/creditExperience/enterLevelUpPause/acceptLevelUpChoice/observePause/enterPlayerDeath/enterRunVictory/publishDevTools |
-| Where does enemy death happen? | GameplayScene.ts → updateProjectiles / updateMissiles → applyEnemyHit → killEnemy |
+| Where does enemy death happen? | GameplayScene.ts → actual EnemyHit → applyEnemyHit (HP/source/preflight) → killEnemy (guard/record/consequences); EnemyDeath.ts pure values/factories |
+| Where is kill attribution counted? | RunDiagnostics.ts → required recordEnemyKilled(...,killSource), explicit seven-key mapping and aggregates.killsBySource; DEV nested diagnostics only |
 | Where are XP drops/magnet/collection owned? | GameplayScene.ts → killEnemy, xpPickups, updateXpPickups; create resets |
 | Where are XP thresholds and levels calculated? | src/game/progression/experience.ts; scene playerExperience |
 | Where are level-up choices/resume owned? | GameplayScene.ts → enterLevelUpPause, levelUpPresentation, acceptLevelUpChoice |

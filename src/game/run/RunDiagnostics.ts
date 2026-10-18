@@ -1,4 +1,24 @@
 import type { PauseReason, TerminalOutcome } from './RunLifecycle';
+import { createEnemyDamageSource, type EnemyDamageSource } from '../enemies/EnemyDeath';
+
+export type EnemyKillSourceKey = 'LASER.BASE.DIRECT' | 'LASER.PRISM.DIRECT'
+  | 'MISSILE.BASE.PRIMARY' | 'MISSILE.CLUSTER.PRIMARY' | 'MISSILE.CLUSTER.SATELLITE'
+  | 'COMBAT_DRONE.BASE.DIRECT' | 'COMBAT_DRONE.TWIN.DIRECT';
+export type EnemyKillSourceCounts = Record<EnemyKillSourceKey, number>;
+function emptyKillSources(): EnemyKillSourceCounts {
+  return { 'LASER.BASE.DIRECT': 0, 'LASER.PRISM.DIRECT': 0, 'MISSILE.BASE.PRIMARY': 0,
+    'MISSILE.CLUSTER.PRIMARY': 0, 'MISSILE.CLUSTER.SATELLITE': 0,
+    'COMBAT_DRONE.BASE.DIRECT': 0, 'COMBAT_DRONE.TWIN.DIRECT': 0 };
+}
+function killSourceKey(input: EnemyDamageSource): EnemyKillSourceKey {
+  const source = createEnemyDamageSource(input);
+  switch (source.kind) {
+    case 'LASER': return source.variant === 'BASE' ? 'LASER.BASE.DIRECT' : 'LASER.PRISM.DIRECT';
+    case 'COMBAT_DRONE': return source.variant === 'BASE' ? 'COMBAT_DRONE.BASE.DIRECT' : 'COMBAT_DRONE.TWIN.DIRECT';
+    case 'MISSILE': return source.variant === 'BASE' ? 'MISSILE.BASE.PRIMARY'
+      : source.phase === 'PRIMARY' ? 'MISSILE.CLUSTER.PRIMARY' : 'MISSILE.CLUSTER.SATELLITE';
+  }
+}
 
 export type DiagnosticArchetype = 'chaser' | 'shooter' | 'tank' | 'boss';
 const choices = [
@@ -13,6 +33,7 @@ const pauseOrder: readonly PauseReason[] = ['REWARD', 'MANUAL', 'FOCUS_LOSS'];
 type EnemyCounts = { total: number; byArchetype: Record<DiagnosticArchetype, number>; eliteTanks: number };
 type Aggregates = {
   spawned: EnemyCounts; killed: EnemyCounts;
+  killsBySource: EnemyKillSourceCounts;
   acceptedDamagingHits: number; hpLost: number;
   xpDropped: number; xpCredited: number; xpCollected: number; xpDevCredited: number; levelsGained: number;
   offersPresented: number; choicesAccepted: number; pauseEntries: number; pauseResumes: number;
@@ -67,6 +88,7 @@ export class RunDiagnostics {
   private disposed = false;
   private gameplayElapsedMs = 0;
   private aggregates: Aggregates = { spawned: emptyEnemies(), killed: emptyEnemies(),
+    killsBySource: emptyKillSources(),
     acceptedDamagingHits: 0, hpLost: 0, xpDropped: 0, xpCredited: 0, xpCollected: 0, xpDevCredited: 0,
     levelsGained: 0, offersPresented: 0, choicesAccepted: 0, pauseEntries: 0, pauseResumes: 0 };
   private timeline: DiagnosticRecord[] = [];
@@ -104,12 +126,14 @@ export class RunDiagnostics {
     this.aggregates.spawned = spawned;
     return true;
   }
-  recordEnemyKilled(archetype: DiagnosticArchetype, isElite: boolean, xpValue: number): boolean {
+  recordEnemyKilled(archetype: DiagnosticArchetype, isElite: boolean, xpValue: number, killSource: EnemyDamageSource): boolean {
     this.assertLive(); enemy(archetype, isElite); integer(xpValue);
+    const key = killSourceKey(killSource);
     if (!this.writable()) return false;
     const killed = countEnemy(this.aggregates.killed, archetype, isElite);
     const xpDropped = add(this.aggregates.xpDropped, xpValue);
-    this.aggregates = { ...this.aggregates, killed, xpDropped };
+    const killsBySource = { ...this.aggregates.killsBySource, [key]: add(this.aggregates.killsBySource[key], 1) };
+    this.aggregates = { ...this.aggregates, killed, xpDropped, killsBySource };
     return true;
   }
   recordPlayerDamage(actualHpLost: number): boolean {
