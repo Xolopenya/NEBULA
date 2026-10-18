@@ -339,7 +339,7 @@ Never reuse these IDs for unrelated tasks.
 
 ## Mechanical Vertical Slice roadmap
 
-GAME-042/043/044/045 are DONE; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049+ remain BACKLOG. Each row gives phase membership, exact dependencies and a
+GAME-042/043/044/045 are DONE; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 READY; GAME-050+ remain BACKLOG. Each row gives phase membership, exact dependencies and a
 short capability; gates are review checkpoints, not automatic authorization.
 Dependency ranges are inclusive.
 
@@ -547,7 +547,7 @@ Production preview boots with DEV API absent. Known favicon404 and Vite bundle-s
 no new pageerrors observed.
 
 CURRENT_STATE and real PROJECT_GRAPH ownership are updated. DESIGN-005/GAME-039 stay DONE,
-GAME-040/041 SUPERSEDED; GAME-043 DONE; GAME-044 DONE; GAME-045 DONE; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049+ remain BACKLOG. GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049+ remain BACKLOG pending separate definition. Explicit staging
+GAME-040/041 SUPERSEDED; GAME-043 DONE; GAME-044 DONE; GAME-045 DONE; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 READY; GAME-050+ remain BACKLOG. GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 READY; GAME-050+ remain BACKLOG pending separate definition. Explicit staging
 and ignored .codex-review/GAME-042-review.txt follow AGENTS.md; no commit is created.
 
 #### GAME-043 — Seeded RNG Streams
@@ -749,7 +749,7 @@ Out of scope: GAME-044 Pause/Input, GAME-045 telemetry, GAME-046 Build, Encounte
 templates/pressure/portals/weights, full Reward Generator/Analyzer/pity/recent offers,
 World Scheduler/events, BossController/Juggernaut, RunResult/RunReport, replay recording,
 daily seeds, seed entry/query/settings/reseed DEV command, save/meta/profile, arbitrary
-named/forkable RNG framework, service locator or new dependency. GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049+ remain BACKLOG pending separate definition.
+named/forkable RNG framework, service locator or new dependency. GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 READY; GAME-050+ remain BACKLOG pending separate definition.
 
 **Implementation completion evidence**
 
@@ -769,7 +769,7 @@ fixed-seed spawn/offer sequences and cross-stream isolation. Two actual Victory 
 cycles and one Death RETRY (plus nonterminal/Missile/Cluster native restarts) dispose old
 streams and retain fresh RNG/lifecycle/API/five events with inert stale callbacks.
 Production canvas boots with DEV API absent; only known favicon404 and build chunk-size
-warnings remain. GAME-044 DONE; GAME-045 DONE; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049+ remain BACKLOG; GAME-040/041 SUPERSEDED; GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049+ remain BACKLOG pending separate definition.
+warnings remain. GAME-044 DONE; GAME-045 DONE; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 READY; GAME-050+ remain BACKLOG; GAME-040/041 SUPERSEDED; GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 READY; GAME-050+ remain BACKLOG pending separate definition.
 
 **Definition validation and documentation (historical definition-only instructions)**
 
@@ -1090,7 +1090,7 @@ Missile/Cluster cycles pass: fresh authority/adapter/RNG/API, zero reasons, unpa
 five fresh events, old streams throw and saved stale callbacks draw zero on all fresh streams.
 Unmodified production preview passes keyboard/Space/Escape and 700ms rendered pause freeze
 without DEV API/debug controls. Only known favicon404 and Vite chunk-size warnings remain.
-GAME-042/043/044 DONE; GAME-040/041 SUPERSEDED; GAME-045 DONE; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049+ remain BACKLOG; GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049+ remain BACKLOG pending separate definition.
+GAME-042/043/044 DONE; GAME-040/041 SUPERSEDED; GAME-045 DONE; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 READY; GAME-050+ remain BACKLOG; GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 READY; GAME-050+ remain BACKLOG pending separate definition.
 
 #### GAME-045 — Telemetry & Diagnostics Foundation
 
@@ -1346,8 +1346,8 @@ inert stale owners/callbacks. Unmodified production preview verifies keyboard/Da
 DEV absence and local static-only network requests. HIDDEN/VISIBLE combinations remain
 separately identified synthetic tracked coverage; known favicon404/bundle-size warnings only.
 
-GAME-045 DONE; GAME-040/041 SUPERSEDED; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049+ remain BACKLOG.
-GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049+ remain BACKLOG pending separate definition. GAME-049+ are not unlocked.
+GAME-045 DONE; GAME-040/041 SUPERSEDED; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 READY; GAME-050+ remain BACKLOG.
+GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 READY; GAME-050+ remain BACKLOG pending separate definition. GAME-050+ are not unlocked.
 
 **GATE A — Runtime Foundation — PASSED**
 
@@ -1358,7 +1358,7 @@ GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 DONE; GAM
 | GAME-046 | PlayerBuild / Slots / Effective Stats | GAME-042 | 3/1/6 build ownership and cached Effective Stats with explicit modifiers. | DONE |
 | GAME-047 | Tags & Build Snapshot | GAME-046 | Tag contributions, derived identity and detached BuildSnapshot. | DONE |
 | GAME-048 | Player Defense Runtime | GAME-046 | Authoritative Shield/Hull/protection and incoming-damage boundary. | DONE |
-| GAME-049 | Combat Resolution & Launch Snapshots | GAME-046, GAME-048 | Attack/Hit/Damage resolution and immutable launch values. | BACKLOG |
+| GAME-049 | Combat Resolution & Launch Snapshots | GAME-046, GAME-048 | Attack/Hit/Damage resolution and immutable launch values. | READY |
 | GAME-050 | Enemy Definitions & Spawn Snapshots | GAME-049 | EnemyDefinition, scaling profiles and per-spawn runtime snapshots. | BACKLOG |
 | GAME-051 | Authoritative EnemyDeath Pipeline | GAME-049, GAME-050 | Exactly-once death record with last damaging / kill-source attribution for explicit XP/objective/Medical/Boss consumers and telemetry. | BACKLOG |
 | GAME-052 | Enemy Interaction + Swarm & Charger | GAME-048..051 | Enemy interaction/knockback/Decoy susceptibility plus Swarm and Charger roles. | BACKLOG |
@@ -1374,7 +1374,7 @@ Implemented and verified against the acceptance contracts below.
 Establish one focused run-scoped PlayerBuild authority for 3 Combat / 1 Active / 6 Core
 slots, immutable Base Stats, unconditional Run Modifiers and cached Effective Stats.
 GameplayScene remains the composition root and current combat/progression/presentation owner.
-GAME-047 DONE; GAME-048 DONE; GAME-049+ remain BACKLOG; no later runtime domain is implemented here.
+GAME-047 DONE; GAME-048 DONE; GAME-049 READY; GAME-050+ remain BACKLOG; no later runtime domain is implemented here.
 
 **Pre-implementation tracked-source audit and migration inventory**
 
@@ -1725,7 +1725,7 @@ old reads/mutations/callbacks remain inert. Extra Missile/Cluster terminal cycle
 Unmodified production preview passes keyboard/Dash/pause/current combat and DEV absence.
 Known favicon404 and Vite bundle-size warnings only. CURRENT_STATE and PROJECT_GRAPH reflect
 actual implemented ownership; no dependencies changed. GATE A remains PASSED; GAME-046 DONE;
-GAME-047 DONE; GAME-048 DONE; GAME-049+ remain BACKLOG. GATE B is not passed or altered by this implementation.
+GAME-047 DONE; GAME-048 DONE; GAME-049 READY; GAME-050+ remain BACKLOG. GATE B is not passed or altered by this implementation.
 
 #### GAME-047 — Tags & Build Snapshot
 
@@ -1737,7 +1737,7 @@ Depends on GAME-046 DONE; preserve GAME-039/042/043/044/045/046 contracts and PA
 Extend the existing Phaser-free PlayerBuild with twelve numeric Tag totals, derived build
 identity and one canonical detached BuildSnapshot. Tags describe the build in parallel to
 stats; they never supply combat multipliers. Implemented and verified against the contracts
-below. GAME-048 DONE; GAME-049+ remain BACKLOG; GATE B is unchanged / not passed.
+below. GAME-048 DONE; GAME-049 READY; GAME-050+ remain BACKLOG; GATE B is unchanged / not passed.
 
 **Authoritative design and current source audit**
 
@@ -2007,7 +2007,7 @@ owners/API/five events and unpaused Clock; old direct additions (including0)/rea
 and saved callbacks remain inert. Additional Missile/Cluster native cycles pass.
 Unmodified production preview retains W/Space/Escape/current combat, no DEV API/debug UI
 and no new pageerrors. Known favicon404 and Vite bundle-size warning only. Factual
-CURRENT_STATE/PROJECT_GRAPH updated. GAME-047 DONE; GAME-048 DONE; GAME-049+ BACKLOG; GAME-040/041
+CURRENT_STATE/PROJECT_GRAPH updated. GAME-047 DONE; GAME-048 DONE; GAME-049 READY; GAME-050+ BACKLOG; GAME-040/041
 SUPERSEDED; GATE A PASSED; GATE B unchanged / not passed. No commit created.
 
 #### GAME-048 — Player Defense Runtime
@@ -2022,7 +2022,7 @@ current Shield and damage protection, with Shield-first numeric incoming damage,
 healing/capping and the explicit contact separation below. Scene remains composition root,
 collision/presentation/lifecycle adapter; PlayerBuild remains maximum-Hull authority.
 GAME-048 implementation is complete; the approved contracts and pre-implementation audit follow.
-GAME-049+ remain BACKLOG; GATE B unchanged / not passed.
+GAME-049 READY; GAME-050+ remain BACKLOG; GATE B unchanged / not passed.
 
 **Pre-implementation defense source inventory and authoritative design audit**
 
@@ -2403,8 +2403,414 @@ handlers; Hull/reward checks use browser pointer input. Unmodified production pr
 passes W/Space/Escape/pause/combat, ordinary damage to HP0/Death and actual pointer RETRY
 back to HP5/5, no DEV API/debug UI or new pageerrors. Only known favicon404 and Vite
 large-chunk warnings remain. CURRENT_STATE/PROJECT_GRAPH describe implemented ownership.
-GAME-048 DONE; GAME-049+ BACKLOG; GAME-040/041 SUPERSEDED; GATE A PASSED; GATE B unchanged /
+GAME-048 DONE; GAME-049 READY; GAME-050+ BACKLOG; GAME-040/041 SUPERSEDED; GATE A PASSED; GATE B unchanged /
 not passed. Architect implementation approval is pending; no commit created.
+
+#### GAME-049 — Combat Resolution & Launch Snapshots
+
+STATUS: READY
+
+**Goal, dependencies and definition boundary**
+
+Depends on GAME-046 DONE and GAME-048 DONE; preserve GAME-047 DONE and GAME-039/042..045.
+Define Attack (offensive action plus immutable launch values), Hit (one concrete target
+collision/impact) and Damage (calculated amount versus actual health/defense result).
+Only this TASK_GRAPH definition changes now, GAME-049 BACKLOG->READY. No runtime or tests
+are added/changed. GAME-050+ stay BACKLOG; GAME-040/041 SUPERSEDED; GATE A PASSED and
+GATE B NOT PASSED. Implementation needs separate authorization after definition review.
+
+**Current HEAD audit and concrete combat inventory**
+
+Audit baseline: 42f7c823f13466c419ec1a1f01b4f79bfc9231f4, GAME-048 player defense runtime.
+Read TASK_GRAPH, CURRENT_STATE, ARCHITECTURE, GAME_DESIGN, PROJECT_GRAPH, CONTENT_MANIFEST
+and BALANCE completely; inspect current source rather than treating target prose as code.
+Anchors/line numbers below refer to that HEAD; reinspect before implementation.
+Searched src for damage/health writes, globalDamageMultiplier/combatValue, all fire/launch/
+impact/explosion/kill/contact paths, segmentCircleHitTime, timers and diagnostics. There
+are exactly three outgoing HP subtraction sites and one PlayerDefense incoming operation;
+DEV setWardenHealth is a separate existing guarded assignment, not a combat/death path.
+
+All Scene anchors below are in src/game/scenes/GameplayScene.ts:
+
+| Path / actual anchors | Launch values and composition | Hit-time reads, geometry, health/XP/terminal consequences |
+| --- | --- | --- |
+| Laser: fireLaser914, firePlayerProjectile968, launchPlayerProjectile981 | Local damage1/interval600/speed1200; Power+1, FireRate-50 floor100, Speed+200, ranks0..2. Damage=local*C*R, speed=local*V, radius6*S, lifetime2000. Origin/player and normalized currentTarget aim sampled; distance<0.001 suppresses launch | updateProjectiles1028 reads stored damage/radius/velocity, current enemy centers/body radii and collection order. Earliest swept hit; ties retain first; subtract damage, killEnemy if<=0, destroy/splice shot, then new Boss defeat may request Victory. No live stats/target after launch |
+| Prism: fireLaser914, combat/prismSpread.ts | Same Laser values/full damage on each of three beams; center,-12,+12 degrees, shared same firing event; entire near-zero volley suppressed. Current evolved flag read only for this launch | Three independent nonpiercing runtimes may each hit the same enemy if still present. No shared one-hit-per-volley restriction. Same damage/kill/XP/cleanup/terminal path as Laser |
+| Missile: fireMissile1105, aimMissile1129, updateMissiles1139 | Local damage2/speed450/body8/explosion120/lifetime4000; ranks add1/75/30. Damage=local*C*R, speed=local*V, body8*S, explosion=local+15*Spatial. Store damage/speed/body/explosion/clusterEnabled; cap1, same1800ms event | Current retained target position guides heading; membership loss reacquires nearest to Missile, last heading if absent; distance<0.001 retains heading (initial0). Sweep all enemies for earliest interception, including non-target. Impact interpolates Missile center, no separate direct damage. Primary affected center snapshot receives stored damage once; destroy/splice Missile, then Victory |
+| Cluster: updateMissiles1139, explodeMissile1183, explodeClusterSatellites1196, combat/clusterSatellites.ts | clusterEnabled is launch-time, not live evolution. Primary stored D/R; satellites derive D*0.5 and R*0.5, six centers at full stored R in world-axis0/60/120/180/240/300 order | Primary snapshot resolves first. AFTER primary deaths, snapshot survivors in union of six inclusive center circles; one satellite hit per survivor even if circles overlap. Primary survivor may take primary PLUS one half hit. No children/fragments, radius/body expansion, center clamp or falloff. Full union and Missile cleanup precede Victory even for primary Boss kill |
+| Combat Drone: fireDrone951, fireDroneFrom958, firePlayerProjectile968 | Local damage1/interval1200/speed800/bolt5/lifetime1800; ranks add1/-150/+200. Damage=local*C*R*E, speed=local*V, radius=(5+Replication)*S. Nearest aim from actual Drone origin, near-zero suppressed | Same stored straight-shot collision/damage/kill/XP/removal as Laser. Current Drone orbit110/angular2/body10 remain separate; no post-launch Drone/Build lookup |
+| Twin: fireDrone951, positionDrone943, fireDroneFrom958 | One mirrored companion at angle+PI; same Drone event/slot/progression, separate actual origin/nearest target/near-zero check. Each bolt full Drone composition and lifetime | Two independent nonpiercing bolts, same current-enemy eligibility and common death path. No shared hit history, half-damage copy, extra event or orbit/body scaling |
+| Hostile projectile: fireHostileProjectile997, launchHostileProjectile1016, updateProjectiles1028 | Stored damage1/speed600/radius6/lifetime3000. Nearest Shooter aims at current player; independent Warden current-HP phase supplies4/8 fixed radial directions. No C/R/E/V/S | Player swept circle uses20+stored radius; calls damagePlayer837 -> current Defense, then destroys/splices once even on God/protection reject, Shield-only or lethal. No enemy friendly fire/XP. Lethal loss records before Death; shot cleanup completes before next guarded iteration |
+| Enemy contact: updatePlayerContact814, damagePlayer837 | No flight. Read first contacting EnemyRuntime.contactDamage at the attempt: normal1, Elite/Warden2. No player multipliers | First inclusive d<=20+enemy radius24/40 in existing collection order. GAME-048 minimum translation/coincident+X/clamp occurs BEFORE damage, including God/protected. Same Defense/Hull-only diagnostics/Death; no enemy damage/kill/XP. Pause/terminal performs neither geometry nor damage |
+
+C=globalDamageMultiplier (initial1, +0.25 per accepted Combat Processor at758);
+R/E/V/S=Build effective Reactor/Engineering/Velocity/Scale. Current ProjectileRuntime105
+stores only side 'player'/'enemy', not Laser/Drone/variant attribution; damage/radius are
+writable TypeScript fields today. MissileRuntime115 has readonly numerical fields and
+clusterEnabled, but no runtime-frozen common snapshot. These are migration points, not
+evidence of existing typed Attack/Hit/Damage or retained kill attribution.
+
+EnemyRuntime89 retains archetype/isElite/visual/current health/contactDamage/xpValue/radius.
+createEnemy1227 gives Chaser3/Shooter2/Tank6/Elite18/Warden60 HP, radii24/40, XP1/5/10.
+killEnemy1211 membership-guards removal, flags Boss, creates one value-bearing pickup,
+clears current target, destroys/splices, then records killed/drop aggregates. It neither
+attributes a source nor accepts Victory. creditExperience1241 owns later collected/DEV
+XP; attacks never credit dropped XP directly. Boss XP10 stays visible/frozen on Victory.
+
+Other audited anchors: PlayerBuild.ts#getEffectiveStats/resolve (copied cached ten stats,
+zero Tag production contributions); PlayerDefense.ts#applyIncomingDamage (only current
+Shield/Hull/protection arithmetic); RunLifecycle.ts#tryEnterTerminal (first outcome);
+RunDiagnostics.ts#recordEnemyKilled/recordPlayerDamage/recordTerminal (observers);
+Scene create221/five addEvent325..349, update403, applyBuildChange485, weaponInterval475,
+resetWeaponTimer479, enterPlayerDeath849 and enterRunVictory878. Relevant tests include
+collision9, prismSpread7, clusterSatellites6, Spatial6, Replication5, Warden14, pure Build52,
+Defense35 and actual Scene158, especially terminal246..343, composition920..1013 and
+Defense1150..1258. Current baseline is483 tests/23 files, not a new runtime claim here.
+
+**Representation decision: immutable values, concrete Scene hits, no stateful engine**
+
+Prefer one focused Phaser-free src/game/combat/combat.ts and combat.test.ts for the
+following types/factories/numeric helpers. No CombatManager/System, DamagePipeline class,
+owner/disposal service, RunContext, registry, event bus, universal payload or condition DSL.
+Attack is a small immutable action record, not a mutable entity with scheduling methods.
+Use the following exact fields/discriminants (aliases may be organized equivalently):
+
+```typescript
+type FlightSnapshot = Readonly<{
+  damage: number; speed: number; radius: number; lifetime: number;
+}>;
+type MissileSnapshot = Readonly<FlightSnapshot & { explosionRadius: number }>;
+type ContactSnapshot = Readonly<{ damage: number }>;
+type LaserAttack = Readonly<{
+  kind: 'LASER'; variant: 'BASE' | 'PRISM'; snapshot: FlightSnapshot;
+}>;
+type MissileAttack = Readonly<{
+  kind: 'MISSILE'; variant: 'BASE' | 'CLUSTER'; snapshot: MissileSnapshot;
+}>;
+type DroneAttack = Readonly<{
+  kind: 'COMBAT_DRONE'; variant: 'BASE' | 'TWIN'; snapshot: FlightSnapshot;
+}>;
+type HostileAttack = Readonly<{ kind: 'HOSTILE_PROJECTILE'; snapshot: FlightSnapshot }>;
+type ContactAttack = Readonly<{ kind: 'ENEMY_CONTACT'; snapshot: ContactSnapshot }>;
+type Attack = LaserAttack | MissileAttack | DroneAttack | HostileAttack | ContactAttack;
+type AttackSnapshot = Attack['snapshot'];
+type PlayerAttackSource = Pick<LaserAttack, 'kind' | 'variant'>
+  | Pick<MissileAttack, 'kind' | 'variant'> | Pick<DroneAttack, 'kind' | 'variant'>;
+type AttackSource = PlayerAttackSource | Pick<HostileAttack, 'kind'> | Pick<ContactAttack, 'kind'>;
+type HitPhase = 'DIRECT' | 'PRIMARY' | 'SATELLITE' | 'CONTACT';
+type EnemyDamage = Readonly<{
+  target: 'ENEMY'; calculatedDamage: number; healthAfter: number;
+  hpLost: number; healthDepleted: boolean;
+}>;
+type PlayerDamage = Readonly<{
+  target: 'PLAYER'; calculatedDamage: number; defense: IncomingDefenseResult;
+}>;
+type Damage = EnemyDamage | PlayerDamage;
+```
+
+IncomingDefenseResult is the existing GAME-048 type (type-only import), not a second
+Shield/Hull algorithm. Damage has no lifecycle transition, kill rewards or terminal flag.
+No attackId, sourceId counter, timestamp, attacker metadata, crit/armor/damageType,
+penetration, impact force, arbitrary attributes or future weapon/Active identities.
+AttackSource is the stable closed source VALUE projected from Attack.kind/variant; avoid
+a second separately writable source on the runtime. Variants remain attributes of their
+base system for current behavior and later explicit death consumers. Both Twin origins
+are COMBAT_DRONE/TWIN; no instance ID is needed. Shooter/Warden shots share the current
+HOSTILE_PROJECTILE distinction; do not invent future hostile-source classification.
+
+Hit is a Scene-local internal discriminated record because exact target/run references
+are current Scene authorities, not plain public snapshot data. Define it alongside
+EnemyRuntime, without importing Phaser/Scene/Run into the pure combat module:
+
+```typescript
+type Hit = Readonly<{ run: RunLifecycle } & (
+  { kind: 'ENEMY_DIRECT'; target: EnemyRuntime; attack: LaserAttack | DroneAttack }
+  | { kind: 'ENEMY_BLAST'; target: EnemyRuntime; attack: MissileAttack;
+      phase: 'PRIMARY' | 'SATELLITE' }
+  | { kind: 'PLAYER_PROJECTILE'; target: PlayerDefense; attack: HostileAttack }
+  | { kind: 'PLAYER_CONTACT'; target: PlayerDefense; attack: ContactAttack }
+)>;
+```
+
+Geometry computes the one current target/phase and, for Missile, impact center before
+Hit construction. No cached target HP, damage modifier, timestamp or geometry truth in
+Hit. Exact run/target refs never escape through DEV/Build snapshots or pure numeric data.
+Damage is a short-lived result for the immediate adapter; no retained hit/event queue.
+
+**Pure operations, validation and calculated-versus-actual damage**
+
+Pin small functions, not a resolver object:
+
+- composePlayerDamage(system: PlayerAttackSource['kind'], localDamage:number,
+  combatMultiplier:number, reactorPower:number, engineering:number):number.
+- createAttack(input:Attack):Attack: validate supported discriminant/variant and its
+  exact snapshot fields, copy primitives and freeze both snapshot and outer record.
+  Caller mutation of input objects cannot mutate the returned action. No Build reference.
+- calculateHitDamage(attack:Attack, phase:HitPhase):number: DIRECT only Laser/Drone/hostile,
+  PRIMARY only Missile, SATELLITE only MISSILE/CLUSTER, CONTACT only ENEMY_CONTACT.
+  Return snapshot.damage except SATELLITE returns snapshot.damage*0.5. Reject invalid
+  combinations, never infer another behavior or use live modifiers.
+- calculateEnemyDamage(currentHealth:number, calculatedDamage:number):EnemyDamage:
+  pure numeric result only; Scene remains health/removal authority during this migration.
+
+Require typeof number, finite, positive, <=Number.MAX_SAFE_INTEGER for operands/final
+combat values, flight lifetime/speed/radius and explosionRadius; valid fractions remain.
+Reject zero/negative/nonnumbers/NaN/infinities/overflow or positive-product underflow0
+with clear RangeError before affected visual/runtime/HP mutation. No coercion/rounding/
+invalid-input clamp. Keep existing combatValue final-composition bounds; check final
+product without adding an intermediate MAX_SAFE cap that rejects otherwise valid existing
+left-to-right composition. Validate a Cluster half-damage result before creating that
+launch so no malformed derived hit can partly resolve a later detonation. No arbitrary
+new balance cap or minimum replacing the current strictly positive numeric boundary.
+Near-zero/no-target/cap rejection remains a normal no-launch, not malformed content.
+
+For a valid current positive enemy HP H and calculated D:
+healthAfter=H-D (the CURRENT subtraction, potentially negative on overkill);
+hpLost=H-max(0,healthAfter); healthDepleted=(healthAfter<=0).
+Preserve current negative transient HP on an immediately removed overkilled object;
+do not silently clamp that inspected reference or equate calculatedDamage with hpLost.
+E.g. H3/D10 yields healthAfter-7, hpLost3, depleted true, calculatedDamage10; excess never
+transfers. Tiny D that causes no stored change gives hpLost0/depleted false. Reject invalid
+currentHealth in the pure helper; Scene rejects absent/dead/stale targets before calling.
+No new damage numbers UI; keeping calculated D supports the approved later presentation.
+
+**Composition and immutable launch authority**
+
+Evaluate ordinary current formulas in their existing left-associative order:
+Laser/Prism and Missile/Cluster: (localDamage*C)*R.
+Combat Drone/Twin: ((localDamage*C)*R)*E. Engineering never multiplies Laser/Missile.
+Validate all supplied numeric operands; only the Drone branch consumes E in the product.
+Do not apply C inside a second launch/hit helper. No Scale/Velocity/Impact/FireControl/
+Analyzer/Tags factor in damage, no crit/hit-chance/variance draw or AoE damage falloff.
+
+Firing methods read current local tuning and one copied EffectiveStats at their current
+launch site, compose once, then construct the frozen Attack. Sample speed=local*V,
+radius=local*S (Drone local5+Replication BEFORE S), lifetime=current local constant.
+Missile snapshot also owns local explosionRadius+15*Spatial. BASE/PRISM/CLUSTER/TWIN is
+fixed on that action; evolving never mutates old flights. Retain colors/positions/aim/
+velocity components/remaining lifetime, homing target/heading in concrete Scene runtimes.
+No stored full EffectiveStats/Build, current/max HP, cadence or source-object reference
+inside AttackSnapshot. Already launched values cannot change with R/E/C/V/S, local ranks,
+Spatial/Replication or later evolution. Hostile factory samples its own1/600/6/3000,
+not player stats. Contact constructs a no-flight action from that enemy's current
+contactDamage only at the guarded actual attempt, not a fake projectile or lasting timer.
+
+One successful Laser callback produces one action shared by its normal shot or three
+Prism beam runtimes. Each Prism beam still consumes itself independently; sharing immutable
+values does not impose shared target history. Each Drone/Twin origin produces its own
+action/bolt after its independent targeting check. One Missile action owns its entire
+primary/optional satellite detonation. Each hostile shot has its own action; no global ID
+or volley service. A contact attempt has its own immediate action. No universal hit history.
+
+ProjectileRuntime migrates its writable damage/radius/side fields to one readonly typed
+attack ref plus exact owning run ref; side/visual-radius reads derive from the closed
+Attack kind/snapshot. Optional read-only compatibility getters for existing internal
+tests are allowed, never writable mirrors. Fixed straight velocity is initialized from
+snapshot speed and current normalized aim; physics components remain Scene-owned.
+MissileRuntime similarly uses readonly MissileAttack and run refs; remove independent
+damage/speed/radius/explosionRadius/clusterEnabled storage, deriving variant from Attack.
+remainingLifetime starts from snapshot.lifetime and remains mutable physical state.
+Both render radius and swept/world-exit margin use the SAME stored snapshot.radius.
+Do not introduce another cache that can disagree with the snapshot or reread live Build.
+
+**Concrete hit adapters and unchanged health/death authority**
+
+Route the three current enemy subtraction sites through one small private Scene
+applyEnemyHit(hit) boundary. Require exact owning this.run===hit.run, RUNNING, current
+collection membership and positive target HP. Determine phase damage from the immutable
+action, calculate EnemyDamage, assign existing enemy.health=healthAfter and call the same
+membership-guarded killEnemy(enemy) when depleted. Return that result or null on an
+unavailable/stale target. No fake successful hit/HP loss on rejected ownership. This
+adapter does not request Victory, collect XP, update Build or record a hit timeline.
+Keep the Hit/action source available through this synchronous damage/kill call chain.
+
+GAME-051 will need that exact current enemy ref, Hit.attack's stable base/variant source,
+and calculated/actual/depleted result at its real alive-to-dead boundary. GAME-049 does
+not retain lastDamagingSource on EnemyRuntime, add an EnemyDeathRecord, distribute kill
+source rewards, create another alive/dead flag or introduce an unused source registry.
+Current killEnemy remains the sole removal/XP/Boss/kill-aggregate path; no competing death
+authority and no GAME-050 definition/scaling/spawn cutover. Enemy fields/AI/HP/XP stay as
+audited. A later explicit GAME-051 migration can consume the source there without
+reconstructing it from a mutable weapon/build or projectile color.
+
+Incoming Hit routing stays in the current damagePlayer adapter (typed signature may
+replace its numeric internal parameter; migrate test setup, not behavior). Exact current
+run/Defense/player/RUNNING/positive Hull checks precede new contact-record/numeric work;
+God returns null without Defense invocation. For actual contact, separation still occurs
+before this rejection. A hostile immutable action already exists from its earlier launch.
+Then calculate its unchanged incoming amount -> PlayerDefense.applyIncomingDamage ->
+PlayerDamage wrapping the existing IncomingDefenseResult. Protection rejection is that
+real result, not a fake Hull-only record. Record only positive hullLost once, accepted
+HUD/alpha0.5, then depleted Death; final Hull0/protection500/alpha0.25. Shield-only starts
+protection but records0 hits/hpLost. No copied Shield math or altered duration/healing/max.
+Hostile destroy/splice is unconditional on collision, outside accepted-result branches.
+No new production Shield setter/source, no player-to-player/enemy-to-enemy friendly fire.
+
+**Geometry, per-target rules and explicit abstraction conflicts**
+
+Keep combat/collision.ts#segmentCircleHitTime unchanged unless an actual necessary fix
+is separately identified: inclusive t[0,1], initial overlap0, tangency at computed t, stationary
+outside/miss Infinity. Step uses min(delta,remainingLifetime)/1000; miss subtracts full
+delta from lifetime and destroys on<=0 or whole body outside inclusive arena margins.
+Current collision processing precedes expiry/world-exit cleanup; do not cull first.
+Do not add epsilon, endpoint extension, new hitbox, spatial index or generic collision engine.
+
+Nearest target uses strict squared-distance < in selectNearestEnemy1085, preserving
+collection-order ties, current archetype filter only for Shooter and actual Drone/Missile
+origin. Straight collision picks strict smallest swept hit t, collection order on ties;
+shot aims at launch target but may hit another enemy first. Zero aim suppression remains
+<0.001; Missile may start stationary/overlapping and retains its existing heading behavior.
+Missile sweeps ALL current enemies with enemy radius+snapshot body radius; impact center
+is start+step*t. Explosion uses enemy CENTER only, inclusive squared distance<=R^2.
+No combined enemy radius for blast coverage or Missile direct-hit damage on top of blast.
+
+Cluster resolves primary affected snapshot once, then snapshots surviving union targets
+once, then applies half damage to each once; preserve order and every removal/pickup.
+No satellite center clamp, no body Scale on full R/half R/offsets, no child projectile.
+Conflict: a universal already-hit Set per Attack would suppress the existing primary+
+satellite second hit. Reject that abstraction. Primary and satellite phases have separate
+authored eligibility; filtering the current survivor collection already deduplicates.
+Likewise shared Prism/Twin volley history would change valid independent hits; reject it.
+Do not batch unrelated attacks or add piercing, pellet stacks/fragments or priority rules.
+
+Contact remains GAME-048 Scene geometry: first d<=R44/60, unit away/coincident+X,
+step=max(0,R-d), x[21,4779]/y[25,2675], correction before damage, stop after first even
+when God/protected. Tangency step0 still attempts; residual edge overlap is allowed.
+No separation from hostile projectiles. PAUSED/terminal/stale/zero Hull does neither.
+
+**Boss/terminal atomicity and exact owning lifetime**
+
+Preserve reverse projectile/Missile processing and update403 phase order: protection,
+straight/hostile, Missile, contact, XP. Do not sort hits, invent same-frame outcome priority
+or move Run.tryEnterTerminal into pure damage/applyEnemyHit/killEnemy.
+Straight: remember bossWasDefeated -> current Hit/HP/kill/drop -> destroy/splice THIS shot
+-> newly defeated Boss requests Victory -> stop unrelated later work. Hostile lethal:
+Defense/diagnostics/Death -> destroy/splice THIS hostile -> next guard stops processing.
+Missile: primary FULL affected snapshot -> Cluster FULL survivor union if launch variant
+-> Missile destroy/splice -> newly defeated Boss requests Victory -> stop later Missiles/
+contact/XP. Primary Boss kill cannot skip satellites; satellite Boss kill cannot truncate
+the rest of the union. Nonlethal/ordinary deaths never request Victory.
+First legal DEATH/VICTORY remains immutable; duplicate/conflicting requests create no UI/
+diagnostics/rewards. No auto-collection of Boss XP, unrelated post-terminal hit or XP step.
+No deferred terminal queue, broad transaction framework or post-terminal detonation resume.
+
+Immutable Attack/Snapshot has no stateful owner to dispose and remains harmless data after
+restart. Each concrete flight/Hit captures its EXACT existing RunLifecycle ref outside
+the pure values. Newly added mutating adapters require that captured run, never default
+stale callbacks to mutable this.run. Reject old run before reading fresh collections or
+Defense; additionally require enemy membership / exact current Defense identity. Creation/
+timer/cadence/reward/result/input/focus closures keep current captured-owner guards.
+Retained old runtime/Hit cannot be transplanted to a new run, even if a Scene is reused.
+Do not rebuild an old Attack with the new run token or redirect through a global pointer.
+Native scene.restart remains physical reset, with fresh Build/Defense/zero Tags/lifecycle/
+RNG/input/diagnostics/API, unpaused Clock and five fresh events. Existing exact-owner
+disposal stays unchanged. No new global authority, run ID service, combat owner or reset API.
+
+**Impact deferral and isolation invariants**
+
+Impact remains an UNUSED shared stat in GAME-049, with no field in AttackSnapshot/Damage
+and no damage factor. Target docs give Attack Impact*Ship Impact*Enemy Knockback Response
+but no current authored Attack strength, enemy response coefficients, decay/integration
+or multi-hit bound. EnemyRuntime has none of those fields. Defer physical knockback to
+separately defined enemy-definition/interaction work GAME-050/052; do not infer coefficients
+from Tank HP, projectile radius, archetype or enemy speed, add force0 placeholders, or
+alter GAME-048 escape separation. No Armor/resistance/crit/status/control framework.
+
+Exactly five TimerEvents remain: spawn2000, Laser local/F, Missile1800/F, Drone local/F,
+hostile1500. Snapshot has no scheduling/FireControl field. Keep same three event objects'
+shared FC resets, only Laser/Drone own local cadence resets, no immediate shot/reset on
+other Build changes/reads/snapshot/pause/resume. PAUSED freezes active attacks, defense,
+geometry and all five phases; terminal callbacks remain guarded. ZERO new TimerEvents.
+Attack construction/geometry/damage/reads consume ZERO Encounter/Reward/World/Boss draws;
+fixed-seed spawn/offer behavior/budgets remain. RunDiagnostics remains observer: same spawn/
+kill/drop/credit/Hull-only metrics, six semantic timeline kinds and terminal ordering;
+no Attack/Hit/frame timeline or hypothetical combat counters/schema change.
+PlayerBuild remains sole stats/slots/Tags authority. No damage inferred from twelve zero
+current production Tags, no Analyzer effect, maturity, Core/Active content or new rewards.
+DevSnapshot fields remain unchanged; exactly snapshot/forceLevelUp/spawnWarden/
+setWardenHealth/setGodMode, old API null/false, production API absent. No combat debug UI,
+spawnAttack/setDamage/forceHit/setCrit/setImpact/setHealth command or dependency.
+
+**Required tracked tests for separately authorized implementation**
+
+Preserve all483 pre-GAME-049 cases/23 files, including52 Build/35 Defense/158 Scene.
+Adapt old internal direct-number/runtime-field setup to real typed factories/owners;
+read-only compatibility getters are allowed, setters/parallel fake combat are not.
+Do not remove, weaken or disable earlier assertions; report actual added totals.
+
+| Boundary | Required evidence |
+| --- | --- |
+| Pure contracts/factory | Closed five source identities, legal variants/snapshot shapes, detached runtime-frozen inputs/nested values; invalid source/variant/fields/nonnumbers/NaN/infinities/nonpositive/overflow/underflow reject before mutation; fractions and boundaries; no owner/Build/Phaser/timer data |
+| Pure composition/phases | Exact local*C*R and Drone-only *E, C once, independent non-default factors, BASE/evolved same damage rules; DIRECT/PRIMARY/SATELLITE/CONTACT validation, half damage only Cluster satellite, no live stats; same left-to-right arithmetic |
+| Pure enemy Damage | Nonlethal/fractional/exact lethal/overkill, calculated10 vs actual3/healthAfter-7, no transfer/rounding, tiny stored no-op, invalid current HP/amount atomic; result contains no death authority |
+| Scene launch authority | All six player paths plus hostile/contact use typed Attack/Hit/Damage; Laser/Prism shared action but independent beams, Drone/Twin per-origin actions; old launches retain D/speed/body/lifetime/blast/variant after each R/E/C/V/S/local/Spatial/Replication/evolution change; new ones consume current values |
+| Real geometry/targets | Swept first/earliest hit, overlap/tangent/stationary/lifetime endpoints/world margins, collection ties, nearest versus first interception, Missile target loss/retention, scaled visual/body consistency; no Scale on blast/spread/count/orbit/XP/hostile/contact |
+| Hit/health/death/XP | Actual health subtraction via shared enemy adapter, nonpiercing and independent Prism/Twin hits, primary once, overlapping-satellite union once, primary+satellite survivor allowed, membership/dead/stale reject, one kill/pickup/aggregate per enemy and correct source available through hit/removal chain |
+| Player boundary | GAME-048 God bypass/no Defense call, Shield-only/full depletion/overflow/fractions/lethal/protected expiry; hostile consumed even on reject; Hull-only counters and lethal-before-TERMINAL, final500/alpha.25; exact regular/Elite/Warden contact separation even protected/God |
+| Terminal | Existing Death-first/Victory-first reverse races; straight cleanup before Victory; full Missile/Cluster primary and satellite Boss kills finish affected sets/removal first; unrelated attacks/contact/XP freeze, no duplicate result, heal/revival or prematurely accepted terminal |
+| Isolation/ownership | Same five events/FC-local reset policy, paused phases/attacks freeze, zero all-four RNG draws, exact diagnostic aggregates/timeline unchanged except real old observations, Tags/Analyzer/offers stable; old captured run/runtime/Hit/reward/input/focus/result/API/cleanup cannot damage fresh enemies/Defense or draw fresh RNG |
+
+Reuse existing collision/prismSpread/clusterSatellites/Spatial/Replication/recipe tests,
+actual Scene production methods and real installed Phaser Clock coverage. Pure helper
+tests do not replace Scene lifetime/terminal integration or actual native browser evidence.
+
+**Required actual browser/native validation for separately authorized implementation**
+
+1. Ordinary DEV root boot: RUNNING, Hull5/max5/Shield0/protection0, correct Build/zero Tags,
+   diagnostics/seed bootstrap, functional current combat, five observed events/five commands.
+2. Exercise actual Laser/Prism/Missile/Cluster/Combat Drone/Twin firing/hits/HP/kill/XP.
+   For EACH relevant launch value: launch old attack, accept current progression or use
+   ignored INTERNAL shared-stat setup, verify old values/hit behavior unchanged and new
+   launch updated. Include evolution during a Missile flight, Cluster radius/half damage,
+   Prism beams and Twin origins, non-default C/R/E proving no duplicate multiplier.
+3. Actual swept/nearest/first-hit tie/interception, center-only inclusive explosion,
+   primary+full satellite union/multiple overlapping circles and duplicate-removal cases.
+   Verify calculated damage versus real enemy loss and exactly one normal XP consequence.
+4. Actual hostile collision and GAME-048 internal Shield setup: absorb/overflow/protection/
+   God, shot consumption despite rejection, subsequent expiry hit, unchanged contact.
+   No new public API or fake combat algorithm to drive these scenarios.
+5. Real W/Space/Escape, MANUAL/REWARD pause and GENUINE browser foreground-tab BLUR.
+   Capture active projectile/Missile values/position/heading/lifetime, Defense and all five
+   event identities/phases; meaningful paused wall time changes none. Focus return never
+   auto-resumes; real reward pointer/explicit Escape follow existing reason ownership.
+   Report synthetic HIDDEN/VISIBLE tests separately from actual browser focus evidence.
+6. Actual Death-first/Victory-first; straight, Missile, Cluster-primary Boss kill and
+   Cluster-satellite Boss kill. Observe completed owning attack sets/cleanup BEFORE
+   terminal; one result/terminal record, no unrelated post-terminal processing.
+7. At least TWO Victory -> NEW RUN, ONE Death -> RETRY and ONE PAUSED nonterminal native
+   scene.restart. Dirty/capture old active flights/Hits/callbacks. EACH fresh owner set/
+   Build/Defense/zero Tags/RNG/input/diagnostics/API/five events/Clock baseline correct;
+   invoke old timer/combat/input/focus/reward/result/DEV/cleanup closures and old hit adapter
+   inputs: no fresh damage/HP/XP/terminal/phase changes or RNG draws. Old disposed owner
+   operations retain their invariant errors. Page reload/manual create is not this proof.
+8. Unmodified production preview: movement/Dash/pause/automatic combat, ordinary incoming
+   damage/Death/actual RETRY, no DEV API or combat debug controls/UI, no new runtime errors.
+   Inspect console and distinguish known favicon404/Vite >500kB warning. Report normal
+   boots, tracked fixtures, internal real Scene harness and native cycles separately.
+
+These are FUTURE implementation acceptance requirements; no new browser/runtime validation
+is claimed by this definition-only change.
+
+**Definition validation, exclusions and later documentation**
+
+Now change only docs/TASK_GRAPH.md, GAME-049 BACKLOG->READY and current status wording.
+Preserve historical task instructions, GAME-046/047/048 DONE, GAME-040/041 SUPERSEDED,
+GAME-050+ BACKLOG, GATE A PASSED and GATE B NOT PASSED. No runtime/test/config/dependency
+or CURRENT_STATE/PROJECT_GRAPH/ARCHITECTURE/GAME_DESIGN/CONTENT_MANIFEST/BALANCE edits.
+No EnemyDefinition/scaling/spawn migration, EnemyDeathRecord/last-source state/distribution,
+Impact/Armor/resistance/crit/random damage/penetration/status framework, new enemies,
+weapon catalog/specializations/fragments, Director/difficulty/Core/Active/Medical content,
+XP/reward redesign, generic collision/combat engine, global service/event bus or package.
+
+Run npm run check and git diff --check; verify single-file scope, stage only explicit
+docs/TASK_GRAPH.md, run cached check/stat, inspect COMPLETE git diff --cached. Generate
+ignored .codex-review/GAME-049-review.txt with AGENTS.md sections, branch/base, complete
+combat inventory/types/ownership/arithmetic/geometry/source/death/Impact decisions,
+future tracked/native acceptance and full staged diff. Never stage review artifacts or
+commit/push/merge/reset/rebase/change branches. Only successful separately authorized
+implementation with required tracked AND actual native/browser validation may set
+GAME-049 DONE and update factual CURRENT_STATE/PROJECT_GRAPH. GAME-050+ need their own
+definition/review; GATE A stays PASSED, GATE B needs its actual prerequisites/gate review.
 
 **GATE B — Modern Combat on Legacy Spawning** — review the preceding phase capabilities before its cutover/next proof.
 
