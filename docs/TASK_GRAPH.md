@@ -339,7 +339,7 @@ Never reuse these IDs for unrelated tasks.
 
 ## Mechanical Vertical Slice roadmap
 
-GAME-042/043/044/045 are DONE; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050+ remain BACKLOG. Each row gives phase membership, exact dependencies and a
+GAME-042/043/044/045 are DONE; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 READY; GAME-051+ remain BACKLOG. Each row gives phase membership, exact dependencies and a
 short capability; gates are review checkpoints, not automatic authorization.
 Dependency ranges are inclusive.
 
@@ -547,7 +547,7 @@ Production preview boots with DEV API absent. Known favicon404 and Vite bundle-s
 no new pageerrors observed.
 
 CURRENT_STATE and real PROJECT_GRAPH ownership are updated. DESIGN-005/GAME-039 stay DONE,
-GAME-040/041 SUPERSEDED; GAME-043 DONE; GAME-044 DONE; GAME-045 DONE; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050+ remain BACKLOG. GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050+ remain BACKLOG pending separate definition. Explicit staging
+GAME-040/041 SUPERSEDED; GAME-043 DONE; GAME-044 DONE; GAME-045 DONE; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 READY; GAME-051+ remain BACKLOG. GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 READY; GAME-051+ remain BACKLOG pending separate definition. Explicit staging
 and ignored .codex-review/GAME-042-review.txt follow AGENTS.md; no commit is created.
 
 #### GAME-043 — Seeded RNG Streams
@@ -749,7 +749,7 @@ Out of scope: GAME-044 Pause/Input, GAME-045 telemetry, GAME-046 Build, Encounte
 templates/pressure/portals/weights, full Reward Generator/Analyzer/pity/recent offers,
 World Scheduler/events, BossController/Juggernaut, RunResult/RunReport, replay recording,
 daily seeds, seed entry/query/settings/reseed DEV command, save/meta/profile, arbitrary
-named/forkable RNG framework, service locator or new dependency. GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050+ remain BACKLOG pending separate definition.
+named/forkable RNG framework, service locator or new dependency. GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 READY; GAME-051+ remain BACKLOG pending separate definition.
 
 **Implementation completion evidence**
 
@@ -769,7 +769,7 @@ fixed-seed spawn/offer sequences and cross-stream isolation. Two actual Victory 
 cycles and one Death RETRY (plus nonterminal/Missile/Cluster native restarts) dispose old
 streams and retain fresh RNG/lifecycle/API/five events with inert stale callbacks.
 Production canvas boots with DEV API absent; only known favicon404 and build chunk-size
-warnings remain. GAME-044 DONE; GAME-045 DONE; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050+ remain BACKLOG; GAME-040/041 SUPERSEDED; GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050+ remain BACKLOG pending separate definition.
+warnings remain. GAME-044 DONE; GAME-045 DONE; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 READY; GAME-051+ remain BACKLOG; GAME-040/041 SUPERSEDED; GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 READY; GAME-051+ remain BACKLOG pending separate definition.
 
 **Definition validation and documentation (historical definition-only instructions)**
 
@@ -1090,7 +1090,7 @@ Missile/Cluster cycles pass: fresh authority/adapter/RNG/API, zero reasons, unpa
 five fresh events, old streams throw and saved stale callbacks draw zero on all fresh streams.
 Unmodified production preview passes keyboard/Space/Escape and 700ms rendered pause freeze
 without DEV API/debug controls. Only known favicon404 and Vite chunk-size warnings remain.
-GAME-042/043/044 DONE; GAME-040/041 SUPERSEDED; GAME-045 DONE; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050+ remain BACKLOG; GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050+ remain BACKLOG pending separate definition.
+GAME-042/043/044 DONE; GAME-040/041 SUPERSEDED; GAME-045 DONE; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 READY; GAME-051+ remain BACKLOG; GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 READY; GAME-051+ remain BACKLOG pending separate definition.
 
 #### GAME-045 — Telemetry & Diagnostics Foundation
 
@@ -1346,8 +1346,8 @@ inert stale owners/callbacks. Unmodified production preview verifies keyboard/Da
 DEV absence and local static-only network requests. HIDDEN/VISIBLE combinations remain
 separately identified synthetic tracked coverage; known favicon404/bundle-size warnings only.
 
-GAME-045 DONE; GAME-040/041 SUPERSEDED; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050+ remain BACKLOG.
-GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050+ remain BACKLOG pending separate definition. GAME-050+ are not unlocked.
+GAME-045 DONE; GAME-040/041 SUPERSEDED; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 READY; GAME-051+ remain BACKLOG.
+GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 READY; GAME-051+ remain BACKLOG pending separate definition. GAME-051+ are not unlocked.
 
 **GATE A — Runtime Foundation — PASSED**
 
@@ -1359,7 +1359,7 @@ GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 DONE; GAM
 | GAME-047 | Tags & Build Snapshot | GAME-046 | Tag contributions, derived identity and detached BuildSnapshot. | DONE |
 | GAME-048 | Player Defense Runtime | GAME-046 | Authoritative Shield/Hull/protection and incoming-damage boundary. | DONE |
 | GAME-049 | Combat Resolution & Launch Snapshots | GAME-046, GAME-048 | Attack/Hit/Damage resolution and immutable launch values. | DONE |
-| GAME-050 | Enemy Definitions & Spawn Snapshots | GAME-049 | EnemyDefinition, scaling profiles and per-spawn runtime snapshots. | BACKLOG |
+| GAME-050 | Enemy Definitions & Spawn Snapshots | GAME-049 | EnemyDefinition, scaling profiles and per-spawn runtime snapshots. | READY |
 | GAME-051 | Authoritative EnemyDeath Pipeline | GAME-049, GAME-050 | Exactly-once death record with last damaging / kill-source attribution for explicit XP/objective/Medical/Boss consumers and telemetry. | BACKLOG |
 | GAME-052 | Enemy Interaction + Swarm & Charger | GAME-048..051 | Enemy interaction/knockback/Decoy susceptibility plus Swarm and Charger roles. | BACKLOG |
 
@@ -1374,7 +1374,7 @@ Implemented and verified against the acceptance contracts below.
 Establish one focused run-scoped PlayerBuild authority for 3 Combat / 1 Active / 6 Core
 slots, immutable Base Stats, unconditional Run Modifiers and cached Effective Stats.
 GameplayScene remains the composition root and current combat/progression/presentation owner.
-GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050+ remain BACKLOG; no later runtime domain is implemented here.
+GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 READY; GAME-051+ remain BACKLOG; no later runtime domain is implemented here.
 
 **Pre-implementation tracked-source audit and migration inventory**
 
@@ -1725,7 +1725,7 @@ old reads/mutations/callbacks remain inert. Extra Missile/Cluster terminal cycle
 Unmodified production preview passes keyboard/Dash/pause/current combat and DEV absence.
 Known favicon404 and Vite bundle-size warnings only. CURRENT_STATE and PROJECT_GRAPH reflect
 actual implemented ownership; no dependencies changed. GATE A remains PASSED; GAME-046 DONE;
-GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050+ remain BACKLOG. GATE B PASSED — Modern Combat on Legacy Spawning architect-approved.
+GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 READY; GAME-051+ remain BACKLOG. GATE B PASSED — Modern Combat on Legacy Spawning architect-approved.
 
 #### GAME-047 — Tags & Build Snapshot
 
@@ -1737,7 +1737,7 @@ Depends on GAME-046 DONE; preserve GAME-039/042/043/044/045/046 contracts and PA
 Extend the existing Phaser-free PlayerBuild with twelve numeric Tag totals, derived build
 identity and one canonical detached BuildSnapshot. Tags describe the build in parallel to
 stats; they never supply combat multipliers. Implemented and verified against the contracts
-below. GAME-048 DONE; GAME-049 DONE; GAME-050+ remain BACKLOG; GATE B PASSED.
+below. GAME-048 DONE; GAME-049 DONE; GAME-050 READY; GAME-051+ remain BACKLOG; GATE B PASSED.
 
 **Authoritative design and current source audit**
 
@@ -2007,7 +2007,7 @@ owners/API/five events and unpaused Clock; old direct additions (including0)/rea
 and saved callbacks remain inert. Additional Missile/Cluster native cycles pass.
 Unmodified production preview retains W/Space/Escape/current combat, no DEV API/debug UI
 and no new pageerrors. Known favicon404 and Vite bundle-size warning only. Factual
-CURRENT_STATE/PROJECT_GRAPH updated. GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050+ BACKLOG; GAME-040/041
+CURRENT_STATE/PROJECT_GRAPH updated. GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 READY; GAME-051+ BACKLOG; GAME-040/041
 SUPERSEDED; GATE A PASSED; GATE B PASSED. No commit created.
 
 #### GAME-048 — Player Defense Runtime
@@ -2022,7 +2022,7 @@ current Shield and damage protection, with Shield-first numeric incoming damage,
 healing/capping and the explicit contact separation below. Scene remains composition root,
 collision/presentation/lifecycle adapter; PlayerBuild remains maximum-Hull authority.
 GAME-048 implementation is complete; the approved contracts and pre-implementation audit follow.
-GAME-049 DONE; GAME-050+ remain BACKLOG; GATE B PASSED.
+GAME-049 DONE; GAME-050 READY; GAME-051+ remain BACKLOG; GATE B PASSED.
 
 **Pre-implementation defense source inventory and authoritative design audit**
 
@@ -2403,7 +2403,7 @@ handlers; Hull/reward checks use browser pointer input. Unmodified production pr
 passes W/Space/Escape/pause/combat, ordinary damage to HP0/Death and actual pointer RETRY
 back to HP5/5, no DEV API/debug UI or new pageerrors. Only known favicon404 and Vite
 large-chunk warnings remain. CURRENT_STATE/PROJECT_GRAPH describe implemented ownership.
-GAME-048 DONE; GAME-049 DONE; GAME-050+ BACKLOG; GAME-040/041 SUPERSEDED; GATE A PASSED; GATE B PASSED. Architect implementation approval is pending; no commit created.
+GAME-048 DONE; GAME-049 DONE; GAME-050 READY; GAME-051+ BACKLOG; GAME-040/041 SUPERSEDED; GATE A PASSED; GATE B PASSED. Architect implementation approval is pending; no commit created.
 
 #### GAME-049 — Combat Resolution & Launch Snapshots
 
@@ -2837,9 +2837,409 @@ pointerdown handlers; real keyboard/mouse checks are reported separately. Unmodi
 production preview passes W/Space/Escape/pause/combat, ordinary damage to HP0/5 Death and
 actual mouse RETRY to HP5/5/fresh progress, absent DEV API/debug UI/new pageerrors. Production
 Death was observed after73000ms; only known favicon404/Vite large-chunk warnings remain.
-CURRENT_STATE and PROJECT_GRAPH map the implemented boundary. GAME-049 DONE; GAME-050+
+CURRENT_STATE and PROJECT_GRAPH map the implemented boundary. GAME-049 DONE; GAME-050 READY; GAME-051+
 BACKLOG; GAME-040/041 SUPERSEDED; GATE A PASSED; GATE B PASSED. GAME-049 implementation and
 GATE B are architect-approved; no commit created.
+
+#### GAME-050 — Enemy Definitions & Spawn Snapshots
+
+STATUS: READY
+
+**Goal, dependencies and definition-only scope**
+
+Depends on GAME-049 DONE; preserve GAME-039/042..049 DONE and architect-PASSED GATE A/B.
+EnemyDefinition + explicit neutral scaling/spawn context -> detached immutable
+EnemySpawnSnapshot -> concrete Scene EnemyRuntime. This is a data-authority migration,
+not a content/difficulty/AI/scheduler rewrite. Only TASK_GRAPH changes now: GAME-050
+BACKLOG->READY; GAME-051+ BACKLOG; GAME-040/041 SUPERSEDED. Separate implementation
+authorization follows definition review. No source/tests/other docs/dependency changes
+or new runtime/browser verification are claimed by this definition.
+
+**Current-HEAD audit and exact inventory**
+
+Baseline: e2af05148540399011723907bf85a07b100488e4, GAME-049 combat resolution.
+Read complete TASK_GRAPH, CURRENT_STATE, ARCHITECTURE, GAME_DESIGN, PROJECT_GRAPH,
+CONTENT_MANIFEST and BALANCE. Source is implementation truth. PROJECT_GRAPH's older
+GATE B/provenance sentence is not status authority and remains unchanged here; GATE A/B
+are architect PASSED. Reinspect the following anchors before implementation.
+
+Scene anchors are src/game/scenes/GameplayScene.ts at this HEAD:
+
+| Source / anchor | Existing authority and migration constraint |
+| --- | --- |
+| EnemyArchetype74; enemyData76..81; eliteTankData83..86; wardenPhaseTwo88 | Lowercase chaser/shooter/tank/boss, base health/speed plus visuals, explicit Tank overrides and concrete Warden phase2 speed/style. No definition/scaling/snapshot module exists |
+| EnemyRuntime92..100; contactDamage174; enemyRadius211 | Current health/visual/identity and readonly Elite/contact/XP/radius. Speed rereads global data each frame; no captured enemy run or frozen spawn snapshot |
+| create235..405, resets265..300, Chaser333 | PREPARING lifecycle -> Build -> Defense -> reset/player/HUD/Drone -> initial Chaser -> five events/input/UI -> start384 -> crypto RunRandom385 -> diagnostics394..397 -> DEV405 |
+| update417..483, movement443..467; restoreEnemyOutline608..612 | Concrete pursuit/Shooter step; current HP selects Warden speed/style; clamp max(25,radius), then target, protection, straight/Missile/contact/XP |
+| createEnemy1262..1274 | isElite=tank && eliteTank; polygon/stroke then runtime full HP; Boss flag after creation; RUNNING-only spawn observation |
+| spawnEnemy1356..1390; sequence90 | Active player/cap/live-Boss guards, two Encounter draws, CCCSCT/Elite or Warden replacement, placement, common creation, successful count+1 |
+| enemies/eliteTank.ts; enemies/warden.ts; enemies/shooterMovement.ts | Tank-only divisible-by12 promotion, Warden30, absolute current-HP30 phases and4/8 bursts; pure supplied speed/delta/band step; no RNG |
+| contact828..849; damagePlayer862..875 | First inclusive R44/60, minimum bounded separation, ENEMY_CONTACT from runtime contactDamage, current Defense/God/protection/Hull-only metrics |
+| hostile fire1020..1053; nearest1111..1129 | Nearest Shooter plus independent first live Warden on one event; frozen HOSTILE_PROJECTILE1/600/6/3000. Strict nearest ties/optional origin/archetype filters |
+| applyEnemyHit852..860; combat/combat.ts; killEnemy1246..1260 | Exact Hit run/membership/positive HP -> phase damage -> single healthAfter write -> common Boss/removal/one XP/kill diagnostics; no retained source/death record |
+| straight1055..1109; Missile1172..1243; Death877/Victory906 | Swept bodies, full primary/satellite union and owning cleanup before first terminal; native result controls |
+| DEV1288..1354; RunDiagnostics.ts spawn/kill methods | Five commands, detached views; deterministic one-Warden-per-run path and HP-only setter1..60. Counts lowercase archetypes/Elite subset/dropped integer XP; initial spawn bootstrapped once after RUN_STARTED |
+| RunLifecycle.ts; RunRandom.ts; input/pause/cleanup | First terminal and exact captured owner disposal, four independent streams, existing Clock projection and native scene.restart |
+
+Current baseline570 tests/24 files includes174 Scene,71 pure combat,52 Build,35 Defense,
+35 diagnostics,7 Shooter movement,7 Elite and14 Warden cases. Relevant Scene anchors:
+fixed-seed placement483..541, spawn/kill diagnostics754..812, terminal257..353,
+contact1229..1259 and typed combat1277..1393. Preserve assertions; ignored harnesses
+do not replace tracked production-path or actual native acceptance.
+
+maxHealth is authored maximum and initial current health; health then becomes mutable.
+Exact source values, not target-design examples:
+
+| Archetype / variant | Max / initial HP | Movement px/s / rule | Radius | Contact | XP |
+| --- | --- | --- | --- | --- | --- |
+| chaser BASE | 3 /3 | 180 pursuit | 24 | 1 | 1 |
+| shooter BASE | 2 /2 | 140; approach above500, retreat below350, hold inclusive350..500 | 24 | 1 | 1 |
+| tank BASE | 6 /6 | 100 pursuit | 24 | 1 | 1 |
+| tank ELITE_TANK | 18 /18 | 120, same pursuit | 24 | 2 | 5 |
+| boss BASE (legacy Warden) | 60 /60 | 70 at HP>30,100 at0<HP<=30, pursuit | 40 | 2 | 10 |
+
+Keep exact presentation in Scene, outside numerical spawn snapshots. Dimensions are
+local point bounding boxes, not collision circles or placement offsets:
+
+| Identity | Local points / dimensions | Fill / normal outline / width |
+| --- | --- | --- |
+| Chaser | [24,0,48,24,24,48,0,24],48x48 | 0xf43f5e /0xffcdd2 /2 |
+| Shooter | [8,8,40,8,40,40,8,40],32x32 | 0xa855f7 /0xe9d5ff /2 |
+| Tank / Elite | [12,4,36,4,48,24,36,44,12,44,0,24],48x40 | Tank0xf59e0b /0xfef3c7 /2; Elite0xfacc15 /0xfffbeb /3 |
+| Warden | [40,0,68,12,80,40,68,68,40,80,12,68,0,40,12,12],80x80 | phase1 0xd946ef /0xfae8ff /3; phase2 0xdc2626 /0xfb923c /3 |
+
+Target stroke0xfde047/4 restores regular2/Elite3/current Boss-phase3. Preserve polygon
+origin/placement; never derive collision radius from half-width. No new bars/art/VFX.
+All enemies move relative to the player and remain eligible for existing weapon targets.
+Chaser/Tank/Elite never fire. Only nearest Shooter fires per callback, at any range when
+aim>=0.001; its absence/near-zero aim cannot cancel the independent Warden burst. One
+existing1500ms event launches orange0xfb923c shots D1/speed600/radius6/lifetime3000.
+Warden angles are0/90/180/270 above30, eight0/45/.../315 at positive HP<=30; no new timer,
+immediate phase volley, reset or friendly fire. Ordinary deaths drop1 XP, Elite5, Boss10;
+common Boss removal sets defeat, then completed owning attack requests Victory.
+
+**Focused pure representation and neutral scaling seam**
+
+For separately authorized implementation, prefer src/game/enemies/EnemyDefinitions.ts
+and EnemyDefinitions.test.ts. No Phaser/Scene/Run/Build/RNG/diagnostics reference/import
+in the pure module. One fixed deeply immutable authored table; no EnemyManager, generic
+registry, components, behavior-tree DSL, property bag, dynamic scripts or loader.
+Pin these semantic fields/discriminants (equivalent closed-union organization is allowed):
+
+```typescript
+type EnemyArchetype = 'chaser' | 'shooter' | 'tank' | 'boss';
+type PursuitMovement = Readonly<{ kind: 'PURSUIT'; speed: number }>;
+type ShooterMovement = Readonly<{
+  kind: 'SHOOTER_BAND'; speed: number; minimumRange: number; maximumRange: number;
+}>;
+type WardenMovement = Readonly<{
+  kind: 'WARDEN_PURSUIT'; speed: number; phaseTwoSpeed: number;
+}>;
+type EnemyNumbers = Readonly<{
+  maxHealth: number; collisionRadius: number; contactDamage: number; xpValue: number;
+}>;
+type EnemyDefinition = Readonly<EnemyNumbers & (
+  { archetype: 'chaser' | 'tank'; movement: PursuitMovement }
+  | { archetype: 'shooter'; movement: ShooterMovement }
+  | { archetype: 'boss'; movement: WardenMovement }
+)>;
+type EnemyScalingProfile = Readonly<{ kind: 'LEGACY_NEUTRAL' }>;
+type EnemySpawnContext = Readonly<{
+  scalingProfile: EnemyScalingProfile; variant: 'BASE' | 'ELITE_TANK';
+}>;
+type EnemySpawnSnapshot = Readonly<EnemyDefinition & { isElite: boolean }>;
+declare function createEnemySpawnSnapshot(
+  definition: EnemyDefinition, context: EnemySpawnContext,
+): EnemySpawnSnapshot;
+```
+
+ENEMY_DEFINITIONS has exactly four lowercase keys and the audited values. Each nested
+movement record is frozen: Shooter140/350/500, Warden speed70/phaseTwoSpeed100. Fixed
+ELITE_TANK_PROFILE has only maxHealth18/speed120/contactDamage2/xpValue5. Frozen
+LEGACY_NEUTRAL_SCALING_PROFILE={kind:'LEGACY_NEUTRAL'} and deeply frozen
+DEFAULT_ENEMY_SPAWN_CONTEXT={scalingProfile:...,variant:'BASE'} define normal production.
+Require the explicit context argument; undefined/malformed inputs are not default requests.
+
+The neutral profile performs NO stat scaling. This is the minimal authored calculation
+seam, not completed Director/Stage difficulty. No speculative multipliers, stage/time,
+pressure, raw level/tag total, maturity or Analyzer inputs. Unsupported profile kinds and
+extra context fields reject. Non-neutral scaling waits for separately authored formulas
+and review; BALANCE's75/15/10 is not a formula. Do not add a fake formula to test overflow.
+
+Factory: validate definition/context -> explicit Tank-only fixed variant overrides ->
+copy primitive values and a NEW nested movement -> validate final values -> freeze both.
+BASE isElite=false; ELITE_TANK true ONLY for tank, retaining its radius and PURSUIT role.
+Override18/120/2/5 is authored content, not guessed3x/1.2x/2x multipliers. Snapshot has
+exactly archetype/maxHealth/collisionRadius/contactDamage/xpValue/movement/isElite and
+the appropriate exact movement fields. Validate pairing despite isElite:boolean alone
+not expressing Tank-only membership. Every call returns distinct frozen nested values;
+retain no table/input/context/profile objects. No current HP/position/visual/points/color,
+target/run/owner/timestamp/RNG/Build/difficulty object or unused profile/source ID in it.
+
+Scene presentation data keeps only points/fills/outlines; migrated gameplay numbers have
+no writable Scene duplicates. Existing hostile launch/cadence values remain GAME-049
+configuration, not extra fields on every spawn. Layout enemyMargin25 is not body radius.
+
+**Concrete Elite/Warden behavior and interaction deferral**
+
+Elite promotion remains Tank-only on next successful counts divisible by12: regular6,
+Elite12, regular18, Elite24. No new spawn/counter increment or future modifier catalog.
+Preserve Scene's existing normalization of eliteTank=true on a non-Tank to false; the pure
+factory explicitly rejects non-Tank ELITE_TANK context. Elite remains tank/isElite=true
+for targeting/diagnostics, no new archetype or affix/modifier framework.
+
+Warden absolute HP30 threshold and4/8 directions stay solely in wardenPhase and
+wardenBurstDirections; no percentage of maxHealth, spawn-cached phase, duplicate unused
+threshold/burst fields or generic phase engine. update selects this spawn's70/100 using
+CURRENT HP;60/31 phase1,30/1 phase2,<=0 no phase. DEV31->30->31 changes phase without
+cadence reset. Phase style remains presentation. Shooter speed/band come from snapshot
+and feed the existing shooterMovement algorithm unchanged (already parameterized).
+
+Target architecture names Knockback Response/Decoy Susceptibility, but no current authored
+per-enemy coefficients exist. Do not infer0/1 from HP/speed or add placeholders. GAME-052
+must author those values/mechanics. No Impact force, Armor/status/resistance, Swarm/Charger,
+other future role, Elite catalog, Juggernaut or BossController is authorized here.
+
+**Mutable runtime and exact-run spawn boundary**
+
+EnemyRuntime stays Scene-local with readonly spawnSnapshot:EnemySpawnSnapshot and
+readonly run:RunLifecycle, mutable health and Phaser visual/current position. Existing
+Scene scratch movement/targets stay concrete; no per-enemy phase/FSM/velocity state is
+invented. Initialize health=spawnSnapshot.maxHealth ONCE; damage/DEV never reset it from
+maximum. No second HP/max/speed owner. Existing readonly identity/contact/XP/radius
+compatibility getters may derive from spawnSnapshot; never stored numerical mirrors.
+Movement reads this enemy's frozen speed/band/phaseTwoSpeed, not current global content.
+
+Keep one common createEnemy, minimally adapted to receive explicit captured run rather
+than defaulting an old invocation to this.run. Guard exact owner first; permit existing
+initial Chaser in PREPARING, normal timed/DEV requests only in RUNNING under original
+availability checks. Reject stale/PAUSED/TERMINAL/DISPOSED before factory/visual/array/
+flags/accounting. Select immutable definition/neutral context (Elite variant if required),
+construct exactly ONE snapshot, then polygon/stroke/runtime push/full initial HP/Boss flag/
+normal spawn observation. Returning created runtime or null is acceptable so caller
+counter/API success reflects completed creation. No new run owner/disposal listener.
+
+Equivalent private signature: createEnemy(x,y,archetype,run,eliteTank=false):EnemyRuntime|null.
+Initial creation passes create's captured const run. The existing timer closure passes its
+captured run through the timed-spawn bridge; DEV publication captures its own run before
+creating its closures. Preserve their original guards and reject an old run before draws
+or construction; do not obtain a fresh token from this.run inside a retained old closure.
+
+| Path | Preserved creation order and result |
+| --- | --- |
+| Initial Chaser | Player2400/1350 -> chaser3000/1350 during PREPARING, BASE3HP/180/radius24/contact1/XP1; count0/flagsfalse, no RNG/diagnostics yet. Five timers/start/entropy follow, then RUN_STARTED/initial spawn once |
+| Normal timed | Captured callback/active player/cap10/live-Boss guards -> schedule/placement -> common neutral BASE creation -> completed spawn observation -> successfulTimedSpawns+1 |
+| Elite | Same event/path/count12 or24, tank+ELITE_TANK -> one18/120/24/2/5 snapshot, no separate count |
+| Timed Warden | Next successful30 && !bossSpawned replaces scheduled Tank with boss BASE60/70+100/40/2/10; creation sets bossSpawned; counter30; live Boss suppresses later timed creation/count/draws |
+| DEV Warden | Existing valid active API/player, both flagsfalse/no live Boss/cap room/deterministic valid corner and distance>=600 -> common boss BASE creation; no RNG/timed increment; second request returns false |
+
+Blocked pipeline attempts (cap/missing player/non-RUNNING/live Boss/DEV prior flags or
+infeasible placement) create ZERO snapshots/visuals and consume ZERO procedural draws.
+Reading the fixed definition for placement margin is not snapshot construction. Do not
+construct one candidate at each guard and another in createEnemy. Invalid authored data/
+context fails before affected visual/array/HP/flags/success-count/observer mutation; no
+swallowed error, partial enemy, invalid-data clamp or generalized RNG rollback transaction.
+
+**Preserved schedule, placement, movement and target rules**
+
+Exactly the existing2000ms event, cap10, count0 on restart and CCCSCT indexed by successful
+count%6. Initial/DEV creation excluded; blocked attempts preserve pending Elite12/Warden30,
+kills free slots without rewinding. Warden live health>0 suppresses timed spawns. Boss
+creation sets bossSpawned; common death retains it and sets bossDefeated; Victory prevents
+spawn31. Preserve shouldSpawnWarden(nextCount,bossSpawned) and shouldSpawnEliteTank; no
+wave/pressure/Director/capacity reservation/portal rewrite or extra scheduling conditions.
+
+Accepted timed placement consumes precisely TWO Encounter draws: floor(next()*4) maps
+0left/1right/2top/3bottom, then only the selected edge's varying worldView coordinate.
+Keep48px beyond-edge offset for ALL types (not actual polygon width), arena4800x2700,
+clamp margin25 normal/Elite or40 Boss, and distance<600 deterministic opposite-half corner
+fallback without a third draw. A fixed chosen-definition radius read may replace repeated
+Boss40 literals: max(25,radius) must still yield25/40. DEV uses deterministic opposite
+corner with valid body margins/inclusive>=600. Placement/RNG never moves into the factory.
+
+Pursuit=min(selected speed*delta/1000,current player-center distance), normalized, no
+overshoot/zero-distance fault. Shooter keeps inclusive350..500, nearest-edge step cap,
+coincident +X retreat; Warden selects stored70/100 via current HP. Clamp centers by
+max(25,spawn radius). Enemy overlap remains valid. No pathfinding/steering/crowd/force/FSM.
+Retain update order: player/Dash -> Drone -> enemies -> target -> protection -> straight
+shots -> Missile -> contact -> XP. Strict squared-distance< / array ties, optional
+origin/archetype filter, Drone actual origins and Missile target retention/reacquisition
+remain unchanged; no new priority/eligibility or second simulation/targeting pass.
+
+**Combat, death, terminal and diagnostics boundaries**
+
+Spawn values do not replace GAME-049 immutable Attack launch truth. Contact uses current
+enemy's spawn contactDamage to create the same ENEMY_CONTACT; first inclusive R44/60
+separation uses GAME-048 minimum translation/coincident+X/player bounds, even God/protected,
+then typed current Defense/God/protection/Shield/Hull routing. Stop after first attempt;
+PAUSED/terminal do no geometry/damage. Hostile shots retain their own1/600/6/3000 factory,
+Shooter/Warden patterns/cadence/consumption, never current PlayerBuild damage calculation.
+
+All six Laser/Prism/Missile/Cluster/Drone/Twin paths stay applyEnemyHit -> mutable health
+-> existing killEnemy. Require enemy.run===hit.run as well as exact current run/RUNNING/
+membership/positive HP. Preserve one healthAfter write, negative transient overkill HP,
+calculated-vs-actual loss and immutable Attack source. killEnemy retains membership/once
+guard, Boss flag, pickup at death position with snapshot XP1/5/10, target clearing,
+destroy/splice and kill/drop accounting. Any retained removal callback requires that
+enemy's exact run before fresh arrays/XP/flags/diagnostics; no source reconstruction,
+EnemyDeathRecord/lastDamagingSource/distributor/Medical/objective pipeline or event service.
+Those are GAME-051, still BACKLOG; no new alive/dead authority is introduced.
+
+First legal RunLifecycle terminal wins. Straight Boss hit completes HP/kill/drop/own
+projectile destruction+splice before Victory. Missile completes FULL primary, FULL
+optional surviving satellite union and Missile cleanup before Victory, even primary Boss
+kill. No terminal inside pure definitions/snapshots/factory/movement/kill/intermediate
+explosion. Hostile lethal commits Defense/Hull telemetry/Death then consumes its shot;
+unrelated later work freezes. One terminal/result, Boss XP10 visible/frozen/uncollected;
+no direct XP credit, extra outcome priority, deferred transaction or terminal queue.
+
+RunDiagnostics schema/six semantic timeline kinds unchanged. Each successful normal/
+Elite/timed Boss/DEV creation counted once; initial PREPARING Chaser bootstrapped once
+after RUN_STARTED, without moving creation or recreating enemy. No count for blocked/
+invalid attempts, duplicate kill/XP or enemy snapshot timeline row. Elite is tank subset;
+normal Hull-loss/XP collection/dev-credit/terminal observations and ordering stay exact.
+
+**Numeric validation, detachment and neutral limits**
+
+Require exact definition/snapshot/nested movement/context/profile fields and closed
+discriminants/archetype-movement/Elite compatibility; reject missing/extra/malformed data
+with RangeError before affected Scene mutation. All numeric values are actual finite
+numbers <=Number.MAX_SAFE_INTEGER. maxHealth/body radius/contactDamage/all current speeds
+strictly positive; valid fractions allowed. Shooter ranges positive with minimum<maximum,
+fractions legitimate; retain inclusive runtime boundaries. XP is POSITIVE safe integer
+(current1/5/10), no negative/fractional/zero-XP invented role. Mutable health after damage
+may be fractional/transiently negative and is not forced back to a positive spawn maximum.
+
+Validate table and final snapshot, including Elite overrides. Reject nonnumbers, null/
+undefined, NaN/infinities, invalid zero/negative/unsafe values or incompatible pairing;
+no coercion, rounding, epsilon, repair, arbitrary balance cap or silent content clamping.
+Neutral construction does no multiplication: overflow coverage rejects unsafe inputs/
+final values, not an invented non-neutral formula solely to make a product overflow.
+Future authored arithmetic must validate results, but is not authorized here.
+
+Deep-freeze authored table/definitions/nested movement/profile/Elite data and each copied
+snapshot/movement. No input/context reference survives; repeat construction equal values,
+distinct objects, no source mutation. Internal tests may copy an EXISTING definition,
+construct, then alter caller's valid numeric data: old spawn unchanged, later construction
+reflects current valid supplied copy. Unsupported context mutation rejects a later call
+without mutating old spawn; do not invent non-neutral scaling to demonstrate this.
+Production frozen definitions are never mutated/reloaded through a new API. No generic
+freeze utility/library, mutable visual/EnemyRuntime/run/Build/RNG reference in pure data.
+
+**Run lifetime, pause, DEV and isolation**
+
+Static immutable definitions may be shared/read after restart; every successful runtime
+has its own fresh snapshot and exact captured RunLifecycle OUTSIDE the pure data. Data
+alone grants no authority. Creation/mutating combat/removal/retained callbacks reject old
+run before fresh collection/Defense/XP/Boss/terminal/RNG/observer work, retaining membership
+checks. Do not transplant/rebind old runtimes to fresh this.run or create an immutable-data
+disposal owner. Old snapshots remain harmless readable values; old callbacks stay inert.
+
+Native scene.restart restores fresh physical collection/visual/target/count0/flagsfalse,
+ONE initial Chaser3HP/180/radius24/contact1/XP1/BASE snapshot/currentHP3, fresh lifecycle/
+Build/Defense5/max5/Shield0/protection0/twelve zero Tags/empty identity/RNG/input/
+diagnostics/API, unpaused Clock/five new events. Shared definitions retain their frozen
+baseline; no per-run mutable registry/definition-identity inequality requirement. Existing
+old owner reads/mutations and old timer/input/focus/reward/result/API/cleanup disposal
+contracts remain; stale enemy/Hit cannot produce fresh XP/terminal or fresh RNG draws.
+
+Exactly five events: spawn2000, Laser local/FireControl, Missile1800/FireControl, Drone
+local/FireControl, hostile1500. Preserve same three player cadence resets/local effects.
+Reads/construction never reset/schedule a timer or add delayedCall/polling/timeScale/Clock.
+MANUAL/REWARD/genuine focus pause freezes movement/health/snapshot/attacks/Defense and
+five elapsed/remaining phases; resume explicit, no per-frame content/difficulty resolution.
+Factory/read/validation draw0 on Encounter/Reward/World/Boss; timed placement retains2,
+blocked/DEV0, World/Boss dormant. No strength read of PlayerBuild, Tags, Analyzer, raw level,
+elapsed or reward state. No changes to offers/weights/XP/weapon tuning/Shield sources.
+
+Exactly snapshot/forceLevelUp/spawnWarden/setWardenHealth/setGodMode. DEV HP setter keeps
+finite1..60 current HP only (including31->30->31), no snapshot/max/count/flags/XP/cadence
+change. Detached DevSnapshot unchanged; old API null/false; production API absent.
+Internal ignored harness may inspect spawnSnapshot; no exposed enemy/Attack/Hit refs,
+spawnEnemyType/setEnemyScaling/setDifficulty/setDefinition/HP-profile command or debug UI.
+
+**Required tracked tests for separately authorized implementation**
+
+Preserve all570 existing tests/24 files and174 Scene cases. Adapt fixture signatures to
+explicit run/typed snapshots without setters or weakened assertions. Use actual helpers/
+Scene methods, not alternate fake spawn/movement/damage algorithms.
+
+| Boundary | Required evidence |
+| --- | --- |
+| Pure content/profile | Exactly four lowercase definitions/numeric defaults; Tank-only fixed Elite18/120/24/2/5; Warden70/100 plus unchanged absolute30 helper; Shooter140/350/500; neutral BASE identical, explicit context/default, deterministic equal values/distinct instances, zero RNG/Phaser dependence |
+| Pure validation | Exact shapes/IDs/movement pairing, missing/extra/context/profile/Elite incompatibility, NaN/infinities/nonnumbers/nonpositive/unsafe final values; fractional non-XP valid, safe bounds, XP integral/positive, reversed/equal Shooter band; source/old snapshots unchanged on rejection |
+| Pure ownership | Deeply frozen table/definition/profile/Elite/snapshot/movement, copied caller input, source not mutated; old record survives valid copied-configuration change, new construction sees current values; unsupported context fails, no non-neutral engine/content invented |
+| Scene boot/factory | Initial Chaser PREPARING3000/1350 exact snapshot/HP3, before entropy/start; count0/flagsfalse, RUN_STARTED then initial spawn once, unchanged owners/Tags/seed/five events/commands. Exactly one snapshot per successful initial/normal/Elite/timed or DEV Boss; zero for blocked paths; invalid input before visual/array/HP/flags/count/observer effects |
+| Schedule/placement | Actual CCCSCT/fixed-seed golden placements, regular6/Elite12/regular18/Elite24, cap-delayed12/30, Warden30/flags/live suppression/no spawn31 after Victory; two Encounter draws/fallback0/DEV0, offset48/margins25/40/distance600 |
+| Movement/target/style | Snapshot movement reads; pursuit/no overshoot; Shooter inclusive edges/coincidence/large steps; Warden60/31/30/1/dead and31->30->31 speeds/styles/bursts; body dimensions/circles/highlight restore, strict ties/interception/reacquisition; no live global-stat reread |
+| Combat/contact/terminal | All six offensive paths, immutable old/new Attack/source, real HP reduction/exactly-once XP; regular/Elite/Warden contact R44/60 and D1/2 separation/God/protection/Shield/Hull; hostile patterns/consumption; Death-first/Victory-first/straight/Missile/Cluster primary/satellite full owning cleanup before single terminal |
+| Isolation/diagnostics | Five actual timers/same phases/reset policy, zero extra four-stream draws and exact existing placement budget, no Build/Tag/Analyzer/level/difficulty effects, unchanged offers/schema/initial spawn/spawn-kill-Elite-XP accounting, no enemy timeline, detached five-command DEV |
+| Lifetime | Readable old snapshot; stale enemy/Hit/creation/removal/callback cannot mutate fresh enemies/Defense/XP/Boss/terminal or draw fresh RNG; old owners disposed; fresh initial snapshot/owners/Clock/five events on reused Scene |
+
+Reuse shooterMovement/eliteTank/warden, combat/collision and installed Phaser Clock tests.
+Pure data tests are not substitutes for real Scene schedule/combat/lifetime acceptance.
+
+**Required actual browser/native acceptance for separately authorized implementation**
+
+1. Normal DEV root: correct initial Chaser snapshot/currentHP3, RUNNING, fresh Build/
+   Defense5/5/0/0/zero Tags/seed/diagnostic bootstrap, five observed events/five commands.
+2. Actual scheduled spawning: CCCSCT, Elite12/24, Warden30, cap-delayed12/30/live Boss
+   suppression, placement/clamp/fallback and exact Encounter budget; deterministic DEV
+   Boss count0/draw0. Observe real Clock dispatch plus controlled internal long-schedule
+   advancement; clearing enemies internally is fixture setup, not natural-play evidence.
+3. Actual Chaser/Tank/Elite pursuit, Shooter approach/hold/retreat, Warden current-HP70/100
+   movement/style/bursts/31->30->31, nearest/ties/body geometry. Nearest Shooter only plus
+   independent Boss hostile attempt, same cadence and no phase-entry volley.
+4. Actual Laser/Prism/Missile/Cluster/Drone/Twin hits/HP/kill/XP, old/new immutable launch
+   snapshots, hostile/contact, God/protection and internal nonzero Shield/overflow/lethal.
+5. Inspect frozen actual enemy snapshot/movement. INTERNAL copied-existing-definition
+   fixtures prove old spawned values unchanged after caller/config/context mutation;
+   later construction sees authorized neutral/variant values/current valid definition
+   copy. Non-neutral context rejects; no live public scaling/config mutation feature.
+6. Real W/Space/Escape, MANUAL/REWARD and genuine foreground-tab BLUR: record enemy
+   health/position/snapshot, active flights, Defense, all five event identities/phases and
+   four RNG counters; meaningful paused wall time changes none, explicit resume only.
+   Synthetic HIDDEN/VISIBLE evidence reported separately from genuine focus loss.
+7. Actual Death-first/Victory-first; straight/Missile/Cluster-primary/Cluster-satellite
+   Boss kills; full owning attack work/removal before one terminal/record/UI, frozen
+   uncollected XP10 and no unrelated postterminal work.
+8. TWO Victory->NEW RUN, ONE Death->RETRY and ONE PAUSED nonterminal native scene.restart.
+   Dirty/capture old enemy/snapshot/Hit/flight/callback refs. EACH fresh one Chaser3/180/
+   24/1/1/snapshot/currentHP3/count0/flagsfalse, owners/zero Tags/RNG/input/diagnostics/
+   API/unpaused Clock/five fresh events. Old enemy/Hit/callback cannot affect fresh
+   enemies/Defense/XP/Boss/terminal or draw fresh RNG; disposed-owner operations retain
+   invariant errors. Reload/manual create/fixture reset is not native restart proof.
+9. Unmodified production preview with ordinary input/rendered output: movement/Dash/
+   Escape pause/resume/combat, ordinary damage/Death/actual RETRY click, absent DEV API,
+   no new debug UI/pageerrors. Inspect console; separate known favicon404/Vite >500kB
+   warning. Distinguish tracked/internal/ordinary boot/actual native evidence honestly.
+
+These are FUTURE implementation requirements, not new runtime verification now. A later
+implementation cannot mark GAME-050 DONE with missing actual browser/native acceptance;
+report the limitation rather than substituting fixture evidence.
+
+**Exclusions, definition validation and later documentation**
+
+No GAME-051 death record/last source/distribution; GAME-052 interaction/Impact/Decoy/new
+roles; other enemy/Elite content; Juggernaut/BossController; Director/time/level/maturity
+scaling, waves/reservations/portals; XP/reward/Analyzer redesign, Active/Core/Medical/world
+mechanics, Armor/resistance/status/crit/new Attack taxonomy, health bars, generic entity/
+registry/manager/framework/ECS/DI/event bus/service locator, scheduler/timer/dependency,
+save/profile/network. Future task nodes/target ownership names are not authorization.
+
+Now change ONLY docs/TASK_GRAPH.md: this definition, GAME-050 BACKLOG->READY and necessary
+current TASK_GRAPH status wording. Earlier DONE facts and GAME-040/041 SUPERSEDED remain;
+GAME-051+ BACKLOG, GATE A/B PASSED. Preserve historical definitions/pre-review requirements.
+No CURRENT_STATE/PROJECT_GRAPH/ARCHITECTURE/GAME_DESIGN/CONTENT_MANIFEST/BALANCE/source/
+test/config/package changes. Run npm run check and git diff --check; verify single-file
+scope, stage explicit TASK_GRAPH, run cached check/stat and inspect COMPLETE cached diff.
+Generate ignored .codex-review/GAME-050-review.txt with AGENTS.md sections, branch/base,
+exact inventory/numbers/types/neutral context/immutable-vs-mutable/create-spawn anchors/
+isolation/death boundary/future tests/native requirements and COMPLETE staged diff.
+Never stage artifacts or commit/push/merge/reset/rebase/create/switch branches. Only
+separately authorized implementation passing required tracked AND actual native/browser
+checks may set GAME-050 READY->DONE and update factual CURRENT_STATE/PROJECT_GRAPH.
+GAME-051+ require their own definition/review; GATE A/B remain PASSED, no other gate closes.
 
 **GATE B — Modern Combat on Legacy Spawning — PASSED** — review the preceding phase capabilities before its cutover/next proof.
 
