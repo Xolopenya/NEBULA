@@ -10,6 +10,8 @@ import { createAttack, composePlayerDamage, calculateHitDamage, calculateEnemyDa
 import { segmentCircleHitTime } from '../combat/collision';
 import { prismSpread } from '../combat/prismSpread';
 import { clusterSatelliteOffsets } from '../combat/clusterSatellites';
+import { ENEMY_DEFINITIONS, DEFAULT_ENEMY_SPAWN_CONTEXT, createEnemySpawnSnapshot,
+  type EnemyArchetype, type EnemySpawnSnapshot } from '../enemies/EnemyDefinitions';
 import { shooterMovement } from '../enemies/shooterMovement';
 import { shouldSpawnEliteTank } from '../enemies/eliteTank';
 import { shouldSpawnWarden, wardenPhase, wardenBurstDirections } from '../enemies/warden';
@@ -71,26 +73,26 @@ const levelUpPool: readonly OrdinaryChoice[] = [
   { kind: 'passive', module: 'replication' },
 ];
 
-type EnemyArchetype = 'chaser' | 'shooter' | 'tank' | 'boss';
-
-const enemyData = {
-  chaser: { health: 3, speed: 180, points: [24, 0, 48, 24, 24, 48, 0, 24], color: 0xf43f5e, outline: 0xffcdd2 },
-  shooter: { health: 2, speed: 140, points: [8, 8, 40, 8, 40, 40, 8, 40], color: 0xa855f7, outline: 0xe9d5ff },
-  tank: { health: 6, speed: 100, points: [12, 4, 36, 4, 48, 24, 36, 44, 12, 44, 0, 24], color: 0xf59e0b, outline: 0xfef3c7 },
-  boss: { health: 60, speed: 70, points: [40, 0, 68, 12, 80, 40, 68, 68, 40, 80, 12, 68, 0, 40, 12, 12], color: 0xd946ef, outline: 0xfae8ff },
-} satisfies Record<EnemyArchetype, { health: number; speed: number; points: number[]; color: number; outline: number }>;
+const enemyPresentation = {
+  chaser: { points: [24, 0, 48, 24, 24, 48, 0, 24], color: 0xf43f5e, outline: 0xffcdd2 },
+  shooter: { points: [8, 8, 40, 8, 40, 40, 8, 40], color: 0xa855f7, outline: 0xe9d5ff },
+  tank: { points: [12, 4, 36, 4, 48, 24, 36, 44, 12, 44, 0, 24], color: 0xf59e0b, outline: 0xfef3c7 },
+  boss: { points: [40, 0, 68, 12, 80, 40, 68, 68, 40, 80, 12, 68, 0, 40, 12, 12], color: 0xd946ef, outline: 0xfae8ff },
+} satisfies Record<EnemyArchetype, { points: number[]; color: number; outline: number }>;
 
 const eliteTankData = {
-  ...enemyData.tank, health: 18, speed: 120, contactDamage: 2, xpValue: 5,
+  ...enemyPresentation.tank,
   color: 0xfacc15, outline: 0xfffbeb,
 } as const;
 
-const wardenPhaseTwo = { speed: 100, color: 0xdc2626, outline: 0xfb923c } as const;
+const wardenPhaseTwo = { color: 0xdc2626, outline: 0xfb923c } as const;
 
 const timedSpawnSequence: readonly Exclude<EnemyArchetype, 'boss'>[] = ['chaser', 'chaser', 'chaser', 'shooter', 'chaser', 'tank'];
 
 type EnemyRuntime = {
-  archetype: EnemyArchetype;
+  readonly spawnSnapshot: EnemySpawnSnapshot;
+  readonly run: RunLifecycle;
+  readonly archetype: EnemyArchetype;
   readonly isElite: boolean;
   readonly contactDamage: number;
   readonly xpValue: number;
@@ -171,7 +173,6 @@ export class GameplayScene extends Phaser.Scene {
   private get playerMaxHealth(): number { return this.playerBuild!.getEffectiveStats().hull; }
   private get playerHealth(): number { return this.playerDefense!.snapshot().currentHull; }
   private readonly playerRadius = 20;
-  private readonly contactDamage = 1;
   private get playerDamageProtectionRemaining(): number { return this.playerDefense!.snapshot().protectionRemaining; }
   private enemies: EnemyRuntime[] = [];
   private xpPickups: XpPickup[] = [];
@@ -203,12 +204,9 @@ export class GameplayScene extends Phaser.Scene {
   private dashRemaining = 0;
   private dashCooldownRemaining = 0;
   private readonly chaseDirection = new Phaser.Math.Vector2();
-  private readonly shooterMinimumRange = 350;
-  private readonly shooterMaximumRange = 500;
   private successfulTimedSpawns = 0;
   private bossSpawned = false;
   bossDefeated = false;
-  private readonly enemyRadius = 24;
   private readonly hostileFireInterval = 1500;
   private readonly hostileSpeed = 600;
   private readonly hostileLifetime = 3000;
@@ -330,7 +328,7 @@ export class GameplayScene extends Phaser.Scene {
       .setStrokeStyle(2, 0xccfbf1);
     this.positionDrone(this.drone, this.droneAngle);
 
-    this.createEnemy(this.player.x + this.minimumSpawnDistance, this.player.y, 'chaser');
+    this.createEnemy(this.player.x + this.minimumSpawnDistance, this.player.y, 'chaser', run);
 
     this.cameras.main.setBounds(0, 0, this.arenaWidth, this.arenaHeight);
     this.cameras.main.startFollow(this.player);
@@ -339,7 +337,7 @@ export class GameplayScene extends Phaser.Scene {
     this.gameplayTimers.push(this.time.addEvent({
       delay: this.spawnInterval,
       loop: true,
-      callback: () => { if (run.state === 'RUNNING') this.spawnEnemy(); },
+      callback: () => { if (run.state === 'RUNNING') this.spawnEnemy(run); },
     }));
     this.gameplayTimers.push(this.laserTimer = this.time.addEvent({
       delay: this.weaponInterval(this.laser.fireInterval),
@@ -442,17 +440,18 @@ export class GameplayScene extends Phaser.Scene {
 
     for (const enemy of this.enemies) {
       this.chaseDirection.set(this.player.x - enemy.visual.x, this.player.y - enemy.visual.y);
-      let speed = enemy.isElite ? eliteTankData.speed : enemyData[enemy.archetype].speed;
-      if (enemy.archetype === 'boss') {
+      const movement = enemy.spawnSnapshot.movement;
+      let speed = movement.speed;
+      if (movement.kind === 'WARDEN_PURSUIT') {
         const phase = wardenPhase(enemy.health);
         if (!phase) continue;
-        speed = phase === 2 ? wardenPhaseTwo.speed : enemyData.boss.speed;
-        enemy.visual.setFillStyle(phase === 2 ? wardenPhaseTwo.color : enemyData.boss.color);
+        speed = phase === 2 ? movement.phaseTwoSpeed : movement.speed;
+        enemy.visual.setFillStyle(phase === 2 ? wardenPhaseTwo.color : enemyPresentation.boss.color);
         if (enemy !== this.currentTarget) this.restoreEnemyOutline(enemy);
       }
-      if (enemy.archetype === 'shooter') {
+      if (movement.kind === 'SHOOTER_BAND') {
         const step = shooterMovement(this.chaseDirection.x, this.chaseDirection.y, speed, delta,
-          this.shooterMinimumRange, this.shooterMaximumRange);
+          movement.minimumRange, movement.maximumRange);
         this.chaseDirection.set(step.x, step.y);
       } else {
         const chaseDistance = this.chaseDirection.length();
@@ -607,7 +606,7 @@ export class GameplayScene extends Phaser.Scene {
 
   private restoreEnemyOutline(enemy: EnemyRuntime): void {
     const outline = enemy.archetype === 'boss' && wardenPhase(enemy.health) === 2
-      ? wardenPhaseTwo.outline : enemy.isElite ? eliteTankData.outline : enemyData[enemy.archetype].outline;
+      ? wardenPhaseTwo.outline : enemy.isElite ? eliteTankData.outline : enemyPresentation[enemy.archetype].outline;
     enemy.visual.setStrokeStyle(enemy.isElite || enemy.archetype === 'boss' ? 3 : 2, outline);
   }
 
@@ -851,7 +850,7 @@ export class GameplayScene extends Phaser.Scene {
 
   private applyEnemyHit(hit: Extract<Hit, { kind: 'ENEMY_DIRECT' | 'ENEMY_BLAST' }>): EnemyDamage | null {
     if (hit.run !== this.run || hit.run.state !== 'RUNNING') return null;
-    if (!this.enemies.includes(hit.target) || hit.target.health <= 0) return null;
+    if (hit.target.run !== hit.run || !this.enemies.includes(hit.target) || hit.target.health <= 0) return null;
     const amount = calculateHitDamage(hit.attack, hit.kind === 'ENEMY_DIRECT' ? 'DIRECT' : hit.phase);
     const result = calculateEnemyDamage(hit.target.health, amount);
     hit.target.health = result.healthAfter;
@@ -1244,6 +1243,7 @@ export class GameplayScene extends Phaser.Scene {
   }
 
   private killEnemy(enemy: EnemyRuntime): void {
+    if (enemy.run !== this.run || enemy.run.state !== 'RUNNING') return;
     const index = this.enemies.indexOf(enemy);
     if (index === -1) return;
     if (enemy.archetype === 'boss') this.bossDefeated = true;
@@ -1259,18 +1259,35 @@ export class GameplayScene extends Phaser.Scene {
     this.runDiagnostics!.recordEnemyKilled(enemy.archetype, enemy.isElite, enemy.xpValue);
   }
 
-  private createEnemy(x: number, y: number, archetype: EnemyArchetype, eliteTank = false): void {
-    const isElite = archetype === 'tank' && eliteTank;
-    const data = isElite ? eliteTankData : enemyData[archetype];
-    const enemy = this.add.polygon(x, y, data.points, data.color);
-    enemy.setStrokeStyle(isElite || archetype === 'boss' ? 3 : 2, data.outline);
-    this.enemies.push({ archetype, isElite, visual: enemy, health: data.health,
-      contactDamage: archetype === 'boss' ? 2 : isElite ? eliteTankData.contactDamage : this.contactDamage,
-      xpValue: archetype === 'boss' ? 10 : isElite ? eliteTankData.xpValue : 1,
-      collisionRadius: archetype === 'boss' ? 40 : this.enemyRadius });
+  private createEnemy(
+    x: number, y: number, archetype: EnemyArchetype, run: RunLifecycle, eliteTank = false,
+  ): EnemyRuntime | null {
+    if (run !== this.run) return null;
+    const initialChaser = run.state === 'PREPARING' && archetype === 'chaser' && !eliteTank
+      && this.enemies.length === 0 && !!this.player
+      && x === this.player.x + this.minimumSpawnDistance && y === this.player.y;
+    if (run.state !== 'RUNNING' && !initialChaser) return null;
+    // Preserve the legacy Scene input normalization; the pure factory rejects incompatible variants.
+    const context = archetype === 'tank' && eliteTank
+      ? { scalingProfile: DEFAULT_ENEMY_SPAWN_CONTEXT.scalingProfile, variant: 'ELITE_TANK' as const }
+      : DEFAULT_ENEMY_SPAWN_CONTEXT;
+    const spawnSnapshot = createEnemySpawnSnapshot(ENEMY_DEFINITIONS[archetype], context);
+    const data = spawnSnapshot.isElite ? eliteTankData : enemyPresentation[archetype];
+    const visual = this.add.polygon(x, y, data.points, data.color);
+    visual.setStrokeStyle(spawnSnapshot.isElite || archetype === 'boss' ? 3 : 2, data.outline);
+    const enemy: EnemyRuntime = {
+      spawnSnapshot, run, visual, health: spawnSnapshot.maxHealth,
+      get archetype() { return spawnSnapshot.archetype; },
+      get isElite() { return spawnSnapshot.isElite; },
+      get contactDamage() { return spawnSnapshot.contactDamage; },
+      get xpValue() { return spawnSnapshot.xpValue; },
+      get collisionRadius() { return spawnSnapshot.collisionRadius; },
+    };
+    this.enemies.push(enemy);
     if (archetype === 'boss') this.bossSpawned = true;
     // Initial Chaser is constructed during PREPARING and bootstrapped after seed creation.
-    if (this.run?.state === 'RUNNING') this.runDiagnostics!.recordEnemySpawned(archetype, isElite);
+    if (run.state === 'RUNNING') this.runDiagnostics!.recordEnemySpawned(archetype, spawnSnapshot.isElite);
+    return enemy;
   }
 
   private creditExperience(amount: number, collectedPickup?: XpPickup): void {
@@ -1287,8 +1304,9 @@ export class GameplayScene extends Phaser.Scene {
 
   private publishDevTools(): void {
     // Phaser reuses this Scene on restart: validity belongs to this create, not this object.
+    const run = this.run!;
     let valid = true;
-    const canMutate = () => valid && !this.isSimulationPaused() && !!this.player;
+    const canMutate = () => valid && this.run === run && !this.isSimulationPaused() && !!this.player;
     const activeWarden = () => this.enemies.find(enemy => enemy.archetype === 'boss' && enemy.health > 0);
     const api: DevTools = {
       snapshot: () => {
@@ -1320,13 +1338,12 @@ export class GameplayScene extends Phaser.Scene {
         if (!canMutate() || this.bossSpawned || this.bossDefeated || activeWarden()
           || this.enemies.length >= this.maximumEnemies) return false;
         const player = this.player!;
-        const margin = Math.max(this.enemyMargin, 40);
+        const margin = Math.max(this.enemyMargin, ENEMY_DEFINITIONS.boss.collisionRadius);
         const x = player.x < this.arenaWidth / 2 ? this.arenaWidth - margin : margin;
         const y = player.y < this.arenaHeight / 2 ? this.arenaHeight - margin : margin;
         if (x < margin || x > this.arenaWidth - margin || y < margin || y > this.arenaHeight - margin
           || Math.hypot(x - player.x, y - player.y) < this.minimumSpawnDistance) return false;
-        this.createEnemy(x, y, 'boss');
-        return true;
+        return this.createEnemy(x, y, 'boss', run) !== null;
       },
       setWardenHealth: health => {
         if (!canMutate() || typeof health !== 'number' || !Number.isFinite(health)
@@ -1353,14 +1370,14 @@ export class GameplayScene extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.DESTROY, invalidate);
   }
 
-  private spawnEnemy(): void {
-    if (this.isSimulationPaused()) return;
+  private spawnEnemy(run: RunLifecycle): void {
+    if (run !== this.run || run.state !== 'RUNNING') return;
     if (!this.player || this.enemies.length >= this.maximumEnemies) return;
     if (this.enemies.some(enemy => enemy.archetype === 'boss' && enemy.health > 0)) return;
 
     const nextTimedSpawnNumber = this.successfulTimedSpawns + 1;
     const spawnBoss = shouldSpawnWarden(nextTimedSpawnNumber, this.bossSpawned);
-    const margin = spawnBoss ? Math.max(this.enemyMargin, 40) : this.enemyMargin;
+    const margin = spawnBoss ? Math.max(this.enemyMargin, ENEMY_DEFINITIONS.boss.collisionRadius) : this.enemyMargin;
 
     const view = this.cameras.main.worldView;
     const encounter = this.runRandom!.encounter.next;
@@ -1381,11 +1398,8 @@ export class GameplayScene extends Phaser.Scene {
       y = this.player.y < this.arenaHeight / 2 ? this.arenaHeight - margin : margin;
     }
 
-    if (spawnBoss) this.createEnemy(x, y, 'boss');
-    else {
-      const archetype = timedSpawnSequence[this.successfulTimedSpawns % timedSpawnSequence.length];
-      this.createEnemy(x, y, archetype, shouldSpawnEliteTank(archetype, nextTimedSpawnNumber));
-    }
-    this.successfulTimedSpawns += 1;
+    const archetype = spawnBoss ? 'boss' : timedSpawnSequence[this.successfulTimedSpawns % timedSpawnSequence.length];
+    const elite = archetype !== 'boss' && shouldSpawnEliteTank(archetype, nextTimedSpawnNumber);
+    if (this.createEnemy(x, y, archetype, run, elite)) this.successfulTimedSpawns += 1;
   }
 }

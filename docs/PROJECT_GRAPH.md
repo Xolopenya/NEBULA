@@ -4,8 +4,8 @@
 
 - Project: NEBULA.
 - Milestone: First Playable / GAME-015 complete.
-- Source baseline HEAD: `102879220f6264c3a7477550530f264f0634ea90`.
-- This map reflects that source baseline plus the staged GAME-049 combat resolution/immutable launch snapshots; current Scene retains geometry/death/presentation and GAME-039 DEV wiring.
+- Source baseline HEAD: `61b395a32fb5321751abf29af74685c22362f1c7`.
+- This map reflects that source baseline plus the staged GAME-050 enemy definitions/frozen spawn snapshots; current Scene retains combat/death/presentation and GAME-039 DEV wiring.
 - Active task request defines task-specific requirements.
 - AGENTS.md defines repository policy.
 - TASK_GRAPH.md defines task scope, dependencies and status.
@@ -39,7 +39,9 @@ IDs are repository-relative paths; symbols use `path#export`.
 | `src/game/player/PlayerDefense.ts` | Phaser-free current Hull/Shield/protection arithmetic, detached snapshot and exact-owner disposal; no maximum or lifecycle ownership |
 | `src/game/player/PlayerDefense.test.ts` | 35 pure validation/Shield-first/loss/protection/heal/cap/detachment/lifetime cases |
 | `src/game/devTools.ts` | DevSnapshot with numeric runSeed/runState/copied ordered pauseReasons and detached nested diagnostics/build; five-command DevTools types, no runtime registry |
-| `src/game/scenes/GameplayScene.devTools.test.ts` | 174 tracked Scene/DevTools/lifecycle/RNG/pause/input/diagnostics/Build/Tag/Defense/combat cases, including installed Phaser Clock phase integration |
+| `src/game/scenes/GameplayScene.devTools.test.ts` | 207 tracked Scene/DevTools/lifecycle/RNG/pause/input/diagnostics/Build/Tag/Defense/combat/enemy-snapshot cases, including installed Phaser Clock phase integration |
+| `src/game/enemies/EnemyDefinitions.ts` | Phaser-free four authored definitions, fixed Tank Elite/neutral context, exact validation and copied frozen per-spawn snapshots |
+| `src/game/enemies/EnemyDefinitions.test.ts` | 136 pure exact-content/shape/numeric/pairing/freeze/detachment/neutral-isolation cases |
 | `src/game/combat/combat.ts` | Phaser-free exact Attack/source/snapshot/Damage contracts, validated immutable factory and pure composition/hit/enemy arithmetic |
 | `src/game/combat/combat.test.ts` | 71 pure kind/variant/shape/copy/freeze/numeric/composition/phase/actual-loss cases |
 | `src/game/combat/collision.ts` | Pure numeric collision math |
@@ -130,6 +132,14 @@ IDs are repository-relative paths; symbols use `path#export`.
 | `src/game/progression/prismLaser.ts#canEvolvePrismLaser` | Concrete 2/2/2 + Combat >=1 + unevolved recipe |
 | `src/game/combat/prismSpread.ts#prismSpread` | Normalized fixed three-beam directions; empty for near-zero aim |
 | `src/game/player/dash.ts#stepDash` | Active-time burst/normal split and duration/cooldown stepping |
+| `src/game/enemies/EnemyDefinitions.ts#EnemyArchetype` | Exactly chaser/shooter/tank/boss |
+| `src/game/enemies/EnemyDefinitions.ts#EnemyDefinition` | EnemyNumbers plus closed PursuitMovement / ShooterMovement / WardenMovement pairing |
+| `src/game/enemies/EnemyDefinitions.ts#ENEMY_DEFINITIONS` | Deeply frozen four-entry authored table; all current HP/speed/band/body/contact/XP defaults |
+| `src/game/enemies/EnemyDefinitions.ts#ELITE_TANK_PROFILE` | Fixed maxHealth18/speed120/contact2/XP5, Tank-only |
+| `src/game/enemies/EnemyDefinitions.ts#EnemySpawnContext` | Required scalingProfile LEGACY_NEUTRAL plus BASE/ELITE_TANK; no arithmetic or non-neutral engine |
+| `src/game/enemies/EnemyDefinitions.ts#DEFAULT_ENEMY_SPAWN_CONTEXT` | Deeply frozen explicit BASE context with LEGACY_NEUTRAL_SCALING_PROFILE |
+| `src/game/enemies/EnemyDefinitions.ts#EnemySpawnSnapshot` | Readonly exact archetype/maxHealth/collisionRadius/contactDamage/xpValue/movement/isElite values; no runtime/visual/Build/RNG references |
+| `src/game/enemies/EnemyDefinitions.ts#createEnemySpawnSnapshot` | Validate definition/context/pairing, fixed override, copy scalars/new movement, validate final numbers, freeze nested/outer; RangeError on invalid input |
 | `src/game/enemies/warden.ts#shouldSpawnWarden` | Successful spawn30 and not-yet-spawned predicate |
 | `src/game/enemies/warden.ts#wardenPhase` | Positive current HP above30 phase1, otherwise phase2; dead has no phase |
 | `src/game/enemies/warden.ts#wardenBurstDirections` | Four/eight normalized world-space directions |
@@ -199,6 +209,9 @@ Runtime labels below describe scene-owned concepts, not separate modules/classes
 | `src/game/progression/replicationMatrix.ts#effectiveDroneBoltRadius` | TESTED_BY | `src/game/progression/replicationMatrix.test.ts` |
 | `src/game/scenes/GameplayScene.ts` | IMPORTS | `src/game/progression/twinDrone.ts#canEvolveTwinDrone` |
 | `src/game/progression/twinDrone.ts#canEvolveTwinDrone` | TESTED_BY | `src/game/progression/twinDrone.test.ts` |
+| `src/game/scenes/GameplayScene.ts` | IMPORTS | `src/game/enemies/EnemyDefinitions.ts` (fixed table/context/factory and archetype/snapshot types) |
+| GameplayScene.createEnemy | CONSTRUCTS | One EnemySpawnSnapshot per successful exact-run creation; zero for rejected requests |
+| EnemyRuntime.spawnSnapshot | SUPPLIES | update movement, contact Attack value, collision body and killEnemy XP; compatibility getters derive values |
 | `src/game/scenes/GameplayScene.ts` | IMPORTS | `src/game/enemies/warden.ts#shouldSpawnWarden` |
 | `src/game/scenes/GameplayScene.ts` | IMPORTS | `src/game/enemies/warden.ts#wardenPhase` |
 | `src/game/scenes/GameplayScene.ts` | IMPORTS | `src/game/enemies/warden.ts#wardenBurstDirections` |
@@ -243,11 +256,11 @@ All private names below are navigation anchors, not exported symbol nodes.
 | Choice randomness | enterLevelUpPause → selectChoices → runRandom.reward.next | Explicit source at three sampling sites; one draw per sampled slot, none for focus/evolution/stable UI/acceptance |
 | Death/retry | derived isPlayerDead; enterPlayerDeath | Accepted DEATH precedes existing UI; RETRY bound to owning run; rejects Victory |
 | Victory/result | derived isRunVictorious, victoryPresentation; enterRunVictory | Atomic attack completion after new common Boss defeat, first terminal wins; fixed current-level result and identity/duplicate-guarded native NEW RUN; create clears state/UI references |
-| Enemy runtime | enemies; EnemyRuntime; createEnemy | One collection of archetype/isElite + visual/health + readonly contactDamage/xpValue/collisionRadius; enemyData and concrete eliteTankData own regular/Elite/Boss values/presentation; Warden phase styles are concrete |
-| Spawning | spawnEnemy; timedSpawnSequence, successfulTimedSpawns, spawnInterval, maximumEnemies | Same2000ms timer/successful CCCSCT mix; shouldSpawnEliteTank promotes Tank12/24; Warden replaces30, active Boss suppresses spawns/count only; blocked cap10 callbacks retain pending count; create resets0 |
-| Enemy movement | update; chaseDirection; shooterMovement | Shared Chaser/Tank pursuit (regular100/Elite120) / Shooter350–500 inclusive band; Warden70/100 current-HP pursuit; scene clamp max(25, collisionRadius), pure Shooter step |
+| Enemy runtime | enemies; EnemyRuntime; createEnemy | One collection with readonly spawnSnapshot/run, mutable current health/visual, derived identity/contact/XP/radius getters; EnemyDefinitions owns frozen spawn values, enemyPresentation/eliteTankData/wardenPhaseTwo own only presentation |
+| Spawning | spawnEnemy; timedSpawnSequence, successfulTimedSpawns, spawnInterval, maximumEnemies | Captured exact run through spawnEnemy/createEnemy, PREPARING initial Chaser only, RUNNING timed/DEV; same2000ms timer/successful CCCSCT mix; shouldSpawnEliteTank promotes Tank12/24; Warden replaces30, active Boss suppresses spawns/count only; blocked cap10 callbacks retain pending count; create resets0 |
+| Enemy movement | update; chaseDirection; shooterMovement | Own frozen movement record supplies Chaser180/Tank100/Elite120 pursuit and Shooter140/350–500 inclusive band; Warden70/100 current-HP pursuit; scene clamp max(25, collisionRadius), pure Shooter step |
 | Target/highlight | selectNearestEnemy, currentTarget; update | Nearest active enemy; optional origin/archetype filter reused by Missile/Shooter; temporary outline restores current Boss phase3px/Elite3px/regular2px style |
-| Enemy death | updateProjectiles / updateMissiles → applyEnemyHit → killEnemy | Create one pickup with runtime xpValue (regular1/Elite5/Warden10), destroy visual, splice enemy, clear dead target |
+| Enemy death | updateProjectiles / updateMissiles → applyEnemyHit → killEnemy | Current RUNNING enemy.run and membership guard; create one pickup with spawn-derived xpValue (regular1/Elite5/Warden10), destroy visual, splice enemy, clear dead target |
 | XP drops | xpPickups; XpPickup; killEnemy | World-space visual + per-kill value1/5/10 + speed; common magnet/collection, create resets collection |
 | XP magnet/collection | updateXpPickups | Stationary outside range; accelerated approach; arrival credits pickup.value then destroys/removes |
 | Player XP/levels | playerExperience; create; updateXpPickups → addExperience | Scene owns state/reset/collection; pure module owns thresholds and carry |
@@ -352,8 +365,8 @@ GameplayScene.levelUpPresentation / acceptLevelUpChoice IMPLEMENTS_TASK GAME-020
 GameplayScene.laser / laserTimer / acceptLevelUpChoice IMPLEMENTS_TASK GAME-021.
 GameplayScene.hud / updateHud IMPLEMENTS_TASK GAME-022 — Basic HUD.
 GameplayScene Dash state / player/dash.ts IMPLEMENTS_TASK GAME-023 — Initial Ship Active Ability: Dash.
-GameplayScene enemyData / EnemyRuntime / spawnEnemy / hostile fire + enemies/shooterMovement.ts IMPLEMENTS_TASK GAME-024 — Chaser/Shooter.
-GameplayScene enemyData / shared direct pursuit / timedSpawnSequence IMPLEMENTS_TASK GAME-025 — Tank.
+EnemyDefinitions + GameplayScene enemyPresentation / EnemyRuntime / spawnEnemy / hostile fire + enemies/shooterMovement.ts IMPLEMENTS_TASK GAME-024 — Chaser/Shooter.
+EnemyDefinitions + GameplayScene enemyPresentation / shared direct pursuit / timedSpawnSequence IMPLEMENTS_TASK GAME-025 — Tank.
 GameplayScene eliteTankData / EnemyRuntime.isElite/contactDamage/xpValue / spawnEnemy / killEnemy / highlight; enemies/eliteTank.ts IMPLEMENTS_TASK GAME-036 — Elite Enemy Prototype. Same Tank pursuit, common collision/XP, five unchanged gameplay timers; no portal/affix framework.
 GameplayScene bossSpawned / public bossDefeated / EnemyRuntime.collisionRadius / spawnEnemy / restoreEnemyOutline / fireHostileProjectile / launchHostileProjectile; enemies/warden.ts IMPLEMENTS_TASK GAME-037 — Warden Boss. Successful30 replacement, current-HP phases, common physical collision/death/XP10, same hostile event. Boss death supplies the flag consumed by GAME-038 after atomic attack completion; terminal Victory now blocks spawn31.
 GameplayScene.isRunVictorious / victoryPresentation / enterRunVictory; updateProjectiles / updateMissiles atomic boundaries / isSimulationPaused / acceptLevelUpChoice / enterPlayerDeath IMPLEMENTS_TASK GAME-038 — Run Victory / Result Flow. Common XP10 remains frozen; current-level result and native NEW RUN; no new timer/Scene/manager.
@@ -439,9 +452,23 @@ Swept geometry, strict ties, cap/expiry/world exits, Prism independent beams, Tw
 origins and Cluster primary then survivor union remain concrete Scene behavior. Complete
 owning cleanup precedes Victory; first-terminal authority stays RunLifecycle. Stale Hits/
 flights guard exact run before fresh enemies/Defense. Five events/five DEV methods and zero
-additional RNG draws remain. Impact/GAME-050+ are deferred. 71 pure +16 new Scene cases,
+additional RNG draws remain. Impact/GAME-051+ are deferred. 71 pure +16 new Scene cases,
 actual Chrome offensive/old-new snapshot/pause/BLUR/native terminal/restart and unmodified
-production ordinary Death/real RETRY checks pass. GATE A PASSED; GATE B NOT PASSED.
+production ordinary Death/real RETRY checks pass. GATE A PASSED; GATE B PASSED.
+
+EnemyDefinitions.ts + GameplayScene createEnemy/spawnEnemy/EnemyRuntime IMPLEMENT_TASK GAME-050.
+The pure module owns authored numerical definitions/fixed Elite/explicit neutral context and
+validated detached frozen snapshots. Scene captures exact run before construction; initializes
+current HP once, consumes owned movement/body/contact/XP and keeps concrete visual/AI/kill
+behavior. Initial PREPARING Chaser precedes five events/start/entropy, then one diagnostic
+bootstrap. Timed/DEV callbacks pass captured owner; applyEnemyHit requires enemy.run===hit.run,
+killEnemy requires current RUNNING owner plus membership. Native restart gives a fresh Chaser
+snapshot and owners; stale values stay readable without mutation authority. No extra timers,
+RNG, dependency, content, difficulty/Build/Tags coupling or GAME-051 death/attribution pipeline.
+136 pure +33 added Scene cases pass (739 total/25 files). Actual Chrome Clock schedule,
+movement/hostile/six-path combat/real BLUR and active-flight pauses/native restart checks pass;
+unmodified production ordinary Death/real pointer RETRY passes. GAME-050 DONE; GAME-051+
+BACKLOG; GATE A/B PASSED.
 
 ## Common navigation queries
 
@@ -462,7 +489,7 @@ production ordinary Death/real RETRY checks pass. GATE A PASSED; GATE B NOT PASS
 | Where is collision math implemented? | collision.ts#segmentCircleHitTime |
 | Where are Attack/Hit/Damage and launch truth owned? | combat/combat.ts types/four pure APIs; GameplayScene.ts → local Hit, applyEnemyHit, damagePlayer and exact-run typed flight runtimes |
 | Where is collision math tested? | src/game/combat/collision.test.ts |
-| Where are enemy archetypes/movement owned? | GameplayScene.ts → EnemyArchetype, enemyData, update; enemies/shooterMovement.ts; eliteTankData / enemies/eliteTank.ts; wardenPhase / enemies/warden.ts |
+| Where are enemy archetypes/movement owned? | EnemyDefinitions.ts → EnemyArchetype/EnemyDefinition/table/factory; GameplayScene.ts → EnemyRuntime.spawnSnapshot/run, enemyPresentation, update; enemies/shooterMovement.ts; eliteTankData / enemies/eliteTank.ts; wardenPhase / enemies/warden.ts |
 | Where are enemy spawn callbacks? | GameplayScene.ts → create timer / spawnEnemy / timedSpawnSequence / successfulTimedSpawns |
 | Where are player/hostile fire callbacks? | GameplayScene.ts → create timers / fireLaser / fireMissile / fireDrone / fireHostileProjectile → independent selectNearestEnemy('shooter') / active Warden burst → launchHostileProjectile |
 | What guards callbacks while dead or level-up paused? | GameplayScene.ts → isSimulationPaused checks in spawn/fire helpers |

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createAttack, type LaserAttack, type HostileAttack, type ContactAttack } from '../combat/combat';
+import * as enemyDefinitions from '../enemies/EnemyDefinitions';
 import { GameplayScene } from './GameplayScene';
 import { RunLifecycle } from '../run/RunLifecycle';
 import { RunRandom } from '../run/RunRandom';
@@ -100,6 +101,178 @@ function fixture() {
     shutdown: () => { for (const fn of [...listeners.get('shutdown') ?? []]) fn(); } };
 }
 beforeEach(() => { vi.stubGlobal('window', {}); vi.stubGlobal('document', { hasFocus: () => true, hidden: false }); });
+describe('GAME-050 frozen spawn ownership', () => {
+  it('creates the initial snapshot during PREPARING before start/entropy and bootstraps it once', () => {
+    const { scene: s } = fixture(); allowCreate(s);
+    const real = enemyDefinitions.createEnemySpawnSnapshot;
+    const factory = vi.spyOn(enemyDefinitions, 'createEnemySpawnSnapshot');
+    const start = vi.spyOn(RunLifecycle.prototype, 'start');
+    factory.mockImplementation((definition, context) => {
+      expect(s['run']!.state).toBe('PREPARING'); expect(start).not.toHaveBeenCalled();
+      expect(s['enemies']).toHaveLength(0); return real(definition, context);
+    });
+    try {
+      s.create(); const e = s['enemies'][0];
+      expect(factory).toHaveBeenCalledTimes(1); expect(start).toHaveBeenCalledTimes(1);
+      expect([e.visual.x, e.visual.y, e.health]).toEqual([3000, 1350, 3]);
+      expect(e.run).toBe(s['run']); expect(e.spawnSnapshot).toEqual({ ...enemyDefinitions.ENEMY_DEFINITIONS.chaser, isElite: false });
+      expect(s['successfulTimedSpawns']).toBe(0); expect(s['gameplayTimers']).toHaveLength(5);
+      expect(s['runDiagnostics']!.snapshot().aggregates.spawned.total).toBe(1);
+    } finally { factory.mockRestore(); start.mockRestore(); }
+  });
+  it.each(['chaser', 'shooter', 'tank', 'boss'] as const)('%s creates once with detached snapshot/getters and full mutable HP', kind => {
+    const { scene: s } = fixture(), factory = vi.spyOn(enemyDefinitions, 'createEnemySpawnSnapshot'), draws = spyStreams(s);
+    try {
+      const e = s['createEnemy'](2800, 1350, kind, s['run']!, true)!;
+      expect(factory).toHaveBeenCalledTimes(1); expect(e.run).toBe(s['run']);
+      expect(e.health).toBe(e.spawnSnapshot.maxHealth); expect(e.isElite).toBe(kind === 'tank');
+      expect(Object.isFrozen(e.spawnSnapshot) && Object.isFrozen(e.spawnSnapshot.movement)).toBe(true);
+      for (const key of ['archetype', 'isElite', 'contactDamage', 'collisionRadius', 'xpValue'] as const) {
+        expect(e[key]).toBe(e.spawnSnapshot[key]); expect(Object.getOwnPropertyDescriptor(e, key)?.set).toBeUndefined();
+      }
+      e.health = 0.5; expect(e.spawnSnapshot.maxHealth).toBe(kind === 'tank' ? 18 : enemyDefinitions.ENEMY_DEFINITIONS[kind].maxHealth);
+      for (const draw of draws) expect(draw).not.toHaveBeenCalled();
+    } finally { factory.mockRestore(); }
+  });
+  it.each(['PAUSED', 'TERMINAL', 'DISPOSED', 'PREPARING', 'stale'] as const)('rejects %s before factory/visual/count/flag/diagnostics/RNG', state => {
+    const { scene: s } = fixture(), run = s['run']!, factory = vi.spyOn(enemyDefinitions, 'createEnemySpawnSnapshot');
+    const polygon = vi.spyOn(s.add, 'polygon'), draws = spyStreams(s), before = s['runDiagnostics']!.snapshot();
+    if (state === 'PAUSED') run.requestPause('MANUAL');
+    if (state === 'TERMINAL') run.tryEnterTerminal('DEATH');
+    if (state === 'DISPOSED') run.dispose();
+    if (state === 'PREPARING') s['run'] = new RunLifecycle();
+    if (state === 'stale') { const fresh = new RunLifecycle(); fresh.start(); s['run'] = fresh; }
+    try {
+      expect(s['createEnemy'](2800, 1350, 'boss', state === 'PREPARING' ? s['run']! : run)).toBeNull();
+      s['spawnEnemy'](state === 'PREPARING' ? s['run']! : run);
+      expect(factory).not.toHaveBeenCalled(); expect(polygon).not.toHaveBeenCalled(); expect(s['enemies']).toHaveLength(0);
+      expect(s['successfulTimedSpawns']).toBe(0); expect(s['bossSpawned']).toBe(false);
+      expect(s['runDiagnostics']!.snapshot()).toEqual(before); for (const draw of draws) expect(draw).not.toHaveBeenCalled();
+    } finally { factory.mockRestore(); }
+  });
+  it('blocked cap/player/Boss and already-spawned DEV paths construct no snapshots', () => {
+    const { scene: s, api } = fixture(); const factory = vi.spyOn(enemyDefinitions, 'createEnemySpawnSnapshot');
+    try {
+      for (let i = 0; i < 10; i++) s['createEnemy'](3000, 1350, 'chaser', s['run']!);
+      factory.mockClear(); s['spawnEnemy'](s['run']!); expect(api.spawnWarden()).toBe(false);
+      expect(factory).not.toHaveBeenCalled(); s['enemies'] = [];
+      const player = s['player']; s['player'] = undefined; s['spawnEnemy'](s['run']!); expect(api.spawnWarden()).toBe(false);
+      expect(factory).not.toHaveBeenCalled(); s['player'] = player;
+      expect(api.spawnWarden()).toBe(true); expect(factory).toHaveBeenCalledTimes(1);
+      factory.mockClear(); s['spawnEnemy'](s['run']!); expect(api.spawnWarden()).toBe(false);
+      s['enemies'] = []; expect(api.spawnWarden()).toBe(false); expect(factory).not.toHaveBeenCalled();
+    } finally { factory.mockRestore(); }
+  });
+  it('invalid authored values fail before visual, HP, flags, count or observation mutations', () => {
+    const { scene: s } = fixture(), real = enemyDefinitions.createEnemySpawnSnapshot;
+    const factory = vi.spyOn(enemyDefinitions, 'createEnemySpawnSnapshot'), polygon = vi.spyOn(s.add, 'polygon');
+    factory.mockImplementation((definition, context) => real({ ...definition, maxHealth: NaN }, context));
+    const before = s['runDiagnostics']!.snapshot();
+    try {
+      s['successfulTimedSpawns'] = 29; expect(() => s['spawnEnemy'](s['run']!)).toThrow(RangeError);
+      expect(polygon).not.toHaveBeenCalled(); expect(s['enemies']).toHaveLength(0); expect(s['bossSpawned']).toBe(false);
+      expect(s['successfulTimedSpawns']).toBe(29); expect(s['runDiagnostics']!.snapshot()).toEqual(before);
+    } finally { factory.mockRestore(); }
+  });
+  it('moves from the owned snapshot rather than rereading authored numbers; current HP stays independent', () => {
+    const { scene: s } = inputFixture();
+    const real = enemyDefinitions.createEnemySpawnSnapshot, factory = vi.spyOn(enemyDefinitions, 'createEnemySpawnSnapshot');
+    factory.mockImplementation((definition, context) => real({ ...definition, movement: { ...definition.movement, speed: 50 } } as enemyDefinitions.EnemyDefinition, context));
+    try { s['createEnemy'](3000, 1350, 'tank', s['run']!); } finally { factory.mockRestore(); }
+    const e = s['enemies'][0]; e.health = 4; s.update(0, 100);
+    expect(e.visual.x).toBe(2995); expect(e.health).toBe(4); expect(e.spawnSnapshot.maxHealth).toBe(6);
+    expect(s['enemies'][0].spawnSnapshot.movement.speed).toBe(50);
+  });
+  it('old enemy/Hit/removal and captured timed spawn cannot authorize work on a fresh run', () => {
+    const f = fixture(), s = f.scene; allowCreate(s); s.create();
+    const oldRun = s['run']!, old = s['enemies'][0], snapshot = old.spawnSnapshot;
+    const callback = s['gameplayTimers'][0].callback!;
+    const attack = createAttack({ kind: 'LASER', variant: 'BASE', snapshot: { damage: 100, speed: 1200, radius: 6, lifetime: 2000 } }) as LaserAttack;
+    f.shutdown(); s.create(); const draws = spyStreams(s), before = window.__NEBULA_DEV__!.snapshot();
+    callback(); s['spawnEnemy'](oldRun); expect(s['createEnemy'](3000, 1350, 'boss', oldRun)).toBeNull();
+    // Even accidental old-runtime membership cannot grant ownership to a fresh Hit/removal.
+    s['enemies'].push(old);
+    expect(s['applyEnemyHit']({ kind: 'ENEMY_DIRECT', run: s['run']!, target: old, attack })).toBeNull();
+    s['killEnemy'](old); expect(old.health).toBe(3); s['enemies'].pop();
+    expect(snapshot).toEqual({ ...enemyDefinitions.ENEMY_DEFINITIONS.chaser, isElite: false });
+    expect(s['enemies'][0].spawnSnapshot).not.toBe(snapshot); expect(window.__NEBULA_DEV__!.snapshot()).toEqual(before);
+    for (const draw of draws) expect(draw).not.toHaveBeenCalled();
+  });
+  it.each([
+    ['chaser', false, 3000, 1000, 2820], ['tank', false, 3000, 1000, 2900],
+    ['tank', true, 3000, 1000, 2880], ['chaser', false, 2500, 1000, 2400],
+    ['shooter', false, 3000, 1000, 2900], ['shooter', false, 2900, 1000, 2900],
+    ['shooter', false, 2750, 1000, 2750], ['shooter', false, 2700, 1000, 2750],
+    ['shooter', false, 2400, 1000, 2540], ['shooter', false, 4000, 100000, 2900],
+  ] as const)('%s elite%s x%s delta%s uses its movement snapshot -> x%s', (kind, elite, x, delta, expected) => {
+    const { scene: s, api } = inputFixture(); api.setGodMode(true);
+    const enemy = s['createEnemy'](x, 1350, kind, s['run']!, elite)!;
+    const snapshot = enemy.spawnSnapshot; s.update(0, delta);
+    expect(enemy.visual.x).toBe(expected); expect(enemy.visual.y).toBe(1350); expect(enemy.spawnSnapshot).toBe(snapshot);
+  });
+  it.each([[60, 70, 4], [31, 70, 4], [30, 100, 8], [1, 100, 8], [0, 0, 0], [-1, 0, 0]])(
+    'Warden HP%s selects current speed%s/burst%s without modifying max or timer phases', (health, speed, shots) => {
+      const { scene: s } = inputFixture(), e = s['createEnemy'](3000, 1350, 'boss', s['run']!)!;
+      const timers = s['gameplayTimers'].map(t => t.elapsed); e.health = health; s.update(0, 1000); s['fireHostileProjectile']();
+      expect(e.visual.x).toBe(3000 - speed); expect(s['projectiles']).toHaveLength(shots);
+      expect(e.spawnSnapshot).toMatchObject({ maxHealth: 60, movement: { speed: 70, phaseTwoSpeed: 100 } });
+      expect(s['gameplayTimers'].map(t => t.elapsed)).toEqual(timers);
+    },
+  );
+  it('Warden DEV31->30->31 restores speed and authored phase outlines without immediate fire', () => {
+    const { scene: s, api } = inputFixture(); expect(api.spawnWarden()).toBe(true);
+    const e = s['enemies'][0], fill = vi.spyOn(e.visual, 'setFillStyle'), stroke = vi.spyOn(e.visual, 'setStrokeStyle');
+    for (const [health, speed, color, outline] of [[31, 70, 0xd946ef, 0xfae8ff], [30, 100, 0xdc2626, 0xfb923c], [31, 70, 0xd946ef, 0xfae8ff]]) {
+      e.visual.x = 3000; e.visual.y = 1350; expect(api.setWardenHealth(health)).toBe(true);
+      expect(s['projectiles']).toHaveLength(0); s.update(0, 1000); expect(e.visual.x).toBe(3000 - speed);
+      expect(fill).toHaveBeenLastCalledWith(color); s['restoreEnemyOutline'](e); expect(stroke).toHaveBeenLastCalledWith(3, outline);
+    }
+    expect(e.spawnSnapshot.maxHealth).toBe(60);
+  });
+  it('retains exact Scene polygon points/fills/highlight and regular/Elite outline restoration', () => {
+    const { scene: s } = inputFixture(), polygon = vi.spyOn(s.add, 'polygon');
+    const rows = [
+      ['chaser', false, [24, 0, 48, 24, 24, 48, 0, 24], 0xf43f5e, 0xffcdd2, 2],
+      ['shooter', false, [8, 8, 40, 8, 40, 40, 8, 40], 0xa855f7, 0xe9d5ff, 2],
+      ['tank', false, [12, 4, 36, 4, 48, 24, 36, 44, 12, 44, 0, 24], 0xf59e0b, 0xfef3c7, 2],
+      ['tank', true, [12, 4, 36, 4, 48, 24, 36, 44, 12, 44, 0, 24], 0xfacc15, 0xfffbeb, 3],
+      ['boss', false, [40, 0, 68, 12, 80, 40, 68, 68, 40, 80, 12, 68, 0, 40, 12, 12], 0xd946ef, 0xfae8ff, 3],
+    ] as const;
+    for (const [kind, elite, points, fill, outline, width] of rows) {
+      s['enemies'] = []; s['currentTarget'] = undefined;
+      const e = s['createEnemy'](3000, 1350, kind, s['run']!, elite)!, stroke = vi.spyOn(e.visual, 'setStrokeStyle');
+      expect(polygon).toHaveBeenLastCalledWith(3000, 1350, points, fill);
+      s.update(0, 0); expect(stroke).toHaveBeenLastCalledWith(4, 0xfde047);
+      s['restoreEnemyOutline'](e); expect(stroke).toHaveBeenLastCalledWith(width, outline);
+    }
+  });
+  it('actual installed Clock dispatch preserves one snapshot per successful schedule and pending cap counts', async () => {
+    const { default: Clock } = await vi.importActual<{ default: typeof import('phaser').Time.Clock }>('../../../node_modules/phaser/src/time/Clock.js');
+    const { scene: s } = fixture(); allowCreate(s); Object.assign(s, { sys: { events: { once() {}, on() {} } } });
+    const clock = new Clock(s); Object.assign(s, { time: clock }); s.create(); clock.preUpdate();
+    Object.assign(s.cameras.main, { worldView: { left: 1440, right: 3360, top: 810, bottom: 1890 } });
+    const factory = vi.spyOn(enemyDefinitions, 'createEnemySpawnSnapshot'), draw = vi.spyOn(s['runRandom']!.encounter, 'next');
+    let elapsed = 0;
+    try {
+      for (let n = 1; n <= 30; n++) {
+        s['enemies'] = []; s['projectiles'] = []; s['missiles'] = [];
+        if (n === 12 || n === 30) {
+          for (let i = 0; i < 10; i++) s['createEnemy'](4000, 2000, 'chaser', s['run']!);
+          const calls = factory.mock.calls.length, draws = draw.mock.calls.length;
+          clock.update(elapsed += 2000, 2000); expect(s['successfulTimedSpawns']).toBe(n - 1);
+          expect(factory).toHaveBeenCalledTimes(calls); expect(draw).toHaveBeenCalledTimes(draws); s['enemies'] = [];
+        }
+        const calls = factory.mock.calls.length; clock.update(elapsed += 2000, 2000);
+        expect(factory).toHaveBeenCalledTimes(calls + 1); expect(s['successfulTimedSpawns']).toBe(n);
+        const enemy = s['enemies'][0]; expect(enemy.isElite).toBe(n === 12 || n === 24);
+        expect(enemy.archetype).toBe(n === 30 ? 'boss' : ['chaser', 'chaser', 'chaser', 'shooter', 'chaser', 'tank'][(n - 1) % 6]);
+      }
+      expect(draw).toHaveBeenCalledTimes(60); const calls = factory.mock.calls.length;
+      clock.update(elapsed += 2000, 2000); expect(factory).toHaveBeenCalledTimes(calls); expect(draw).toHaveBeenCalledTimes(60);
+    } finally { factory.mockRestore(); draw.mockRestore(); }
+  });
+});
+
 describe('current scene DevTools production operations', () => {
   it('publishes exactly five commands and observes detached snapshots without side effects', () => {
     const { scene, api } = fixture();
@@ -152,13 +325,13 @@ describe('current scene DevTools production operations', () => {
   });
   it('rejects cap, missing player, prior defeat and an active Boss even without spawn flag', () => {
     const { scene, api } = fixture();
-    for (let i = 0; i < 10; i++) scene['createEnemy'](100, 100, 'chaser');
+    for (let i = 0; i < 10; i++) scene['createEnemy'](100, 100, 'chaser', scene['run']!);
     expect(api.spawnWarden()).toBe(false);
     scene['enemies'] = [];
     scene['bossDefeated'] = true;
     expect(api.spawnWarden()).toBe(false);
     scene['bossDefeated'] = false;
-    scene['createEnemy'](100, 100, 'boss');
+    scene['createEnemy'](100, 100, 'boss', scene['run']!);
     scene['bossSpawned'] = false;
     expect(api.spawnWarden()).toBe(false);
     scene['enemies'] = [];
@@ -187,7 +360,7 @@ describe('current scene DevTools production operations', () => {
     const { scene, api } = fixture();
     expect(api.setGodMode('yes' as unknown as boolean)).toBe(false);
     api.setGodMode(true);
-    scene['createEnemy'](2400, 1350, 'chaser');
+    scene['createEnemy'](2400, 1350, 'chaser', scene['run']!);
     scene['updatePlayerContact']();
     expect(scene['playerHealth']).toBe(5);
     expect(scene['player']!.x).toBe(2444);
@@ -260,7 +433,7 @@ describe('GAME-042 real Scene terminal integration', () => {
     return scene['projectiles'].at(-1)!;
   }
   function boss(scene: GameplayScene, x = 2800) {
-    scene['createEnemy'](x, 1350, 'boss');
+    scene['createEnemy'](x, 1350, 'boss', scene['run']!);
     const enemy = scene['enemies'].at(-1)!;
     enemy.health = 1;
     return enemy;
@@ -310,9 +483,9 @@ describe('GAME-042 real Scene terminal integration', () => {
   it.each(['missile', 'cluster-primary', 'cluster-satellite'] as const)('%s completes whole detonation before Victory', mode => {
     const { scene } = fixture();
     const enemy = boss(scene, mode === 'cluster-satellite' ? 2980 : 2800);
-    scene['createEnemy'](2800, 1350, 'chaser');
+    scene['createEnemy'](2800, 1350, 'chaser', scene['run']!);
     const primary = scene['enemies'].at(-1)!;
-    scene['createEnemy'](2980, 1350, 'chaser');
+    scene['createEnemy'](2980, 1350, 'chaser', scene['run']!);
     const satelliteSurvivor = scene['enemies'].at(-1)!;
     scene['clusterEvolved'] = mode !== 'missile';
     scene['fireMissile']();
@@ -484,7 +657,7 @@ describe('Scene run-scoped randomness production boundaries', () => {
     const a = fixture().scene, b = fixture().scene;
     for (let i = 0; i < 100; i++) a['runRandom']!.reward.next();
     const draw = vi.spyOn(a['runRandom']!.encounter, 'next');
-    for (let i = 0; i < 4; i++) { a['spawnEnemy'](); b['spawnEnemy'](); }
+    for (let i = 0; i < 4; i++) { a['spawnEnemy'](a['run']!); b['spawnEnemy'](b['run']!); }
     const placements = (s: GameplayScene) => s['enemies'].map(e => [e.visual.x, e.visual.y, e.archetype]);
     expect(placements(a)).toEqual([
       [2121.9062224030495, 762, 'chaser'], [3408, 1083.566029239446, 'chaser'],
@@ -496,15 +669,15 @@ describe('Scene run-scoped randomness production boundaries', () => {
   });
   it.each(['cap', 'pause', 'PREPARING', 'TERMINAL', 'DISPOSED', 'no player', 'Warden'])('%s rejects timed spawn with zero draws/count mutation', guard => {
     const { scene } = fixture();
-    if (guard === 'cap') for (let i = 0; i < 10; i++) scene['createEnemy'](100, 100, 'chaser');
+    if (guard === 'cap') for (let i = 0; i < 10; i++) scene['createEnemy'](100, 100, 'chaser', scene['run']!);
     if (guard === 'pause') scene['run']!.requestPause('REWARD');
     if (guard === 'PREPARING') scene['run'] = new RunLifecycle();
     if (guard === 'TERMINAL') scene['run']!.tryEnterTerminal('VICTORY');
     if (guard === 'DISPOSED') scene['run']!.dispose();
     if (guard === 'no player') scene['player'] = undefined;
-    if (guard === 'Warden') scene['createEnemy'](100, 100, 'boss');
+    if (guard === 'Warden') scene['createEnemy'](100, 100, 'boss', scene['run']!);
     const count = scene['enemies'].length, draws = spyStreams(scene);
-    scene['spawnEnemy']();
+    scene['spawnEnemy'](scene['run']!);
     expect(scene['enemies']).toHaveLength(count);
     expect(scene['successfulTimedSpawns']).toBe(0);
     for (const draw of draws) expect(draw).not.toHaveBeenCalled();
@@ -515,7 +688,7 @@ describe('Scene run-scoped randomness production boundaries', () => {
     const draw = vi.spyOn(scene['runRandom']!.encounter, 'next');
     const schedule = [];
     for (let i = 1; i <= 30; i++) {
-      scene['enemies'] = []; scene['spawnEnemy']();
+      scene['enemies'] = []; scene['spawnEnemy'](scene['run']!);
       const e = scene['enemies'][0];
       schedule.push([e.archetype, e.isElite]);
       expect([e.visual.x, e.visual.y]).toEqual(i === 30 ? [40, 40] : [25, 25]);
@@ -526,14 +699,14 @@ describe('Scene run-scoped randomness production boundaries', () => {
     expect(scene['successfulTimedSpawns']).toBe(30);
     expect(scene['bossSpawned']).toBe(true);
     expect(draw).toHaveBeenCalledTimes(60);
-    scene['spawnEnemy'](); expect(draw).toHaveBeenCalledTimes(60);
+    scene['spawnEnemy'](scene['run']!); expect(draw).toHaveBeenCalledTimes(60);
   });
   it('clamps accepted normal and Warden placements at their existing arena margins', () => {
     const { scene } = fixture();
     Object.assign(scene.cameras.main, { worldView: { left: -200, right: -100, top: -200, bottom: -100 } });
-    scene['spawnEnemy']();
+    scene['spawnEnemy'](scene['run']!);
     expect([scene['enemies'][0].visual.x, scene['enemies'][0].visual.y]).toEqual([25, 25]);
-    scene['enemies'] = []; scene['successfulTimedSpawns'] = 29; scene['spawnEnemy']();
+    scene['enemies'] = []; scene['successfulTimedSpawns'] = 29; scene['spawnEnemy'](scene['run']!);
     expect([scene['enemies'][0].visual.x, scene['enemies'][0].visual.y]).toEqual([40, 40]);
   });
   it('pins consecutive real offers and isolates Reward from Encounter/snapshot/duplicate/accepted/stale callbacks', () => {
@@ -588,7 +761,7 @@ describe('Scene run-scoped randomness production boundaries', () => {
     api.forceLevelUp(); scene['levelUpPresentation'][1].emit('pointerdown');
     const before = draws.map(draw => draw.mock.calls.length);
     scene['killEnemy'](scene['enemies'].find(e => e.archetype === 'boss')!);
-    scene['enterRunVictory'](); scene['spawnEnemy'](); scene['enterLevelUpPause'](); api.snapshot();
+    scene['enterRunVictory'](); scene['spawnEnemy'](scene['run']!); scene['enterLevelUpPause'](); api.snapshot();
     expect(draws.map(draw => draw.mock.calls.length)).toEqual(before);
     expect(draws[2]).not.toHaveBeenCalled(); expect(draws[3]).not.toHaveBeenCalled();
   });
@@ -687,14 +860,14 @@ describe('GAME-044 authoritative pause and input production paths', () => {
   });
   it('freezes real gameplay helpers and all stream budgets during MANUAL pause', () => {
     const f = inputFixture(), s = f.scene;
-    s['createEnemy'](2500, 1350, 'shooter'); s['currentTarget'] = s['enemies'][0];
+    s['createEnemy'](2500, 1350, 'shooter', s['run']!); s['currentTarget'] = s['enemies'][0];
     s['fireLaser'](); s['fireMissile'](); s['fireHostileProjectile']();
     s['xpPickups'] = [{ visual: visual(2400, 1350), value: 5, speed: 0 } as unknown as (typeof s)['xpPickups'][number]];
     primeProtection(s, 200); f.escape();
     const state = () => JSON.stringify({ snapshot: f.api.snapshot(), drone: s['droneAngle'], dash: s['dashRemaining'],
       enemies: s['enemies'], projectiles: s['projectiles'], missiles: s['missiles'], pickups: s['xpPickups'] });
     const before = state(), draws = spyStreams(s);
-    s.update(0, 5000); s['spawnEnemy'](); s['fireLaser'](); s['fireMissile'](); s['fireDrone'](); s['fireHostileProjectile']();
+    s.update(0, 5000); s['spawnEnemy'](s['run']!); s['fireLaser'](); s['fireMissile'](); s['fireDrone'](); s['fireHostileProjectile']();
     s['updateProjectiles'](5000); s['updateMissiles'](5000); s['updateXpPickups'](5000); s['updatePlayerContact'](); playerHit(s, 100);
     expect(state()).toBe(before); for (const draw of draws) expect(draw).not.toHaveBeenCalled();
   });
@@ -755,7 +928,7 @@ describe('GAME-044 authoritative pause and input production paths', () => {
 
 describe('GAME-045 concrete diagnostics production observations', () => {
   const shot = (s: GameplayScene) => playerShot(s);
-  const boss = (s: GameplayScene) => { s['createEnemy'](2800, 1350, 'boss'); const e = s['enemies'].at(-1)!; e.health = 1; return e; };
+  const boss = (s: GameplayScene) => { s['createEnemy'](2800, 1350, 'boss', s['run']!); const e = s['enemies'].at(-1)!; e.health = 1; return e; };
   it('actual create bootstraps the existing Chaser after start/seed, with detached diagnostics and five commands', () => {
     const { scene: s } = fixture(); allowCreate(s); s.create();
     const api = window.__NEBULA_DEV__!, d = api.snapshot()!.diagnostics;
@@ -771,20 +944,20 @@ describe('GAME-045 concrete diagnostics production observations', () => {
   });
   it('observes timed/Elite/Warden and deterministic DEV spawns but not blocked attempts', () => {
     const { scene: s } = fixture();
-    for (let i = 0; i < 30; i++) { s['enemies'] = []; s['spawnEnemy'](); }
+    for (let i = 0; i < 30; i++) { s['enemies'] = []; s['spawnEnemy'](s['run']!); }
     const d = s['runDiagnostics']!.snapshot();
     expect(d.aggregates.spawned).toEqual({ total: 30, byArchetype: { chaser: 20, shooter: 5, tank: 4, boss: 1 }, eliteTanks: 2 });
-    s['spawnEnemy'](); expect(s['runDiagnostics']!.snapshot()).toEqual(d);
+    s['spawnEnemy'](s['run']!); expect(s['runDiagnostics']!.snapshot()).toEqual(d);
     expect(s['successfulTimedSpawns']).toBe(30);
     const other = fixture(); expect(other.api.spawnWarden()).toBe(true); expect(other.api.spawnWarden()).toBe(false);
     expect(other.api.snapshot()!.diagnostics.aggregates.spawned.byArchetype.boss).toBe(1);
     expect(other.scene['successfulTimedSpawns']).toBe(0);
-    const capped = fixture(); for (let i = 0; i < 10; i++) capped.scene['createEnemy'](100, 100, 'chaser');
-    const before = capped.api.snapshot()!.diagnostics; capped.scene['spawnEnemy'](); expect(capped.api.snapshot()!.diagnostics).toEqual(before);
+    const capped = fixture(); for (let i = 0; i < 10; i++) capped.scene['createEnemy'](100, 100, 'chaser', capped.scene['run']!);
+    const before = capped.api.snapshot()!.diagnostics; capped.scene['spawnEnemy'](capped.scene['run']!); expect(capped.api.snapshot()!.diagnostics).toEqual(before);
   });
   it('actual nonlethal/hit/removal records a kill/drop once, Boss aggregates precede atomic terminal', () => {
     const { scene: s, api } = fixture();
-    s['createEnemy'](2800, 1350, 'chaser'); const enemy = s['enemies'][0]; shot(s); s['updateProjectiles'](0);
+    s['createEnemy'](2800, 1350, 'chaser', s['run']!); const enemy = s['enemies'][0]; shot(s); s['updateProjectiles'](0);
     expect(api.snapshot()!.diagnostics.aggregates.killed.total).toBe(0);
     enemy.health = 1; shot(s); s['updateProjectiles'](0); s['killEnemy'](enemy);
     expect(api.snapshot()!.diagnostics.aggregates).toMatchObject({ killed: { total: 1 }, xpDropped: 1 });
@@ -806,7 +979,7 @@ describe('GAME-045 concrete diagnostics production observations', () => {
     s['enterRunVictory'](); s['enterPlayerDeath'](); expect(api.snapshot()!.diagnostics).toEqual(d);
   });
   it('common XP credit splits real pickup/DEV, preserving drop/credit/pause and no duplicate collection', () => {
-    const { scene: s, api } = fixture(); s['createEnemy'](2400, 1350, 'tank', true); s['killEnemy'](s['enemies'][0]);
+    const { scene: s, api } = fixture(); s['createEnemy'](2400, 1350, 'tank', s['run']!, true); s['killEnemy'](s['enemies'][0]);
     s['updateXpPickups'](0); s['updateXpPickups'](0);
     expect(api.snapshot()!.diagnostics.aggregates).toMatchObject({ xpDropped: 5, xpCollected: 5, xpCredited: 5, xpDevCredited: 0, levelsGained: 1, offersPresented: 1 });
     s['levelUpPresentation'][1].emit('pointerdown'); api.forceLevelUp();
@@ -845,7 +1018,7 @@ describe('GAME-045 concrete diagnostics production observations', () => {
     s.update(0, 10); s['enterPlayerDeath'](); const d = f.api.snapshot()!.diagnostics; s.update(0, 9999);
     expect(d.terminal).toEqual({ outcome: 'DEATH', gameplayElapsedMs: 50 }); expect(f.api.snapshot()!.diagnostics).toEqual(d);
     const scenario = () => {
-      const next = inputFixture(); next.scene.update(0, 16.5); next.scene['spawnEnemy'](); next.api.forceLevelUp();
+      const next = inputFixture(); next.scene.update(0, 16.5); next.scene['spawnEnemy'](next.scene['run']!); next.api.forceLevelUp();
       next.scene['levelUpPresentation'][1].emit('pointerdown'); next.scene.update(0, 23.5);
       return { snapshot: next.api.snapshot(), enemies: next.scene['enemies'].map(e => [e.archetype, e.visual.x, e.visual.y]) };
     };
@@ -874,7 +1047,7 @@ describe('GAME-045 concrete diagnostics production observations', () => {
 describe('GAME-046 PlayerBuild production consumers', () => {
   function armed() {
     const f = fixture(), s = f.scene;
-    s['createEnemy'](3000, 1350, 'chaser'); s['currentTarget'] = s['enemies'][0];
+    s['createEnemy'](3000, 1350, 'chaser', s['run']!); s['currentTarget'] = s['enemies'][0];
     Object.assign(s, { drone: visual(2510, 1350, 10) }); return f;
   }
   function passive(f: ReturnType<typeof fixture>, module: 'hull' | 'thruster' | 'collector' | 'combat' | 'spatial' | 'replication') {
@@ -967,7 +1140,7 @@ describe('GAME-046 PlayerBuild production consumers', () => {
     m.visual.x = -12; m.visual.y = 100; m.target = undefined; m.headingX = 0; m.headingY = 0; s['enemies'] = [];
     s['updateMissiles'](0); expect(s['missiles']).toHaveLength(1); // Stored16, not fixed8 or new24.
     m.visual.x = -17; s['updateMissiles'](0); expect(s['missiles']).toHaveLength(0);
-    s['createEnemy'](3000, 1350, 'tank'); s['fireMissile'](); const next = s['missiles'][0];
+    s['createEnemy'](3000, 1350, 'tank', s['run']!); s['fireMissile'](); const next = s['missiles'][0];
     next.visual.x = 3000 - 24 - next.radius; next.visual.y = 1350; s['updateMissiles'](0);
     expect(s['missiles']).toHaveLength(0); expect(s['enemies'][0].health).toBe(2); // Inclusive physical contact, damage4.
   });
@@ -1228,7 +1401,7 @@ describe('GAME-048 defense production boundary', () => {
   it.each(contacts)('exact contact %s/elite%s enemy(%s,%s) player(%s,%s)', (kind, elite, ex, ey, px, py, x, y, touches) => {
     const f = fixture(), s = f.scene, draws = spyStreams(s);
     s['applyBuildChange']({ kind: 'percent', stat: 'impact', delta: 10 });
-    s['player']!.x = px; s['player']!.y = py; s['createEnemy'](ex, ey, kind, elite);
+    s['player']!.x = px; s['player']!.y = py; s['createEnemy'](ex, ey, kind, s['run']!, elite);
     const routing = vi.spyOn(s as unknown as { damagePlayer(hit: unknown): unknown }, 'damagePlayer');
     s['updatePlayerContact'](); expect(s['player']!.x).toBeCloseTo(x); expect(s['player']!.y).toBeCloseTo(y);
     expect(routing).toHaveBeenCalledTimes(touches ? 1 : 0);
@@ -1237,7 +1410,7 @@ describe('GAME-048 defense production boundary', () => {
     for (const draw of draws) expect(draw).not.toHaveBeenCalled();
   });
   it.each(['GOD', 'PROTECTED', 'PAUSED', 'TERMINAL'] as const)('%s contact keeps the exact damage/geometry distinction', state => {
-    const f = fixture(), s = f.scene; s['createEnemy'](2400, 1350, 'chaser');
+    const f = fixture(), s = f.scene; s['createEnemy'](2400, 1350, 'chaser', s['run']!);
     if (state === 'GOD') f.api.setGodMode(true);
     if (state === 'PROTECTED') primeProtection(s, 200);
     if (state === 'PAUSED') s['handlePauseRequest']();
@@ -1248,7 +1421,7 @@ describe('GAME-048 defense production boundary', () => {
   });
   it('processes first collection contact only and defense work adds no Build/Tags/RNG/diagnostic/timer effects', () => {
     const f = fixture(), s = f.scene; f.api.setGodMode(true);
-    s['createEnemy'](2400, 1350, 'chaser'); s['createEnemy'](2430, 1350, 'boss');
+    s['createEnemy'](2400, 1350, 'chaser', s['run']!); s['createEnemy'](2430, 1350, 'boss', s['run']!);
     const before = f.api.snapshot()!, build = s['playerBuild']!.snapshot(), draws = spyStreams(s), timers = [...s['gameplayTimers']];
     s['updatePlayerContact'](); expect(s['player']!.x).toBe(2444);
     s['playerDefense']!.setCurrentShield(2); s['playerDefense']!.healHull(0, 5); s['playerDefense']!.reconcileMaxHull(5);
@@ -1277,7 +1450,7 @@ describe('GAME-048 defense production boundary', () => {
 describe('GAME-049 concrete Attack/Hit integration', () => {
   function armed() {
     const f = fixture(), s = f.scene;
-    s['createEnemy'](2800, 1350, 'tank'); s['currentTarget'] = s['enemies'][0];
+    s['createEnemy'](2800, 1350, 'tank', s['run']!); s['currentTarget'] = s['enemies'][0];
     Object.assign(s, { drone: visual(2510, 1350) });
     return f;
   }
@@ -1342,7 +1515,7 @@ describe('GAME-049 concrete Attack/Hit integration', () => {
     expect(s['playerDefense'].snapshot()).toEqual(before);
   });
   it.each([false, true])('swept straight hit selects earliest and collection tie first (tie%s)', tie => {
-    const { scene: s } = fixture(); s['createEnemy'](3000, 1350, 'tank'); s['createEnemy'](tie ? 3000 : 2900, 1350, 'tank');
+    const { scene: s } = fixture(); s['createEnemy'](3000, 1350, 'tank', s['run']!); s['createEnemy'](tie ? 3000 : 2900, 1350, 'tank', s['run']!);
     playerShot(s, 2800); s['updateProjectiles'](500);
     expect(s['enemies'].map(e => e.health)).toEqual(tie ? [5, 6] : [6, 5]); expect(s['projectiles']).toHaveLength(0);
   });
@@ -1350,7 +1523,7 @@ describe('GAME-049 concrete Attack/Hit integration', () => {
     const { scene: s } = armed(); s['enemies'][0].visual.x = 2460; s['clusterEvolved'] = true; s['fireMissile']();
     const m = s['missiles'][0]; s['explodeMissile'](2400, 1350, m); s['explodeClusterSatellites'](2400, 1350, m);
     expect(s['enemies'][0].health).toBe(3); // 6 - primary2 - satellite1 at inclusive tangent.
-    s['createEnemy'](2580, 1350, 'tank'); const outer = s['enemies'].at(-1)!;
+    s['createEnemy'](2580, 1350, 'tank', s['run']!); const outer = s['enemies'].at(-1)!;
     s['explodeClusterSatellites'](2400, 1350, m); expect(outer.health).toBe(5);
   });
   it('validates tiny Cluster half-damage before visual, array, HP or timer mutation', () => {
@@ -1365,7 +1538,7 @@ describe('GAME-049 concrete Attack/Hit integration', () => {
     s['fireLaser'](); s['fireDrone'](); expect(s['projectiles']).toHaveLength(0); expect(circle).not.toHaveBeenCalled();
   });
   it('collision precedes lifetime expiry/world exit, including initial overlap and inclusive tangency', () => {
-    const { scene: s } = fixture(); s['createEnemy'](4800, 1350, 'tank');
+    const { scene: s } = fixture(); s['createEnemy'](4800, 1350, 'tank', s['run']!);
     const p = playerShot(s, 4800); p.remainingLifetime = 0; s['updateProjectiles'](0);
     expect(s['enemies'][0].health).toBe(5); expect(s['projectiles']).toHaveLength(0);
     s['enemies'][0].visual.x = 2900; s['enemies'][0].visual.y = 1380;
@@ -1374,8 +1547,8 @@ describe('GAME-049 concrete Attack/Hit integration', () => {
     expect(s['projectiles']).toHaveLength(0); expect(expired.visual.active).toBe(false);
   });
   it('Missile hits an intervening non-target at interpolated center and reacquires only after target loss', () => {
-    const { scene: s } = fixture(); s['createEnemy'](3000, 1350, 'tank'); s['fireMissile'](); const m = s['missiles'][0];
-    const target = m.target; s['createEnemy'](2600, 1350, 'tank'); const interceptor = s['enemies'][1];
+    const { scene: s } = fixture(); s['createEnemy'](3000, 1350, 'tank', s['run']!); s['fireMissile'](); const m = s['missiles'][0];
+    const target = m.target; s['createEnemy'](2600, 1350, 'tank', s['run']!); const interceptor = s['enemies'][1];
     const explosion = vi.spyOn(s as unknown as { explodeMissile(x: number, y: number, missile: unknown): void }, 'explodeMissile');
     s['updateMissiles'](1000); expect(m.target).toBe(target); expect(explosion.mock.calls[0].slice(0, 2)).toEqual([2568, 1350]);
     expect(interceptor.health).toBe(4); expect(target!.health).toBe(6);
