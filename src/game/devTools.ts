@@ -13,6 +13,7 @@ export type DevSnapshot = {
   isLevelUpPaused: boolean;
   godMode: boolean;
   playerHealth: number;
+  playerShield: number;
   progression: { level: number; xp: number; threshold: number };
   protectionRemaining: number;
   bossSpawned: boolean;

@@ -4,8 +4,8 @@
 
 - Project: NEBULA.
 - Milestone: First Playable / GAME-015 complete.
-- Source baseline HEAD: `0bb9a92fb0a4af2e86cc856dad3f8fad3c81fab7`.
-- This map reflects that source baseline plus the staged GAME-047 Tags/BuildSnapshot ownership; current Scene retains combat/presentation and GAME-039 DEV wiring.
+- Source baseline HEAD: `4ef10beb8e9d517bba300ae48fc5a14ab03189a8`.
+- This map reflects that source baseline plus the staged GAME-048 PlayerDefense ownership; current Scene retains combat/presentation and GAME-039 DEV wiring.
 - Active task request defines task-specific requirements.
 - AGENTS.md defines repository policy.
 - TASK_GRAPH.md defines task scope, dependencies and status.
@@ -36,8 +36,10 @@ IDs are repository-relative paths; symbols use `path#export`.
 | `src/game/run/RunDiagnostics.test.ts` | 35 pure seed/lifetime/numeric/identity/atomicity/copy/eviction/terminal cases |
 | `src/game/player/PlayerBuild.ts` | Phaser-free run Build: exact3/1/6 slots, ten bases/modifiers/effective cache, twelve Tag totals/derived identity, detached canonical snapshot and captured disposal |
 | `src/game/player/PlayerBuild.test.ts` | 52 pure slot/base/percentage/flat/Analyzer/Tag/identity/copy/atomicity/lifetime cases |
+| `src/game/player/PlayerDefense.ts` | Phaser-free current Hull/Shield/protection arithmetic, detached snapshot and exact-owner disposal; no maximum or lifecycle ownership |
+| `src/game/player/PlayerDefense.test.ts` | 35 pure validation/Shield-first/loss/protection/heal/cap/detachment/lifetime cases |
 | `src/game/devTools.ts` | DevSnapshot with numeric runSeed/runState/copied ordered pauseReasons and detached nested diagnostics/build; five-command DevTools types, no runtime registry |
-| `src/game/scenes/GameplayScene.devTools.test.ts` | 134 tracked Scene/DevTools/lifecycle/RNG/pause/input/diagnostics/Build/Tag cases, including installed Phaser Clock phase integration |
+| `src/game/scenes/GameplayScene.devTools.test.ts` | 158 tracked Scene/DevTools/lifecycle/RNG/pause/input/diagnostics/Build/Tag/Defense cases, including installed Phaser Clock phase integration |
 | `src/game/combat/collision.ts` | Pure numeric collision math |
 | `src/game/combat/collision.test.ts` | Tracked geometry tests |
 | `src/game/progression/experience.ts` | Pure XP threshold/award arithmetic and state type |
@@ -104,6 +106,9 @@ IDs are repository-relative paths; symbols use `path#export`.
 | `src/game/player/PlayerBuild.ts#BuildIdentity` | Cached derived dominant/secondary positive score tiers, canonical ties |
 | `src/game/player/PlayerBuild.ts#PlayerBuild.addTagPoints` | Validated atomic permanent accumulation; no current production callers, stats/RNG/diagnostics/timer effects |
 | `src/game/player/PlayerBuild.ts#BaseStats` | Exact ten shared fields; PercentStatKey excludes Analyzer, CombatSystemId has only three current identities |
+| `src/game/player/PlayerDefense.ts#PlayerDefense` | constructor(initialHull), snapshot, advanceProtection, applyIncomingDamage, healHull, reconcileMaxHull, setCurrentShield, dispose; Shield setter has no production caller |
+| `src/game/player/PlayerDefense.ts#PlayerDefenseSnapshot` | Detached currentHull/currentShield/protectionRemaining only |
+| `src/game/player/PlayerDefense.ts#IncomingDefenseResult` | Local accepted/protectionRejected/shieldLost/hullLost/hullDepleted arithmetic result |
 | `src/game/combat/collision.ts#segmentCircleHitTime` | First segment-circle hit in [0,1], else Infinity |
 | `src/game/progression/experience.ts#ExperienceState` | Numeric level and XP toward next level |
 | `src/game/progression/experience.ts#xpForNextLevel` | Prototype threshold calculation |
@@ -156,6 +161,11 @@ Runtime labels below describe scene-owned concepts, not separate modules/classes
 | `src/game/scenes/GameplayScene.ts` | RECORDS | RunDiagnostics at accepted create/update/spawn/kill/damage/XP/reward/pause/terminal boundaries |
 | `src/game/devTools.ts` | IMPORTS_TYPE | `src/game/run/RunDiagnostics.ts#RunDiagnosticsSnapshot` |
 | `src/game/scenes/GameplayScene.ts` | CREATES | `src/game/player/PlayerBuild.ts#PlayerBuild` during PREPARING, before HP/HUD; exact captured disposal |
+| `src/game/scenes/GameplayScene.ts` | CREATES | `src/game/player/PlayerDefense.ts#PlayerDefense` from Build Hull during PREPARING, before HUD; disposeDefense captures the exact owner |
+| `src/game/player/PlayerDefense.ts#PlayerDefense` | TESTED_BY | `src/game/player/PlayerDefense.test.ts` and actual Scene incoming/contact/reward integration |
+| GameplayScene.damagePlayer | USES | Current PlayerDefense after run/player/God guards; only positive Hull loss reaches diagnostics, then HUD/alpha/Death |
+| GameplayScene.applyBuildChange / acceptLevelUpChoice | USES | Build maximum then Defense.reconcileMaxHull; current Hull Plating also healHull(1,max) before reward release |
+| GameplayScene.updateHud / publishDevTools | READS | Defense current Hull/Shield/protection; Build maximum; DEV compatibility scalars from one snapshot |
 | `src/game/devTools.ts` | IMPORTS_TYPE | `src/game/player/PlayerBuild.ts#BuildSnapshot` for detached snapshot.build |
 | `src/game/player/PlayerBuild.ts#PlayerBuild` | TESTED_BY | `src/game/player/PlayerBuild.test.ts` and actual Scene integration |
 | `src/game/run/RunDiagnostics.ts#RunDiagnostics` | TESTED_BY | `src/game/run/RunDiagnostics.test.ts` and actual Scene integration tests |
@@ -208,9 +218,10 @@ All private names below are navigation anchors, not exported symbol nodes.
 | Player visual/input | player, inputAdapter; create / bindRunInput | Polygon and exact-create KeyboardInput; raw keys remain in adapter |
 | Movement/bounds/camera | update; movementDirection; create camera setup | Normalized delta movement, arena clamp/follow |
 | Dash | inputAdapter.sample / intent.activatePressed, dashDirection, dashRemaining, dashCooldownRemaining; update → stepDash / movePlayer | Space intent; scene-owned lock, 900 px/s, 200 ms, 3000 ms cooldown; PAUSED freezes burst/cooldown; create resets |
-| Player health | playerHealth, derived playerMaxHealth; damagePlayer | Scene current HP; max reads Build Hull, no mutable duplicate |
+| Player defense | playerDefense; create/disposeDefense; damagePlayer | Defense owns current Hull/Shield/protection; read-only playerHealth getter; playerMaxHealth reads Build Hull |
 | PlayerBuild | playerBuild; create/disposeBuild; applyBuildChange | Fixed [LASER,MISSILE,COMBAT_DRONE], Active/Core empty; cached ten effective stats; private exact-run/choice mutation bridge |
-| Damage protection | playerDamageProtectionRemaining; updatePlayerProtection | Global 500 ms protection, temporary alpha |
+| Damage protection | read-only playerDamageProtectionRemaining; updatePlayerProtection → PlayerDefense.advanceProtection | Defense owns fixed500ms/countdown; Scene owns alpha, RUNNING guard and existing update phase |
+| Contact separation | updatePlayerContact | First inclusive overlap R44/60, minimum translation/coincident+X, player bounds21/25; before damage even under God/protection, no Impact/RNG/extra pass |
 | Level-up pause | isLevelUpPaused; enterLevelUpPause; RunLifecycle REWARD | Flag is transaction identity only; REWARD owns PAUSED; current choice releases only REWARD, other reasons retain pause |
 | Choice UI/resume | levelUpPresentation; enterLevelUpPause; acceptLevelUpChoice | Exact run/text/REWARD identity; applies one current upgrade/evolution, destroys UI, releases REWARD only; resumes if no other reason remains |
 | Run lifecycle | run; RunLifecycle; create | PREPARING/RUNNING/PAUSED/TERMINAL/DISPOSED; concrete composed reasons; first terminal from RUNNING/PAUSED; captured exact disposal |
@@ -254,18 +265,19 @@ All private names below are navigation anchors, not exported symbol nodes.
 | Collision inputs | updateProjectiles; player/enemy/projectile radii | Scene supplies per-enemy body radius24/40 + projectile/Missile/player radius; explosion coverage stays center-only |
 | Collision calculation | collision.ts; segmentCircleHitTime | Pure numeric math, no Phaser/runtime records |
 | Player damage sources | updatePlayerContact; updateProjectiles | Contact and hostile impacts share damagePlayer/protection |
-| Runtime HUD | hud; updateHud; create, update, damagePlayer, updateXpPickups | Fixed HP current/max, XP/threshold, level and Dash readiness; reads existing state, refreshes on mutations/displayed cooldown change, recreated on retry |
+| Runtime HUD | hud; updateHud; create, update, damagePlayer, updateXpPickups | Fixed HP Defense current/Build max, XP/threshold, level and Dash readiness; refreshed on mutations/displayed cooldown change, recreated on retry |
 | Temporary UI | create; enterPlayerDeath | Fixed labels, SHIP DESTROYED, RETRY |
 
 ## Runtime and lifecycle
 
 BootScene.create → scene.start('GameplayScene') → GameplayScene.create
-→ fresh player/enemy/collections → spawn/Laser/Missile/Drone/hostile timers → update.
+→ fresh PREPARING lifecycle/Build/Defense → player/HUD/enemy/collections
+→ spawn/Laser/Missile/Drone/hostile timers/input/UI → run.start → RunRandom → RunDiagnostics → DEV → update.
 
 update: sample intents / handle PauseRequest → lifecycle/player/intent guards → diagnostics.advance(delta) once → player movement/Dash split/bounds → Drone orbit → Chaser/Tank/Warden pursuit / Shooter band movement → target/highlight
-→ protection countdown → straight projectiles/impacts → Missiles/homing/explosions → contact damage → XP magnet/collection (simulation active only).
+→ Defense protection countdown/Scene alpha → straight projectiles/impacts → Missiles/homing/explosions → contact separation/damage → XP magnet/collection (simulation active only).
 
-Lethal player damage → damagePlayer → enterPlayerDeath → frozen simulation
+Lethal player damage → damagePlayer → Defense commits Hull0/protection500 → Hull-loss diagnostics/HUD/alpha0.5 → enterPlayerDeath/alpha0.25 → frozen simulation
 → RETRY pointerdown (once) → scene.restart → fresh create.
 
 Common Warden removal during a player hit → complete that projectile or full Missile/Cluster
@@ -274,7 +286,7 @@ detonation and cleanup → enterRunVictory → frozen gameplay / fixed result
 
 - Adapter consumes intent edges and suppresses held controls across pause/resume/terminal; repeats/rejected activation never queue. Choice acceptance resets adapter, not raw keys.
 - create resets Dash clocks/direction and Clock.paused, with a fresh exact-owner adapter/focus binding; old callbacks/cleanup remain inert on reused Scene.
-- create constructs a fresh lifecycle authority and resets health/protection, arrays, target and successfulTimedSpawns0 (no Elite/Boss), bossSpawned/bossDefeated false; constructs one initial Chaser outside the timed CCCSCT sequence.
+- create constructs fresh lifecycle/Build/Defense (Hull5/Shield0/protection0), resets arrays, target and successfulTimedSpawns0 (no Elite/Boss), bossSpawned/bossDefeated false; constructs one initial Chaser outside the timed CCCSCT sequence. Captured exact Defense disposal cannot touch a fresh owner on reused Scene.
 - Spawn, Laser, Missile, Drone and hostile callbacks return while dead, level-up paused or victorious; same timer events remain scheduled without Victory reset/pause/recreation.
 - Level-increasing collection removes its pickup then pauses; subsequent pickups remain frozen.
 - One current choice applies its upgrade/evolution, destroys levelUpPresentation and releases REWARD only; other reasons retain PAUSED and stale choices cannot release a new presentation's reason.
@@ -379,7 +391,7 @@ level/HP mutation. R/F/V/S/E compose current firing values, C stays separate; Mi
 radius for consistent visual/collision/world exit. Shared FireControl resets only the three same
 player events; local cadence resets stay weapon-specific. snapshot.build is detached, reads do not
 alter RNG/diagnostics. Real pointer/modifier/collision/evolution/focus/native/production checks
-cover the boundary; defense/Attack architecture and later gameplay remain absent.
+cover the boundary; incoming defense is mapped below, outgoing Attack architecture remains absent.
 
 PlayerBuild TAG_IDS/TagId/TagPoints/BuildIdentity/BuildSnapshot/addTagPoints IMPLEMENT_TASK GAME-047.
 Twelve explicit stored totals start0; existing prototype slots/choices contribute nothing.
@@ -395,6 +407,18 @@ checks verify gameplay/stat/Analyzer/RNG/diagnostic/five-event isolation. Existi
 Build disposal invalidates Tag additions/reads; fresh native Build resets twelve0/empty
 identity. No maturity/difficulty/offer weighting or later domain behavior is implemented.
 
+PlayerDefense + GameplayScene.playerDefense/disposeDefense/damagePlayer/updatePlayerProtection/
+updatePlayerContact IMPLEMENT_TASK GAME-048. Defense owns only three transient scalars;
+Build owns max Hull. Accepted Shield-first actual loss starts500; only positive Hull loss
+reaches existing diagnostics before terminal. God bypasses Defense; protection rejects
+without extension. Scene retains hostile cleanup and exact bounded first-contact separation.
+Guarded shared Hull reconciliation never heals an increase; Hull Plating adds1/heals1.
+HUD uses derived current/max; DEV adds playerShield and derives compatibility scalars from
+one snapshot without changing BuildSnapshot/five commands. All setCurrentShield call sites
+are tests/internal ignored harnesses; Shield Systems has no consumer. No new timer/RNG/
+Tags/Analyzer/reward behavior. Captured disposal makes old reads/mutations throw; fresh
+native create and saved callback isolation are verified by tracked and actual Phaser tests.
+
 ## Common navigation queries
 
 | Question | Likely path / anchor |
@@ -406,7 +430,8 @@ identity. No maturity/difficulty/offer weighting or later domain behavior is imp
 | Where are level-up choices/resume owned? | GameplayScene.ts → enterLevelUpPause, levelUpPresentation, acceptLevelUpChoice |
 | Where are HUD values rendered/refreshed? | GameplayScene.ts → hud, updateHud; create, damagePlayer, updateXpPickups |
 | Where is Dash input/timing/reset owned? | input/KeyboardInput.ts → Space intent; GameplayScene.ts → update, movePlayer, create; player/dash.ts#stepDash |
-| Where is player damage controlled? | GameplayScene.ts → damagePlayer, updatePlayerProtection |
+| Where is player damage controlled? | PlayerDefense.ts numeric Shield/Hull/protection; GameplayScene.ts → damagePlayer ownership/God/diagnostics/HUD/terminal adapter |
+| Where are contact separation and Hull healing owned? | GameplayScene.ts → updatePlayerContact geometry; applyBuildChange/acceptLevelUpChoice → PlayerDefense.reconcileMaxHull/healHull, Build maximum |
 | Who owns projectile movement/lifetime/cleanup? | GameplayScene.ts → updateProjectiles (straight shots), updateMissiles (homing) |
 | Where are Drone orbit/bolts owned? | GameplayScene.ts → droneConfig, droneAttackValues, droneRanks, droneTimer, droneAngle, twinDrone, twinDroneEvolved, updateDrone, positionDrone, fireDrone, fireDroneFrom, firePlayerProjectile / updateProjectiles |
 | Where are Missile homing/explosion owned? | GameplayScene.ts → fireMissile, aimMissile, updateMissiles, explodeMissile; collision.ts sweep |

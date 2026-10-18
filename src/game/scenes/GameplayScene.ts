@@ -12,6 +12,7 @@ import { shouldSpawnEliteTank } from '../enemies/eliteTank';
 import { shouldSpawnWarden, wardenPhase, wardenBurstDirections } from '../enemies/warden';
 import { stepDash } from '../player/dash';
 import { PlayerBuild, type PercentStatKey } from '../player/PlayerBuild';
+import { PlayerDefense } from '../player/PlayerDefense';
 import { selectChoices } from '../progression/selectChoices';
 import { effectiveMissileExplosionRadius } from '../progression/spatialAmplifier';
 import { effectiveDroneBoltRadius } from '../progression/replicationMatrix';
@@ -145,6 +146,7 @@ export class GameplayScene extends Phaser.Scene {
   private runRandom?: RunRandom;
   private runDiagnostics?: RunDiagnostics;
   private playerBuild?: PlayerBuild;
+  private playerDefense?: PlayerDefense;
   private get isPlayerDead(): boolean { return this.run?.outcome === 'DEATH'; }
   private get isRunVictorious(): boolean { return this.run?.outcome === 'VICTORY'; }
   private victoryPresentation: Phaser.GameObjects.Text[] = [];
@@ -153,11 +155,10 @@ export class GameplayScene extends Phaser.Scene {
   private moduleLevels: Record<PassiveModule, number> = { hull: 0, thruster: 0, collector: 0, combat: 0, spatial: 0, replication: 0 };
   private globalDamageMultiplier = 1;
   private get playerMaxHealth(): number { return this.playerBuild!.getEffectiveStats().hull; }
-  private playerHealth!: number;
+  private get playerHealth(): number { return this.playerDefense!.snapshot().currentHull; }
   private readonly playerRadius = 20;
   private readonly contactDamage = 1;
-  private readonly playerDamageProtectionDuration = 500;
-  private playerDamageProtectionRemaining = 0;
+  private get playerDamageProtectionRemaining(): number { return this.playerDefense!.snapshot().protectionRemaining; }
   private enemies: EnemyRuntime[] = [];
   private xpPickups: XpPickup[] = [];
   private xpMagnetRadius = 180;
@@ -239,6 +240,15 @@ export class GameplayScene extends Phaser.Scene {
     };
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, disposeBuild);
     this.events.once(Phaser.Scenes.Events.DESTROY, disposeBuild);
+    const defense = new PlayerDefense(build.getEffectiveStats().hull);
+    this.playerDefense = defense;
+    const disposeDefense = () => {
+      defense.dispose();
+      this.events.off(Phaser.Scenes.Events.SHUTDOWN, disposeDefense);
+      this.events.off(Phaser.Scenes.Events.DESTROY, disposeDefense);
+    };
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, disposeDefense);
+    this.events.once(Phaser.Scenes.Events.DESTROY, disposeDefense);
     this.godMode = false;
     this.gameplayTimers = [];
     this.victoryPresentation = [];
@@ -265,8 +275,6 @@ export class GameplayScene extends Phaser.Scene {
     this.playerExperience = { level: 1, xp: 0 };
     this.isLevelUpPaused = false;
     this.levelUpPresentation = [];
-    this.playerHealth = this.playerMaxHealth;
-    this.playerDamageProtectionRemaining = 0;
     this.enemies = [];
     this.successfulTimedSpawns = 0;
     this.bossSpawned = false;
@@ -480,13 +488,16 @@ export class GameplayScene extends Phaser.Scene {
       if (run.state !== 'RUNNING') return false;
     } else if (run.state !== 'PAUSED' || !run.hasPauseReason('REWARD') || !this.isLevelUpPaused
       || !choice || !this.levelUpPresentation.includes(choice)) return false;
+    const defense = this.playerDefense;
+    if (!defense) return false;
+    defense.snapshot(); // Assert current defense is live before changing Build.
     const before = build.getEffectiveStats();
     const changed = change.kind === 'percent' ? build.applyStatPercent(change.stat, change.delta)
       : change.kind === 'hullPlating' ? build.applyPrototypeHullPlating() : build.applyPrototypeThruster();
     if (!changed) return false;
     const after = build.getEffectiveStats();
     if (change.kind === 'percent' && change.stat === 'hull') {
-      this.playerHealth = Math.min(this.playerHealth, after.hull);
+      defense.reconcileMaxHull(after.hull);
       this.updateHud();
     }
     if (after.fireControl !== before.fireControl) {
@@ -739,7 +750,8 @@ export class GameplayScene extends Phaser.Scene {
       this.moduleLevels[option.module] += 1;
       switch (option.module) {
         case 'hull':
-          this.playerHealth = Math.min(this.playerMaxHealth, this.playerHealth + 1);
+          this.playerDefense!.reconcileMaxHull(this.playerMaxHealth);
+          this.playerDefense!.healHull(1, this.playerMaxHealth);
           this.updateHud();
           break;
         case 'collector': this.xpMagnetRadius += 40; break;
@@ -793,40 +805,45 @@ export class GameplayScene extends Phaser.Scene {
   }
 
   private updatePlayerProtection(delta: number): void {
-    if (!this.player) return;
-    this.playerDamageProtectionRemaining = Math.max(0, this.playerDamageProtectionRemaining - delta);
+    if (this.isSimulationPaused() || !this.player || !this.playerDefense) return;
+    this.playerDefense.advanceProtection(delta);
     if (this.playerDamageProtectionRemaining > 0) return;
     this.player.setAlpha(1);
   }
 
   private updatePlayerContact(): void {
     if (this.isSimulationPaused()) return;
-    if (!this.player || this.playerHealth === 0 || this.playerDamageProtectionRemaining > 0) return;
+    if (!this.player || !this.playerDefense || this.playerHealth === 0) return;
 
     for (const enemy of this.enemies) {
       const radius = this.playerRadius + enemy.collisionRadius;
       const dx = enemy.visual.x - this.player.x;
       const dy = enemy.visual.y - this.player.y;
-      if (dx * dx + dy * dy <= radius * radius) {
+      const distance = Math.hypot(dx, dy);
+      if (distance <= radius) {
+        const step = Math.max(0, radius - distance);
+        const marginX = this.player.width / 2 + this.player.lineWidth / 2;
+        const marginY = this.player.height / 2 + this.player.lineWidth / 2;
+        this.player.x = Phaser.Math.Clamp(this.player.x + (distance > 0 ? -dx / distance : 1) * step,
+          marginX, this.arenaWidth - marginX);
+        this.player.y = Phaser.Math.Clamp(this.player.y + (distance > 0 ? -dy / distance : 0) * step,
+          marginY, this.arenaHeight - marginY);
         this.damagePlayer(enemy.contactDamage);
         break;
       }
     }
   }
 
-  private damagePlayer(amount: number): void {
-    if (this.isSimulationPaused()) return;
-    if (!this.player || this.playerHealth === 0) return;
+  private damagePlayer(amount: number, run = this.run, defense = this.playerDefense): void {
+    if (!run || this.run !== run || run.state !== 'RUNNING' || !defense || this.playerDefense !== defense) return;
+    if (!this.player || defense.snapshot().currentHull === 0) return;
     if (import.meta.env.DEV && this.godMode) return;
-    if (this.playerDamageProtectionRemaining > 0) return;
-    const beforeHp = this.playerHealth;
-    this.playerHealth = Math.max(0, this.playerHealth - amount);
-    const lost = beforeHp - this.playerHealth;
-    if (lost > 0) this.runDiagnostics!.recordPlayerDamage(lost);
+    const result = defense.applyIncomingDamage(amount);
+    if (result.hullLost > 0) this.runDiagnostics!.recordPlayerDamage(result.hullLost);
+    if (!result.accepted) return;
     this.updateHud();
-    this.playerDamageProtectionRemaining = this.playerDamageProtectionDuration;
     this.player.setAlpha(0.5);
-    if (this.playerHealth === 0) this.enterPlayerDeath();
+    if (result.hullDepleted) this.enterPlayerDeath();
   }
 
   private enterPlayerDeath(): void {
@@ -1242,6 +1259,7 @@ export class GameplayScene extends Phaser.Scene {
       snapshot: () => {
         if (!valid) return null;
         const boss = activeWarden();
+        const defense = this.playerDefense!.snapshot();
         return {
           runSeed: this.runRandom!.runSeed,
           diagnostics: this.runDiagnostics!.snapshot(),
@@ -1249,9 +1267,9 @@ export class GameplayScene extends Phaser.Scene {
           runState: this.run!.state, pauseReasons: this.run!.pauseReasons,
           isPlayerDead: this.isPlayerDead, isRunVictorious: this.isRunVictorious,
           isLevelUpPaused: this.isLevelUpPaused, godMode: this.godMode,
-          playerHealth: this.playerHealth,
+          playerHealth: defense.currentHull, playerShield: defense.currentShield,
           progression: { ...this.playerExperience, threshold: xpForNextLevel(this.playerExperience.level) },
-          protectionRemaining: this.playerDamageProtectionRemaining,
+          protectionRemaining: defense.protectionRemaining,
           bossSpawned: this.bossSpawned, bossDefeated: this.bossDefeated,
           warden: boss ? { health: boss.health, phase: wardenPhase(boss.health) ?? null } : null,
           successfulTimedSpawns: this.successfulTimedSpawns, activeEnemyCount: this.enemies.length,

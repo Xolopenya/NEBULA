@@ -4,6 +4,7 @@ import { RunLifecycle } from '../run/RunLifecycle';
 import { RunRandom } from '../run/RunRandom';
 import { RunDiagnostics } from '../run/RunDiagnostics';
 import { PlayerBuild, TAG_IDS, type BuildSnapshot } from '../player/PlayerBuild';
+import { PlayerDefense } from '../player/PlayerDefense';
 
 class EventEmitter {
   private callbacks = new Map<string, Set<(...args: unknown[]) => void>>();
@@ -19,9 +20,9 @@ class EventEmitter {
 function visual(x = 0, y = 0, radius = 0) {
   const callbacks = new Map<string, () => void>();
   const object = {
-    x, y, radius, width: 40, height: 48, lineWidth: 2, text: '', active: true,
+    x, y, radius, width: 40, height: 48, lineWidth: 2, text: '', active: true, alpha: 1,
     setStrokeStyle() { return this; }, setFillStyle() { return this; },
-    setAlpha() { return this; }, setScrollFactor() { return this; }, setDepth() { return this; },
+    setAlpha(alpha: number) { this.alpha = alpha; return this; }, setScrollFactor() { return this; }, setDepth() { return this; },
     setText(text: string) { this.text = text; return this; },
     setOrigin() { return this; }, setInteractive() { return this; },
     once(key: string, callback: () => void) { callbacks.set(key, callback); return this; },
@@ -46,6 +47,11 @@ vi.mock('phaser', () => ({
   Core: { Events: { BLUR: 'blur', HIDDEN: 'hidden', FOCUS: 'focus', VISIBLE: 'visible' } },
 }));
 
+function primeProtection(scene: GameplayScene, remaining: number) {
+  const defense = scene['playerDefense']!;
+  defense.advanceProtection(Number.MAX_VALUE);
+  defense.setCurrentShield(1); defense.applyIncomingDamage(1); defense.advanceProtection(500 - remaining);
+}
 function fixture() {
   const scene = new GameplayScene();
   const listeners = new Map<string, Set<() => void>>();
@@ -57,7 +63,7 @@ function fixture() {
   Object.assign(scene, {
     run,
     runDiagnostics,
-    playerBuild: new PlayerBuild(), playerHealth: 5,
+    playerBuild: new PlayerBuild(), playerDefense: new PlayerDefense(5),
     time: { paused: false }, input: {}, game: { events: new EventEmitter() },
     runRandom: new RunRandom(0),
     cameras: { main: { worldView: { left: 1440, right: 3360, top: 810, bottom: 1890 } } },
@@ -173,16 +179,16 @@ describe('current scene DevTools production operations', () => {
     scene['createEnemy'](2400, 1350, 'chaser');
     scene['updatePlayerContact']();
     expect(scene['playerHealth']).toBe(5);
-    expect(scene['player']!.x).toBe(2400);
-    scene['launchHostileProjectile']({ x: 2400, y: 1350 }, 1, 0);
+    expect(scene['player']!.x).toBe(2444);
+    scene['launchHostileProjectile'](scene['player']!, 1, 0);
     scene['updateProjectiles'](0);
     expect(scene['projectiles']).toHaveLength(0);
     expect(scene['playerDamageProtectionRemaining']).toBe(0);
-    scene['playerDamageProtectionRemaining'] = 50;
+    primeProtection(scene, 50);
     scene['damagePlayer'](1);
     expect(scene['playerDamageProtectionRemaining']).toBe(50);
     api.setGodMode(false);
-    scene['playerDamageProtectionRemaining'] = 0;
+    scene['playerDefense']!.advanceProtection(500);
     scene['updatePlayerContact']();
     expect(scene['playerHealth']).toBe(4);
     expect(scene['playerDamageProtectionRemaining']).toBe(500);
@@ -320,7 +326,7 @@ describe('GAME-042 real Scene terminal integration', () => {
     const { scene } = fixture();
     const enemy = boss(scene);
     const hostile = () => scene['launchHostileProjectile']({ x: 2400, y: 1350 }, 1, 0);
-    scene['playerHealth'] = 1;
+    scene['playerDefense'] = new PlayerDefense(1);
     if (first === 'DEATH') { shot(scene); hostile(); }
     else { hostile(); shot(scene); }
     scene['updateProjectiles'](0);
@@ -406,7 +412,7 @@ describe('GAME-042 real Scene terminal integration', () => {
     expect(oldApi.snapshot()).toBeNull();
     expect(scene['gameplayTimers']).toHaveLength(5);
     expect(scene['gameplayTimers'].every(t => !timers.includes(t))).toBe(true);
-    for (const callback of lifecycleCallbacks.slice(0, 6)) callback();
+    for (const callback of lifecycleCallbacks.slice(0, 7)) callback();
     for (const callback of callbacks) callback();
     expect(encounter).not.toHaveBeenCalled();
     expect(reward).not.toHaveBeenCalled();
@@ -673,7 +679,7 @@ describe('GAME-044 authoritative pause and input production paths', () => {
     s['createEnemy'](2500, 1350, 'shooter'); s['currentTarget'] = s['enemies'][0];
     s['fireLaser'](); s['fireMissile'](); s['fireHostileProjectile']();
     s['xpPickups'] = [{ visual: visual(2400, 1350), value: 5, speed: 0 } as unknown as (typeof s)['xpPickups'][number]];
-    s['playerDamageProtectionRemaining'] = 200; f.escape();
+    primeProtection(s, 200); f.escape();
     const state = () => JSON.stringify({ snapshot: f.api.snapshot(), drone: s['droneAngle'], dash: s['dashRemaining'],
       enemies: s['enemies'], projectiles: s['projectiles'], missiles: s['missiles'], pickups: s['xpPickups'] });
     const before = state(), draws = spyStreams(s);
@@ -782,7 +788,7 @@ describe('GAME-045 concrete diagnostics production observations', () => {
     s['damagePlayer'](0.5); s['damagePlayer'](3);
     expect(api.snapshot()!.diagnostics.aggregates).toMatchObject({ acceptedDamagingHits: 1, hpLost: 0.5 });
     s['handlePauseRequest'](); s['damagePlayer'](100); s['canResume'] = () => true; s['handlePauseRequest']();
-    s['playerDamageProtectionRemaining'] = 0; s['damagePlayer'](100);
+    s['playerDefense']!.advanceProtection(500); s['damagePlayer'](100);
     const d = api.snapshot()!.diagnostics;
     expect(d.aggregates).toMatchObject({ acceptedDamagingHits: 2, hpLost: 5 });
     expect(d.timeline.at(-1)).toMatchObject({ type: 'TERMINAL', outcome: 'DEATH' });
@@ -848,7 +854,7 @@ describe('GAME-045 concrete diagnostics production observations', () => {
     s.create(); const old = s['runDiagnostics']!, callbacks = s['gameplayTimers'].map(t => t.callback);
     s['handlePauseRequest'](); shutdown(); s.create(); const fresh = s['runDiagnostics']!, before = fresh.snapshot();
     expect(fresh).not.toBe(old); expect(() => old.advance(1)).toThrow('disposed'); expect(() => old.snapshot()).toThrow('disposed');
-    for (const callback of cleanups.slice(0, 6)) callback(); for (const callback of callbacks) callback();
+    for (const callback of cleanups.slice(0, 7)) callback(); for (const callback of callbacks) callback();
     expect(fresh.snapshot()).toEqual(before); expect(before.aggregates.spawned.total).toBe(1); expect(before.timeline).toHaveLength(1);
   });
 });
@@ -884,7 +890,7 @@ describe('GAME-046 PlayerBuild production consumers', () => {
     for (const draw of draws) expect(draw).not.toHaveBeenCalled();
   });
   it.each([5, 2, 2.5])('real Hull choice preserves max+1 / capped Heal1 from HP%s and repeats exactly', hp => {
-    const f = fixture(), s = f.scene; s['playerHealth'] = hp;
+    const f = fixture(), s = f.scene; s['playerDefense'] = new PlayerDefense(hp);
     passive(f, 'hull'); expect(s['playerMaxHealth']).toBe(6); expect(s['playerHealth']).toBe(hp + 1);
     for (let n = 2; n <= 20; n++) { passive(f, 'hull'); expect(s['playerMaxHealth']).toBe(5 + n); expect(s['playerHealth']).toBe(hp + n); }
     expect(s['moduleLevels'].hull).toBe(20); expect(s['playerBuild']!.getBaseStats().hull).toBe(5);
@@ -1016,7 +1022,7 @@ describe('GAME-046 PlayerBuild production consumers', () => {
     f.shutdown(); expect(() => old.snapshot()).toThrow('disposed'); expect(() => old.applyPrototypeHullPlating()).toThrow('disposed');
     s.create(); const fresh = s['playerBuild']!, before = window.__NEBULA_DEV__!.snapshot(), draws = spyStreams(s);
     expect(s['applyBuildChange']({ kind: 'percent', stat: 'hull', delta: 1 }, oldRun, old)).toBe(false);
-    for (const cleanup of cleanups.slice(0, 6)) cleanup();
+    for (const cleanup of cleanups.slice(0, 7)) cleanup();
     expect(fresh).not.toBe(old); expect(fresh.getEffectiveStats()).toEqual(new PlayerBuild().getEffectiveStats());
     expect(window.__NEBULA_DEV__!.snapshot()).toEqual(before); for (const draw of draws) expect(draw).not.toHaveBeenCalled();
     s['enterPlayerDeath'](); expect(s['applyBuildChange']({ kind: 'percent', stat: 'hull', delta: 1 })).toBe(false);
@@ -1138,5 +1144,117 @@ describe('GAME-047 canonical BuildSnapshot and production neutrality', () => {
     s['acceptLevelUpChoice'](choice, { kind: 'laser', upgrade: 'power' }, oldRun);
     expect(oldApi.snapshot()).toBeNull(); expect(oldApi.forceLevelUp()).toBe(false);
     expect(window.__NEBULA_DEV__!.snapshot()).toEqual(before);
+  });
+});
+
+describe('GAME-048 defense production boundary', () => {
+  it('constructs Defense before PREPARING HUD, owns no writable Scene health/protection and publishes derived scalars', () => {
+    const f = fixture(), s = f.scene; allowCreate(s);
+    const hud = s['updateHud'].bind(s);
+    vi.spyOn(s as unknown as { updateHud(): void }, 'updateHud').mockImplementation(() => {
+      expect(s['run']!.state).toBe('PREPARING');
+      expect(s['playerDefense']!.snapshot()).toEqual({ currentHull: 5, currentShield: 0, protectionRemaining: 0 }); hud();
+    });
+    s.create(); const api = window.__NEBULA_DEV__!, state = api.snapshot()!;
+    expect(state).toMatchObject({ playerHealth: 5, playerShield: 0, protectionRemaining: 0, gameplayTimerCount: 5 });
+    expect(state.build).toEqual(new PlayerBuild().snapshot()); expect(state.build.effectiveStats.hull).toBe(5);
+    expect(state.diagnostics.aggregates.spawned.total).toBe(1); expect(Object.keys(api)).toHaveLength(5);
+    for (const key of ['playerHealth', 'playerDamageProtectionRemaining']) {
+      expect(Object.hasOwn(s, key)).toBe(false);
+      const descriptor = Object.getOwnPropertyDescriptor(GameplayScene.prototype, key)!;
+      expect(descriptor.get).toBeTypeOf('function'); expect(descriptor.set).toBeUndefined();
+    }
+    expect('playerDamageProtectionDuration' in s).toBe(false);
+    const copy = api.snapshot()!; copy.playerShield = 999; copy.playerHealth = 999; copy.protectionRemaining = 999;
+    expect(api.snapshot()).toEqual(state); expect(s['hud']!.text).toContain('HP: 5/5');
+  });
+  it.each([[3, 2, 1, 5, 0], [3, 3, 0, 5, 0], [3, 5, 0, 3, 2],
+    [0.5, 0.75, 0, 4.75, 0.25], [2, 100, 0, 0, 5]])(
+    'Scene Shield%s incoming%s consumes through real hostile collision with Hull-only diagnostics', (shield, amount, nextShield, hull, lost) => {
+      const f = fixture(), s = f.scene; s['playerDefense']!.setCurrentShield(shield);
+      s['applyBuildChange']({ kind: 'percent', stat: 'shieldSystems', delta: 10 });
+      s['launchHostileProjectile'](s['player']!, 1, 0); s['projectiles'][0].damage = amount;
+      s['updateProjectiles'](0);
+      expect(s['projectiles']).toHaveLength(0);
+      expect(f.api.snapshot()).toMatchObject({ playerHealth: hull, playerShield: nextShield, protectionRemaining: 500 });
+      expect(f.api.snapshot()!.diagnostics.aggregates).toMatchObject({ hpLost: lost, acceptedDamagingHits: lost > 0 ? 1 : 0 });
+      expect(s['player']!.alpha).toBe(hull === 0 ? 0.25 : 0.5);
+      if (hull === 0) {
+        expect(s['run']!.outcome).toBe('DEATH'); expect(f.api.snapshot()!.diagnostics.timeline.at(-1)).toMatchObject({ type: 'TERMINAL', outcome: 'DEATH' });
+        const before = s['playerDefense']!.snapshot(); s['updatePlayerProtection'](1000);
+        s['acceptLevelUpChoice'](visual() as unknown as Phaser.GameObjects.Text, { kind: 'passive', module: 'hull' });
+        expect(s['playerDefense']!.snapshot()).toEqual(before); expect(s['player']!.alpha).toBe(0.25);
+      }
+    });
+  it('God and protection reject without extending, but collisions consume shots and expiry allows the next hit', () => {
+    const f = fixture(), s = f.scene, d = s['playerDefense']!, incoming = vi.spyOn(d, 'applyIncomingDamage');
+    d.setCurrentShield(2); f.api.setGodMode(true);
+    s['launchHostileProjectile'](s['player']!, 1, 0); s['updateProjectiles'](0);
+    expect(incoming).not.toHaveBeenCalled(); expect(s['projectiles']).toHaveLength(0);
+    expect(d.snapshot()).toEqual({ currentHull: 5, currentShield: 2, protectionRemaining: 0 });
+    f.api.setGodMode(false); s['damagePlayer'](1); s['updatePlayerProtection'](200);
+    const protectedState = d.snapshot(); s['launchHostileProjectile'](s['player']!, 1, 0); s['updateProjectiles'](0);
+    expect(s['projectiles']).toHaveLength(0); expect(d.snapshot()).toEqual(protectedState);
+    s['updatePlayerProtection'](300); expect(s['player']!.alpha).toBe(1);
+    s['damagePlayer'](2); expect(d.snapshot()).toEqual({ currentHull: 4, currentShield: 0, protectionRemaining: 500 });
+  });
+  const contacts = [
+    ['chaser', false, 2400, 1350, 2430, 1350, 2444, 1350, true],
+    ['chaser', false, 2400, 1350, 2370, 1350, 2356, 1350, true],
+    ['tank', true, 2400, 1350, 2430, 1350, 2444, 1350, true],
+    ['boss', false, 2400, 1350, 2430, 1350, 2460, 1350, true],
+    ['chaser', false, 2400, 1350, 2418, 1374, 2426.4, 1385.2, true],
+    ['chaser', false, 2400, 1350, 2400, 1350, 2444, 1350, true],
+    ['boss', false, 2400, 1350, 2400, 1350, 2460, 1350, true],
+    ['chaser', false, 2400, 1350, 2444, 1350, 2444, 1350, true],
+    ['chaser', false, 2400, 1350, 2444.01, 1350, 2444.01, 1350, false],
+    ['chaser', false, 4770, 1350, 4779, 1350, 4779, 1350, true],
+    ['chaser', false, 40, 40, 21, 25, 21, 25, true],
+  ] as const;
+  it.each(contacts)('exact contact %s/elite%s enemy(%s,%s) player(%s,%s)', (kind, elite, ex, ey, px, py, x, y, touches) => {
+    const f = fixture(), s = f.scene, draws = spyStreams(s);
+    s['applyBuildChange']({ kind: 'percent', stat: 'impact', delta: 10 });
+    s['player']!.x = px; s['player']!.y = py; s['createEnemy'](ex, ey, kind, elite);
+    const routing = vi.spyOn(s as unknown as { damagePlayer(amount: number): void }, 'damagePlayer');
+    s['updatePlayerContact'](); expect(s['player']!.x).toBeCloseTo(x); expect(s['player']!.y).toBeCloseTo(y);
+    expect(routing).toHaveBeenCalledTimes(touches ? 1 : 0);
+    expect(s['playerHealth']).toBe(touches ? (elite || kind === 'boss' ? 3 : 4) : 5);
+    expect([s['enemies'][0].visual.x, s['enemies'][0].visual.y]).toEqual([ex, ey]);
+    for (const draw of draws) expect(draw).not.toHaveBeenCalled();
+  });
+  it.each(['GOD', 'PROTECTED', 'PAUSED', 'TERMINAL'] as const)('%s contact keeps the exact damage/geometry distinction', state => {
+    const f = fixture(), s = f.scene; s['createEnemy'](2400, 1350, 'chaser');
+    if (state === 'GOD') f.api.setGodMode(true);
+    if (state === 'PROTECTED') primeProtection(s, 200);
+    if (state === 'PAUSED') s['handlePauseRequest']();
+    if (state === 'TERMINAL') s['enterPlayerDeath']();
+    const before = s['playerDefense']!.snapshot(); s['updatePlayerContact'](); s['updatePlayerProtection'](0);
+    expect(s['player']!.x).toBe(state === 'GOD' || state === 'PROTECTED' ? 2444 : 2400);
+    expect(s['playerDefense']!.snapshot()).toEqual(before);
+  });
+  it('processes first collection contact only and defense work adds no Build/Tags/RNG/diagnostic/timer effects', () => {
+    const f = fixture(), s = f.scene; f.api.setGodMode(true);
+    s['createEnemy'](2400, 1350, 'chaser'); s['createEnemy'](2430, 1350, 'boss');
+    const before = f.api.snapshot()!, build = s['playerBuild']!.snapshot(), draws = spyStreams(s), timers = [...s['gameplayTimers']];
+    s['updatePlayerContact'](); expect(s['player']!.x).toBe(2444);
+    s['playerDefense']!.setCurrentShield(2); s['playerDefense']!.healHull(0, 5); s['playerDefense']!.reconcileMaxHull(5);
+    f.api.snapshot(); expect(s['playerBuild']!.snapshot()).toEqual(build);
+    expect(f.api.snapshot()!.diagnostics).toEqual(before.diagnostics); expect(s['gameplayTimers']).toEqual(timers);
+    for (const draw of draws) expect(draw).not.toHaveBeenCalled();
+  });
+  it('captures exact Defense disposal and rejects stale damage/reward/cleanup against a fresh create', () => {
+    const f = fixture(), s = f.scene; allowCreate(s); const cleanups: Array<() => void> = [];
+    const once = s.events.once.bind(s.events);
+    vi.spyOn(s.events, 'once').mockImplementation((key, fn, ctx) => { if (key === 'shutdown') cleanups.push(fn as () => void); return once(key, fn, ctx); });
+    s.create(); const old = s['playerDefense']!, oldRun = s['run']!, oldCleanup = [...cleanups];
+    old.setCurrentShield(2); s['damagePlayer'](3); window.__NEBULA_DEV__!.forceLevelUp();
+    const choice = s['levelUpPresentation'][2]; f.shutdown(); s.create();
+    const fresh = s['playerDefense']!, before = window.__NEBULA_DEV__!.snapshot();
+    expect(fresh).not.toBe(old); expect(() => old.snapshot()).toThrow('disposed PlayerDefense');
+    expect(() => old.healHull(0, 5)).toThrow('disposed PlayerDefense');
+    s['damagePlayer'](100, oldRun, old); s['acceptLevelUpChoice'](choice, { kind: 'passive', module: 'hull' }, oldRun);
+    for (const callback of oldCleanup) callback();
+    expect(window.__NEBULA_DEV__!.snapshot()).toEqual(before);
+    expect(fresh.snapshot()).toEqual({ currentHull: 5, currentShield: 0, protectionRemaining: 0 });
   });
 });

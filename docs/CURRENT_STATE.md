@@ -2,7 +2,7 @@
 
 ## Last Updated
 
-2026-10-17.
+2026-10-18.
 
 This document describes only what is currently implemented and working.
 
@@ -14,7 +14,7 @@ Do not place future plans or speculative features here.
 
 Current phase:
 
-FIRST PLAYABLE CORE LOOP COMPLETE / GAME-047 COMPLETE
+FIRST PLAYABLE CORE LOOP COMPLETE / GAME-048 COMPLETE
 
 The project has a working browser application, development toolchain and placeholder gameplay scene.
 
@@ -183,8 +183,8 @@ No manual fire input is required. Exact or near-zero-distance shots are suppress
 Without a current target no shot is created; the timer stays ready for a future target.
 Each Laser projectile initially deals 1 damage to the first enemy intersected along its movement segment and is immediately destroyed and removed. Hit detection sweeps against the enemy runtime collision radius (regular/Elite24, Warden40) expanded by the 6-pixel projectile radius, avoiding projectile tunneling across larger frame steps. Shots do not pierce.
 Enemies with remaining HP stay active. At zero HP their visual is destroyed and their runtime entry is removed, so they no longer chase, count toward the cap or participate in targeting. Death clears currentTarget immediately when applicable; normal targeting selects and highlights the next nearest enemy on the following active update.
-Player health resets to 5 HP on scene creation. Regular enemy contact deals1 damage; Elite Tank and Warden contact deal2. Squared world-center distance uses player radius20 plus each enemy's stored collision radius: regular/Elite24 (combined44), Warden40 (combined60).
-Contact runs after projectile impacts/removals and starts 500 ms of global, delta-based protection. Multiple overlaps cause at most one hit per update. Successful damage reduces the ship alpha to 0.5 during protection, then restores it to 1. Continued overlap can damage again when protection expires.
+PlayerDefense starts with Hull5, Shield0 and protection0 on scene creation; PlayerBuild supplies max Hull5. Regular enemy contact deals1 damage; Elite Tank and Warden contact deal2. World-center distance uses player radius20 plus each enemy's stored collision radius: regular/Elite24 (combined44), Warden40 (combined60).
+Contact runs after projectile impacts/removals, separates the first inclusive overlap using the minimum circle translation and current player bounds, then routes its damage. God Mode/protection still allow separation. Accepted Shield or Hull loss starts500ms delta-based protection and alpha0.5; active expiry restores1. Multiple overlaps cause at most one contact attempt per update. Continued overlap can damage again when protection expires.
 Health clamps at zero and immediately enters a RunLifecycle DEATH outcome (read through the derived isPlayerDead getter) through the damage helper, for lethal contact or hostile hits. The transition runs once, dims the ship to alpha 0.25 and displays centered screen-fixed SHIP DESTROYED text.
 Creation resets the player to alive. Death freezes movement, enemy chase, targeting, projectile movement/collision and contact processing. Existing enemies and projectiles remain visible and frozen; timer events stay scheduled but guarded callbacks produce no spawns or shots. The lethal hostile projectile is removed before further projectile processing stops.
 Only after death, a screen-fixed clickable RETRY control appears. Clicking it once uses Phaser scene.restart() without reloading the page. Phaser shutdown destroys old scene objects/UI and timer events; create() restores an alive player at 5 HP and normal alpha at (2400, 1350), one initial enemy, no projectiles, a fresh target selection and exactly five spawn/Laser/Missile/Drone/hostile timers. Repeated death/retry cycles resume the same gameplay.
@@ -237,7 +237,7 @@ This is intentional.
 In Vite development runtime, the current GameplayScene publishes `window.__NEBULA_DEV__`
 with exactly snapshot(), forceLevelUp(), spawnWarden(), setWardenHealth(health) and
 setGodMode(enabled). Production preview boots without this property.
-snapshot() returns detached numeric runSeed, nested build and diagnostics, runState and ordered pauseReasons, plain terminal/God Mode, HP/protection, nested level/XP/threshold,
+snapshot() returns detached numeric runSeed, nested build and diagnostics, runState and ordered pauseReasons, plain terminal/God Mode, derived playerHealth/playerShield/protectionRemaining, nested level/XP/threshold,
 Boss flags/current Warden HP/derived phase, timed-spawn count, enemy count and actual
 owned TimerEvent count. It changes no gameplay state or offers.
 
@@ -247,8 +247,8 @@ the real Boss creation path once per run, only with both boss flags false, no ac
 and room under cap10; deterministic opposite-corner placement respects margin40 and distance600.
 It does not advance successfulTimedSpawns. setWardenHealth accepts finite 1..60 (including
 fractions) without killing, changing flags or resetting cadence; phases remain HP-derived.
-God Mode rejects incoming damage before protection/HP mutation, while hostile collisions
-still consume projectiles and contact retains current position semantics. Disabling does
+God Mode rejects incoming damage before calling PlayerDefense, while hostile collisions
+still consume projectiles and contact performs the same overlap separation. Disabling does
 not heal/reset protection; fresh create resets God Mode false.
 
 Every create publishes a fresh API with shutdown/destroy invalidation independent of
@@ -280,7 +280,7 @@ seven scales use base*(1+percent), Analyzer uses base+levels. The two flat bonus
 exact Hull Plating+1 / Thruster+30 arithmetic without percentage accumulation drift.
 
 Hull maximum and normal speed have no separate mutable Scene authority: compatibility
-getters read effective Hull/Thrust. Current HP remains physical Scene state. Hull Plating
+getters read effective Hull/Thrust. PlayerDefense owns current Hull. Hull Plating
 still heals exactly1 capped at the new max; ordinary max increases do not heal, reductions
 cap current HP. Dash stays900px/s,200ms,3000ms, with unchanged normalization/expiry/bounds.
 Collector/Combat/Spatial/Replication, weapon ranks/local tuning, offers and recipes remain
@@ -310,6 +310,60 @@ scaled collisions, plus Prism/Cluster/Twin. Genuine BLUR, two Victory NEW RUN cy
 Death RETRY and paused nonterminal restart retain fresh Build/lifecycle/RNG/input/
 diagnostics/API and five fresh events, with inert old callbacks. Unmodified production
 preview retains keyboard/Dash/pause/current combat and omits DEV/debug UI.
+
+## PlayerDefense and incoming damage
+
+Every create constructs a fresh Phaser-free PlayerDefense after PlayerBuild during
+PREPARING, before player/HUD setup. It owns only currentHull, currentShield and
+protectionRemaining, initially5/0/0. Scene health/protection compatibility getters are
+read-only; max Hull remains Build authority. snapshot() returns exactly three detached
+plain numeric fields. Inputs require finite numbers without coercion; damage>0, heal/
+delta>=0, initial/max Hull in [1,MAX_SAFE_INTEGER], Shield in [0,MAX_SAFE_INTEGER].
+Fractions remain exact floating arithmetic; invalid calls reject atomically. Healing
+uses bounded available-gap arithmetic, including large finite amounts.
+
+Scene validates current run/Defense/player, RUNNING and positive Hull, then rejects God
+Mode without calling Defense. Defense rejects protected hits without extending the
+remainder; otherwise Shield absorbs first and same-hit overflow reaches Hull, clamped0.
+Only an actual stored Shield/Hull loss accepts and starts500ms protection. Shield-only
+loss starts protection but records neither diagnostic hit nor hpLost. Positive actual
+Hull loss is recorded once before HUD/alpha0.5 and any accepted Death. Lethal Hull0 has
+protection500 and final alpha0.25; terminal simulation cannot expire protection or heal.
+Hostile shots remain Scene-owned and are consumed once on every collision, including
+God/protection rejection and lethal damage. Existing first-terminal/attack cleanup stays.
+
+Shared Hull percent changes reconcile current Hull to the new Build maximum: increases
+never heal, decreases cap without damage telemetry. Current guarded REWARD Hull Plating
+changes Build, increments its level, reconciles, heals1, updates HUD, records SELECTED,
+then releases REWARD. Full5/damaged2/fractional2.5 become6/3/3.5 with max6; Shield and
+protection remain unchanged. Healing discards overheal and returns actual positive gain.
+There is no production setCurrentShield caller: fresh Shield stays0; Shield Systems is
+still an unused stat. Nonzero Shield is exercised only by tests/internal ignored harnesses.
+No Shield content, regeneration, capacity, healing source or extra DEV command is added.
+
+Contact uses first collection d<=R, R44 regular/Elite or60 Warden; correction is
+unit(player-enemy)*max(0,R-d), coincident unit(+1,0), clamped x[21,4779]/y[25,2675].
+It precedes damage, including God/protected rejection. Tangency routes damage with step0;
+edge residual overlap is allowed. No Impact, enemy displacement, velocity or extra pass
+is involved. PAUSED/terminal do neither geometry nor damage; active protection countdown
+stays at its existing phase before projectiles/contact. Manual/reward/focus pause freeze
+Hull/Shield/protection and the same five event phases; resume continues the remainder.
+
+Exact captured shutdown/destroy cleanup disposes only that create's Defense. All old
+reads/mutations, even zero calls, throw; old detached snapshots remain usable. Native
+restart restores a new5/5/0/0 owner with fresh Build/zero Tags/lifecycle/RNG/input/
+diagnostics/API and five events. Saved old callbacks/cleanup cannot reach fresh Defense.
+DEV derives playerHealth/playerShield/protectionRemaining from one snapshot; BuildSnapshot
+keeps its six fields. Defense/contact/reads add no timer or RNG/Tag/Analyzer/reward effects.
+
+Real Chrome checks pass for hostile hits/expiry/God, internal Shield absorption/overflow/
+fractions/lethal and shared max synchronization, actual pointer Hull choices, all contact
+boundaries and genuine foreground-tab BLUR. Dirty Defense freezes over manual1100ms,
+reward700ms and BLUR650ms; focus return requires explicit resume. Two Victory NEW RUN,
+Death RETRY and paused nonterminal native restart verify exact disposal and inert stale
+callbacks; straight/Missile/Cluster terminal regressions also pass. Unmodified production
+preview passes keyboard/Dash/pause/combat, ordinary incoming damage to HP0/Death and an
+actual RETRY pointer back to HP5/5, with no DEV API/debug UI or new runtime errors.
 
 ## Tags and canonical BuildSnapshot
 
@@ -503,7 +557,7 @@ Gameplay prototypes will initially use placeholders and simple geometry.
 
 Nine unit tests cover collision.ts, eight cover progression/experience.ts, six cover player/dash.ts timing/expiry partitions, seven cover enemies/shooterMovement.ts band rules, and six cover progression/selectChoices.ts size, distinctness, membership, nonmutation, controlled randomness, repeated offers and input boundaries.
 
-Eight pure Prism eligibility cases, seven pure spread cases and seventeen focused-upgrade cases also pass, for 424 tracked tests across twenty-two files. GAME-047 preserves all367 prior cases and adds18 pure Tag/BuildSnapshot plus39 Scene cases (52 pure Build / 134 Scene total). GAME-046 preserves all309 prior cases and adds34 pure PlayerBuild plus24 Scene cases (95 Scene cases total). GAME-045 preserves all 264 prior cases and adds 35 pure diagnostics plus 10 actual Scene integration cases. All 223 pre-GAME-044 cases remain, including 21 pure RunRandom and 17 Scene RNG cases; GAME-044 adds 11 lifecycle, 17 keyboard and 13 Scene integration cases. Coverage includes five Replication radius cases, six Spatial radius cases, eight Cluster eligibility cases, six Cluster geometry cases, eight Twin eligibility cases and twenty-four evolution-offer cases. Fourteen Warden schedule/phase/burst cases cover spawn30, HP60/31/30/1/0, normalized world-angle bursts and deterministic independent outputs. Seven Elite schedule cases cover Tank6/12/18/24, non-Tanks and deterministic input stability. Real-browser scene validation covers rank caps, next-pause offers, volley/snapshot behavior and two native RETRY cycles restoring five gameplay timers.
+Eight pure Prism eligibility cases, seven pure spread cases and seventeen focused-upgrade cases also pass, for 483 tracked tests across twenty-three files. GAME-048 preserves all424 prior cases through real Defense fixture migration and adds35 pure Defense plus24 Scene cases (158 Scene total). GAME-047 preserves all367 prior cases and adds18 pure Tag/BuildSnapshot plus39 Scene cases (52 pure Build / 134 Scene total). GAME-046 preserves all309 prior cases and adds34 pure PlayerBuild plus24 Scene cases (95 Scene cases total). GAME-045 preserves all 264 prior cases and adds 35 pure diagnostics plus 10 actual Scene integration cases. All 223 pre-GAME-044 cases remain, including 21 pure RunRandom and 17 Scene RNG cases; GAME-044 adds 11 lifecycle, 17 keyboard and 13 Scene integration cases. Coverage includes five Replication radius cases, six Spatial radius cases, eight Cluster eligibility cases, six Cluster geometry cases, eight Twin eligibility cases and twenty-four evolution-offer cases. Fourteen Warden schedule/phase/burst cases cover spawn30, HP60/31/30/1/0, normalized world-angle bursts and deterministic independent outputs. Seven Elite schedule cases cover Tank6/12/18/24, non-Tanks and deterministic input stability. Real-browser scene validation covers rank caps, next-pause offers, volley/snapshot behavior and two native RETRY cycles restoring five gameplay timers.
 
 Vitest is installed and configured.
 
@@ -557,7 +611,7 @@ These should only be introduced when real project requirements justify them.
 
 The placeholder arena, bounded desktop movement, camera follow, repeated enemy spawning/chase, nearest-enemy targeting and Laser projectile impacts with enemy damage/death are implemented and browser-verified.
 
-GAME-001 through GAME-039 and GAME-042/043/044/045/046/047 are complete. GAME-040/041 are SUPERSEDED. GATE A PASSED — Runtime Foundation approved; GAME-048+ remain BACKLOG pending separate definition. GATE B remains unchanged / not passed.
+GAME-001 through GAME-039 and GAME-042/043/044/045/046/047/048 are complete. GAME-040/041 are SUPERSEDED. GATE A PASSED — Runtime Foundation approved; GAME-049+ remain BACKLOG pending separate definition. GATE B remains unchanged / not passed.
 
 ---
 
