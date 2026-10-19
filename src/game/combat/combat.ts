@@ -4,7 +4,9 @@ export type FlightSnapshot = Readonly<{ damage: number; speed: number; radius: n
 export type PlayerFlightSnapshot = Readonly<FlightSnapshot & { impact: number }>;
 export type MissileSnapshot = Readonly<PlayerFlightSnapshot & { explosionRadius: number }>;
 export type ContactSnapshot = Readonly<{ damage: number }>;
-export type LaserAttack = Readonly<{ kind: 'LASER'; variant: 'BASE' | 'PRISM'; snapshot: PlayerFlightSnapshot }>;
+export type LaserMechanics = Readonly<{ pattern: 'SCATTER' | 'REPEATER' | 'LANCE'; maxHits: number; pelletCount: number }>;
+export type LaserAttack = Readonly<{ kind: 'LASER'; variant: 'BASE' | 'PRISM'; snapshot: PlayerFlightSnapshot;
+  mechanics?: LaserMechanics }>;
 export type MissileAttack = Readonly<{ kind: 'MISSILE'; variant: 'BASE' | 'CLUSTER'; snapshot: MissileSnapshot }>;
 export type DroneAttack = Readonly<{ kind: 'COMBAT_DRONE'; variant: 'BASE' | 'TWIN'; snapshot: PlayerFlightSnapshot }>;
 export type HostileAttack = Readonly<{ kind: 'HOSTILE_PROJECTILE'; snapshot: FlightSnapshot }>;
@@ -31,6 +33,16 @@ function positive(value: number): number {
 export function createAttack(input: Attack): Attack {
   if (!input || typeof input !== 'object') throw new RangeError('Invalid Attack');
   const { kind } = input;
+  let mechanics: LaserMechanics | undefined;
+  if ('mechanics' in input) {
+    if (kind !== 'LASER' || input.variant !== 'BASE') throw new RangeError('Laser-only mechanics');
+    const m = input.mechanics;
+    if (!m || Reflect.ownKeys(m).length !== 3 || !['pattern', 'maxHits', 'pelletCount'].every(k => Object.hasOwn(m, k))
+      || !(m.pattern === 'SCATTER' && m.maxHits === 1 && [3, 5].includes(m.pelletCount)
+        || m.pattern === 'REPEATER' && m.maxHits === 1 && m.pelletCount === 1
+        || m.pattern === 'LANCE' && [3, 4, 5].includes(m.maxHits) && m.pelletCount === 1)) throw new RangeError('Invalid Laser mechanics');
+    mechanics = Object.freeze({ ...m });
+  }
   const playerKind = kind === 'LASER' || kind === 'MISSILE' || kind === 'COMBAT_DRONE';
   if (playerKind) {
     const evolved = kind === 'LASER' ? 'PRISM' : kind === 'MISSILE' ? 'CLUSTER' : 'TWIN';
@@ -55,7 +67,8 @@ export function createAttack(input: Attack): Attack {
     return Object.freeze({ kind: input.kind, variant: input.variant,
       snapshot: Object.freeze({ ...playerFlight, explosionRadius: positive(input.snapshot.explosionRadius) }) });
   }
-  if (input.kind === 'LASER') return Object.freeze({ kind: input.kind, variant: input.variant, snapshot: Object.freeze(playerFlight) });
+  if (input.kind === 'LASER') return Object.freeze({ kind: input.kind, variant: input.variant,
+    ...(mechanics ? { mechanics } : {}), snapshot: Object.freeze(playerFlight) });
   return Object.freeze({ kind: input.kind, variant: input.variant, snapshot: Object.freeze(playerFlight) });
 }
 

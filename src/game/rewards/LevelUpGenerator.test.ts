@@ -1,14 +1,15 @@
+import { laserProfile } from '../player/laserProgression';
 import { describe, expect, it, vi } from 'vitest';
 import { LevelUpGenerator, REWARD_AFFINITIES, LEVEL_UP_POLICY_VERSION, type LevelUpContext } from './LevelUpGenerator';
 import { PlayerBuild, TAG_IDS, type TagId } from '../player/PlayerBuild';
 import { RunRandom } from '../run/RunRandom';
 import { rewardChoices, choiceIdentity } from './rewardChoices';
 function context(): LevelUpContext {
-  const build = new PlayerBuild();
-  return { weaponFocus: 'laser', build: build.snapshot(), laserRanks: { power: 0, fireRate: 0, speed: 0 },
+  const build = new PlayerBuild(), buildSnapshot = build.snapshot();
+  return { weaponFocus: 'laser', build: buildSnapshot, get laserRanks() { return this.build.laser.ranks; },
     missileRanks: { warheadPower: 0, propulsion: 0, blastExpansion: 0 }, droneRanks: { boltPower: 0, firingSystem: 0, boltPropulsion: 0 },
     moduleLevels: { hull: 0, thruster: 0, collector: 0, combat: 0, spatial: 0, replication: 0 },
-    prismEvolved: false, clusterEvolved: false, twinDroneEvolved: false, laser: { damage: 1, fireInterval: 600, projectileSpeed: 1200 },
+    get prismEvolved() { return this.build.laser.form === 'PRISM'; }, set prismEvolved(v: boolean) { this.build.laser.form = v ? 'PRISM' : 'BASE'; }, clusterEvolved: false, twinDroneEvolved: false, get laser() { const p = laserProfile(this.build.laser); return { damage: p.damage, fireInterval: p.fireInterval, projectileSpeed: p.projectileSpeed }; },
     missile: { damage: 2, speed: 450, explosionRadius: 120 }, drone: { damage: 1, fireInterval: 1200, projectileSpeed: 800 },
     magnetRadius: 180, combatMultiplier: 1, hullPreview: build.previewPrototypeHullPlating(), thrusterPreview: build.previewPrototypeThruster() };
 }
@@ -27,8 +28,8 @@ function missFour(g: LevelUpGenerator) {
 }
 
 describe('GAME-055-v1 policy', () => {
-  it('has exactly18 deeply frozen canonical affinities in TAG_IDS order', () => {
-    expect(LEVEL_UP_POLICY_VERSION).toBe('GAME-055-v1');
+  it('has exactly36 deeply frozen canonical affinities in TAG_IDS order', () => {
+    expect(LEVEL_UP_POLICY_VERSION).toBe('GAME-056-v1');
     expect(Object.keys(REWARD_AFFINITIES)).toEqual(rewardChoices.map(choiceIdentity));
     expect(Object.isFrozen(REWARD_AFFINITIES)).toBe(true);
     for (const tags of Object.values(REWARD_AFFINITIES)) {
@@ -56,7 +57,7 @@ describe('GAME-055-v1 policy', () => {
     Object.assign(c.missileRanks, { warheadPower: 2, propulsion: 2, blastExpansion: 2 });
     Object.assign(c.droneRanks, { boltPower: 2, firingSystem: 2, boltPropulsion: 2 });
     Reflect.set(c.moduleLevels, kind === 'prism' ? 'combat' : kind === 'cluster' ? 'spatial' : 'replication', 1);
-    const ids = roll(g, c); expect(ids[0].startsWith('passive.')).toBe(true); expect(ids[2]).toBe(kind);
+    const ids = roll(g, c); expect(ids[0].startsWith('laser.specialize.')).toBe(true); expect(ids[2]).toBe(kind);
     expect(new Set(ids).size).toBe(3); expect(g.snapshot().evolutionCursor).toBe('prism');
     g.recordPresented(1); expect(g.snapshot().evolutionCursor).toBe(kind === 'prism' ? 'cluster' : kind === 'cluster' ? 'twin' : 'prism');
   });
@@ -200,10 +201,49 @@ describe('GAME-055-v1 policy', () => {
   });
 });
 
+describe('GAME-056 specialization placement and numeric fallback', () => {
+  function readyContext(block: 'zero' | 'one' | 'multiple') {
+    const c = context(), b = new PlayerBuild();
+    for (const upgrade of ['power', 'power', 'fireRate'] as const) b.applyLaserChoice({ kind: 'laser', upgrade }, 0);
+    // Safe Tag totals are genuine numeric feasibility, never a relevance/Analyzer gate.
+    if (block === 'zero') b.addTagPoints('PROJECTILES', Number.MAX_SAFE_INTEGER);
+    if (block === 'one') { b.addTagPoints('CONTROL', Number.MAX_SAFE_INTEGER); b.addTagPoints('RAPID_FIRE', Number.MAX_SAFE_INTEGER); }
+    Reflect.set(c, 'build', b.snapshot()); return c;
+  }
+  it.each(['zero', 'one', 'multiple'] as const)('%s feasible acquisitions uses three distinct eligible choices and exactly3 draws', mode => {
+    const c = readyContext(mode), g = new LevelUpGenerator(), before = structuredClone(c), policy = g.snapshot();
+    const rng = vi.fn(() => 0); g.assertCanGenerate(c); expect(rng).not.toHaveBeenCalled();
+    const offer = g.generate(c, rng), acquisitions = offer.filter(x => x.choice.kind === 'laserSpecialization');
+    expect(rng).toHaveBeenCalledTimes(3); expect(new Set(offer.map(x => x.id)).size).toBe(3);
+    expect(acquisitions).toHaveLength(mode === 'zero' ? 0 : 1);
+    if (mode === 'one') expect(offer[0].id).toBe('laser.specialize.lance');
+    if (mode === 'multiple') expect(offer[0].id).toBe('laser.specialize.scatter');
+    expect(offer.slice(1).every(x => x.choice.kind !== 'laserSpecialization')).toBe(true);
+    expect(c).toEqual(before); expect(g.snapshot()).toEqual({ ...policy, hasGenerated: true });
+    expect(c.build.laser.form).toBe('BASE'); expect(c.build.laser.ranks).toEqual({ power: 2, fireRate: 1, speed: 0 });
+    g.cancelGenerated(); expect(g.snapshot()).toEqual(policy);
+  });
+  it('retains readiness across acknowledged ordinary fallback and retries specialization at the next actual offer', () => {
+    const g = new LevelUpGenerator(), c = readyContext('zero');
+    const first = g.generate(c, () => 0); expect(first.every(x => x.choice.kind !== 'laserSpecialization')).toBe(true);
+    expect(g.snapshot().history).toEqual([]); g.recordPresented(1); expect(g.snapshot().history[0]).toEqual(first.map(x => x.id));
+    const next = readyContext('multiple'); expect(g.generate(next, () => 0)[0].id).toBe('laser.specialize.scatter');
+    expect(next.build.laser).toEqual(c.build.laser); expect(g.snapshot().lastPresented).toBe(1);
+  });
+  it('insufficient complete fallback fails before RNG and policy writes; malformed configuration is loud', () => {
+    const c = readyContext('zero'), g = new LevelUpGenerator(), rng = vi.fn(() => 0);
+    c.build.slots.combat.splice(0);
+    for (const k of Object.keys(c.moduleLevels)) Reflect.set(c.moduleLevels, k, Number.MAX_SAFE_INTEGER);
+    const before = g.snapshot(); expect(() => g.generate(c, rng)).toThrow('Insufficient');
+    expect(rng).not.toHaveBeenCalled(); expect(g.snapshot()).toEqual(before);
+    Reflect.set(c.build.laser.ranks, 'power', .5); expect(() => g.generate(c, rng)).toThrow('Laser'); expect(rng).not.toHaveBeenCalled();
+  });
+});
+
 // Literal golden fixtures derived independently with uint32 + hand-authored policy arithmetic,
 // never by calling this sampler to compute expected outputs.
-describe('GAME-055-v1 tagged/evolution/restricted literal seeded fixtures',()=>{
-  it.each([[0,"tagged",[["laser.speed","passive.hull","passive.thruster"],["laser.power","passive.replication","laser.speed"],["laser.power","passive.collector","missile.blastExpansion"],["drone.firingSystem","passive.hull","missile.warheadPower"]]],[0,"evolution",[["passive.replication","passive.hull","prism"],["passive.hull","passive.replication","cluster"],["passive.collector","passive.combat","twin"],["passive.replication","passive.hull","prism"]]],[0,"restricted",[["laser.fireRate","passive.hull","passive.combat"],["laser.power","passive.replication","laser.speed"],["laser.power","passive.collector","passive.thruster"],["laser.speed","passive.hull","laser.fireRate"]]],[123456789,"tagged",[["laser.power","passive.spatial","drone.boltPropulsion"],["missile.warheadPower","passive.combat","laser.fireRate"],["laser.fireRate","passive.thruster","missile.propulsion"],["laser.power","passive.replication","passive.spatial"]]],[123456789,"evolution",[["passive.thruster","passive.replication","prism"],["passive.replication","passive.collector","cluster"],["passive.combat","passive.hull","twin"],["passive.combat","passive.replication","prism"]]],[123456789,"restricted",[["laser.power","passive.spatial","passive.collector"],["laser.speed","passive.collector","laser.power"],["laser.fireRate","passive.thruster","passive.hull"],["laser.fireRate","passive.replication","passive.spatial"]]]] as const)('seed%s %s multi-presentation IDs',(seed,mode,expected)=>{
+describe('GAME-056-v1 with retained GAME-055 tagged/restricted literal fixtures',()=>{
+  it.each([[0,"tagged",[["laser.speed","passive.hull","passive.thruster"],["laser.power","passive.replication","laser.speed"],["laser.power","passive.collector","missile.blastExpansion"],["drone.firingSystem","passive.hull","missile.warheadPower"]]],[0,"evolution",[["laser.specialize.repeater","passive.hull","prism"],["laser.specialize.scatter","passive.replication","cluster"],["laser.specialize.repeater","passive.collector","twin"],["laser.specialize.lance","passive.hull","prism"]]],[0,"restricted",[["laser.fireRate","passive.hull","passive.combat"],["laser.power","passive.replication","laser.speed"],["laser.power","passive.collector","passive.thruster"],["laser.speed","passive.hull","laser.fireRate"]]],[123456789,"tagged",[["laser.power","passive.spatial","drone.boltPropulsion"],["missile.warheadPower","passive.combat","laser.fireRate"],["laser.fireRate","passive.thruster","missile.propulsion"],["laser.power","passive.replication","passive.spatial"]]],[123456789,"evolution",[["laser.specialize.scatter","passive.replication","prism"],["laser.specialize.lance","passive.combat","cluster"],["laser.specialize.repeater","passive.thruster","twin"],["laser.specialize.scatter","passive.replication","prism"]]],[123456789,"restricted",[["laser.power","passive.spatial","passive.collector"],["laser.speed","passive.collector","laser.power"],["laser.fireRate","passive.thruster","passive.hull"],["laser.fireRate","passive.replication","passive.spatial"]]]] as const)('seed%s %s multi-presentation IDs',(seed,mode,expected)=>{
     const c=mode==='tagged'?tagged('PRECISION','PROJECTILES',4):mode==='evolution'?tagged('DRONES',undefined,1):context();
     if(mode==='restricted')c.build.slots.combat.splice(1);
     if(mode==='evolution'){
@@ -212,5 +252,45 @@ describe('GAME-055-v1 tagged/evolution/restricted literal seeded fixtures',()=>{
     }
     const g=new LevelUpGenerator(),r=new RunRandom(seed);
     for(const [i,ids] of expected.entries()){expect(g.generate(c,r.reward.next).map(c=>c.id)).toEqual(ids);g.recordPresented(i+1);}
+  });
+});
+
+
+
+describe('GAME-056-v1 independently calculated acquisition/fallback/development/pending goldens', () => {
+  it.each([
+    [0,"unaffected",[["missile.blastExpansion","passive.hull","drone.boltPropulsion"],["laser.power","passive.replication","laser.speed"],["laser.fireRate","passive.collector","drone.boltPower"],["drone.boltPropulsion","passive.hull","missile.warheadPower"]]],
+    [0,"ready",[["laser.specialize.repeater","passive.hull","drone.boltPropulsion"],["laser.specialize.scatter","passive.replication","laser.speed"],["laser.specialize.repeater","passive.collector","missile.blastExpansion"],["laser.specialize.lance","passive.hull","missile.warheadPower"]]],
+    [0,"one",[["laser.specialize.lance","passive.hull","passive.thruster"],["laser.specialize.lance","passive.replication","laser.speed"],["laser.specialize.lance","passive.collector","drone.boltPower"],["laser.specialize.lance","passive.hull","missile.propulsion"]]],
+    [0,"zero",[["missile.propulsion","passive.hull","drone.boltPropulsion"],["laser.fireRate","passive.replication","missile.warheadPower"],["laser.speed","passive.collector","drone.boltPower"],["drone.firingSystem","passive.hull","missile.blastExpansion"]]],
+    [0,"specialized",[["laser.scatter.focus","passive.hull","passive.thruster"],["laser.fireRate","passive.replication","missile.warheadPower"],["missile.propulsion","passive.combat","drone.firingSystem"],["laser.scatter.impact","passive.hull","drone.boltPower"]]],
+    [0,"pending",[["laser.specialize.repeater","passive.hull","drone.boltPropulsion"],["laser.fireRate","passive.replication","missile.warheadPower"],["missile.propulsion","passive.collector","drone.firingSystem"],["laser.repeater.impact","passive.hull","drone.boltPower"]]],
+    [123456789,"unaffected",[["laser.fireRate","passive.spatial","drone.boltPropulsion"],["missile.blastExpansion","passive.collector","laser.power"],["missile.warheadPower","passive.thruster","missile.propulsion"],["laser.speed","passive.replication","passive.spatial"]]],
+    [123456789,"ready",[["laser.specialize.scatter","passive.spatial","drone.boltPropulsion"],["laser.specialize.lance","passive.collector","laser.fireRate"],["laser.specialize.repeater","passive.thruster","missile.warheadPower"],["laser.specialize.scatter","passive.replication","passive.spatial"]]],
+    [123456789,"one",[["laser.specialize.lance","passive.spatial","passive.hull"],["laser.specialize.lance","passive.combat","laser.speed"],["laser.specialize.lance","passive.thruster","missile.propulsion"],["laser.specialize.lance","passive.replication","passive.spatial"]]],
+    [123456789,"zero",[["laser.speed","passive.spatial","drone.boltPropulsion"],["missile.propulsion","passive.combat","laser.fireRate"],["missile.propulsion","passive.thruster","missile.blastExpansion"],["laser.speed","passive.replication","passive.spatial"]]],
+    [123456789,"specialized",[["laser.speed","passive.spatial","passive.hull"],["laser.scatter.focus","passive.combat","laser.fireRate"],["laser.scatter.damage","passive.thruster","drone.boltPower"],["missile.blastExpansion","passive.replication","passive.spatial"]]],
+    [123456789,"pending",[["laser.specialize.scatter","passive.spatial","drone.boltPropulsion"],["laser.scatter.focus","passive.combat","laser.fireRate"],["drone.firingSystem","passive.thruster","missile.warheadPower"],["missile.blastExpansion","passive.replication","passive.spatial"]]]
+  ] as const)('seed%s mode%s', (seed, mode, expected) => {
+    const b=new PlayerBuild();
+    if(mode!=='unaffected')for(const upgrade of ['power','power','fireRate'] as const)b.applyLaserChoice({kind:'laser',upgrade},0);
+    if(mode==='zero')b.addTagPoints('PROJECTILES',Number.MAX_SAFE_INTEGER);
+    if(mode==='one'){b.addTagPoints('CONTROL',Number.MAX_SAFE_INTEGER);b.addTagPoints('RAPID_FIRE',Number.MAX_SAFE_INTEGER);}
+    if(mode==='specialized')b.applyLaserChoice({kind:'laserSpecialization',branch:'scatter'},0);
+    const g=new LevelUpGenerator(),r=new RunRandom(seed),fresh=new RunRandom(seed),next=vi.fn(r.reward.next),c=context();
+    for(const [i,ids]of expected.entries()){
+      Reflect.set(c,'build',b.snapshot());const offer=g.generate(c,next);expect(offer.map(x=>x.id)).toEqual(ids);g.recordPresented(i+1);
+      if(mode==='pending'){
+        const choice=offer[0].choice;
+        if(choice.kind==='missile'){
+          Reflect.set(c.missileRanks,choice.upgrade,c.missileRanks[choice.upgrade]+1);
+          Reflect.set(c.missile,choice.upgrade==='warheadPower'?'damage':choice.upgrade==='propulsion'?'speed':'explosionRadius',choice.upgrade==='warheadPower'?2+c.missileRanks.warheadPower:choice.upgrade==='propulsion'?450+75*c.missileRanks.propulsion:120+30*c.missileRanks.blastExpansion);
+        }else if(choice.kind==='drone'){
+          Reflect.set(c.droneRanks,choice.upgrade,c.droneRanks[choice.upgrade]+1);
+          Reflect.set(c.drone,choice.upgrade==='boltPower'?'damage':choice.upgrade==='firingSystem'?'fireInterval':'projectileSpeed',choice.upgrade==='boltPower'?1+c.droneRanks.boltPower:choice.upgrade==='firingSystem'?1200-150*c.droneRanks.firingSystem:800+200*c.droneRanks.boltPropulsion);
+        }else b.applyLaserChoice(choice as import('../player/laserProgression').LaserChoice,0);
+      }
+    }
+    expect(next).toHaveBeenCalledTimes(12);for(const stream of ['encounter','world','boss']as const)expect(r[stream].next()).toBe(fresh[stream].next());
   });
 });

@@ -68,6 +68,13 @@ vi.mock('phaser', () => ({
   Core: { Events: { BLUR: 'blur', HIDDEN: 'hidden', FOCUS: 'focus', VISIBLE: 'visible' } },
 }));
 
+// Configuration setup uses the real Build applier; no writable Scene mirrors.
+function setLaser(s: GameplayScene, ranks = { power: 2, fireRate: 2, speed: 2 }, prism = false) {
+  for (const upgrade of ['power', 'fireRate', 'speed'] as const) {
+    while (s['laserRanks'][upgrade] < ranks[upgrade]) s['playerBuild']!.applyLaserChoice({ kind: 'laser', upgrade }, s['moduleLevels'].combat);
+  }
+  if (prism) s['playerBuild']!.applyLaserChoice({ kind: 'prism' }, Math.max(1, s['moduleLevels'].combat));
+}
 function playerHit(scene: GameplayScene, amount: number, run = scene['run']!, defense = scene['playerDefense']!) {
   return scene['damagePlayer']({ kind: 'PLAYER_CONTACT', run, target: defense,
     attack: createAttack({ kind: 'ENEMY_CONTACT', snapshot: { damage: amount } }) as ContactAttack });
@@ -83,6 +90,157 @@ function primeProtection(scene: GameplayScene, remaining: number) {
   defense.advanceProtection(Number.MAX_VALUE);
   defense.setCurrentShield(1); defense.applyIncomingDamage(1); defense.advanceProtection(500 - remaining);
 }
+
+describe('GAME-056 production Laser vertical', () => {
+  function acquire(s: GameplayScene, branch: 'scatter' | 'repeater' | 'lance') {
+    setLaser(s, { power: 2, fireRate: 1, speed: 0 });
+    s['playerBuild']!.applyLaserChoice({ kind: 'laserSpecialization', branch }, 0);
+  }
+  function pick(s: GameplayScene, api: NonNullable<Window['__NEBULA_DEV__']>, id: RewardCandidateId) {
+    const roll = aimChoice(s, id, 0); expect(api.forceLevelUp()).toBe(true); roll.mockRestore();
+    const text = [...s['levelUpChoices']].find(([, value]) => value === id)![0];
+    expect(text).toBeDefined(); text.emit('pointerdown'); expect(s['run']!.state).toBe('RUNNING');
+  }
+  it.each(['base','prism','scatter','repeater','lance'] as const)('rejected %s Hit terminates flight without effects or next-frame retry',form=>{
+    const {scene:s}=fixture();
+    if(form==='prism')setLaser(s,undefined,true);
+    else if(form!=='base')acquire(s,form);
+    const e=s['createEnemy'](2800,1350,'tank',s['run']!)!;s['currentTarget']=e;s['fireLaser']();
+    const flights=[...s['projectiles']];for(const p of flights)p.visual.x=2800;
+    const before=s['runDiagnostics']!.snapshot(),hp=e.health,progression=s['playerProgression']!.snapshot();
+    const hit=s['applyEnemyHit'].bind(s);
+    const rejected=vi.spyOn(s as unknown as {applyEnemyHit:typeof hit},'applyEnemyHit').mockReturnValue(null);
+    s['updateProjectiles'](0);expect(rejected).toHaveBeenCalledTimes(flights.length);
+    expect(s['projectiles']).toHaveLength(0);expect(flights.every(p=>!p.visual.active)).toBe(true);
+    expect(e.health).toBe(hp);expect(s['xpPickups']).toHaveLength(0);
+    expect(s['runDiagnostics']!.snapshot()).toEqual(before);expect(s['playerProgression']!.snapshot()).toEqual(progression);
+    s['updateProjectiles'](1000);expect(rejected).toHaveBeenCalledTimes(flights.length);rejected.mockRestore();
+  });
+  it('rejected Scatter pellets release volley ownership without recording a contact; last exit clears the map',()=>{
+    const {scene:s}=fixture();acquire(s,'scatter');const e=s['createEnemy'](2800,1350,'tank',s['run']!)!;
+    e.health=100;s['currentTarget']=e;s['fireLaser']();const volley=s['projectiles'][0].scatterVolley!;
+    s['projectiles'][2].visual.x=2800;s['updateProjectiles'](0);
+    expect(volley.remaining).toBe(2);expect(volley.contacts.get(e)).toBe(1);
+    const hit=s['applyEnemyHit'].bind(s),remove=s['removeProjectile'].bind(s),exits:number[][]=[];
+    const rejected=vi.spyOn(s as unknown as {applyEnemyHit:typeof hit},'applyEnemyHit').mockReturnValue(null);
+    const cleanup=vi.spyOn(s as unknown as {removeProjectile:typeof remove},'removeProjectile').mockImplementation(p=>{
+      remove(p);exits.push([volley.remaining,volley.contacts.get(e)??0]);
+    });
+    for(const p of s['projectiles'])p.visual.x=2800;
+    const hp=e.health,diag=s['runDiagnostics']!.snapshot();s['updateProjectiles'](0);
+    expect(exits).toEqual([[1,1],[0,0]]);expect(volley.contacts.size).toBe(0);expect(e.health).toBe(hp);
+    expect(s['runDiagnostics']!.snapshot()).toEqual(diag);expect(s['xpPickups']).toHaveLength(0);
+    rejected.mockRestore();cleanup.mockRestore();
+  });
+  it('rejected Lance Hit stops piercing, consumes no visit and releases earlier visited references',()=>{
+    const {scene:s}=fixture();acquire(s,'lance');
+    const enemies=[2500,2700,2900].map(x=>s['createEnemy'](x,1350,'tank',s['run']!)!);
+    for(const e of enemies)e.health=100;s['currentTarget']=enemies[0];s['fireLaser']();const flight=s['projectiles'][0];
+    s['updateProjectiles'](100);expect(flight.visited?.has(enemies[0])).toBe(true);expect(enemies[0].health).toBe(94);
+    const add=vi.spyOn(flight.visited!,'add'),hit=s['applyEnemyHit'].bind(s);
+    const rejected=vi.spyOn(s as unknown as {applyEnemyHit:typeof hit},'applyEnemyHit').mockReturnValue(null);
+    const before=s['runDiagnostics']!.snapshot();s['updateProjectiles'](300);
+    expect(rejected).toHaveBeenCalledTimes(1);expect(add).not.toHaveBeenCalled();expect(flight.visited?.size).toBe(0);
+    expect(enemies.map(e=>e.health)).toEqual([94,100,100]);expect(flight.visual.active).toBe(false);
+    expect(s['projectiles']).toHaveLength(0);expect(s['runDiagnostics']!.snapshot()).toEqual(before);
+    s['updateProjectiles'](300);expect(rejected).toHaveBeenCalledTimes(1);rejected.mockRestore();add.mockRestore();
+  });
+  it('terminal and native restart keep stale flight cleanup away from fresh projectiles',()=>{
+    const f=fixture(),s=f.scene;allowCreate(s);s.create();const old=playerShot(s),oldRun=s['run']!;
+    s['enterPlayerDeath']();s['updateProjectiles'](1000);expect(s['projectiles']).toContain(old);
+    f.shutdown();s.create();const fresh=playerShot(s),before=s['runDiagnostics']!.snapshot();
+    s['removeProjectile'](old);expect(oldRun.state).toBe('DISPOSED');expect(old.visual.active).toBe(false);
+    expect(s['projectiles']).toEqual([fresh]);expect(fresh.visual.active).toBe(true);
+    expect(s['runDiagnostics']!.snapshot()).toEqual(before);
+  });
+  it('numeric-only zero-branch fallback uses actual production offer/handlers without consuming pending or readiness',()=>{
+    const {scene:s,api}=fixture();setLaser(s,{power:2,fireRate:1,speed:0});
+    s['playerBuild']!.addTagPoints('PROJECTILES',Number.MAX_SAFE_INTEGER);
+    const before=s['playerBuild']!.snapshot(),draws=spyStreams(s);
+    expect(api.forceLevelUp()).toBe(true);expect(s['playerBuild']!.snapshot()).toEqual(before);
+    const offer=s['rewardTransaction']!.snapshot()!;
+    expect(new Set(offer.candidates.map(c=>c.id)).size).toBe(3);
+    expect(offer.candidates.every(c=>c.choice.kind!=='laserSpecialization')).toBe(true);
+    expect(s['playerProgression']!.snapshot().pendingLevels).toBe(1);
+    expect(draws.map(d=>d.mock.calls.length)).toEqual([0,3,0,0]);
+    s['levelUpPresentation'][2].emit('pointerdown');expect(s['playerProgression']!.snapshot().pendingLevels).toBe(0);
+    expect(s['playerBuild']!.snapshot().laser.form).toBe('BASE');
+  });
+  it.each(['scatter', 'repeater', 'lance'] as const)('real transaction applies %s, all4 developments and Capstone exactly once', branch => {
+    const { scene: s, api } = fixture(); setLaser(s, { power: 2, fireRate: 1, speed: 0 });
+    const events = [...s['gameplayTimers']], streams = spyStreams(s);
+    const ids = rewardChoices.filter(c => 'branch' in c && c.branch === branch).map(choiceIdentity);
+    expect(ids).toHaveLength(6);
+    for (const id of ids) pick(s, api, id);
+    const snapshot = api.snapshot()!; expect(snapshot.build.laser).toMatchObject({ form: branch.toUpperCase(), capstone: true });
+    expect(snapshot.build.laser.upgrades).toHaveLength(4); expect(snapshot.diagnostics.aggregates.choicesAccepted).toBe(6);
+    expect(snapshot.build.tags.PROJECTILES).toBe(1); expect(s['gameplayTimers']).toEqual(events);
+    expect(streams[0]).not.toHaveBeenCalled(); expect(streams[2]).not.toHaveBeenCalled(); expect(streams[3]).not.toHaveBeenCalled();
+    const before = snapshot.build; expect(() => s['playerBuild']!.applyLaserChoice({ kind: 'laserSpecialization', branch }, 0)).toThrow();
+    expect(api.snapshot()!.build).toEqual(before);
+  });
+  it('Scatter independently damages five times, diminishes only force and releases its bounded shared map', () => {
+    const { scene: s } = fixture(); acquire(s, 'scatter');
+    for (const choice of rewardChoices.filter(c => c.kind === 'laserDevelopment' && c.branch === 'scatter')) {
+      s['playerBuild']!.applyLaserChoice(choice as import('../player/laserProgression').LaserChoice, 0);
+    }
+    s['playerBuild']!.applyLaserChoice({ kind: 'laserCapstone', branch: 'scatter' }, 0);
+    const e = s['createEnemy'](2800, 1350, 'tank', s['run']!)!; e.health = 100; s['currentTarget'] = e;
+    s['fireLaser'](); const flights = [...s['projectiles']], volley = flights[0].scatterVolley!;
+    expect(flights).toHaveLength(5); expect(flights.every(p => p.scatterVolley === volley && p.attack === flights[0].attack)).toBe(true);
+    const factors: number[] = [], hit = s['applyEnemyHit'].bind(s);
+    const spy = vi.spyOn(s as unknown as { applyEnemyHit: typeof hit }, 'applyEnemyHit').mockImplementation((h: Parameters<typeof hit>[0]) => {
+      if (h.kind === 'ENEMY_DIRECT') factors.push(h.impactFactor!); return hit(h);
+    });
+    for (const p of flights) { p.visual.x = e.visual.x; p.visual.y = e.visual.y; }
+    s['updateProjectiles'](0); expect(factors).toEqual([1, .5, .25, .125, .0625]);
+    expect(e.health).toBeCloseTo(100 - 5 * (3 * .65)); expect(volley.contacts.size).toBe(0); expect(volley.remaining).toBe(0);
+    expect(s['projectiles']).toHaveLength(0); expect(e.knockbackVelocity.x).toBeLessThanOrEqual(600); spy.mockRestore();
+  });
+  it.each([3, 4, 5])('Lance bounds %s distinct references per flight with collection ties and no repeated survivor', limit => {
+    const { scene: s } = fixture(); acquire(s, 'lance');
+    if (limit >= 4) s['playerBuild']!.applyLaserChoice({ kind: 'laserDevelopment', branch: 'lance', upgrade: 'penetration' }, 0);
+    if (limit === 5) {
+      for (const upgrade of ['damage', 'velocity', 'radius'] as const) s['playerBuild']!.applyLaserChoice({ kind: 'laserDevelopment', branch: 'lance', upgrade }, 0);
+      s['playerBuild']!.applyLaserChoice({ kind: 'laserCapstone', branch: 'lance' }, 0);
+    }
+    const enemies = Array.from({ length: 6 }, (_, i) => s['createEnemy'](2500 + 100 * i, 1350, 'tank', s['run']!)!);
+    for (const e of enemies) e.health = 100; s['currentTarget'] = enemies[0]; s['fireLaser']();
+    const damage = s['projectiles'][0].damage; s['updateProjectiles'](500);
+    expect(enemies.map(e => e.health)).toEqual(enemies.map((_, i) => i < limit ? 100 - damage : 100));
+    expect(s['projectiles']).toHaveLength(0); s['fireLaser'](); s['updateProjectiles'](0); expect(enemies[0].health).toBe(100 - damage);
+  });
+  it('Lance large and small segments agree, survivor refs cannot be hit twice but another flight can', () => {
+    const simulate = (steps: number[]) => {
+      const { scene: s } = fixture(); acquire(s, 'lance');
+      const e = s['createEnemy'](2600, 1350, 'tank', s['run']!)!; e.health = 100; s['currentTarget'] = e; s['fireLaser']();
+      const p = s['projectiles'][0]; for (const dt of steps) s['updateProjectiles'](dt);
+      expect(p.visited?.has(e)).toBe(true); const hp = e.health;
+      p.visual.x = 2600; s['updateProjectiles'](0); expect(e.health).toBe(hp);
+      s['fireLaser'](); const next = s['projectiles'].at(-1)!; next.visual.x = 2600; s['updateProjectiles'](0);
+      expect(e.health).toBe(hp - next.damage); return hp;
+    };
+    expect(simulate([200])).toBe(simulate([50, 50, 50, 50]));
+  });
+  it.each(['scatter', 'repeater', 'lance'] as const)('%s keeps old frozen attacks across upgrades and pauses geometry/RNG', branch => {
+    const { scene: s } = fixture(); acquire(s, branch); const e = s['createEnemy'](3000, 1350, 'tank', s['run']!)!;
+    s['currentTarget'] = e; const streams = spyStreams(s); s['fireLaser'](); const p = s['projectiles'][0], before = structuredClone(p.attack);
+    s['playerBuild']!.applyLaserChoice({ kind: 'laserDevelopment', branch, upgrade: 'damage' }, 0);
+    expect(p.attack).toEqual(before); s['run']!.requestPause('MANUAL');
+    const position = { x: p.visual.x, y: p.visual.y, life: p.remainingLifetime }; s['updateProjectiles'](5000);
+    expect({ x: p.visual.x, y: p.visual.y, life: p.remainingLifetime }).toEqual(position);
+    for (const spy of streams) expect(spy).not.toHaveBeenCalled();
+  });
+  it('Lance Boss kill finishes owning cleanup, preserves BASE death bucket and physicalXP10, stops later hits', () => {
+    const { scene: s, api } = fixture(); acquire(s, 'lance'); api.spawnWarden(); api.setWardenHealth(1);
+    const boss = s['enemies'][0]; boss.visual.x = 2500; boss.visual.y = 1350;
+    const other = s['createEnemy'](2600, 1350, 'tank', s['run']!)!; other.health = 100;
+    s['currentTarget'] = boss; s['fireLaser'](); const flight = s['projectiles'][0]; s['updateProjectiles'](500);
+    expect(s['run']!.outcome).toBe('VICTORY'); expect(s['projectiles']).not.toContain(flight); expect(other.health).toBe(100);
+    expect(s['xpPickups'].map(x => x.value)).toEqual([10]);
+    expect(api.snapshot()!.diagnostics.aggregates.killsBySource['LASER.BASE.DIRECT']).toBe(1);
+  });
+});
 function fixture() {
   const scene = new GameplayScene();
   const listeners = new Map<string, Set<() => void>>();
@@ -127,14 +285,16 @@ function targetRoll(s: GameplayScene, id: RewardCandidateId, slot: 0 | 1) {
   const context = s['rewardContext'](s['playerBuild']!), snapshot = s['levelUpGenerator']!.snapshot();
   const primary = context.build.identity.dominantTags, secondary = context.build.identity.secondaryTags;
   const base = JSON.stringify(primary) === JSON.stringify(snapshot.primarySignature) ? snapshot.misses : 0;
-  const pool = rewardChoices.filter(c => slot === 0 ? ['laser', 'missile', 'drone'].includes(c.kind) : c.kind === 'passive')
-    .filter(c => isRewardEligible(c, context));
+  const eligible = rewardChoices.filter(c => isRewardEligible(c, context));
+  const acquisitions = eligible.filter(c => c.kind === 'laserSpecialization');
+  const pool = slot === 0 && acquisitions.length ? acquisitions
+    : eligible.filter(c => slot === 0 ? !['passive', 'prism', 'cluster', 'twin', 'laserSpecialization'].includes(c.kind) : c.kind === 'passive');
   const weights = pool.map(choice => {
     const cid = choiceIdentity(choice), affinity = REWARD_AFFINITIES[cid];
     const relevance = affinity.some(t => primary.includes(t)) ? 2 : affinity.some(t => secondary.includes(t)) ? 1 : 0;
     const a = context.build.effectiveStats.combatAnalyzer;
     return 100 * (1 + 0.5 * relevance)
-      * (slot === 0 ? (relevance === 2 ? 2 : relevance === 1 ? 1.25 : 1) * (choice.kind === s['weaponFocus'] ? 1.5 : 1)
+      * (slot === 0 ? (relevance === 2 ? 2 : relevance === 1 ? 1.25 : 1) * (choice.kind === s['weaponFocus'] || s['weaponFocus'] === 'laser' && 'branch' in choice ? 1.5 : 1)
         : cid === 'passive.hull' || cid === 'passive.thruster' ? 1.5 : 1)
       * (relevance === 2 ? (1 + 2 * (a === 0 ? 0 : 1 / (1 + 4 / a))) * (1 + 0.25 * base) : 1)
       * 2 ** -snapshot.history.filter(h => h.includes(cid)).length;
@@ -223,7 +383,7 @@ describe('GAME-051 authoritative death', () => {
     const completed = watch(s);
     try {
       if (mode === 'LASER' || mode === 'PRISM' || mode === 'DRONE' || mode === 'TWIN') {
-        s['prismEvolved'] = mode === 'PRISM'; s['twinDroneEvolved'] = mode === 'TWIN';
+        if (mode === 'PRISM') setLaser(s, undefined, true); s['twinDroneEvolved'] = mode === 'TWIN';
         if (mode === 'LASER' || mode === 'PRISM') s['fireLaser'](); else s['fireDrone']();
         const attacks = s['projectiles'].map(p => p.attack);
         for (const p of s['projectiles']) { p.visual.x = 2800; p.visual.y = 1350; }
@@ -947,7 +1107,7 @@ describe('Scene run-scoped randomness production boundaries', () => {
   });
   it.each([false, true])('fully mastered fallback and eligible evolution=%s both consume3 draws', evolution => {
     const { scene, api } = fixture();
-    scene['laserRanks'] = { power: 2, fireRate: 2, speed: 2 };
+    setLaser(scene, { power: 2, fireRate: 2, speed: 2 });
     scene['missileRanks'] = { warheadPower: 2, propulsion: 2, blastExpansion: 2 };
     scene['droneRanks'] = { boltPower: 2, firingSystem: 2, boltPropulsion: 2 };
     if (evolution) scene['moduleLevels'].combat = 1;
@@ -958,7 +1118,7 @@ describe('Scene run-scoped randomness production boundaries', () => {
   });
   it('weighted development plus guaranteed evolution consumes3 draws', () => {
     const { scene, api } = fixture();
-    scene['laserRanks'] = { power: 2, fireRate: 2, speed: 2 }; scene['moduleLevels'].combat = 1;
+    setLaser(scene, { power: 2, fireRate: 2, speed: 2 }); scene['moduleLevels'].combat = 1;
     const draw = vi.spyOn(scene['runRandom']!.reward, 'next'); api.forceLevelUp();
     expect(draw).toHaveBeenCalledTimes(3); expect(offer(scene)[2]).toContain('EVOLVE: Prism Laser');
   });
@@ -1373,9 +1533,9 @@ describe('GAME-046 PlayerBuild production consumers', () => {
   });
   it('actual evolution pointer callbacks keep Prism/Cluster/Twin recipes, slots and attack behavior', () => {
     const f = armed(), s = f.scene;
-    s['laserRanks'] = { power: 2, fireRate: 2, speed: 2 }; s['moduleLevels'].combat = 1;
+    setLaser(s, { power: 2, fireRate: 2, speed: 2 }); s['moduleLevels'].combat = 1;
     f.api.forceLevelUp(); expect(offer(s)[2]).toContain('Prism'); s['levelUpPresentation'][3].emit('pointerdown'); s['fireLaser']();
-    expect(s['projectiles']).toHaveLength(3); expect(s['projectiles'].every(p => p.damage === 1)).toBe(true);
+    expect(s['projectiles']).toHaveLength(3); expect(s['projectiles'].every(p => p.damage === 3)).toBe(true);
     s['projectiles'] = []; s['missileRanks'] = { warheadPower: 2, propulsion: 2, blastExpansion: 2 }; passive(f, 'spatial');
     f.api.forceLevelUp(); expect(offer(s)[2]).toContain('Cluster'); s['levelUpPresentation'][3].emit('pointerdown'); s['fireMissile']();
     expect(s['missiles'][0]).toMatchObject({ clusterEnabled: true, explosionRadius: 135 });
@@ -1395,7 +1555,9 @@ describe('GAME-046 PlayerBuild production consumers', () => {
   });
   it('rejects unsafe composed damage before any projectile or visual mutation', () => {
     const f = armed(), s = f.scene; passive(f, 'combat');
-    s['applyBuildChange']({ kind: 'percent', stat: 'reactorPower', delta: Number.MAX_SAFE_INTEGER - 1 });
+    expect(() => s['applyBuildChange']({ kind: 'percent', stat: 'reactorPower', delta: Number.MAX_SAFE_INTEGER - 1 })).toThrow(RangeError);
+    // Inject a validated Build value directly to exercise launch defense as a separate boundary.
+    s['playerBuild']!.applyStatPercent('reactorPower', Number.MAX_SAFE_INTEGER - 1);
     const circle = vi.spyOn(s.add, 'circle');
     for (const fire of [() => s['fireLaser'](), () => s['fireMissile'](), () => s['fireDrone']()]) {
       expect(fire).toThrow(RangeError); expect(s['projectiles']).toHaveLength(0); expect(s['missiles']).toHaveLength(0);
@@ -1483,7 +1645,7 @@ describe('GAME-047 canonical BuildSnapshot and production neutrality', () => {
       } else if (option.kind === 'passive') index = 2;
       else {
         index = 3;
-        if (option.kind === 'prism') { s['laserRanks'] = { power: 2, fireRate: 2, speed: 2 }; s['moduleLevels'].combat = 1; }
+        if (option.kind === 'prism') { setLaser(s, { power: 2, fireRate: 2, speed: 2 }); s['moduleLevels'].combat = 1; }
         if (option.kind === 'cluster') { s['missileRanks'] = { warheadPower: 2, propulsion: 2, blastExpansion: 2 }; s['moduleLevels'].spatial = 1; }
         if (option.kind === 'twin') { s['droneRanks'] = { boltPower: 2, firingSystem: 2, boltPropulsion: 2 }; s['moduleLevels'].replication = 1; }
       }
@@ -1677,14 +1839,14 @@ describe('GAME-049 concrete Attack/Hit integration', () => {
     return f;
   }
   it.each([false, true])('Laser/Prism evolved%s shares one frozen Attack with independent nonpiercing hits', evolved => {
-    const { scene: s } = armed(); s['prismEvolved'] = evolved; s['fireLaser']();
+    const { scene: s } = armed(); if (evolved) { setLaser(s, undefined, true); s['enemies'][0].health = 18; } s['fireLaser']();
     const shots = [...s['projectiles']], attack = shots[0].attack;
     expect(shots).toHaveLength(evolved ? 3 : 1);
     expect(shots.every(p => p.attack === attack && p.run === s['run'])).toBe(true);
     expect(attack).toMatchObject({ kind: 'LASER', variant: evolved ? 'PRISM' : 'BASE' });
     expect(Object.isFrozen(attack.snapshot) && Object.isFrozen(attack)).toBe(true);
     for (const p of shots) { p.visual.x = 2800; p.visual.y = 1350; }
-    s['updateProjectiles'](0); expect(s['enemies'][0].health).toBe(evolved ? 3 : 5);
+    s['updateProjectiles'](0); expect(s['enemies'][0].health).toBe(evolved ? 9 : 5);
     expect(s['projectiles']).toHaveLength(0);
   });
   it.each([false, true])('Drone/Twin evolved%s uses independent origin Attack/nearest target and full damage', evolved => {
@@ -1703,14 +1865,14 @@ describe('GAME-049 concrete Attack/Hit integration', () => {
     for (const [stat, delta] of [['reactorPower', 1], ['engineering', 2], ['projectileVelocity', 1], ['projectileScale', 1]] as const) {
       s['applyBuildChange']({ kind: 'percent', stat, delta });
     }
-    s['globalDamageMultiplier'] = 1.25; s['laser'].damage = 2; s['droneAttackValues'].damage = 2;
+    s['globalDamageMultiplier'] = 1.25; s['playerBuild']!.applyLaserChoice({ kind: 'laser', upgrade: 'power' }, 0); s['droneAttackValues'].damage = 2;
     s['missileValues'] = { damage: 3, speed: 525, explosionRadius: 150 };
-    s['moduleLevels'].spatial = 2; s['moduleLevels'].replication = 2; s['clusterEvolved'] = true; s['prismEvolved'] = true;
+    s['moduleLevels'].spatial = 2; s['moduleLevels'].replication = 2; s['clusterEvolved'] = true; setLaser(s, undefined, true);
     expect([p, d, m].map(f => JSON.stringify(f.attack))).toEqual(before);
     expect(() => { (p as unknown as { damage: number }).damage = 999; }).toThrow(TypeError);
     expect(() => { (m as unknown as { radius: number }).radius = 999; }).toThrow(TypeError);
     s['fireLaser'](); s['fireDrone'](); s['missiles'] = []; s['fireMissile']();
-    expect(s['projectiles'][2].attack).toMatchObject({ kind: 'LASER', variant: 'PRISM', snapshot: { damage: 5, speed: 2400, radius: 12 } });
+    expect(s['projectiles'][2].attack).toMatchObject({ kind: 'LASER', variant: 'PRISM', snapshot: { damage: 7.5, speed: 3200, radius: 12 } });
     expect(s['projectiles'].at(-1)!.attack).toMatchObject({ kind: 'COMBAT_DRONE', snapshot: { damage: 15, speed: 1600, radius: 14 } });
     expect(s['missiles'][0].attack).toMatchObject({ kind: 'MISSILE', variant: 'CLUSTER', snapshot: { damage: 7.5, speed: 1050, radius: 16, explosionRadius: 180 } });
     expect(m.attack).toMatchObject({ variant: 'BASE', snapshot: { damage: 2, speed: 450, radius: 8, explosionRadius: 120 } });
@@ -1954,7 +2116,7 @@ describe('GAME-052 physical interaction and Charger integration', () => {
   });
   it.each(['laser', 'prism', 'drone', 'twin', 'missile', 'cluster-primary', 'cluster-satellite'] as const)('%s actual collision applies positive physical force once per accepted Hit', mode => {
     const { scene: s } = inputFixture(), e = s['createEnemy'](2800, 1350, 'chaser', s['run']!)!; e.health = 100;
-    s['currentTarget'] = e; s['prismEvolved'] = mode === 'prism'; s['twinDroneEvolved'] = mode === 'twin';
+    s['currentTarget'] = e; if (mode === 'prism') setLaser(s, undefined, true); s['twinDroneEvolved'] = mode === 'twin';
     if (mode === 'laser' || mode === 'prism') { s['fireLaser'](); s['updateProjectiles'](400); }
     else if (mode === 'drone' || mode === 'twin') {
       s['drone'] = visual(2500, 1350) as unknown as NonNullable<typeof s['drone']>;
@@ -2018,11 +2180,11 @@ describe('GAME-053 physical XP and pending progression', () => {
   });
   it('next sequential offer sees actual just-completed evolution prerequisite', () => {
     const { scene: s } = fixture();
-    s['laserRanks'] = { power: 2, fireRate: 2, speed: 1 }; s['moduleLevels'].combat = 1; aimChoice(s, 'laser.speed', 0);
+    setLaser(s, { power: 2, fireRate: 2, speed: 1 }); s['moduleLevels'].combat = 1; vi.spyOn(s['runRandom']!.reward, 'next').mockReturnValue(0);
     pickup(s, 32); s['updateXpPickups'](0);
-    expect(s['levelUpChoices'].get(s['levelUpPresentation'][1])).toBe('laser.speed');
+    expect(s['levelUpChoices'].get(s['levelUpPresentation'][3])).toBe('laser.speed');
     expect([...s['levelUpChoices'].values()]).not.toContain('prism');
-    s['levelUpPresentation'][1].emit('pointerdown');
+    s['levelUpPresentation'][3].emit('pointerdown');
     expect(s['laserRanks'].speed).toBe(2); expect([...s['levelUpChoices'].values()]).toContain('prism');
     const evolve = [...s['levelUpChoices']].find(([, id]) => id === 'prism')![0]; evolve.emit('pointerdown');
     expect(s['prismEvolved']).toBe(true); expect([...s['levelUpChoices'].values()]).not.toContain('prism');
@@ -2121,12 +2283,12 @@ describe('GAME-054 authentic transaction integration', () => {
   it('keeps exactly the same persistent Text/handler/token after repeated rejection, then accepts once', () => {
     const { scene: s, api } = fixture(); const targeted = aimChoice(s, 'laser.power', 0); api.forceLevelUp(); targeted.mockRestore();
     const p = s['rewardPresentation']!, text = p.texts[1], handler = text.listeners('pointerdown')[0], token = p.token;
-    s['laserRanks'].power = 2; const before = api.snapshot(), pending = s['playerProgression']!.snapshot(), offer = p.reward.snapshot();
-    for (let i = 0; i < 3; i++) text.emit('pointerdown');
+    s['playerBuild']!.applyStatPercent('reactorPower', Number.MAX_SAFE_INTEGER / 1.5 - 1); const before = api.snapshot(), pending = s['playerProgression']!.snapshot(), offer = p.reward.snapshot();
+    for (let i = 0; i < 3; i++) expect(() => text.emit('pointerdown')).toThrow(RangeError);
     expect(text.active).toBe(true); expect(text.listeners('pointerdown')).toEqual([handler]); expect(s['rewardPresentation']).toBe(p);
     expect(s['rewardPresentation']!.token).toBe(token); expect(p.reward.snapshot()).toEqual(offer);
     expect(api.snapshot()).toEqual(before); expect(s['playerProgression']!.snapshot()).toEqual(pending);
-    s['laserRanks'].power = 0; text.emit('pointerdown');
+    s['playerBuild']!.applyStatPercent('reactorPower', -(Number.MAX_SAFE_INTEGER / 1.5 - 1)); text.emit('pointerdown');
     expect(s['laserRanks'].power).toBe(1); expect(s['laser'].damage).toBe(2); expect(p.reward.snapshot()).toBeNull();
     expect(text.listeners('pointerdown')).toEqual([]); expect(text.active).toBe(false);
     const accepted = api.snapshot(); handler(); text.emit('pointerdown');
@@ -2161,7 +2323,7 @@ describe('GAME-054 authentic transaction integration', () => {
     for (const spy of [apply, invalidate, select, clear, open]) spy.mockRestore();
   });
   it('same-label next offer rejects old callbacks, clones and other owners even with equal ordinals', () => {
-    const { scene: s, api } = fixture(); s['laserRanks'] = { power: 0, fireRate: 2, speed: 2 };
+    const { scene: s, api } = fixture(); setLaser(s, { power: 0, fireRate: 0, speed: 0 });
     const repeat = vi.spyOn(s['runRandom']!.reward,'next').mockReturnValue(0); physical32(s); repeat.mockRestore();
     const nextRoll = vi.spyOn(s['runRandom']!.reward,'next').mockReturnValue(0);
     const p = s['rewardPresentation']!, text = p.texts[1], handler = text.listeners('pointerdown')[0]; text.emit('pointerdown');
@@ -2274,7 +2436,7 @@ describe('GAME-055 real generator integration', () => {
   });
   it('rejects insufficient policy pool before RNG, pause, UI and transaction writes',()=>{
     const {scene:s}=fixture();s['playerProgression']!.creditXp(5);
-    s['laserRanks']={power:2,fireRate:2,speed:2};s['missileRanks']={warheadPower:2,propulsion:2,blastExpansion:2};s['droneRanks']={boltPower:2,firingSystem:2,boltPropulsion:2};
+    setLaser(s, {power:2,fireRate:2,speed:2});s['missileRanks']={warheadPower:2,propulsion:2,blastExpansion:2};s['droneRanks']={boltPower:2,firingSystem:2,boltPropulsion:2};
     for(const key of Object.keys(s['moduleLevels']))Reflect.set(s['moduleLevels'],key,Number.MAX_SAFE_INTEGER);
     const draws=spyStreams(s),before=s['levelUpGenerator']!.snapshot();
     expect(()=>s['enterLevelUpPause']()).toThrow('Insufficient');expect(s['run']!.state).toBe('RUNNING');expect(s['rewardTransaction']!.snapshot()).toBeNull();

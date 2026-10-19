@@ -8,7 +8,6 @@ import { createAttack, composePlayerDamage, composePlayerImpact, calculateHitDam
   type LaserAttack, type DroneAttack, type MissileAttack, type HostileAttack, type ContactAttack,
   type EnemyDamage, type PlayerDamage } from '../combat/combat';
 import { segmentCircleHitTime } from '../combat/collision';
-import { prismSpread } from '../combat/prismSpread';
 import { clusterSatelliteOffsets } from '../combat/clusterSatellites';
 import { ENEMY_DEFINITIONS, DEFAULT_ENEMY_SPAWN_CONTEXT, createEnemySpawnSnapshot,
   type EnemyArchetype, type EnemySpawnSnapshot } from '../enemies/EnemyDefinitions';
@@ -25,7 +24,8 @@ import { PlayerDefense } from '../player/PlayerDefense';
 import { effectiveMissileExplosionRadius } from '../progression/spatialAmplifier';
 import { effectiveDroneBoltRadius } from '../progression/replicationMatrix';
 import { type MissileRanks, type DroneRanks, type WeaponFocus } from '../progression/focusedUpgrade';
-import { type LaserRanks } from '../progression/prismLaser';
+import { laserProfile, laserAttack, isLaserChoice, prepareLaserChoice, LASER_LABELS, LASER_DEVELOPMENTS } from '../player/laserProgression';
+import { laserDirections } from '../combat/laserPatterns';
 import { addExperience } from '../progression/experience';
 import { PlayerProgression } from '../progression/PlayerProgression';
 import { planXpConsolidation, XP_CONSOLIDATION_THRESHOLD, XP_CONSOLIDATION_CELL_SIZE } from '../progression/xpConsolidation';
@@ -33,7 +33,7 @@ import { planXpConsolidation, XP_CONSOLIDATION_THRESHOLD, XP_CONSOLIDATION_CELL_
 import { LevelUpGenerator } from '../rewards/LevelUpGenerator';
 import { RewardTransaction, type RewardToken } from '../rewards/RewardTransaction';
 import { choiceIdentity, type LevelUpChoice, type PassiveModule, type RewardCandidate } from '../rewards/rewardChoices';
-import { isRewardEligible, assertRewardFeasible, type RewardEligibilityContext } from '../rewards/rewardEligibility';
+import { isRewardEligible, assertRewardFeasible, assertCombatConsumers, type RewardEligibilityContext } from '../rewards/rewardEligibility';
 
 type BuildChange = { kind: 'percent'; stat: PercentStatKey; delta: number } | { kind: 'hullPlating' } | { kind: 'thruster' };
 type RewardPresentation = Readonly<{ run: RunLifecycle; progression: PlayerProgression; build: PlayerBuild;
@@ -90,7 +90,7 @@ type XpPickup = {
 };
 
 type Hit = Readonly<{ run: RunLifecycle } & (
-  { kind: 'ENEMY_DIRECT'; target: EnemyRuntime; attack: LaserAttack | DroneAttack; direction: Vector }
+  { kind: 'ENEMY_DIRECT'; target: EnemyRuntime; attack: LaserAttack | DroneAttack; direction: Vector; impactFactor?: number }
   | { kind: 'ENEMY_BLAST'; target: EnemyRuntime; attack: MissileAttack; phase: 'PRIMARY' | 'SATELLITE'; origin: Vector }
   | { kind: 'PLAYER_PROJECTILE'; target: PlayerDefense; attack: HostileAttack }
   | { kind: 'PLAYER_CONTACT'; target: PlayerDefense; attack: ContactAttack }
@@ -110,9 +110,12 @@ function enemyDeathInput(enemy: EnemyRuntime, source: EnemyDamageSource): EnemyD
     lastDamagingSource: source, killSource: source };
 }
 
+type ScatterVolley = { contacts: Map<EnemyRuntime, number>; remaining: number };
 type ProjectileRuntime = {
   readonly attack: LaserAttack | DroneAttack | HostileAttack;
   readonly run: RunLifecycle;
+  readonly visited?: Set<EnemyRuntime>;
+  readonly scatterVolley?: ScatterVolley;
   readonly source: 'player' | 'enemy';
   readonly damage: number;
   readonly radius: number;
@@ -210,12 +213,11 @@ export class GameplayScene extends Phaser.Scene {
   private readonly hostileSpeed = 600;
   private readonly hostileLifetime = 3000;
   private readonly hostileDamage = 1;
-  private laser = { damage: 1, fireInterval: 600, projectileSpeed: 1200 };
-  private laserRanks: LaserRanks = { power: 0, fireRate: 0, speed: 0 };
-  private prismEvolved = false;
+  private get laser() { return laserProfile(this.playerBuild!.snapshot().laser); }
+  private get laserRanks() { return this.playerBuild!.snapshot().laser.ranks; }
+  private get prismEvolved() { return this.playerBuild!.snapshot().laser.form === 'PRISM'; }
   private clusterEvolved = false;
   private laserTimer?: Phaser.Time.TimerEvent;
-  private readonly projectileLifetime = 2000;
   private readonly projectileRadius = 6;
   private readonly spawnInterval = 2000;
   private readonly minimumSpawnDistance = 600;
@@ -273,12 +275,9 @@ export class GameplayScene extends Phaser.Scene {
     this.dashRemaining = 0;
     this.dashCooldownRemaining = 0;
     this.dashDirection.set(0, 0);
-    this.laser = { damage: 1, fireInterval: 600, projectileSpeed: 1200 };
-    this.laserRanks = { power: 0, fireRate: 0, speed: 0 };
     this.missileRanks = { warheadPower: 0, propulsion: 0, blastExpansion: 0 };
     this.missileValues = { damage: 2, speed: 450, explosionRadius: 120 };
     this.weaponFocus = 'laser';
-    this.prismEvolved = false;
     this.clusterEvolved = false;
     const progression = new PlayerProgression();
     this.playerProgression = progression;
@@ -328,7 +327,16 @@ export class GameplayScene extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, disposePickups);
     this.events.once(Phaser.Scenes.Events.DESTROY, disposePickups);
     this.currentTarget = undefined;
-    this.projectiles = [];
+    const flights: ProjectileRuntime[] = [];
+    this.projectiles = flights;
+    const disposeFlights = () => {
+      for (const flight of flights) { flight.visited?.clear(); flight.scatterVolley?.contacts.clear(); flight.visual.destroy(); }
+      flights.length = 0;
+      this.events.off(Phaser.Scenes.Events.SHUTDOWN, disposeFlights);
+      this.events.off(Phaser.Scenes.Events.DESTROY, disposeFlights);
+    };
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, disposeFlights);
+    this.events.once(Phaser.Scenes.Events.DESTROY, disposeFlights);
     this.missiles = [];
     const { width, height } = this.scale;
     this.cameras.main.setBackgroundColor('#050816');
@@ -589,6 +597,12 @@ export class GameplayScene extends Phaser.Scene {
     if (!defense) return false;
     defense.snapshot(); // Assert current defense is live before changing Build.
     const before = build.getEffectiveStats();
+    if (change.kind === 'percent') {
+      const context = this.rewardContext(build);
+      const candidate = { ...context, build: { ...context.build, effectiveStats: build.previewStatPercent(change.stat, change.delta) } };
+      // This validates every affected launch consumer and cadence before the first Build write.
+      assertCombatConsumers(candidate);
+    }
     const changed = change.kind === 'percent' ? build.applyStatPercent(change.stat, change.delta)
       : change.kind === 'hullPlating' ? build.applyPrototypeHullPlating() : build.applyPrototypeThruster();
     if (!changed) return false;
@@ -712,7 +726,7 @@ export class GameplayScene extends Phaser.Scene {
     return { build: build.snapshot(), laserRanks: { ...this.laserRanks }, missileRanks: { ...this.missileRanks },
       droneRanks: { ...this.droneRanks }, moduleLevels: { ...this.moduleLevels },
       prismEvolved: this.prismEvolved, clusterEvolved: this.clusterEvolved, twinDroneEvolved: this.twinDroneEvolved,
-      laser: { ...this.laser }, missile: { ...this.missileValues }, drone: { ...this.droneAttackValues },
+      laser: { damage: this.laser.damage, fireInterval: this.laser.fireInterval, projectileSpeed: this.laser.projectileSpeed }, missile: { ...this.missileValues }, drone: { ...this.droneAttackValues },
       magnetRadius: this.xpMagnetRadius, combatMultiplier: this.globalDamageMultiplier,
       hullPreview: preview(() => build.previewPrototypeHullPlating()), thrusterPreview: preview(() => build.previewPrototypeThruster()) };
   }
@@ -800,6 +814,11 @@ export class GameplayScene extends Phaser.Scene {
   }
 
   private choiceLabel(choice: LevelUpChoice): string {
+    if ('branch' in choice) {
+      const index = choice.kind === 'laserSpecialization' ? 0 : choice.kind === 'laserCapstone' ? 5
+        : (LASER_DEVELOPMENTS[choice.branch] as readonly string[]).indexOf(choice.upgrade) + 1;
+      return `${choice.kind === 'laserCapstone' ? 'CAPSTONE: ' : ''}${LASER_LABELS[choice.branch][index]}`;
+    }
     if (choice.kind === 'prism') return 'EVOLVE: Prism Laser\nThree beams — full Laser damage each';
     if (choice.kind === 'cluster') return 'EVOLVE: Cluster Missile\nPrimary blast + 6 satellite explosions';
     if (choice.kind === 'twin') return 'EVOLVE: Twin Drone Formation\nMirrored companion, synchronized Drone bolts';
@@ -861,6 +880,10 @@ export class GameplayScene extends Phaser.Scene {
     const option = candidate.choice, context = this.rewardContext(p.build);
     if (option.kind === 'passive' && (option.module === 'hull' && !context.hullPreview
       || option.module === 'thruster' && !context.thrusterPreview)) return false;
+    if (isLaserChoice(option)) {
+      try { prepareLaserChoice(context.build.laser, option, context.moduleLevels.combat); }
+      catch (error) { if (error instanceof RangeError) return false; throw error; }
+    }
     assertRewardFeasible(option, context);
     if (!isRewardEligible(option, context)) return false;
     const defense = this.playerDefense!.snapshot();
@@ -880,8 +903,12 @@ export class GameplayScene extends Phaser.Scene {
         if (!this.currentReward(p, choice, candidate.id)) { provisionalTwin.destroy(); return false; }
       } catch (error) { provisionalTwin.destroy(); throw error; }
     }
-    if (option.kind === 'laser') this.laserRanks[option.upgrade] += 1;
-    if (option.kind === 'prism') this.prismEvolved = true;
+    if (isLaserChoice(option)) {
+      const beforeDelay = this.weaponInterval(this.laser.fireInterval);
+      if (!p.build.applyLaserChoice(option, this.moduleLevels.combat)) return false;
+      const afterDelay = this.weaponInterval(this.laser.fireInterval);
+      if (beforeDelay !== afterDelay) this.resetWeaponTimer(this.laserTimer, afterDelay);
+    }
     if (option.kind === 'cluster') {
       this.clusterEvolved = true;
       this.weaponFocus = 'missile';
@@ -891,7 +918,7 @@ export class GameplayScene extends Phaser.Scene {
       this.weaponFocus = 'drone';
       this.twinDrone = provisionalTwin;
     }
-    if (option.kind === 'laser' || option.kind === 'prism') this.weaponFocus = 'laser';
+    if (isLaserChoice(option)) this.weaponFocus = 'laser';
     if (option.kind === 'drone') {
       this.weaponFocus = 'drone';
       this.droneRanks[option.upgrade] += 1;
@@ -927,12 +954,6 @@ export class GameplayScene extends Phaser.Scene {
         case 'collector': this.xpMagnetRadius += 40; break;
         case 'combat': this.globalDamageMultiplier += 0.25; break;
       }
-    }
-    if (option.kind === 'laser' && option.upgrade === 'power') this.laser.damage += 1;
-    if (option.kind === 'laser' && option.upgrade === 'speed') this.laser.projectileSpeed += 200;
-    if (option.kind === 'laser' && option.upgrade === 'fireRate') {
-      this.laser.fireInterval = Math.max(100, this.laser.fireInterval - 50);
-      this.resetWeaponTimer(this.laserTimer, this.weaponInterval(this.laser.fireInterval));
     }
     if (!p.progression.resolvePendingLevel()) throw new Error('Accepted reward lost pending level');
     this.runDiagnostics!.recordLevelUpSelected(candidate.id);
@@ -1015,7 +1036,7 @@ export class GameplayScene extends Phaser.Scene {
     if (hit.target.run !== hit.run || !this.enemies.includes(hit.target) || hit.target.health <= 0) return null;
     if (hit.kind === 'ENEMY_DIRECT' ? !hit.direction : !hit.origin) throw new RangeError('Missing physical Hit geometry');
     const phaseImpact = composePlayerImpact(hit.attack.snapshot.impact,
-      hit.kind === 'ENEMY_BLAST' && hit.phase === 'SATELLITE' ? 0.5 : 1);
+      hit.kind === 'ENEMY_BLAST' ? hit.phase === 'SATELLITE' ? 0.5 : 1 : hit.impactFactor ?? 1);
     const magnitude = composePlayerImpact(phaseImpact, hit.target.spawnSnapshot.interaction.knockbackResponse);
     if (hit.kind === 'ENEMY_BLAST') {
       for (const value of [hit.origin.x, hit.origin.y, hit.target.visual.x, hit.target.visual.y]) {
@@ -1123,18 +1144,13 @@ export class GameplayScene extends Phaser.Scene {
     if (this.isSimulationPaused()) return;
     if (!this.player || !this.currentTarget) return;
     if (!this.playerBuild!.getSlots().combat.includes('LASER')) return;
-    const stats = this.playerBuild!.getEffectiveStats();
-    const directions = this.prismEvolved
-      ? prismSpread(this.currentTarget.visual.x - this.player.x, this.currentTarget.visual.y - this.player.y)
-      : this.aimProjectile(this.player, this.currentTarget);
-    if (directions.length === 0) return;
-    const attack = createAttack({ kind: 'LASER', variant: this.prismEvolved ? 'PRISM' : 'BASE', snapshot: {
-      damage: composePlayerDamage('LASER', this.laser.damage, this.globalDamageMultiplier, stats.reactorPower, stats.engineering),
-      speed: this.laser.projectileSpeed * stats.projectileVelocity,
-      radius: this.projectileRadius * stats.projectileScale, lifetime: this.projectileLifetime,
-      impact: composePlayerImpact(200, stats.impact),
-    } }) as LaserAttack;
-    for (const direction of directions) this.launchPlayerProjectile(this.player, direction, attack, this.run!, 0x67e8f9);
+    const config = this.playerBuild!.snapshot().laser, profile = laserProfile(config);
+    const directions = laserDirections(this.currentTarget.visual.x - this.player.x,
+      this.currentTarget.visual.y - this.player.y, profile);
+    if (!directions.length) return;
+    const attack = laserAttack(config, this.playerBuild!.getEffectiveStats(), this.globalDamageMultiplier);
+    const volley: ScatterVolley | undefined = config.form === 'SCATTER' ? { contacts: new Map(), remaining: directions.length } : undefined;
+    for (const direction of directions) this.launchPlayerProjectile(this.player, direction, attack, this.run!, profile.color, volley);
   }
 
   private updateDrone(delta: number): void {
@@ -1183,12 +1199,13 @@ export class GameplayScene extends Phaser.Scene {
 
   private launchPlayerProjectile(
     origin: { x: number; y: number }, direction: { x: number; y: number },
-    attack: LaserAttack | DroneAttack, run: RunLifecycle, color: number,
+    attack: LaserAttack | DroneAttack, run: RunLifecycle, color: number, scatterVolley?: ScatterVolley,
   ): void {
     if (this.run !== run || run.state !== 'RUNNING') return;
     const { radius, speed, lifetime } = attack.snapshot;
     this.projectiles.push({
-      attack, run,
+      attack, run, scatterVolley,
+      ...(attack.kind === 'LASER' && attack.mechanics?.pattern === 'LANCE' ? { visited: new Set<EnemyRuntime>() } : {}),
       get source() { return attack.kind === 'LASER' || attack.kind === 'COMBAT_DRONE' ? 'player' : 'enemy'; },
       get damage() { return attack.snapshot.damage; },
       get radius() { return attack.snapshot.radius; },
@@ -1234,8 +1251,17 @@ export class GameplayScene extends Phaser.Scene {
     });
   }
 
+  private removeProjectile(projectile: ProjectileRuntime): void {
+    const index = this.projectiles.indexOf(projectile);
+    if (index < 0) return;
+    projectile.visited?.clear();
+    const volley = projectile.scatterVolley;
+    if (volley && --volley.remaining === 0) volley.contacts.clear();
+    projectile.visual.destroy(); this.projectiles.splice(index, 1);
+  }
+
   private updateProjectiles(delta: number): void {
-    for (let i = this.projectiles.length - 1; i >= 0; i -= 1) {
+    projectileLoop: for (let i = this.projectiles.length - 1; i >= 0; i -= 1) {
       if (this.isSimulationPaused()) return;
       const projectile = this.projectiles[i];
       if (projectile.run !== this.run || projectile.run.state !== 'RUNNING') continue;
@@ -1250,32 +1276,35 @@ export class GameplayScene extends Phaser.Scene {
       ) !== Infinity) {
         if (this.playerDefense) this.damagePlayer({ kind: 'PLAYER_PROJECTILE', run: projectile.run,
           target: this.playerDefense, attack: projectile.attack });
-        projectile.visual.destroy();
-        this.projectiles.splice(i, 1);
+        this.removeProjectile(projectile);
         continue;
       }
-      let hitEnemy: EnemyRuntime | undefined;
-      let firstHit = Infinity;
-      for (const enemy of projectile.attack.kind !== 'HOSTILE_PROJECTILE' ? this.enemies : []) {
-        const hit = segmentCircleHitTime(
-          startX, startY, stepX, stepY,
-          enemy.visual.x, enemy.visual.y, enemy.collisionRadius + projectile.radius,
-        );
-        if (hit < firstHit) {
-          firstHit = hit;
-          hitEnemy = enemy;
+      for (let contact = 0; contact < (projectile.attack.kind === 'LASER' ? projectile.attack.mechanics?.maxHits ?? 1 : 1); contact++) {
+        let hitEnemy: EnemyRuntime | undefined, firstHit = Infinity;
+        for (const enemy of projectile.attack.kind !== 'HOSTILE_PROJECTILE' ? this.enemies : []) {
+          if (enemy.run !== projectile.run || enemy.health <= 0 || projectile.visited?.has(enemy)) continue;
+          const hit = segmentCircleHitTime(startX, startY, stepX, stepY,
+            enemy.visual.x, enemy.visual.y, enemy.collisionRadius + projectile.radius);
+          if (hit < firstHit) { firstHit = hit; hitEnemy = enemy; }
         }
-      }
-      if (hitEnemy && projectile.attack.kind !== 'HOSTILE_PROJECTILE') {
+        if (!hitEnemy || projectile.attack.kind === 'HOSTILE_PROJECTILE') break;
         const bossWasDefeated = this.bossDefeated;
-        this.applyEnemyHit({ kind: 'ENEMY_DIRECT', run: projectile.run, target: hitEnemy, attack: projectile.attack,
-          direction: { x: projectile.velocityX, y: projectile.velocityY } });
-        projectile.visual.destroy();
-        this.projectiles.splice(i, 1);
-        // Finish this hit's cleanup before the terminal boundary, not inside killEnemy.
-        if (!bossWasDefeated && this.bossDefeated) this.enterRunVictory();
-        if (this.isRunVictorious) return;
-        continue;
+        const count = projectile.scatterVolley?.contacts.get(hitEnemy) ?? 0;
+        const result = this.applyEnemyHit({ kind: 'ENEMY_DIRECT', run: projectile.run, target: hitEnemy, attack: projectile.attack,
+          direction: { x: projectile.velocityX, y: projectile.velocityY }, impactFactor: 2 ** -count });
+        if (!result) {
+          this.removeProjectile(projectile);
+          continue projectileLoop;
+        }
+        if (projectile.scatterVolley) projectile.scatterVolley.contacts.set(hitEnemy, count + 1);
+        projectile.visited?.add(hitEnemy);
+        const limit = projectile.attack.kind === 'LASER' ? projectile.attack.mechanics?.maxHits ?? 1 : 1;
+        if (!projectile.visited || projectile.visited.size >= limit || !bossWasDefeated && this.bossDefeated) {
+          this.removeProjectile(projectile);
+          if (!bossWasDefeated && this.bossDefeated) this.enterRunVictory();
+          if (this.isRunVictorious) return;
+          continue projectileLoop;
+        }
       }
       projectile.visual.x = startX + stepX;
       projectile.visual.y = startY + stepY;
@@ -1285,8 +1314,7 @@ export class GameplayScene extends Phaser.Scene {
       const outsideArena = x < -projectile.radius || x > this.arenaWidth + projectile.radius
         || y < -projectile.radius || y > this.arenaHeight + projectile.radius;
       if (projectile.remainingLifetime <= 0 || outsideArena) {
-        projectile.visual.destroy();
-        this.projectiles.splice(i, 1);
+        this.removeProjectile(projectile);
       }
     }
   }

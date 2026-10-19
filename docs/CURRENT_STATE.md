@@ -14,7 +14,7 @@ Do not place future plans or speculative features here.
 
 Current phase:
 
-FIRST PLAYABLE CORE LOOP COMPLETE / GAME-055 COMPLETE
+FIRST PLAYABLE CORE LOOP COMPLETE / GAME-056 COMPLETE
 
 The project has a working browser application, development toolchain and placeholder gameplay scene.
 
@@ -61,7 +61,7 @@ Runs TypeScript without emitting files.
 
 ### Tests
 
-Current validation:1354 tracked tests in33 files pass; all1294 baseline cases retained with approved offer-policy expectation migrations.
+Current validation:1490 tracked tests in34 files pass; all1354 pre-GAME-056 cases retained through approved catalog/policy and authoritative Build fixture migrations.
 
 npm test
 
@@ -187,10 +187,10 @@ The selected enemy has a temporary 4-pixel yellow outline; the former target ret
 A Phaser timer automatically fires the Laser initially every 600 ms when a current target exists.
 Each shot starts at the player's world position and stores a normalized firing-time direction toward the current target. At baseline it travels straight at 1200 pixels per second using frame delta and does not home or depend on the target after launch.
 Scene-owned straight projectile records contain their visual, source, damage, radius, fixed velocity components and remaining lifetime. Multiple shots can coexist.
-Projectiles expire after 2000 ms or are removed early once their whole 6-pixel-radius circle leaves the arena. Cleanup destroys the visual and removes the runtime entry.
+Base/Prism projectiles expire after 2000 ms or are removed early once their whole launch-radius circle leaves the arena; specialized profiles are described below. Cleanup destroys the visual and removes the runtime entry.
 No manual fire input is required. Exact or near-zero-distance shots are suppressed safely.
 Without a current target no shot is created; the timer stays ready for a future target.
-Each Laser projectile initially deals 1 damage to the first enemy intersected along its movement segment and is immediately destroyed and removed. Hit detection sweeps against the enemy runtime collision radius (regular/Elite24, Warden40) expanded by the 6-pixel projectile radius, avoiding projectile tunneling across larger frame steps. Shots do not pierce.
+Each Laser projectile initially deals 1 damage to the first enemy intersected along its movement segment and is immediately destroyed and removed. Hit detection sweeps against the enemy runtime collision radius (regular/Elite24, Warden40) expanded by the 6-pixel projectile radius, avoiding projectile tunneling across larger frame steps. Base/Prism shots do not pierce; only acquired Precision Lance uses bounded penetration.
 Enemies with remaining HP stay active. At zero HP their visual is destroyed and their runtime entry is removed, so they no longer chase, count toward the cap or participate in targeting. Death clears currentTarget immediately when applicable; normal targeting selects and highlights the next nearest enemy on the following active update.
 PlayerDefense starts with Hull5, Shield0 and protection0 on scene creation; PlayerBuild supplies max Hull5. Regular enemy contact deals1 damage; Elite Tank and Warden contact deal2. World-center distance uses player radius20 plus each enemy's stored collision radius: regular/Elite24 (combined44), Warden40 (combined60).
 Contact runs after projectile impacts/removals, separates the first inclusive overlap using the minimum circle translation and current player bounds, then routes its damage. God Mode/protection still allow separation. Accepted Shield or Hull loss starts500ms delta-based protection and alpha0.5; active expiry restores1. Multiple overlaps cause at most one contact attempt per update. Continued overlap can damage again when protection expires.
@@ -206,7 +206,7 @@ Missile upgrades use explicit run-local ranks 0..2: Warhead Power raises Missile
 Spatial Amplifier has an explicit repeatable run-local level, starting/resetting at 0. Each selection adds 15 world pixels to effective Missile explosion radius without changing Missile-specific Blast Expansion ranks/values, damage or speed. At launch the pure effectiveMissileExplosionRadius helper combines current Missile radius + Spatial level × 15; MissileRuntime stores the final radius and explosions consume that immutable snapshot. Required combinations are 120/135/150 at baseline with Spatial 0/1/2, 165 for Blast1 + Spatial1, and 210 for Blast2 + Spatial2. Old in-flight Missiles keep their radius after Spatial selection. It is the fifth passive in the existing passive/open slots, with distinct stable choices and next-level/effect labels; acceptance retains focus and cursors. No Laser/Prism/Drone Area effect is implemented; Cluster derives satellite coverage from the same stored Missile radius. Real-browser harness validation covers actual old/new explosion coverage, unchanged progression/focus and two native retries with Spatial0 and five fresh timers.
 
 The per-create LevelUpGenerator supplies three distinct weighted choices in canonical order.
-Slot1 prefers ordinary weapon tuning (Scene weaponFocus is affinity only), Slot2 remaining
+Slot1 prefers one eligible specialization while BASE ready, otherwise ordinary weapon development (Scene weaponFocus is affinity only); Slot2 prefers remaining
 passives, Slot3 the reserved cyclic evolution or a non-primary pivot, each with ordinary fallback.
 Every offer consumes exactly THREE Reward draws, including singleton evolution. Scene no longer
 owns focusCursors or evolutionOfferCursor. Accepted weapons/evolutions retain their original
@@ -216,7 +216,7 @@ Cluster Missile is the second concrete evolution: Missile ranks 2/2/2 + Spatial 
 
 MissileRuntime derives readonly clusterEnabled from its immutable launch Attack variant. Pre-evolution flights remain normal. On impact the existing primary explosion resolves first; an evolved launch then resolves the union of six satellite circles at 0/60/120/180/240/300 degrees, with offsets equal to stored primary radius R. Satellite radius is R/2 and damage is stored primary damage/2, without rounding or live Combat/Spatial lookups. After primary deaths, affected surviving references are snapshotted so overlapping circles apply one satellite hit per enemy and lethal removals cannot skip entries. Primary plus one satellite hit is allowed; every death still produces one XP pickup with the killed enemy's value. Centers are not clamped to the arena. Expiry/world exit produces no blasts. No child projectiles, VFX, extra timer, or generic evolution engine is added. create/restart resets all three evolution flags and the Prism-first cursor; real-browser validation includes two native retries with five fresh gameplay timers.
 
-Exactly one teal radius-10 world-space Drone starts to the right of the player at orbit angle 0. Scene-owned angle advances clockwise at 2 rad/s using active frame delta, wrapping at 2π. Position is derived after player movement/Dash from current player position plus a 110-pixel cosine/sine offset; only the Drone center is clamped to arena bounds. It has no health, collision or contact damage. One global droneTimer (baseline 1200 ms) selects the nearest active enemy from the actual Drone position with stable collection-order ties; empty or near-zero aim creates no bolt. Violet straight bolts with launch-owned radius (baseline 5) snapshot current Drone-specific damage (baseline 1) multiplied by Combat Processor, current bolt speed (baseline 800 px/s) and lifetime 1800 ms, independently of every Laser upgrade, and do not home. Laser/Drone share a small straight-player-shot creation helper; player and hostile straight shots share required per-projectile radius, swept first-hit damage, non-piercing removal and lifetime/world-exit cleanup. Laser/hostile shots retain radius 6. All enemy deaths still use killEnemy/one XP pickup with the killed enemy's value. Pause/death freeze orbit and bolts and guard firing; native restart destroys old Drone/bolts/timers and create restores exactly one Drone at angle 0 with empty projectiles and five gameplay timers. Drone attack progression is described below; no weapon acquisition is implemented. Twin Drone behavior is described below.
+Exactly one teal radius-10 world-space Drone starts to the right of the player at orbit angle 0. Scene-owned angle advances clockwise at 2 rad/s using active frame delta, wrapping at 2π. Position is derived after player movement/Dash from current player position plus a 110-pixel cosine/sine offset; only the Drone center is clamped to arena bounds. It has no health, collision or contact damage. One global droneTimer (baseline 1200 ms) selects the nearest active enemy from the actual Drone position with stable collection-order ties; empty or near-zero aim creates no bolt. Violet straight bolts with launch-owned radius (baseline 5) snapshot current Drone-specific damage (baseline 1) multiplied by Combat Processor, current bolt speed (baseline 800 px/s) and lifetime 1800 ms, independently of every Laser upgrade, and do not home. Laser/Drone share a small straight-player-shot creation helper; player and hostile straight shots share required per-projectile radius, swept first-hit damage, non-piercing removal and lifetime/world-exit cleanup. Base/Prism/hostile shots retain local radius6; Lance development can raise its local body to8. All enemy deaths still use killEnemy/one XP pickup with the killed enemy's value. Pause/death freeze orbit and bolts and guard firing; native restart destroys old Drone/bolts/timers and create restores exactly one Drone at angle 0 with empty projectiles and five gameplay timers. Drone attack progression is described below; no weapon acquisition is implemented. Twin Drone behavior is described below.
 
 Drone upgrades have explicit scene-owned ranks 0..2: Bolt Power raises damage 1 → 2 → 3, Firing System reduces interval 1200 → 1050 → 900 ms, and Bolt Propulsion raises speed 800 → 1000 → 1200 px/s. droneAttackValues is separate from immutable orbit/lifetime/radius configuration. Each track leaves eligibility at rank 2; mastery is explicit 2/2/2 and participates in the Twin recipe below. Accepted Firing resets the SAME droneTimer in place with elapsed 0 and no new event. New bolts snapshot Drone-specific damage × globalDamageMultiplier and fixed velocity at launch; old bolts retain both across Drone or Combat selections. Drone upgrades can appear in the open slot and set focus Drone; passive acceptance retains it. Labels show next rank/effect. Native restart resets ranks, attack values and Drone cursor, recreating one angle-0 companion and five fresh timers. Real-browser validation verifies exact Clock boundaries, stale/double/capped callbacks, snapshots and two native retries.
 
@@ -224,7 +224,7 @@ Replication Matrix is the sixth explicit repeatable run-local passive, starting/
 
 Twin Drone Formation requires explicit Drone ranks2/2/2 + Replication level>=1 and unevolved state. The passive is not consumed. Both final-prerequisite categories apply only to the next presentation; accepted Twin sets twinDroneEvolved once, preserves ranks/values, sets Drone focus and immediately adds one opposite teal radius10 companion at current droneAngle+PI. It retains the primary position/shared angle and the SAME Drone TimerEvent delay/elapsed phase, without a volley or existing-bolt duplication. One shared angle positions primary/Twin at radius110 and 2rad/s; each center is independently clamped. The synchronized callback queries nearest enemies independently from each actual origin, with stable ties and independent near-zero/no-target suppression, and launches full-damage normal bolts from each valid origin. Both origins use current Drone damage x Combat, speed, radius5+Replication and lifetime1800 at launch; old bolts retain snapshots. Pause/death freeze both companions/angle/bolts. Native restart destroys Twin/old shots/timers, clears its reference/flag and recreates exactly one angle0 primary and five fresh gameplay timers. Real-runtime validation covers all offer combinations/cursors, immediate acceptance/phase, orbit/targeting/suppression, real Clock boundaries, both-origin snapshots and two actual native retries. No generic companion or Amount architecture is added.
 
-Every killed enemy creates exactly one lime-green world-space XP pickup at its death position: regular value1, Elite Tank value5, Warden value10. killEnemy uses the immutable death record xpValue copied from that enemy's spawn snapshot; duplicate removal attempts create no second pickup. Scene-owned pickup records preserve their creating run, visual, value and magnet speed; create resets the array and restart destroys old visuals. Pickups stay stationary outside the current player-center magnet radius (baseline 180 pixels). Within range they accelerate toward the current player position at 900 px/s² up to 600 px/s, using frame delta; leaving range resets speed. Reaching a 20-pixel player-center collection radius credits pickup.value to player XP before destroying/removing the pickup. Motion is capped by collection to avoid overshoot. Magnet processing stops during level-up pause, death and Victory. One run-scoped PlayerProgression starts at level1/XP0/pending0; Scene has no writable XP mirror. The pure experience module requires 5 × current level XP, subtracts each reached threshold, carries excess forward and allows multiple levels per award. Restart resets this state and clears the separate isLevelUpPaused flag. Collection that increases level credits/removes the triggering pickup, then enters level-up pause immediately; subsequent pickups remain untouched. Screen-fixed LEVEL UP — CHOOSE ONE text and exactly three distinct selectable options appear, built once per earned opportunity from eligible Laser, Missile and Drone upgrades plus Hull Plating, Thruster Module, Collector Field, Combat Processor, Spatial Amplifier and Replication Matrix, using the focused/passive/open slot policy above. The pure selectChoices helper accepts a supplied pool, count and random source, leaves the pool unchanged and permits repeats across later presentations. Choices stay stable during a pause. Each Laser upgrade has an explicit run-local rank starting at 0, increments only on its accepted selection and becomes ineligible at rank 2; all six passives remain repeatable. An eligible evolution occupies Slot 3 as described below. isSimulationPaused derives only from non-RUNNING lifecycle state (PREPARING, PAUSED, TERMINAL or DISPOSED) to freeze movement, chase/targeting, projectiles, damage/protection, XP movement/collection and all spawn/fire callbacks. Level-up pause itself is not death and offers no retry. Clicking one current choice applies it, resolves one pending level and destroys the old title/options. If pending remains, a fresh offer uses the updated Build while the same REWARD stays held; only the last choice releases REWARD. Simulation resumes only if no other reason remains, and duplicate/stale callbacks are rejected. Selected effects apply before resume and accumulate across level-ups. Scene-owned laser data starts at damage 1, fireInterval 600 ms and projectileSpeed 1200 px/s and resets on each create. Fire Rate resets the existing laserTimer in place to the new interval with elapsed time zero, preserving one Laser event rather than adding another. New straight player shots snapshot weapon-specific damage multiplied by the run-wide damage multiplier, plus current speed; already-fired shots keep their launch values. Missiles likewise snapshot multiplied explosion damage at launch, including Missiles that span a choice pause. Hostile shots are unchanged. Restart clears presentation references and native scene shutdown destroys the texts.
+Every killed enemy creates exactly one lime-green world-space XP pickup at its death position: regular value1, Elite Tank value5, Warden value10. killEnemy uses the immutable death record xpValue copied from that enemy's spawn snapshot; duplicate removal attempts create no second pickup. Scene-owned pickup records preserve their creating run, visual, value and magnet speed; create resets the array and restart destroys old visuals. Pickups stay stationary outside the current player-center magnet radius (baseline 180 pixels). Within range they accelerate toward the current player position at 900 px/s² up to 600 px/s, using frame delta; leaving range resets speed. Reaching a 20-pixel player-center collection radius credits pickup.value to player XP before destroying/removing the pickup. Motion is capped by collection to avoid overshoot. Magnet processing stops during level-up pause, death and Victory. One run-scoped PlayerProgression starts at level1/XP0/pending0; Scene has no writable XP mirror. The pure experience module requires 5 × current level XP, subtracts each reached threshold, carries excess forward and allows multiple levels per award. Restart resets this state and clears the separate isLevelUpPaused flag. Collection that increases level credits/removes the triggering pickup, then enters level-up pause immediately; subsequent pickups remain untouched. Screen-fixed LEVEL UP — CHOOSE ONE text and exactly three distinct selectable options appear, built once per earned opportunity from eligible Laser, Missile and Drone upgrades plus Hull Plating, Thruster Module, Collector Field, Combat Processor, Spatial Amplifier and Replication Matrix, using the focused/passive/open slot policy above. The pure selectChoices helper accepts a supplied pool, count and random source, leaves the pool unchanged and permits repeats across later presentations. Choices stay stable during a pause. Each Laser upgrade has an explicit run-local rank starting at 0, increments only on its accepted selection and becomes ineligible at rank 2; all six passives remain repeatable. An eligible evolution occupies Slot 3 as described below. isSimulationPaused derives only from non-RUNNING lifecycle state (PREPARING, PAUSED, TERMINAL or DISPOSED) to freeze movement, chase/targeting, projectiles, damage/protection, XP movement/collection and all spawn/fire callbacks. Level-up pause itself is not death and offers no retry. Clicking one current choice applies it, resolves one pending level and destroys the old title/options. If pending remains, a fresh offer uses the updated Build while the same REWARD stays held; only the last choice releases REWARD. Simulation resumes only if no other reason remains, and duplicate/stale callbacks are rejected. Selected effects apply before resume and accumulate across level-ups. Build-owned Laser configuration starts at BASE/ranks0, deriving damage1/fireInterval600ms/projectileSpeed1200px/s, and resets on each create. Fire Rate resets the existing laserTimer in place to the new interval with elapsed time zero, preserving one Laser event rather than adding another. New straight player shots snapshot weapon-specific damage multiplied by the run-wide damage multiplier, plus current speed; already-fired shots keep their launch values. Missiles likewise snapshot multiplied explosion damage at launch, including Missiles that span a choice pause. Hostile shots are unchanged. Restart clears presentation references and native scene shutdown destroys the texts.
 
 Laser → Prism Laser and the GAME-030 open-slot integration are validated in the real Phaser runtime. Power, Fire Rate and Projectile Speed ranks reset to 0 and cap at 2 independently, preserving +1 damage, -50 ms (minimum 100) and +200 px/s per accepted selection. Full mastery retains damage 3, interval 500 ms and speed 1600 px/s before global damage multiplication. Prism requires all three ranks >=2, Combat Processor level >=1 and unevolved state. Eligibility is checked only on entering a new presentation: sole eligible Prism owns Slot 3 exactly once; if multiple evolutions qualify, the cursor arbitrates; Slots 1 and 2 follow the focused/passive policy above. Completing the final prerequisite affects the next earned presentation; simulation resumes only after pending levels and other pause reasons clear; ignoring sole eligible Prism offers it again next level, while multiple-eligible offers scan cyclically. Selecting it once retains Combat Processor and mastered Laser values, then removes the evolution offer for that run.
 
@@ -612,7 +612,7 @@ cycles, Death RETRY and paused nonterminal native restart. Saved owner/pickup/ch
 timer/DEV/cleanup references are inert. Unmodified production keyboard/pixel checks verify
 movement/Dash/pause, natural physical XP to Level2 and real pointer choice, ordinary incoming
 Death/actual RETRY and DEV absence with no new pageerrors. Known favicon404/bundle/worker advice
-only. No new timer/stream/DEV method/dependency or GAME-056+ runtime; GATE A/B PASSED, GATE C unapproved.
+only. No new timer/stream/DEV method/dependency or GAME-057+ runtime; GATE A/B PASSED, GATE C unapproved.
 
 ## Reward transactions and hard eligibility
 
@@ -623,14 +623,13 @@ selection guard. Detached serializable snapshots contain no selection authority.
 foreign/equal-ordinal, stale and duplicate tokens reject; all operations except idempotent
 dispose throw on a disposed owner. Openability/ordinal is checked before Reward sampling.
 
-rewardChoices preserves the current18 prototype identities/labels/values. rewardEligibility
-checks current detached Build slots/stats, Scene-owned ranks/modules/evolved flags/local values
+rewardChoices preserves the original18 prototype identities/labels/values and appends18 Laser identities. rewardEligibility
+checks detached Build slots/stats/Laser configuration, derived Laser projections and Scene-owned other-weapon ranks/modules/flags/local values
 and numeric feasibility before generation and immediately before application. Missing owning
 weapons/caps/recipes/overflow reject; developing an installed system needs no free slot.
 Repeatable passives remain prototype modifiers, with no artificial inventory cap or Core slot.
 PlayerBuild's two narrow Hull/Thruster previews share the actual candidate preparation/resolver
-without source/cache/Tag/Defense mutation; disposed errors propagate. No legacy ranks or module
-levels were duplicated into BuildSnapshot. Tags/Analyzer still do not gate current rewards.
+without source/cache/Tag/Defense mutation; disposed errors propagate. Laser ranks/form/development now have one authoritative BuildSnapshot.laser; other-weapon ranks/module levels stay Scene-owned. Tags/Analyzer do not hard-gate rewards except safe numeric feasibility of authored Tag additions.
 The focused helper's optional eligible-track mask retains the same least-rank/cyclic behavior.
 
 One Scene applyRewardChoice callback preflights numeric/Attack/cadence/Build/Defense/pending/
@@ -658,7 +657,7 @@ actual next pending offers draw3 from updated Build and presented policy history
 Exactly four RNG streams/five TimerEvents/five DEV commands remain; DEV progression still has
 only level/xp/threshold and production exposes no API. GAME-053 XP arithmetic/physical values/
 consolidation/continuous pending chain and existing atomic terminal attack cleanup are unchanged.
-The LevelUpGenerator policy is described below; no rarity, new acquisition or GAME-056+ runtime exists.
+The LevelUpGenerator policy is described below; no rarity, new Combat System acquisition or GAME-057+ runtime exists.
 
 1294 tracked cases/32 files retain1158 baseline cases. Actual installed Chrome mouse checks
 cover all18 effects/future launches and in-flight immutability, same event callbacks/scope/args,
@@ -670,7 +669,7 @@ held-input suppression pass. Four atomic Victory NEW RUN cycles, Death RETRY and
 restart isolate old refs. Unmodified built production passes real W/Space/Escape/pause/Dash/
 combat, natural physical XP to Level2/real choice, ordinary incoming Death/real RETRY and fresh
 active world. DEV absent/no new pageerrors; known favicon404/bundle/worker advice only.
-GAME-054/055 DONE; GAME-056+ BACKLOG; GATE A/B PASSED; GATE C unapproved.
+GAME-054/055 DONE; GAME-056 DONE; GAME-057+ BACKLOG; GATE A/B PASSED; GATE C unapproved.
 
 ## Weighted Level-Up generator
 
@@ -678,12 +677,12 @@ Each actual create constructs one Phaser-free LevelUpGenerator, captured by the 
 shutdown/destroy cleanup as RewardTransaction. It owns only bounded policy: misses0..4, last2
 presented three-ID offers, primary signature, cyclic Prism-first evolution cursor, last ordinal
 and one provisional tuple/update. It retains no Build, progression, Run, Phaser or RNG handle.
-Canonical immutable affinity metadata covers only the18 existing choices and contributes no Tags.
+Canonical immutable affinity metadata covers36 choices and itself contributes no Tags; accepted Laser branch acquisition has a separate authored atomic Build Tag effect.
 
 Base100 combines context primary2/secondary1.5, Slot1 primary2/secondary1.25 and weaponFocus1.5,
 Slot2 Hull/Thrust1.5, primary Analyzer1+2/(1+4/A) (A0 factor1), primary pity1+0.25*baseMisses,
 and recent1/0.5/0.25. Analyzer accepts nonnegative safe integers without a cap4. Weights remain
-25..3600/total<=64800. Eligibility, identity/stat validation and every possible slot path preflight
+25..3600/total<=129600 for36 entries. Eligibility, identity/stat validation and every possible slot path preflight
 before any RNG/pause/UI writes. Insufficient ordinary choices fail loudly; other evolutions never
 fill shortages. Sampling uses canonical cumulative strictly-greater boundaries and exactly3 draws.
 
@@ -708,17 +707,67 @@ Analyzer4 with oldm4 -> changed signature ->0/1/0, genuine other-tab BLUR/five e
 Death RETRY and paused native restart with exact stale-owner/callback isolation. Unmodified built
 production passes real input/Dash/pause/combat, natural XP/Level-Up/mouse choice and ordinary
 incoming Death/RETRY. DEV absent/no new pageerrors; known favicon404/Vite chunk/worker advice only.
-GAME-055 DONE; GAME-056+ BACKLOG; GATE A/B PASSED; GATE C unapproved. No new dependency/timer/stream/
+GAME-055 DONE; GAME-056 DONE; GAME-057+ BACKLOG; GATE A/B PASSED; GATE C unapproved. No new dependency/timer/stream/
 DEV command, selection authority, future content or target distribution.
+
+## Laser progression vertical
+
+PlayerBuild is the sole Laser configuration owner. Detached BuildSnapshot.laser contains ranks0..2,
+BASE/PRISM/SCATTER/REPEATER/LANCE form, canonical chosen-branch upgrade IDs and Capstone.
+Scene laser/laserRanks/prismEvolved are derived getters; no writable parallel truth remains.
+previewLaserChoice/applyLaserChoice share validation, prepare the complete config/Tag/identity/profile
+and composed launch values before one commit. Scene percent-stat changes preflight all weapon consumers.
+Readiness derives from BASE and tuning sum>=3; global stats/passives/Tags do not count.
+
+Base/Prism retain L=1+power, T=max(100,600-50*fireRate), V=1200+200*speed, local radius6,
+lifetime2000 and Impact200. Prism remains the exclusive legacy2/2/2+Combat1 alternative with three
+independent full-damage beams. Branches preserve tuning, permit their four independent rank1
+upgrades and require all4 for their one-time Capstone; remaining tuning stays available below2.
+
+| Branch | Initial local profile | Four developments; Capstone |
+| --- | --- | --- |
+| Scatter | damage.5L, interval1.25T, speed.75V, radius6, lifetime500, Impact300,3 pellets0/-15/+15 | damage.65L; step12; lifetime650; Impact400; Capstone5 pellets0/-h/+h/-2h/+2h |
+| Repeater | damage.4L, interval.35T, speedV, radius6, lifetime2000, Impact80,1 shot | damage.5L; interval.30T; speed1.2V; Impact120; Capstone interval.25T |
+| Lance | damage2L, interval1.75T, speed1.5V, radius6, lifetime2000, Impact240,3 distinct hits | damage2.5L; speed2V;4 hits; radius8; Capstone5 hits |
+
+Shared composition is ((localDamage*Combat)*Reactor), localInterval/FireControl, localSpeed*Velocity,
+localRadius*Scale, localImpact*ShipImpact; Engineering never scales Laser. All values and mechanics
+are copied/frozen at launch; upgrades affect future attacks only. New Laser mechanics use the existing
+BASE/DIRECT death bucket; seven source counters and one HP/death/physical-XP route remain.
+Scatter shares one Attack with independent damaging pellets; only force diminishes1/.5/.25... per
+volley/enemy via a map bounded by5 entries, cleared with the last flight and native cleanup.
+Lance tracks exact visited enemy references per flight (max5), traverses earliest inclusive swept
+intersections on the same clipped segment, never re-hits a survivor, and completes owning cleanup
+before Boss Victory. All forms retain cached nearest targeting; priority ranking and cross-system
+duplicate avoidance remain distinct future GAME-059 work.
+
+The36-entry catalog retains original18 then acquisition Scatter/Repeater/Lance and each branch's
+four developments+Capstone. An available specialization uses exactly one weighted Slot1 draw;
+other acquisitions cannot enter Slots2/3. Zero acquisitions solely due to numeric feasibility uses
+ordinary GAME-055 policy with three distinct eligible rewards, retained readiness, no generation-time
+Build/pending/policy write and exactly3 Reward draws. Complete paths preflight before RNG/REWARD/UI;
+insufficient entire pools fail explicitly with0 draws. Next actual offers retry readiness.
+Scatter adds CLOSE_COMBAT/PROJECTILES/CONTROL1 each; Repeater RAPID_FIRE/PROJECTILES1; Lance
+PRECISION/PROJECTILES1, atomically and once. Presentation-only history/pity/cursor commit remains.
+
+1490 tracked tests/34 files pass. Installed Chrome/Phaser validates all18 new choices via actual
+mouse, profiles/Prism/snapshots, Scatter force/map, Lance3/4/5 and small/large sweeps, same5 timers,
+physical32/3 choices/9 draws, active-map REWARD and genuine other-tab BLUR freezes, eight Victory
+NEW RUN cycles, incoming Death RETRY and dirty PAUSED native restart with stale-owner isolation.
+Numeric-capacity restoration is explicitly a controlled valid Build replacement fixture; no Tag
+reduction API was added. Unmodified production passes W/Space/Escape/Dash/pause/combat, natural
+physical XP/Level-Up/mouse choice, ordinary incoming Death/RETRY, no DEV API or pageerrors.
+Controlled FireControl100 with fully developed fastest Repeater observes ~57-60 frames/sec over
+~1.2s in headless installed Chrome (software WebGL):600 Scatter/730 Repeater/220 Lance live flights;
+delays6.25/1.25/8.75ms. This is a desktop responsiveness observation, not mobile performance proof.
+GAME-056 DONE; GAME-057+ BACKLOG; GAME-040/041 SUPERSEDED; GATE A/B PASSED; GATE C unapproved.
 
 ## Tags and canonical BuildSnapshot
 
 PlayerBuild owns exactly twelve Tag identities in immutable TAG_IDS order: PRECISION,
 RAPID_FIRE, CLOSE_COMBAT, PROJECTILES, EXPLOSIONS, DRONES, TECHNOLOGY, SHIELDS, CONTROL,
 MOBILITY, SUPPORT, SURVIVAL. TagPoints has exactly those twelve own numeric fields, initially0.
-There is no authored current-prototype mapping: occupied Combat slots, current weapon
-upgrades, all six passives and Prism/Cluster/Twin add no Tag points. All current production
-progression leaves Tags unchanged, including internally supplied nonzero test points.
+Occupied Combat slots, tuning, all six passives, Prism/Cluster/Twin, developments and Capstones add0 Tags. Each accepted Laser specialization adds1 to its authored branch Tags exactly once in PlayerBuild; all other progression preserves existing totals.
 
 addTagPoints(tag,amount) adds nonnegative safe integers. It checks the existing live-Build
 invariant first, validates membership even for zero, and rejects invalid IDs/nonnumbers/
@@ -730,7 +779,7 @@ positive-score tie. Arrays follow TAG_IDS order, independent of arrival order. W
 positive points both arrays are empty; with only one positive tier secondary is empty.
 
 PlayerBuild.snapshot() now returns canonical BuildSnapshot with slots, baseStats,
-runModifiers, effectiveStats, tags and identity:{dominantTags,secondaryTags}.
+runModifiers, effectiveStats, tags, identity:{dominantTags,secondaryTags} and detached laser configuration.
 PlayerBuildReadModel is replaced. Existing narrow stat/slot getters remain. Every snapshot
 is deeply detached plain JSON data, including both identity arrays; old detached data
 remains usable after disposal. DevSnapshot exposes this only through existing nested build;
@@ -870,7 +919,7 @@ side0/1/2/3 = left/right/top/bottom, then that edge's varying coordinate. Camera
 48px origin offset, margins25/40, distance600 and deterministic opposite-corner fallback
 are preserved. Blocked spawns and DEV spawnWarden consume none; schedules/counts are unchanged.
 Level-Up passes Reward explicitly into LevelUpGenerator.generate. Every valid offer consumes
-exactly3 ordered draws, including singleton evolution; canonical weighted GAME-055-v1 offers
+exactly3 ordered draws, including singleton evolution; canonical weighted GAME-056-v1 offers
 intentionally supersede old2/3/1/2 budgets. Stable UI, preflight, presentation acknowledgment,
 snapshots and selection/rejected/stale callbacks draw0; each next pending offer draws3.
 World and Boss remain dormant: stars, Warden phases/bursts and DEV placement are deterministic.
@@ -957,7 +1006,7 @@ These should only be introduced when real project requirements justify them.
 
 The placeholder arena, bounded desktop movement, camera follow, repeated enemy spawning/chase, nearest-enemy targeting and Laser projectile impacts with enemy damage/death are implemented and browser-verified.
 
-GAME-001 through GAME-039 and GAME-042/043/044/045/046/047/048/049/050/051/052/053/054/055 are complete. GAME-040/041 are SUPERSEDED. GATE A PASSED — Runtime Foundation approved; GAME-056+ remain BACKLOG pending separate definition. GATE C remains unapproved. GATE B PASSED — Modern Combat on Legacy Spawning architect-approved.
+GAME-001 through GAME-039 and GAME-042/043/044/045/046/047/048/049/050/051/052/053/054/055/056 are complete. GAME-040/041 are SUPERSEDED. GATE A PASSED — Runtime Foundation approved; GAME-056 DONE; GAME-057+ remain BACKLOG pending separate definition. GATE C remains unapproved. GATE B PASSED — Modern Combat on Legacy Spawning architect-approved.
 
 ---
 
@@ -965,6 +1014,6 @@ GAME-001 through GAME-039 and GAME-042/043/044/045/046/047/048/049/050/051/052/0
 
 The application boots successfully.
 
-The player can move the ship, outrun Chasers and slow durable Tanks, approach ranged Shooters and automatically launch moving Laser projectiles toward the current nearest target of any type. Shots disappear on impact; baseline Chasers require three hits, Shooters two and Tanks six, fewer after damage upgrades. Missile automatically homes toward enemies and can damage/kill a cluster with one explosion; each enemy death still drops one pickup (regular1/Elite5/Warden10). One primary Drone, plus an opposite companion after accepting Twin, follows the ship in orbit and fires straight bolts at Drone-relative targets, independently of Laser upgrades. Spawning continues after ordinary kills; Warden defeat enters terminal Victory. Enemy contact reduces player HP with temporary protection and damage feedback; gameplay freezes at zero HP with SHIP DESTROYED displayed. Orange hostile projectiles can be dodged and damage the player. Clicking RETRY after death begins a clean new run. Warden defeat instead shows VICTORY / WARDEN DESTROYED / LEVEL REACHED / NEW RUN; NEW RUN uses native scene.restart(). The First Playable start/play/die/restart loop is complete. Killed enemies leave XP pickups that move toward the player within magnet range and are consumed on arrival. Collected values advance player XP/level state; reaching a new level freezes gameplay with three distinct choices from eligible Laser/Missile/Drone upgrades, Passive Modules and the eligible evolution offer. Each accepted choice applies its upgrade before the next pending offer; the run resumes after all pending levels and other pause reasons clear. Directional Space Dash supports short repositioning bursts without immunity. A fixed HUD shows HP, XP toward the next threshold, level and Dash cooldown throughout the run, pause and death, and resets on retry.
+The player can move the ship, outrun Chasers and slow durable Tanks, approach ranged Shooters and automatically launch moving Laser projectiles toward the current nearest target of any type. Base/Prism/Scatter/Repeater shots disappear on impact; Lance alone penetrates bounded distinct targets. Baseline Chasers require three hits, Shooters two and Tanks six, fewer after damage upgrades. Missile automatically homes toward enemies and can damage/kill a cluster with one explosion; each enemy death still drops one pickup (regular1/Elite5/Warden10). One primary Drone, plus an opposite companion after accepting Twin, follows the ship in orbit and fires straight bolts at Drone-relative targets, independently of Laser upgrades. Spawning continues after ordinary kills; Warden defeat enters terminal Victory. Enemy contact reduces player HP with temporary protection and damage feedback; gameplay freezes at zero HP with SHIP DESTROYED displayed. Orange hostile projectiles can be dodged and damage the player. Clicking RETRY after death begins a clean new run. Warden defeat instead shows VICTORY / WARDEN DESTROYED / LEVEL REACHED / NEW RUN; NEW RUN uses native scene.restart(). The First Playable start/play/die/restart loop is complete. Killed enemies leave XP pickups that move toward the player within magnet range and are consumed on arrival. Collected values advance player XP/level state; reaching a new level freezes gameplay with three distinct choices from eligible Laser/Missile/Drone upgrades, Passive Modules and the eligible evolution offer. Each accepted choice applies its upgrade before the next pending offer; the run resumes after all pending levels and other pause reasons clear. Directional Space Dash supports short repositioning bursts without immunity. A fixed HUD shows HP, XP toward the next threshold, level and Dash cooldown throughout the run, pause and death, and resets on retry.
 
 The First Playable milestone defined in TASK_GRAPH.md is now implemented.

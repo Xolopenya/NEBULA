@@ -1,3 +1,5 @@
+import { initialLaser, prepareLaserChoice, laserProfile, laserAttack, laserTagCandidate,
+  type LaserConfiguration, type LaserChoice, type LaserProfile } from './laserProgression';
 export type CombatSystemId = 'LASER' | 'MISSILE' | 'COMBAT_DRONE';
 export type BuildSlots = {
   combat: [CombatSystemId, CombatSystemId, CombatSystemId];
@@ -25,7 +27,7 @@ export type TagPoints = Record<TagId, number>;
 export type BuildIdentity = { dominantTags: TagId[]; secondaryTags: TagId[] };
 export type BuildSnapshot = {
   slots: BuildSlots; baseStats: BaseStats; runModifiers: RunModifiers; effectiveStats: EffectiveStats;
-  tags: TagPoints; identity: BuildIdentity;
+  tags: TagPoints; identity: BuildIdentity; laser: LaserConfiguration;
 };
 export const DEFAULT_BASE_STATS: Readonly<BaseStats> = Object.freeze({
   hull: 5, thrust: 300, reactorPower: 1, fireControl: 1, projectileVelocity: 1,
@@ -66,6 +68,7 @@ export class PlayerBuild {
   #tags: TagPoints = { PRECISION: 0, RAPID_FIRE: 0, CLOSE_COMBAT: 0, PROJECTILES: 0,
     EXPLOSIONS: 0, DRONES: 0, TECHNOLOGY: 0, SHIELDS: 0, CONTROL: 0, MOBILITY: 0, SUPPORT: 0, SURVIVAL: 0 };
   #identity: BuildIdentity = { dominantTags: [], secondaryTags: [] };
+  #laser = initialLaser();
   #disposed = false;
 
   constructor(baseStats: Readonly<BaseStats> = DEFAULT_BASE_STATS) {
@@ -87,7 +90,29 @@ export class PlayerBuild {
     this.assertLive();
     return { slots: this.getSlots(), baseStats: this.getBaseStats(),
       runModifiers: this.getRunModifiers(), effectiveStats: this.getEffectiveStats(),
-      tags: { ...this.#tags }, identity: structuredClone(this.#identity) };
+      tags: { ...this.#tags }, identity: structuredClone(this.#identity), laser: structuredClone(this.#laser) };
+  }
+
+  previewLaserChoice(choice: LaserChoice, combatLevel: number): Readonly<{ laser: LaserConfiguration;
+    tags: TagPoints; identity: BuildIdentity; profile: LaserProfile }> {
+    this.assertLive();
+    if (!this.#slots.combat.includes('LASER')) throw new RangeError('Laser not installed');
+    const laser = prepareLaserChoice(this.#laser, choice, combatLevel);
+    const tags = laserTagCandidate(this.#tags, choice), identity = this.deriveIdentity(tags);
+    laserAttack(laser, this.#effective, 1 + 0.25 * combatLevel);
+    return { laser, tags, identity, profile: laserProfile(laser) };
+  }
+  applyLaserChoice(choice: LaserChoice, combatLevel: number): boolean {
+    const next = this.previewLaserChoice(choice, combatLevel);
+    this.#laser = next.laser; this.#tags = next.tags; this.#identity = next.identity;
+    return true;
+  }
+  previewStatPercent(stat: PercentStatKey, delta: number): EffectiveStats {
+    this.assertLive();
+    if (!percentKeys.includes(stat)) throw new RangeError('Unsupported PlayerBuild percentage stat');
+    numeric(delta);
+    return this.resolve({ ...this.#modifiers, percent: { ...this.#modifiers.percent,
+      [stat]: this.#modifiers.percent[stat] + delta } });
   }
 
   addTagPoints(tag: TagId, amount: number): boolean {

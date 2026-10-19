@@ -27,6 +27,7 @@ const choices = [
   'drone.boltPower', 'drone.firingSystem', 'drone.boltPropulsion',
   'passive.hull', 'passive.thruster', 'passive.collector', 'passive.combat',
   'passive.spatial', 'passive.replication', 'prism', 'cluster', 'twin',
+  'laser.specialize.scatter', 'laser.specialize.repeater', 'laser.specialize.lance', 'laser.scatter.damage', 'laser.scatter.focus', 'laser.scatter.range', 'laser.scatter.impact', 'laser.scatter.capstone', 'laser.repeater.damage', 'laser.repeater.cadence', 'laser.repeater.velocity', 'laser.repeater.impact', 'laser.repeater.capstone', 'laser.lance.damage', 'laser.lance.velocity', 'laser.lance.penetration', 'laser.lance.radius', 'laser.lance.capstone',
 ] as const;
 export type ChoiceIdentity = typeof choices[number];
 const pauseOrder: readonly PauseReason[] = ['REWARD', 'MANUAL', 'FOCUS_LOSS'];

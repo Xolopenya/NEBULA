@@ -1,11 +1,12 @@
 import { TAG_IDS, type TagId } from '../player/PlayerBuild';
 import { selectEvolutionOffer, type Evolution } from '../progression/evolutionOffer';
 import type { WeaponFocus } from '../progression/focusedUpgrade';
-import { isRewardEligible, type RewardEligibilityContext } from './rewardEligibility';
+import { isRewardEligible, assertRewardContext, type RewardEligibilityContext } from './rewardEligibility';
+import { LASER_TAGS } from '../player/laserProgression';
 import { choiceIdentity, copyCandidate, rewardChoices, type RewardCandidate, type RewardCandidateId } from './rewardChoices';
 
 export type LevelUpContext = RewardEligibilityContext & Readonly<{ weaponFocus: WeaponFocus }>;
-export const LEVEL_UP_POLICY_VERSION = 'GAME-055-v1';
+export const LEVEL_UP_POLICY_VERSION = 'GAME-056-v1';
 /** Closed policy affinity only. These records never contribute Build Tag points. */
 export const REWARD_AFFINITIES: Readonly<Record<RewardCandidateId, readonly TagId[]>> = Object.freeze({
   'laser.power': ['PRECISION'], 'laser.fireRate': ['RAPID_FIRE'], 'laser.speed': ['PROJECTILES'],
@@ -16,7 +17,25 @@ export const REWARD_AFFINITIES: Readonly<Record<RewardCandidateId, readonly TagI
   'passive.thruster': ['MOBILITY'], 'passive.collector': ['SUPPORT'], 'passive.combat': ['PROJECTILES'],
   'passive.spatial': ['EXPLOSIONS'], 'passive.replication': ['DRONES'],
   prism: ['PRECISION', 'PROJECTILES'], cluster: ['EXPLOSIONS'], twin: ['DRONES'],
-} satisfies Record<RewardCandidateId, TagId[]>);
+  'laser.specialize.scatter': LASER_TAGS.scatter,
+  'laser.specialize.repeater': LASER_TAGS.repeater,
+  'laser.specialize.lance': LASER_TAGS.lance,
+  'laser.scatter.damage': LASER_TAGS.scatter,
+  'laser.scatter.focus': LASER_TAGS.scatter,
+  'laser.scatter.range': LASER_TAGS.scatter,
+  'laser.scatter.impact': LASER_TAGS.scatter,
+  'laser.scatter.capstone': LASER_TAGS.scatter,
+  'laser.repeater.damage': LASER_TAGS.repeater,
+  'laser.repeater.cadence': LASER_TAGS.repeater,
+  'laser.repeater.velocity': LASER_TAGS.repeater,
+  'laser.repeater.impact': LASER_TAGS.repeater,
+  'laser.repeater.capstone': LASER_TAGS.repeater,
+  'laser.lance.damage': LASER_TAGS.lance,
+  'laser.lance.velocity': LASER_TAGS.lance,
+  'laser.lance.penetration': LASER_TAGS.lance,
+  'laser.lance.radius': LASER_TAGS.lance,
+  'laser.lance.capstone': LASER_TAGS.lance,
+} satisfies Record<RewardCandidateId, readonly TagId[]>);
 for (const tags of Object.values(REWARD_AFFINITIES)) Object.freeze(tags);
 const canonical = Object.freeze(rewardChoices.map(choice => copyCandidate({ id: choiceIdentity(choice), choice })));
 type Policy = Readonly<{ misses: number; history: readonly (readonly RewardCandidateId[])[];
@@ -113,9 +132,10 @@ export class LevelUpGenerator {
     this.assertLive();
     if (this.#provisional) throw new Error('Level-Up generation already pending presentation');
     validateIdentity(input);
+    assertRewardContext(input); // Malformed Build/projections must not masquerade as numeric fallback.
     const c = structuredClone(input); // Injected RNG cannot change this offer's preflighted context.
     const candidates = frozenCandidates(canonical);
-    if (candidates.length !== 18 || Object.keys(REWARD_AFFINITIES).length !== 18) throw new RangeError('Invalid canonical policy');
+    if (candidates.length !== 36 || Object.keys(REWARD_AFFINITIES).length !== 36) throw new RangeError('Invalid canonical policy');
     for (const candidate of candidates) {
       const tags = REWARD_AFFINITIES[candidate.id];
       if (!tags || tags.some((tag, i) => !TAG_IDS.includes(tag) || i > 0 && TAG_IDS.indexOf(tags[i - 1]) >= TAG_IDS.indexOf(tag))) {
@@ -124,10 +144,14 @@ export class LevelUpGenerator {
     }
     const eligible = candidates.filter(candidate => isRewardEligible(candidate.choice, c));
     const ordinary = eligible.filter(candidate => !['prism', 'cluster', 'twin'].includes(candidate.choice.kind));
+    const acquisitions = ordinary.filter(candidate => candidate.choice.kind === 'laserSpecialization');
+    const remainingOrdinary = ordinary.filter(candidate => candidate.choice.kind !== 'laserSpecialization');
     const evolution = selectEvolutionOffer(eligible.some(c => c.id === 'prism'), eligible.some(c => c.id === 'cluster'),
       eligible.some(c => c.id === 'twin'), this.#policy.evolutionCursor);
     const reserved = eligible.find(c => c.id === evolution.offered);
-    if (ordinary.length < (reserved ? 2 : 3)) throw new RangeError('Insufficient feasible prototype reward choices');
+    if (remainingOrdinary.length < (reserved ? acquisitions.length ? 1 : 2 : acquisitions.length ? 2 : 3)) {
+      throw new RangeError('Insufficient feasible prototype reward choices');
+    }
     const primary = [...c.build.identity.dominantTags], secondary = c.build.identity.secondaryTags;
     const base = primary.length === this.#policy.primarySignature.length
       && primary.every((tag, i) => tag === this.#policy.primarySignature[i]) ? this.#policy.misses : 0;
@@ -138,7 +162,7 @@ export class LevelUpGenerator {
       let weight = 100 * (1 + 0.5 * relevance);
       if (slot === 0) {
         weight *= relevance === 2 ? 2 : relevance === 1 ? 1.25 : 1;
-        weight *= choice.kind === c.weaponFocus ? 1.5 : 1;
+        weight *= choice.kind === c.weaponFocus || c.weaponFocus === 'laser' && 'branch' in choice ? 1.5 : 1;
       } else if (slot === 1 && (id === 'passive.hull' || id === 'passive.thruster')) weight *= 1.5;
       const a = c.build.effectiveStats.combatAnalyzer;
       weight *= relevance === 2 ? 1 + 2 * (a === 0 ? 0 : 1 / (1 + 4 / a)) : 1;
@@ -150,14 +174,15 @@ export class LevelUpGenerator {
     })));
     const pool = (slot: 0 | 1 | 2, selected: readonly RewardCandidate[]) => {
       if (slot === 2 && reserved) return [reserved];
-      const remaining = ordinary.filter(c => !selected.some(s => s.id === c.id));
+      if (slot === 0 && acquisitions.length) return acquisitions;
+      const remaining = remainingOrdinary.filter(c => !selected.some(s => s.id === c.id));
       const preferred = remaining.filter(candidate => slot === 0 ? candidate.choice.kind !== 'passive'
         : slot === 1 ? candidate.choice.kind === 'passive' : !matches(candidate.id, primary));
       return preferred.length ? preferred : remaining;
     };
     const validatePool = (slot: 0 | 1 | 2, selected: readonly RewardCandidate[]) => {
       const options = pool(slot, selected), total = options.reduce((n, c) => n + weights[slot].get(c.id)!, 0);
-      if (!options.length || !Number.isFinite(total) || total <= 0 || total > 64800) throw new RangeError('Invalid Level-Up pool');
+      if (!options.length || !Number.isFinite(total) || total <= 0 || total > 129600) throw new RangeError('Invalid Level-Up pool');
       return options;
     };
     for (const first of validatePool(0, [])) for (const second of validatePool(1, [first])) validatePool(2, [first, second]);

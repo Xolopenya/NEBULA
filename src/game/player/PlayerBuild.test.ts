@@ -97,7 +97,7 @@ describe('GAME-047 Tags and BuildSnapshot', () => {
     expect(Reflect.ownKeys(s.tags)).toEqual(TAG_IDS);
     expect(Object.values(s.tags)).toEqual(Array(12).fill(0));
     expect(s.identity).toEqual({ dominantTags: [], secondaryTags: [] });
-    expect(Object.keys(s)).toEqual(['slots', 'baseStats', 'runModifiers', 'effectiveStats', 'tags', 'identity']);
+    expect(Object.keys(s)).toEqual(['slots', 'baseStats', 'runModifiers', 'effectiveStats', 'tags', 'identity', 'laser']);
   });
   it.each(TAG_IDS)('accepts %s independently, with zero no-op and additive points', tag => {
     const b = new PlayerBuild(), before = b.snapshot();

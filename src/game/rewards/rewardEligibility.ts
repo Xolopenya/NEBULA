@@ -1,6 +1,6 @@
 import type { BuildSnapshot, EffectiveStats } from '../player/PlayerBuild';
 import type { LaserRanks } from '../progression/prismLaser';
-import { canEvolvePrismLaser } from '../progression/prismLaser';
+import { validateLaser, laserProfile, prepareLaserChoice, isLaserChoice, laserAttack, laserTagCandidate } from '../player/laserProgression';
 import { canEvolveClusterMissile } from '../progression/clusterMissile';
 import { canEvolveTwinDrone } from '../progression/twinDrone';
 import type { MissileRanks, DroneRanks } from '../progression/focusedUpgrade';
@@ -36,12 +36,29 @@ function increase(n: number, by: number): number {
   return next;
 }
 
+/** Compatibility projections are reads of Build, never an independent authority. */
+export function assertLaserContext(c: RewardEligibilityContext): void {
+  validateLaser(c.build.laser);
+  const p = laserProfile(c.build.laser);
+  if (Object.keys(c.build.laser.ranks).some(k => c.laserRanks[k as keyof LaserRanks] !== c.build.laser.ranks[k as keyof LaserRanks])
+    || c.prismEvolved !== (c.build.laser.form === 'PRISM') || c.laser.damage !== p.damage
+    || c.laser.fireInterval !== p.fireInterval || c.laser.projectileSpeed !== p.projectileSpeed) {
+    throw new RangeError('Contradictory Laser projection');
+  }
+}
+
 /** Numeric feasibility only, never an effect applier. Also used for loud acceptance preflight. */
 export function assertRewardFeasible(choice: LevelUpChoice, c: RewardEligibilityContext): void {
-  if (!isRewardChoice(choice) || !c?.build?.slots || !c.build.effectiveStats
+  if (!isRewardChoice(choice)) throw new RangeError('Invalid reward choice');
+  assertFeasible(choice, c);
+}
+export function assertCombatConsumers(c: RewardEligibilityContext): void { assertFeasible(null, c); }
+export function assertRewardContext(c: RewardEligibilityContext): void {
+  if (!c?.build?.slots || !c.build.effectiveStats
     || !c.laserRanks || !c.missileRanks || !c.droneRanks || !c.moduleLevels || !c.laser || !c.missile || !c.drone) {
     throw new RangeError('Invalid reward eligibility context');
   }
+  assertLaserContext(c);
   const records = [[c.laserRanks, ['power', 'fireRate', 'speed']],
     [c.missileRanks, ['warheadPower', 'propulsion', 'blastExpansion']],
     [c.droneRanks, ['boltPower', 'firingSystem', 'boltPropulsion']],
@@ -69,37 +86,36 @@ export function assertRewardFeasible(choice: LevelUpChoice, c: RewardEligibility
   integer(stats.combatAnalyzer);
   for (const [key, value] of Object.entries(stats)) positive(value, key === 'combatAnalyzer' ? 0 : key === 'hull' || key === 'thrust' ? 1 : 0.01);
   if (stats.fireControl > 100) throw new RangeError('Invalid reward Fire Control');
-  if (choice.kind === 'passive') integer(increase(c.moduleLevels[choice.module], 1));
-  const laserDamage = choice.kind === 'laser' && choice.upgrade === 'power' ? increase(c.laser.damage, 1) : c.laser.damage;
-  const laserSpeed = choice.kind === 'laser' && choice.upgrade === 'speed' ? increase(c.laser.projectileSpeed, 200) : c.laser.projectileSpeed;
-  const laserInterval = choice.kind === 'laser' && choice.upgrade === 'fireRate' ? Math.max(100, c.laser.fireInterval - 50) : c.laser.fireInterval;
-  const missileDamage = choice.kind === 'missile' && choice.upgrade === 'warheadPower' ? increase(c.missile.damage, 1) : c.missile.damage;
-  const missileSpeed = choice.kind === 'missile' && choice.upgrade === 'propulsion' ? increase(c.missile.speed, 75) : c.missile.speed;
-  const missileRadius = choice.kind === 'missile' && choice.upgrade === 'blastExpansion' ? increase(c.missile.explosionRadius, 30) : c.missile.explosionRadius;
-  const droneDamage = choice.kind === 'drone' && choice.upgrade === 'boltPower' ? increase(c.drone.damage, 1) : c.drone.damage;
-  const droneSpeed = choice.kind === 'drone' && choice.upgrade === 'boltPropulsion' ? increase(c.drone.projectileSpeed, 200) : c.drone.projectileSpeed;
-  const droneInterval = choice.kind === 'drone' && choice.upgrade === 'firingSystem' ? c.drone.fireInterval - 150 : c.drone.fireInterval;
-  const combat = choice.kind === 'passive' && choice.module === 'combat' ? increase(c.combatMultiplier, 0.25) : c.combatMultiplier;
-  const spatial = c.moduleLevels.spatial + Number(choice.kind === 'passive' && choice.module === 'spatial');
-  const replication = c.moduleLevels.replication + Number(choice.kind === 'passive' && choice.module === 'replication');
-  if (choice.kind === 'passive' && choice.module === 'collector') increase(c.magnetRadius, 40);
-  if (choice.kind === 'passive' && (choice.module === 'hull' || choice.module === 'thruster')) {
+}
+function assertFeasible(choice: LevelUpChoice | null, c: RewardEligibilityContext): void {
+  assertRewardContext(c);
+  const stats = c.build.effectiveStats;
+  if (choice?.kind === 'passive') integer(increase(c.moduleLevels[choice.module], 1));
+  const laser = isLaserChoice(choice) ? prepareLaserChoice(c.build.laser, choice, c.moduleLevels.combat) : c.build.laser;
+  if (isLaserChoice(choice)) laserTagCandidate(c.build.tags, choice);
+  const missileDamage = choice?.kind === 'missile' && choice.upgrade === 'warheadPower' ? increase(c.missile.damage, 1) : c.missile.damage;
+  const missileSpeed = choice?.kind === 'missile' && choice.upgrade === 'propulsion' ? increase(c.missile.speed, 75) : c.missile.speed;
+  const missileRadius = choice?.kind === 'missile' && choice.upgrade === 'blastExpansion' ? increase(c.missile.explosionRadius, 30) : c.missile.explosionRadius;
+  const droneDamage = choice?.kind === 'drone' && choice.upgrade === 'boltPower' ? increase(c.drone.damage, 1) : c.drone.damage;
+  const droneSpeed = choice?.kind === 'drone' && choice.upgrade === 'boltPropulsion' ? increase(c.drone.projectileSpeed, 200) : c.drone.projectileSpeed;
+  const droneInterval = choice?.kind === 'drone' && choice.upgrade === 'firingSystem' ? c.drone.fireInterval - 150 : c.drone.fireInterval;
+  const combat = choice?.kind === 'passive' && choice.module === 'combat' ? increase(c.combatMultiplier, 0.25) : c.combatMultiplier;
+  const spatial = c.moduleLevels.spatial + Number(choice?.kind === 'passive' && choice.module === 'spatial');
+  const replication = c.moduleLevels.replication + Number(choice?.kind === 'passive' && choice.module === 'replication');
+  if (choice?.kind === 'passive' && choice.module === 'collector') increase(c.magnetRadius, 40);
+  if (choice?.kind === 'passive' && (choice.module === 'hull' || choice.module === 'thruster')) {
     const preview = choice.module === 'hull' ? c.hullPreview : c.thrusterPreview;
     if (!preview) throw new RangeError('Infeasible prototype Build reward');
     positive(preview.hull, 1); positive(preview.thrust, 1);
   }
-  positive(laserInterval / stats.fireControl, 1);
   positive(1800 / stats.fireControl, 1);
   positive(droneInterval / stats.fireControl, 1);
-  createAttack({ kind: 'LASER', variant: c.prismEvolved || choice.kind === 'prism' ? 'PRISM' : 'BASE', snapshot: {
-    damage: composePlayerDamage('LASER', laserDamage, combat, stats.reactorPower, stats.engineering),
-    speed: laserSpeed * stats.projectileVelocity, radius: 6 * stats.projectileScale, lifetime: 2000,
-    impact: composePlayerImpact(200, stats.impact) } });
-  createAttack({ kind: 'MISSILE', variant: c.clusterEvolved || choice.kind === 'cluster' ? 'CLUSTER' : 'BASE', snapshot: {
+  laserAttack(laser, stats, combat);
+  createAttack({ kind: 'MISSILE', variant: c.clusterEvolved || choice?.kind === 'cluster' ? 'CLUSTER' : 'BASE', snapshot: {
     damage: composePlayerDamage('MISSILE', missileDamage, combat, stats.reactorPower, stats.engineering),
     speed: missileSpeed * stats.projectileVelocity, radius: 8 * stats.projectileScale, lifetime: 4000,
     explosionRadius: effectiveMissileExplosionRadius(missileRadius, spatial), impact: composePlayerImpact(400, stats.impact) } });
-  createAttack({ kind: 'COMBAT_DRONE', variant: c.twinDroneEvolved || choice.kind === 'twin' ? 'TWIN' : 'BASE', snapshot: {
+  createAttack({ kind: 'COMBAT_DRONE', variant: c.twinDroneEvolved || choice?.kind === 'twin' ? 'TWIN' : 'BASE', snapshot: {
     damage: composePlayerDamage('COMBAT_DRONE', droneDamage, combat, stats.reactorPower, stats.engineering),
     speed: droneSpeed * stats.projectileVelocity, radius: effectiveDroneBoltRadius(5, replication) * stats.projectileScale,
     lifetime: 1800, impact: composePlayerImpact(160, stats.impact) } });
@@ -112,10 +128,9 @@ export function isRewardEligible(choice: unknown, c: RewardEligibilityContext): 
     throw error;
   }
   const slots = c.build.slots.combat;
-  if (choice.kind === 'laser') return slots.includes('LASER') && c.laserRanks[choice.upgrade] < 2;
+  if (isLaserChoice(choice)) return slots.includes('LASER');
   if (choice.kind === 'missile') return slots.includes('MISSILE') && c.missileRanks[choice.upgrade] < 2;
   if (choice.kind === 'drone') return slots.includes('COMBAT_DRONE') && c.droneRanks[choice.upgrade] < 2;
-  if (choice.kind === 'prism') return slots.includes('LASER') && canEvolvePrismLaser(c.laserRanks, c.moduleLevels.combat, c.prismEvolved);
   if (choice.kind === 'cluster') return slots.includes('MISSILE') && canEvolveClusterMissile(c.missileRanks, c.moduleLevels.spatial, c.clusterEvolved);
   if (choice.kind === 'twin') return slots.includes('COMBAT_DRONE') && canEvolveTwinDrone(c.droneRanks, c.moduleLevels.replication, c.twinDroneEvolved);
   return true;

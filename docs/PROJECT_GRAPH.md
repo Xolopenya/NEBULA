@@ -4,8 +4,8 @@
 
 - Project: NEBULA.
 - Milestone: First Playable / GAME-015 complete.
-- Source baseline HEAD: `5db6c07d1c232d0a9b75d6a25e62b08e9f7ad714`.
-- This map reflects that source baseline plus staged GAME-055 weighted LevelUpGenerator ownership; Scene retains actual effects/transaction composition, combat/presentation and GAME-039 DEV wiring.
+- Source baseline HEAD: `9c39f99149a0756282c0d3b93d28fe37ad165b76`.
+- This map reflects that source baseline plus staged GAME-056 PlayerBuild Laser configuration,36-choice rewards and concrete Scatter/Repeater/Lance flights; Scene retains actual effects/transaction composition, combat/presentation and GAME-039 DEV wiring.
 - Active task request defines task-specific requirements.
 - AGENTS.md defines repository policy.
 - TASK_GRAPH.md defines task scope, dependencies and status.
@@ -26,11 +26,11 @@ IDs are repository-relative paths; symbols use `path#export`.
 | `src/game/config.ts` | Full HD FIT config and scene registration |
 | `src/game/scenes/BootScene.ts` | Starts GameplayScene |
 | `src/game/scenes/GameplayScene.ts` | Owns current run simulation, presentation and DEV API per-create binding |
-| `src/game/rewards/LevelUpGenerator.ts` | Per-create Phaser-free weighted policy, closed18 affinities, bounded presentation history/pity/cursor and immutable provisional state |
-| `src/game/rewards/LevelUpGenerator.test.ts` |55 pure policy cases including independent literal goldens, numeric boundaries, signature transitions and deep immutability |
+| `src/game/rewards/LevelUpGenerator.ts` | Per-create Phaser-free weighted policy, closed36 affinities, bounded presentation history/pity/cursor and immutable provisional state |
+| `src/game/rewards/LevelUpGenerator.test.ts` |72 pure policy cases including independent literal goldens, numeric boundaries, signature transitions and deep immutability |
 | `src/game/rewards/RewardTransaction.ts` | Pure one-offer/token/ordinal/phase/selection-guard/disposal authority; detached read API |
 | `src/game/rewards/RewardTransaction.test.ts` | Canonical immutable membership, authentic identity, safe ordinals, rejection/retry/reentrancy/order and lifetime |
-| `src/game/rewards/rewardChoices.ts` | Closed18 LevelUpChoice/candidate IDs, canonical prototype pool, exact validation and frozen copies |
+| `src/game/rewards/rewardChoices.ts` | Closed36 LevelUpChoice/candidate IDs, canonical prototype pool, exact validation and frozen copies |
 | `src/game/rewards/rewardEligibility.ts` | Pure current detached hard eligibility and composed numeric/Attack/cadence feasibility |
 | `src/game/rewards/rewardEligibility.test.ts` | All18 choices, installed slots/caps/recipes/repeatables/Tags neutrality and overflow rejection |
 | `src/game/run/RunLifecycle.ts` | Focused lifecycle authority: RunState including PAUSED, PauseReason, terminal/disposal; no Phaser dependency |
@@ -113,8 +113,8 @@ IDs are repository-relative paths; symbols use `path#export`.
 | `src/game/rewards/LevelUpGenerator.ts#LevelUpGenerator` | assertCanGenerate/generate/recordPresented/cancelGenerated/snapshot/dispose; policy owner only, no selection authority |
 | `src/game/rewards/LevelUpGenerator.ts#LevelUpContext` | Detached RewardEligibilityContext plus weaponFocus |
 | `src/game/rewards/LevelUpGenerator.ts#LevelUpPolicySnapshot` | Detached misses/history/primarySignature/evolutionCursor/lastPresented/hasGenerated |
-| `src/game/rewards/LevelUpGenerator.ts#REWARD_AFFINITIES` | Closed deeply frozen18-ID weighting metadata, no Build Tag contributions |
-| `src/game/rewards/LevelUpGenerator.ts#LEVEL_UP_POLICY_VERSION` | GAME-055-v1 literal policy version |
+| `src/game/rewards/LevelUpGenerator.ts#REWARD_AFFINITIES` | Closed deeply frozen36-ID weighting metadata, no Build Tag contributions |
+| `src/game/rewards/LevelUpGenerator.ts#LEVEL_UP_POLICY_VERSION` | GAME-056-v1 literal policy version |
 | `src/game/rewards/RewardTransaction.ts#RewardTransaction` | assertCanOpen/open/present/trySelect/invalidate/snapshot/dispose; one authentic current offer and synchronous guard |
 | `src/game/rewards/RewardTransaction.ts#RewardToken` | Frozen object-reference authority; safe local offerId alone cannot authorize |
 | `src/game/rewards/RewardTransaction.ts#RewardOfferSnapshot` | Detached LEVEL_UP offerId/phase/candidates, no token or owner |
@@ -134,7 +134,7 @@ IDs are repository-relative paths; symbols use `path#export`.
 | `src/game/run/RunDiagnostics.ts#DiagnosticRecord` | Six semantic timeline variants, timestamped with active elapsed |
 | `src/game/run/RunDiagnostics.ts#RunDiagnosticsSnapshot` | Detached plain seed/elapsed/aggregates/timeline/evictions/terminal view |
 | `src/game/player/PlayerBuild.ts#PlayerBuild` | Owns fixed slots, immutable BaseStats, explicit RunModifiers, derived EffectiveStats, independent Tag totals/identity cache; detached reads and disposed invariants |
-| `src/game/player/PlayerBuild.ts#BuildSnapshot` | Canonical detached slots/baseStats/runModifiers/effectiveStats/tags/identity; replaces GAME-046 read model |
+| `src/game/player/PlayerBuild.ts#BuildSnapshot` | Canonical detached slots/baseStats/runModifiers/effectiveStats/tags/identity/laser; replaces GAME-046 read model |
 | `src/game/player/PlayerBuild.ts#TAG_IDS` | Immutable canonical twelve-Tag tuple, shared by identity ordering and tests |
 | `src/game/player/PlayerBuild.ts#TagId` | Literal union derived from TAG_IDS; no arbitrary string identity |
 | `src/game/player/PlayerBuild.ts#TagPoints` | Exactly twelve nonnegative safe-integer numeric totals |
@@ -247,8 +247,8 @@ Runtime labels below describe scene-owned concepts, not separate modules/classes
 | `src/game/player/PlayerBuild.ts#PlayerBuild` | TESTED_BY | `src/game/player/PlayerBuild.test.ts` and actual Scene integration |
 | `src/game/run/RunDiagnostics.ts#RunDiagnostics` | TESTED_BY | `src/game/run/RunDiagnostics.test.ts` and actual Scene integration tests |
 | `src/game/progression/selectChoices.ts#selectChoices` | TESTED_BY | `src/game/progression/selectChoices.test.ts` |
-| `src/game/scenes/GameplayScene.ts` | TYPE_IMPORTS | `src/game/progression/prismLaser.ts#LaserRanks` |
-| `src/game/scenes/GameplayScene.ts` | IMPORTS | `src/game/combat/prismSpread.ts#prismSpread` |
+| `src/game/scenes/GameplayScene.ts` | IMPORTS | `src/game/player/laserProgression.ts` |
+| `src/game/scenes/GameplayScene.ts` | IMPORTS | `src/game/combat/laserPatterns.ts#laserDirections` |
 | `src/game/progression/prismLaser.ts#canEvolvePrismLaser` | TESTED_BY | `src/game/progression/prismLaser.test.ts` |
 | `src/game/combat/prismSpread.ts#prismSpread` | TESTED_BY | `src/game/combat/prismSpread.test.ts` |
 | `src/game/scenes/GameplayScene.ts` | TYPE_IMPORTS | focusedUpgrade.ts MissileRanks/DroneRanks/WeaponFocus only |
@@ -336,7 +336,7 @@ All private names below are navigation anchors, not exported symbol nodes.
 | Shared projectiles | projectiles; ProjectileRuntime | readonly typed Laser/Drone/Hostile Attack + exact run; source/damage/radius derived read-only; visual/velocity/remainingLifetime |
 | Projectile stepping | updateProjectiles | Lifetime-clipped motion; swept impact; reverse removal; lethal Boss projectile cleanup precedes Victory and stops later shots |
 | Projectile cleanup | updateProjectiles | Impact, lifetime and world-exit destruction |
-| Player Laser | laser; laserTimer; fireLaser | Mutable Laser-only damage/interval/speed, baseline 600 ms; existing timer reset for cadence upgrades |
+| Player Laser | laser; laserTimer; fireLaser | Derived Build-owned Laser profile, baseline600ms; same event resets iff effective cadence changes |
 | Drone / Twin | drone, twinDrone, twinDroneEvolved, droneAngle, droneConfig; updateDrone, positionDrone, fireDrone, fireDroneFrom | One initial companion; Twin adds exactly one mirrored visual at shared angle+PI; same active-time 110px / 2rad orbit, independent center clamp, one shared firing event and per-origin targets/suppression |
 | Replication Matrix | moduleLevels.replication; fireDroneFrom → effectiveDroneBoltRadius | +1 px per level added to baseline Drone bolt radius5 at launch; existing runtime radius owns swept collision/cleanup; acceptance does not change focus/cursors/timers; create resets0 |
 | Drone upgrades | droneRanks, droneAttackValues, droneTimer; acceptLevelUpChoice / fireDrone | Explicit ranks0..2, damage1/2/3, interval1200/1050/900, speed800/1000/1200; same event reset/elapsed0; launch snapshots; create resets |
@@ -344,8 +344,8 @@ All private names below are navigation anchors, not exported symbol nodes.
 | Missile | missile, missileValues, missiles; MissileRuntime; fireMissile, aimMissile, updateMissiles | Readonly MissileAttack + exact run, concrete homing target/heading/lifetime; read-only variant/numeric getters derive from immutable snapshot; immutable maxActiveMissiles = 1; cap blocks launch without resetting the one 1800 ms timer |
 | Spatial Amplifier | moduleLevels.spatial; fireMissile → effectiveMissileExplosionRadius | Repeatable +15 px per level added to Missile-specific radius at launch; stored MissileRuntime.explosionRadius owns later explosion; no focus/cursor mutation or other consumers |
 | Missile explosion | updateMissiles → explodeMissile → applyEnemyHit → killEnemy | Earliest swept hit point, center-radius snapshot damage once, common XP/death; primary and optional satellites plus Missile cleanup finish before Victory; no direct hit |
-| Laser upgrades | laserRanks, LaserUpgrade; acceptLevelUpChoice | Explicit independent ranks 0..2; capped upgrades filtered out, numeric effects and same timer reset retained; create resets ranks |
-| Prism Laser | prismEvolved; enterLevelUpPause → canEvolvePrismLaser; fireLaser → prismSpread | New-presentation eligibility only; sole-eligible Slot 3 guarantee or three-evolution arbitration reserved before weighted development/passive slots; same Laser timer/runtime, three full-damage shots; create resets evolved state |
+| Laser upgrades | Build.snapshot.laser; applyRewardChoice | Build-owned ranks0..2/form/developments/Capstone; Scene getters only, atomic Build apply and same cadence event |
+| Prism Laser | Build.snapshot.laser.form; prepareLaserChoice; laserDirections → prismSpread | Build-owned exclusive legacy alternative; unchanged2/2/2+Combat recipe, reserved Slot3, same timer and three independent full beams |
 | Cluster Missile | clusterEvolved; fireMissile → MissileRuntime.clusterEnabled; updateMissiles → explodeMissile then explodeClusterSatellites | Explicit mastery/Spatial eligibility; primary-first union of six launch-derived satellite circles, one satellite hit per surviving enemy; no extra timer/child projectile |
 | Evolution offer | LevelUpGenerator evolutionCursor; prepare -> selectEvolutionOffer | Separate Prism-first cursor advances once per new presentation, sole eligible guaranteed, eligible pairs alternate/all3 cycle by cyclic scan; offered successor cursor; acceptance never advances |
 | Missile upgrades | missileRanks, missileValues; acceptLevelUpChoice | Explicit ranks 0..2 and mutable damage/speed/explosion radius; snapshots isolate active Missiles; create resets |
@@ -353,7 +353,7 @@ All private names below are navigation anchors, not exported symbol nodes.
 | Passive Modules | PassiveModule, moduleLevels; acceptLevelUpChoice | Explicit Hull/Thruster/Collector/Combat/Spatial/Replication levels and effects; create resets levels and mutable values |
 | Shared stat consumers | derived playerMaxHealth/movementSpeed; fireLaser/fireMissile/fireDroneFrom; weaponInterval/resetWeaponTimer | Build Hull/Thrust, Reactor, Drone-only Engineering, Velocity/Scale and local interval/FireControl; retained Missile body radius; outgoing launch Impact once; no Shield/Analyzer effects |
 | Local compatibility | xpMagnetRadius, globalDamageMultiplier, moduleLevels | Collector activation radius, legacy Combat Processor, Spatial explosion and Replication bolt addition; Hull/Thruster levels are label/history, Build owns flat bonuses |
-| Mixed choice pool | OrdinaryChoice, LevelUpChoice, levelUpPool, choiceLabel; enterLevelUpPause -> LevelUpGenerator.generate |18 existing canonical choices; weighted development/passive/pivot or reserved evolution, exactly3 Reward draws; authentic transaction still selects |
+| Mixed choice pool | OrdinaryChoice, LevelUpChoice, levelUpPool, choiceLabel; enterLevelUpPause -> LevelUpGenerator.generate |36 canonical choices; weighted development/passive/pivot or reserved evolution, exactly3 Reward draws; authentic transaction still selects |
 | Hostile fire | fireHostileProjectile; hostileFireInterval | Same1500 ms global timer independently attempts nearest Shooter aimed shot and active Warden phase4/8 radial burst via launchHostileProjectile; no per-enemy timers or phase resets |
 | Collision inputs | updateProjectiles; player/enemy/projectile radii | Scene supplies per-enemy body radius24/40 + projectile/Missile/player radius; explosion coverage stays center-only |
 | Collision calculation | collision.ts; segmentCircleHitTime | Pure numeric math, no Phaser/runtime records |
@@ -383,8 +383,8 @@ detonation and cleanup → enterRunVictory → frozen gameplay / fixed result
 - Spawn, Laser, Missile, Drone and hostile callbacks return while dead, level-up paused or victorious; same timer events remain scheduled without Victory reset/pause/recreation.
 - Level-increasing collection removes its pickup then pauses; subsequent pickups remain frozen.
 - One current choice applies its upgrade/evolution, destroys levelUpPresentation and releases REWARD only; other reasons retain PAUSED and stale choices cannot release a new presentation's reason.
-- Final recipe prerequisite resumes normally; only the next presentation can offer an evolution. Offers use the separate three-evolution cursor; accepting Prism sets prismEvolved without consuming Combat or changing numeric Laser values/timer.
-- create resets all three evolution flags to false; fresh LevelUpGenerator owns Prism-first evolution cursor. Active Missiles own clusterEnabled at launch; satellite resolution derives only from readonly launch damage/radius after primary deaths.
+- Final recipe prerequisite resumes normally; only the next presentation can offer an evolution. Offers use the separate three-evolution cursor; accepting Prism sets Build Laser form PRISM without consuming Combat or changing numeric Laser values/timer.
+- create resets Build Laser to BASE and other two evolution flags to false; fresh LevelUpGenerator owns Prism-first evolution cursor. Active Missiles own clusterEnabled at launch; satellite resolution derives only from readonly launch damage/radius after primary deaths.
 - create resets missileRanks, missileValues, weaponFocus as well as laserRanks and prismEvolved. Prism uses the same straight-shot collection and five existing gameplay timers.
 - Projectile iteration stops after cleaning the lethal hostile impact or lethal Boss player impact; remaining objects freeze. Missile/Cluster finishes its current primary/satellite affected snapshots and Missile removal before terminal entry. First terminal outcome in existing order wins; no unrelated later contact/XP work.
 - create empties missiles; native Phaser restart shuts down old display objects/UI and five timer events before create. Missile position/target/heading/lifetime freeze under existing simulation guard.
@@ -521,7 +521,7 @@ Swept geometry, strict ties, cap/expiry/world exits, Prism independent beams, Tw
 origins and Cluster primary then survivor union remain concrete Scene behavior. Complete
 owning cleanup precedes Victory; first-terminal authority stays RunLifecycle. Stale Hits/
 flights guard exact run before fresh enemies/Defense. Five events/five DEV methods and zero
-additional RNG draws remain. GAME-052 adds player-only physical Impact below; GAME-056+ remain deferred. 71 pure +16 new Scene cases,
+additional RNG draws remain. GAME-052 adds player-only physical Impact below; GAME-057+ remain deferred. 71 pure +16 new Scene cases,
 actual Chrome offensive/old-new snapshot/pause/BLUR/native terminal/restart and unmodified
 production ordinary Death/real RETRY checks pass. GATE A PASSED; GATE B PASSED.
 
@@ -536,7 +536,7 @@ snapshot and owners; stale values stay readable without mutation authority. No e
 RNG, dependency, content or difficulty/Build/Tags coupling. GAME-051 adds the death/attribution boundary below.
 136 pure +33 added Scene cases pass (739 total/25 files). Actual Chrome Clock schedule,
 movement/hostile/six-path combat/real BLUR and active-flight pauses/native restart checks pass;
-unmodified production ordinary Death/real pointer RETRY passes. GAME-050/051/052 DONE; GAME-056+
+unmodified production ordinary Death/real pointer RETRY passes. GAME-050/051/052 DONE; GAME-056 DONE; GAME-057+
 BACKLOG; GATE A/B PASSED.
 
 EnemyDeath.ts + GameplayScene EnemyHit/lastDamagingSource/applyEnemyHit/killEnemy and
@@ -556,7 +556,7 @@ old immutable values remain readable, old callbacks cannot mutate/draw in the ne
 seven-source/A->B/loss0/Cluster/XP/pause/genuine BLUR/native terminal/restart Chrome checks pass.
 Unmodified production ordinary enemy death/XP, incoming Death and actual pointer RETRY pass
 without DEV or pageerrors. Five events/four RNG budgets/Build/Tags/Analyzer/Defense/rewards and
-GAME-049/050 contracts remain. GAME-051/052 DONE; GAME-056+ BACKLOG; GATE A/B PASSED.
+GAME-049/050 contracts remain. GAME-051/052 DONE; GAME-056 DONE; GAME-057+ BACKLOG; GATE A/B PASSED.
 
 EnemyDefinitions/knockback/chargerMovement + Scene launch/Hit/movement/contact/Graphics IMPLEMENT_TASK GAME-052.
 Six identities are five normal roles plus legacy boss; Elite remains Tank-only. Definitions and
@@ -593,7 +593,7 @@ clearing), full terminal cleanup and two Victory NEW RUN/Death RETRY/PAUSED nati
 new-role/force/Graphics dirtied. Old callbacks/state/poses cannot reach fresh owners or draw RNG;
 five new events and fresh zero velocity/interaction/Tags/counters restore. Unmodified production
 uses real input/rendered output for survivor knockback, ordinary Death and actual mouse RETRY;
-DEV absent/no pageerrors. Known favicon404/bundle-size warnings remain. GAME-052 DONE; GAME-056+
+DEV absent/no pageerrors. Known favicon404/bundle-size warnings remain. GAME-052 DONE; GAME-056 DONE; GAME-057+
 BACKLOG; GATE A/B PASSED, with no other gate closure.
 
 PlayerProgression + experience + xpConsolidation + Scene XP/reward integration IMPLEMENT_TASK GAME-053.
@@ -614,7 +614,7 @@ Native restart disposes old progression and pickup visuals, resets1/0/0 and five
 identity/atomicity/focus/native checks pass. Installed Chrome real pointer32-XP chain, actual BLUR,
 physical1/5/10, conservation/sparse3000 and four straight/Missile/Cluster NEW RUN cycles, Death RETRY/
 paused restart pass. Unmodified production real keyboard/pixel pickup pursuit reaches Level2 and pointer
-choice, plus ordinary damage/Death/RETRY/DEV absence; no new pageerrors. GAME-056+ BACKLOG; A/B PASSED;
+choice, plus ordinary damage/Death/RETRY/DEV absence; no new pageerrors. GAME-056 DONE; GAME-057+ BACKLOG; A/B PASSED;
 GATE C unapproved. No new dependency, timer, DEV method, RNG stream or later reward framework.
 
 RewardTransaction + rewardChoices + rewardEligibility + Build previews + Scene integration IMPLEMENT_TASK GAME-054.
@@ -641,7 +641,7 @@ future launches/frozen in-flight snapshots/same timers, rejected same-Text retry
 exact callback order, physical32 sequential3, genuine BLUR/manual/held-input freeze, four atomic Victory
 NEW RUN cycles, Death RETRY and PAUSED native restart. Unmodified production real keyboard/pixels/natural
 physical XP/Level-Up/mouse choice and ordinary incoming Death/RETRY pass, DEV absent/no new pageerrors.
-Known favicon404/bundle/worker advice only. GAME-054 DONE; GAME-056+ BACKLOG; A/B PASSED; C unapproved.
+Known favicon404/bundle/worker advice only. GAME-054 DONE; GAME-056 DONE; GAME-057+ BACKLOG; A/B PASSED; C unapproved.
 
 LevelUpGenerator + GameplayScene.levelUpGenerator/enterLevelUpPause/currentReward IMPLEMENT_TASK GAME-055.
 create constructs/captures exact policy during PREPARING; disposeReward disposes that owner.
@@ -659,7 +659,27 @@ selection authority or future content added. Existing least-rank helper/tests re
 has no focusCursors/evolutionOfferCursor.55 pure +5 new Scene tests,1354 total/33 files, independent
 literal seeded outputs, actual Chrome all18 effects/retry/3-offer9-draw chain/real Tags+Analyzer4/
 genuine BLUR/native terminal cycles and unmodified production natural XP/input/Death/RETRY pass.
-GAME-055 DONE; GAME-056+ BACKLOG; GATE A/B PASSED; GATE C unapproved.
+GAME-055 DONE; GAME-056 DONE; GAME-057+ BACKLOG; GATE A/B PASSED; GATE C unapproved.
+
+## GAME-056 actual Laser ownership and call paths
+
+| File / symbol | Responsibility / relation |
+| --- | --- |
+| src/game/player/laserProgression.ts | Closed LaserConfiguration/LaserChoice, exact authored profiles/catalog metadata, prepareLaserChoice, safe laserTagCandidate, laserReady, laserAttack composition |
+| PlayerBuild.previewLaserChoice/applyLaserChoice | Sole private Laser configuration; same complete candidate preparation, detached preview/config/Tags/identity, one atomic commit; snapshot.laser and captured disposal |
+| PlayerBuild.previewStatPercent -> Scene.applyBuildChange -> assertCombatConsumers | Shared-stat candidate validates all three launch/cadence consumers before the Build write |
+| rewardChoices.ts -> rewardEligibility.ts | Original18 then exactly18 new correlated IDs; detached Build Laser projection consistency, generation/selection shape/form/rank/recipe/numeric feasibility |
+| LevelUpGenerator.prepare/generate/recordPresented |36 affinities; one acquisition-only Slot1 when feasible, other acquisitions excluded; numeric-only zero branch uses ordinary3-slot policy; full preflight,3 draws, presentation-only policy commit |
+| GameplayScene.applyRewardChoice | Existing authentic transaction callback -> one Build Laser apply -> same Laser timer reset iff delay differs -> one pending/selected; next offer only after trySelect returns |
+| combat/combat.ts#createAttack | Optional copied/frozen BASE Laser mechanics SCATTER1/(3 or5), REPEATER1/1, LANCE(3 or4 or5)/1; PRISM/other kinds reject mechanics |
+| combat/laserPatterns.ts#laserDirections -> Scene.fireLaser | One cached nearest-target aim, threshold.001, deterministic spread, zero RNG; GAME-059 ranking/distribution deferred |
+| GameplayScene.launchPlayerProjectile/updateProjectiles/removeProjectile/disposeFlights | Concrete shared bounded Scatter map per volley, max5 contacts/entries; exact visited enemy Set per Lance flight/max5; one applyEnemyHit route and owning cleanup before Victory |
+| RunDiagnostics choice validation |36 IDs only; same six timeline kinds/seven kill-source buckets |
+| laserProgression.test.ts + LevelUpGenerator.test.ts + GameplayScene.devTools.test.ts | Pure profile/Build/atomic/numeric/geometry/closed choice proofs; independent literal goldens; real Scene reward/collision/terminal paths.1490 total tests/34 files |
+
+Base/Prism keep the existing five-field flight snapshot; new mechanics carry no live Build.
+New forms retain LASER.BASE.DIRECT; Missile/Drone/EnemyDeath/XP contracts are unchanged.
+Exactly5 gameplay events/4 streams/5 DEV methods remain. GAME-057+ BACKLOG; GATE C unapproved.
 
 ## Common navigation queries
 
@@ -685,8 +705,8 @@ GAME-055 DONE; GAME-056+ BACKLOG; GATE A/B PASSED; GATE C unapproved.
 | Where are enemy spawn callbacks? | GameplayScene.ts → create timer / spawnEnemy / timedSpawnSequence / successfulTimedSpawns |
 | Where are player/hostile fire callbacks? | GameplayScene.ts → create timers / fireLaser / fireMissile / fireDrone / fireHostileProjectile → independent selectNearestEnemy('shooter') / active Warden burst → launchHostileProjectile |
 | What guards callbacks while dead or level-up paused? | GameplayScene.ts → isSimulationPaused checks in spawn/fire helpers |
-| Who owns Laser firing configuration? | GameplayScene.ts → laser, laserTimer, fireLaser; create/acceptLevelUpChoice |
-| Where are Prism prerequisites, ranks and spread owned? | GameplayScene.ts → laserRanks, prismEvolved, enterLevelUpPause, fireLaser; progression/prismLaser.ts; combat/prismSpread.ts |
+| Who owns Laser firing configuration? | PlayerBuild.ts → private laser/previewLaserChoice/applyLaserChoice; laserProgression.ts → profile; Scene → laserTimer/fireLaser |
+| Where are Prism prerequisites, ranks and spread owned? | PlayerBuild snapshot.laser and laserProgression.ts; Scene derived laserRanks/prismEvolved/fireLaser; combat/laserPatterns.ts/prismSpread.ts |
 | Where does restart cleanup occur? | GameplayScene.ts → enterPlayerDeath RETRY or enterRunVictory NEW RUN → Phaser scene.restart lifecycle |
 | Where does Victory start? | GameplayScene.ts → updateProjectiles / updateMissiles completed lethal Boss operation → enterRunVictory; killEnemy only records defeat/reward/removal |
 | Where are repository/task rules? | AGENTS.md; docs/TASK_GRAPH.md; active user task |
