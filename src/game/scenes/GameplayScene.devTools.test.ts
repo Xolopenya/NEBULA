@@ -1156,7 +1156,7 @@ function inputFixture() {
   return { ...f, keys, down, up, escape };
 }
 
-describe('CR-002 two-phase difficulty', () => {
+describe('CR-003 progression-triggered two-phase difficulty', () => {
   async function phaseFixture() {
     const f = fixture(), s = f.scene;
     allowCreate(s);
@@ -1169,69 +1169,84 @@ describe('CR-002 two-phase difficulty', () => {
     return { ...f, clock, api: window.__NEBULA_DEV__! };
   }
 
-  it('starts at Phase 1, stays there at 59.9s and changes both parameters exactly once at 60s', async () => {
+  function finishLevelUp(s: GameplayScene) {
+    expect(window.__NEBULA_DEV__!.forceLevelUp()).toBe(true);
+    s['levelUpPresentation'][1].emit('pointerdown');
+  }
+
+  it('Level 1 ignores elapsed time; genuine Level 2 reward selection enables a single transition', async () => {
     const { scene: s, clock } = await phaseFixture();
     const timers = [...s['gameplayTimers']], timer = s['spawnTimer']!, draws = spyStreams(s);
     const reset = vi.spyOn(timer, 'reset'), callback = timer.callback, scope = timer.callbackScope, args = timer.args;
-    expect(s['phase']).toBe(1); expect(s['phaseElapsedMs']).toBe(0);
+    expect(s['phase']).toBe(1); expect(s['phaseNotificationRemainingMs']).toBe(0);
     expect(s['phaseIndicator']!.text).toBe('ФАЗА 1'); expect(timer.delay).toBe(2000);
-    s.update(0, 59_900);
+    s.update(0, 120_000);
     expect(s['phase']).toBe(1); expect(timer.delay).toBe(2000); expect(reset).not.toHaveBeenCalled();
+    expect(s['playerProgression']!.snapshot().level).toBe(1);
+    expect(window.__NEBULA_DEV__!.forceLevelUp()).toBe(true);
+    expect(s['playerProgression']!.snapshot().level).toBe(2);
+    s.update(0, 120_000);
+    expect(s['run']!.state).toBe('PAUSED'); expect(s['phase']).toBe(1);
+    expect(reset).not.toHaveBeenCalled();
+    s['levelUpPresentation'][1].emit('pointerdown');
+    expect(s['run']!.state).toBe('RUNNING');
     timer.elapsed = 1900;
     s.update(0, 100);
-    expect(s['phase']).toBe(2); expect(s['phaseElapsedMs']).toBe(60_000);
+    expect(s['phase']).toBe(2); expect(s['phaseNotificationRemainingMs']).toBe(3000);
     expect(timer.delay).toBe(1200); expect(timer.elapsed).toBe(1140);
     expect(timer.callback).toBe(callback); expect(timer.callbackScope).toBe(scope); expect(timer.args).toBe(args);
     expect(s['phaseIndicator']!.text).toBe('ФАЗА 2'); expect(s['phaseNotification']!.visible).toBe(true);
     expect(s['successfulTimedSpawns']).toBe(0);
     expect(s['gameplayTimers']).toEqual(timers); expect(timers).toHaveLength(5);
-    expect(draws.map(d => d.mock.calls.length)).toEqual([0, 0, 0, 0]);
+    expect(draws.map(d => d.mock.calls.length)).toEqual([0, 3, 0, 0]);
     clock.update(0, 59); expect(s['successfulTimedSpawns']).toBe(0);
     clock.update(0, 1); expect(s['successfulTimedSpawns']).toBe(1);
     clock.update(0, 1199); expect(s['successfulTimedSpawns']).toBe(1);
     clock.update(0, 1); expect(s['successfulTimedSpawns']).toBe(2);
-    s.update(0, 3000); s.update(0, 60_000);
+    s.update(0, 2999); expect(s['phaseNotification']!.visible).toBe(true);
+    s.update(0, 1); s.update(0, 60_000);
     expect(reset).toHaveBeenCalledTimes(1); expect(timer.delay).toBe(1200);
     expect(s['phaseNotification']!.visible).toBe(false);
   });
 
-  it.each(['MANUAL', 'REWARD', 'FOCUS_LOSS'] as const)('%s freezes active time and transition until released', async reason => {
-    const { scene: s, api } = await phaseFixture(); s.update(0, 59_900);
+  it.each(['MANUAL', 'REWARD', 'FOCUS_LOSS'] as const)('%s blocks transition and freezes notification until released', async reason => {
+    const { scene: s, api } = await phaseFixture();
+    if (reason !== 'REWARD') finishLevelUp(s);
     if (reason === 'MANUAL') s['handlePauseRequest']();
     else if (reason === 'REWARD') expect(api.forceLevelUp()).toBe(true);
     else s.game.events.emit('blur');
     expect(s['run']!.hasPauseReason(reason)).toBe(true);
     s.update(0, 120_000);
-    expect(s['phaseElapsedMs']).toBe(59_900); expect(s['phase']).toBe(1); expect(s['spawnTimer']!.delay).toBe(2000);
+    expect(s['phaseNotificationRemainingMs']).toBe(0); expect(s['phase']).toBe(1); expect(s['spawnTimer']!.delay).toBe(2000);
     if (reason === 'REWARD') s['levelUpPresentation'][1].emit('pointerdown');
     else { s.game.events.emit('focus'); s['handlePauseRequest'](); }
     expect(s['run']!.state).toBe('RUNNING');
     s.update(0, 100); expect(s['phase']).toBe(2);
     s['handlePauseRequest'](); s.update(0, 5000);
-    expect(s['phaseElapsedMs']).toBe(60_000); expect(s['phaseNotification']!.visible).toBe(false);
+    expect(s['phaseNotificationRemainingMs']).toBe(3000); expect(s['phaseNotification']!.visible).toBe(false);
     s['handlePauseRequest'](); expect(s['phaseNotification']!.visible).toBe(true);
   });
 
-  it('composed reasons keep the timer frozen until the final release', async () => {
-    const { scene: s, api } = await phaseFixture(); s.update(0, 59_900);
+  it('reward selection with focus loss waits for the final pause release', async () => {
+    const { scene: s, api } = await phaseFixture();
     api.forceLevelUp(); s.game.events.emit('hidden'); s['levelUpPresentation'][1].emit('pointerdown');
-    s.update(0, 1000); expect(s['phaseElapsedMs']).toBe(59_900);
+    s.update(0, 1000); expect(s['phaseNotificationRemainingMs']).toBe(0);
     s.game.events.emit('visible'); s.game.events.emit('focus'); s.update(0, 1000);
-    expect(s['phaseElapsedMs']).toBe(59_900);
+    expect(s['phaseNotificationRemainingMs']).toBe(0);
     s['handlePauseRequest'](); s.update(0, 100); expect(s['phase']).toBe(2);
   });
 
-  it.each(['PREPARING', 'DEATH', 'VICTORY', 'DISPOSED'] as const)('%s cannot advance the phase timer', async state => {
-    const { scene: s } = await phaseFixture(); s.update(0, 59_900);
+  it.each(['PREPARING', 'DEATH', 'VICTORY', 'DISPOSED'] as const)('%s cannot trigger Phase 2 even at Level 2', async state => {
+    const { scene: s } = await phaseFixture(); s['playerProgression']!.creditXp(5);
     if (state === 'PREPARING') s['run'] = new RunLifecycle();
     else if (state === 'DISPOSED') s['run']!.dispose();
     else if (state === 'DEATH') s['enterPlayerDeath']();
     else { s.bossDefeated = true; s['enterRunVictory'](); }
-    s.update(0, 120_000); expect(s['phaseElapsedMs']).toBe(59_900); expect(s['phase']).toBe(1);
+    s.update(0, 120_000); expect(s['phaseNotificationRemainingMs']).toBe(0); expect(s['phase']).toBe(1);
   });
 
   it.each(['DEATH', 'VICTORY'] as const)('%s restart control restores Phase 1 and zero time', async outcome => {
-    const f = await phaseFixture(), s = f.scene; s.update(0, 60_000);
+    const f = await phaseFixture(), s = f.scene; finishLevelUp(s); s.update(0, 0);
     const oldRun = s['run']!, oldTimer = s['spawnTimer']!, oldCallback = oldTimer.callback!;
     Object.assign(s, { scene: { restart: () => { f.shutdown(); f.clock.removeAllEvents(); f.clock.preUpdate(); s.create(); f.clock.preUpdate(); } } });
     if (outcome === 'DEATH') s['enterPlayerDeath']();
@@ -1239,7 +1254,7 @@ describe('CR-002 two-phase difficulty', () => {
     const control = f.created.findLast(t => t.text === (outcome === 'DEATH' ? 'ПОВТОРИТЬ' : 'НОВЫЙ ЗАБЕГ'))!;
     control.emit('pointerdown');
     expect(oldRun.state).toBe('DISPOSED'); expect(s['run']!.state).toBe('RUNNING');
-    expect(s['phase']).toBe(1); expect(s['phaseElapsedMs']).toBe(0);
+    expect(s['phase']).toBe(1); expect(s['phaseNotificationRemainingMs']).toBe(0);
     expect(s['phaseIndicator']!.text).toBe('ФАЗА 1'); expect(s['phaseNotification']!.visible).toBe(false);
     expect(s['spawnTimer']).not.toBe(oldTimer); expect(s['spawnTimer']!.delay).toBe(2000);
     expect(s['gameplayTimers']).toHaveLength(5);
@@ -1254,7 +1269,7 @@ describe('CR-002 two-phase difficulty', () => {
     const enemy = s['createEnemy'](4000, 1350, kind, s['run']!, elite)!, snapshot = enemy.spawnSnapshot;
     const original = structuredClone(snapshot);
     s.update(0, 100); expect(enemy.visual.x).toBeCloseTo(4000 - speed * 0.1);
-    s['phaseElapsedMs'] = 59_900; const x = enemy.visual.x;
+    finishLevelUp(s); const x = enemy.visual.x;
     s.update(0, 100); expect(enemy.visual.x).toBeCloseTo(x - speed * 1.25 * 0.1);
     const fresh = s['createEnemy'](4000, 1350, kind, s['run']!, elite)!;
     s.update(0, 100); expect(fresh.visual.x).toBeCloseTo(4000 - speed * 1.25 * 0.1);
@@ -1267,7 +1282,7 @@ describe('CR-002 two-phase difficulty', () => {
   });
 
   it.each(['APPROACH', 'CHARGING'] as const)('Charger %s speeds up while phase durations and sweep contact stay correct', async phase => {
-    const { scene: s } = await phaseFixture(); s.update(0, 60_000);
+    const { scene: s } = await phaseFixture(); finishLevelUp(s); s.update(0, 0);
     const e = s['createEnemy'](phase === 'APPROACH' ? 4000 : 2450, 1350, 'charger', s['run']!)!;
     const movement = e.spawnSnapshot.movement;
     if (phase === 'CHARGING') e.charger!.state = { phase, remainingMs: 500, directionX: -1, directionY: 0 };
@@ -1281,7 +1296,7 @@ describe('CR-002 two-phase difficulty', () => {
   });
 
   it('Phase 2 retains Shooter band stops, pursuit overshoot cap, contact separation and projectile collision', async () => {
-    const { scene: s } = await phaseFixture(); s.update(0, 60_000);
+    const { scene: s } = await phaseFixture(); finishLevelUp(s); s.update(0, 0);
     const shooter = s['createEnemy'](3000, 1350, 'shooter', s['run']!)!;
     s.update(0, 1000); expect(shooter.visual.x).toBe(2900);
     shooter.visual.x = 2700; s.update(0, 1000); expect(shooter.visual.x).toBe(2750);

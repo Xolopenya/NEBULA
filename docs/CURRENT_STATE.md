@@ -166,7 +166,7 @@ Current screen:
 - temporary thicker yellow outline on the current nearest-enemy target
 - automatically launched cyan Laser projectiles, yellow homing Missiles with area damage, and teal orbiting Drones firing violet straight bolts (one initially; two after Twin evolution)
 - screen-fixed top-left HUD showing current/max HP, XP toward the next threshold, level and Dash readiness/cooldown
-- screen-fixed Russian phase indicator below the top-right heading; Phase 2 notification after60 active seconds
+- screen-fixed Russian phase indicator below the top-right heading; Phase 2 notification after Level2 reward selection
 - desktop movement using WASD or arrow keys
 - "NEBULA — Космическое выживание" heading at the top right
 - screen-fixed three-line Russian movement/Dash/pause, automatic-fire/XP and Warden guidance; hidden during pause, reward and terminal overlays
@@ -220,35 +220,26 @@ Other root files include:
 
 ## Implemented Gameplay
 
-### Two-phase difficulty (CR-002)
+### Two-phase difficulty (CR-003)
 
-Each create starts in Phase1 with zero elapsed gameplay time. The existing RUNNING update
-accumulates delta; the first update reaching60000ms enters Phase2 once. Manual, reward and
-focus-loss pauses, PREPARING, terminal and disposed states add no phase time. RETRY and
-NEW RUN use the existing native restart and restore Phase1/zero time.
+Each native create starts in Phase 1 with a zero notification countdown. In the existing
+RUNNING update, authoritative PlayerProgression level >= 2 enters Phase 2 once. Reward
+selection must finish and every pause reason must clear first. Level 1 stays in Phase 1
+regardless of elapsed time; there is no 60-second trigger. RETRY and NEW RUN reset Phase 1.
 
-Phase1 keeps the2000ms enemy spawn interval and authored movement speeds. Phase2 resets
-the same spawn TimerEvent to1200ms, preserving the fractional progress of its current wait
-without dispatching a spawn. All current and new enemies use1.25 times their current AI
-speed, including both Warden HP phases and Charger approach/charge; frozen definitions and
-spawn snapshots remain unchanged. Charger durations, external knockback and collision rules
-remain unchanged. Exactly five gameplay TimerEvents and four RNG streams remain; the boss
-threshold stays at successful timed spawn30.
+Phase 2 retains the same spawn TimerEvent at 1200ms instead of 2000ms, preserving fractional
+wait progress, and applies the existing 1.25 AI movement multiplier to current/new enemies.
+Frozen definitions, Charger durations, knockback, collisions, weapons, XP thresholds, reward
+logic and spawn30 boss threshold remain unchanged. Five timers and four RNG streams remain.
+The Russian HUD indicator is persistent; the Phase 2 notice uses a 3000ms remaining counter
+in the existing update. MANUAL, REWARD, FOCUS_LOSS and terminal states freeze the countdown.
 
-The persistent «ФАЗА 1»/«ФАЗА 2» indicator sits below the top-right heading. A separate
-«ФАЗА 2» notice appears above the central overlays for the first three active seconds of
-Phase2 and hides during pauses/terminal states. It uses the same update, with no UI timer.
-
-20 focused tracked Scene tests cover boundaries59.9/60s, once-only transition, actual installed
-Phaser Clock cadence/identity, all pause reasons/composition/nonrunning states, both restart
-controls, existing/new enemy speeds and immutable snapshots, Warden/Charger, Shooter band,
-pursuit cap, contact separation and projectile collision. npm run check passes1663 tests/35 files.
-
-Installed Chrome155 verifies a natural60s active-time transition (existing DEV God Mode for
-survival), actual manual/tab-BLUR pause, reward freeze, ordinary incoming Death/RETRY and
-controlled lethal Boss Victory/NEW RUN. Same five events/four streams and Phase2 movement225
-versus base180 pass. Russian indicator/overlay bounds pass at1920x1080,1280x720,960x540;
-unmodified production input/Dash/pause/resume and Phase1 render pass without DEV API or errors.
+The existing 20 phase regression cases now cover progression/reward completion instead of
+the old time trigger, plus cadence, movement, pauses, notification duration and both restart
+controls. npm run check passes all 1663 tests / 35 files. Fast installed Chrome155 verifies
+DEV forceLevelUp, genuine reward mouse selection, Phase 2 indicator/notification, 225px/s
+Chaser movement versus base180, unchanged event/stream identities, Escape freeze and actual
+lethal contact/RETRY reset. No 60-second wait or broad content acceptance was repeated.
 
 A player ship placeholder is rendered in GameplayScene and controlled with WASD or arrow keys.
 Movement is immediate at a baseline 300 pixels per second, uses frame delta, and normalizes diagonal direction.

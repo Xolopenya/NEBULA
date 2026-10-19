@@ -158,7 +158,7 @@ export class GameplayScene extends Phaser.Scene {
   private droneTimer?: Phaser.Time.TimerEvent;
   private hud?: Phaser.GameObjects.Text;
   private phase: 1 | 2 = 1;
-  private phaseElapsedMs = 0;
+  private phaseNotificationRemainingMs = 0;
   private phaseIndicator?: Phaser.GameObjects.Text;
   private phaseNotification?: Phaser.GameObjects.Text;
   private spawnTimer?: Phaser.Time.TimerEvent;
@@ -245,7 +245,7 @@ export class GameplayScene extends Phaser.Scene {
     this.pausePresentation = undefined;
     this.guide = undefined;
     this.phase = 1;
-    this.phaseElapsedMs = 0;
+    this.phaseNotificationRemainingMs = 0;
     const disposeRun = () => {
       run.dispose();
       this.events.off(Phaser.Scenes.Events.SHUTDOWN, disposeRun);
@@ -477,16 +477,18 @@ export class GameplayScene extends Phaser.Scene {
     if (this.isSimulationPaused()) return;
     if (!this.player || !intent) return;
     this.runDiagnostics!.advance(delta);
-    this.phaseElapsedMs += delta;
-    if (this.phase === 1 && this.phaseElapsedMs >= 60_000) {
+    if (this.phase === 1 && this.playerProgression!.snapshot().level >= 2) {
       this.phase = 2;
+      this.phaseNotificationRemainingMs = 3000;
       const timer = this.spawnTimer!;
       // Keep the same event and fractional progress, without dispatching or catching up.
       timer.reset({ delay: 1200, startAt: timer.elapsed / timer.delay * 1200, loop: true,
         callback: timer.callback, callbackScope: timer.callbackScope, args: timer.args });
       this.phaseIndicator?.setText(UI_TEXT.phaseTwo);
+    } else {
+      this.phaseNotificationRemainingMs = Math.max(0, this.phaseNotificationRemainingMs - delta);
     }
-    this.phaseNotification?.setVisible(this.phase === 2 && this.phaseElapsedMs < 63_000);
+    this.phaseNotification?.setVisible(this.phaseNotificationRemainingMs > 0);
 
     this.movementDirection.set(intent.moveX, intent.moveY);
     this.movementDirection.normalize();
@@ -705,7 +707,7 @@ export class GameplayScene extends Phaser.Scene {
   private projectPause(): void {
     this.guide?.setVisible(this.run?.state === 'RUNNING');
     this.phaseNotification?.setVisible(this.run?.state === 'RUNNING'
-      && this.phase === 2 && this.phaseElapsedMs < 63_000);
+      && this.phaseNotificationRemainingMs > 0);
     this.time.paused = this.run?.state === 'PAUSED';
     if (!this.time.paused || this.run?.hasPauseReason('REWARD')) {
       this.pausePresentation?.destroy();
