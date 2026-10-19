@@ -157,6 +157,11 @@ export class GameplayScene extends Phaser.Scene {
   private droneRanks: DroneRanks = { boltPower: 0, firingSystem: 0, boltPropulsion: 0 };
   private droneTimer?: Phaser.Time.TimerEvent;
   private hud?: Phaser.GameObjects.Text;
+  private phase: 1 | 2 = 1;
+  private phaseElapsedMs = 0;
+  private phaseIndicator?: Phaser.GameObjects.Text;
+  private phaseNotification?: Phaser.GameObjects.Text;
+  private spawnTimer?: Phaser.Time.TimerEvent;
   private guide?: Phaser.GameObjects.Text;
   private playerProgression?: PlayerProgression;
   private rewardTransaction?: RewardTransaction;
@@ -239,6 +244,8 @@ export class GameplayScene extends Phaser.Scene {
     this.time.paused = false;
     this.pausePresentation = undefined;
     this.guide = undefined;
+    this.phase = 1;
+    this.phaseElapsedMs = 0;
     const disposeRun = () => {
       run.dispose();
       this.events.off(Phaser.Scenes.Events.SHUTDOWN, disposeRun);
@@ -352,6 +359,14 @@ export class GameplayScene extends Phaser.Scene {
       padding: { x: 12, y: 8 },
     }).setScrollFactor(0).setDepth(1);
     this.updateHud();
+    this.phaseIndicator = this.add.text(width - 32, 80, UI_TEXT.phaseOne, {
+      fontFamily: RUSSIAN_FONT, fontSize: '24px', color: '#7dd3fc',
+      backgroundColor: '#050816', padding: { x: 12, y: 8 },
+    }).setOrigin(1, 0).setScrollFactor(0).setDepth(1);
+    this.phaseNotification = this.add.text(width / 2, 150, UI_TEXT.phaseTwo, {
+      fontFamily: RUSSIAN_FONT, fontSize: '48px', color: '#facc15',
+      backgroundColor: '#050816', padding: { x: 24, y: 16 },
+    }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(2).setVisible(false);
 
     const arena = this.add.graphics();
     arena.fillStyle(0x7dd3fc, 0.4);
@@ -380,7 +395,7 @@ export class GameplayScene extends Phaser.Scene {
     this.cameras.main.startFollow(this.player);
     this.cameras.main.centerOn(this.player.x, this.player.y);
 
-    this.gameplayTimers.push(this.time.addEvent({
+    this.gameplayTimers.push(this.spawnTimer = this.time.addEvent({
       delay: this.spawnInterval,
       loop: true,
       callback: () => { if (run.state === 'RUNNING') this.spawnEnemy(run); },
@@ -462,6 +477,16 @@ export class GameplayScene extends Phaser.Scene {
     if (this.isSimulationPaused()) return;
     if (!this.player || !intent) return;
     this.runDiagnostics!.advance(delta);
+    this.phaseElapsedMs += delta;
+    if (this.phase === 1 && this.phaseElapsedMs >= 60_000) {
+      this.phase = 2;
+      const timer = this.spawnTimer!;
+      // Keep the same event and fractional progress, without dispatching or catching up.
+      timer.reset({ delay: 1200, startAt: timer.elapsed / timer.delay * 1200, loop: true,
+        callback: timer.callback, callbackScope: timer.callbackScope, args: timer.args });
+      this.phaseIndicator?.setText(UI_TEXT.phaseTwo);
+    }
+    this.phaseNotification?.setVisible(this.phase === 2 && this.phaseElapsedMs < 63_000);
 
     this.movementDirection.set(intent.moveX, intent.moveY);
     this.movementDirection.normalize();
@@ -495,9 +520,12 @@ export class GameplayScene extends Phaser.Scene {
       let x = enemy.visual.x, y = enemy.visual.y;
       let chargerState = enemy.charger?.state;
       const movement = enemy.spawnSnapshot.movement;
+      const speedMultiplier = this.phase === 2 ? 1.25 : 1;
       if (movement.kind === 'CHARGER') {
         if (!chargerState) throw new RangeError('Missing Charger state');
-        const step = stepCharger({ x, y }, this.player, chargerState, movement, bounds, delta);
+        const phaseMovement = this.phase === 2 ? { ...movement,
+          speed: movement.speed * speedMultiplier, chargeSpeed: movement.chargeSpeed * speedMultiplier } : movement;
+        const step = stepCharger({ x, y }, this.player, chargerState, phaseMovement, bounds, delta);
         x = step.position.x; y = step.position.y; chargerState = step.state;
         if (step.contact) chargeContacts.set(enemy, { run, position: step.contact });
       } else {
@@ -510,6 +538,7 @@ export class GameplayScene extends Phaser.Scene {
           enemy.visual.setFillStyle(phase === 2 ? wardenPhaseTwo.color : enemyPresentation.boss.color);
           if (enemy !== this.currentTarget) this.restoreEnemyOutline(enemy);
         }
+        speed *= speedMultiplier;
         if (movement.kind === 'SHOOTER_BAND') {
           const step = shooterMovement(this.chaseDirection.x, this.chaseDirection.y, speed, delta,
             movement.minimumRange, movement.maximumRange);
@@ -675,6 +704,8 @@ export class GameplayScene extends Phaser.Scene {
 
   private projectPause(): void {
     this.guide?.setVisible(this.run?.state === 'RUNNING');
+    this.phaseNotification?.setVisible(this.run?.state === 'RUNNING'
+      && this.phase === 2 && this.phaseElapsedMs < 63_000);
     this.time.paused = this.run?.state === 'PAUSED';
     if (!this.time.paused || this.run?.hasPauseReason('REWARD')) {
       this.pausePresentation?.destroy();

@@ -61,7 +61,7 @@ Runs TypeScript without emitting files.
 
 ### Tests
 
-Current validation:1643 tracked tests in35 files pass; all1622 pre-HOMEWORK-001 cases retained with18 authorized expanded-label assertions and21 new regression cases. The1490 pre-UI-001 cases remain retained. Historical GAME-056 baseline:1354 cases retained through approved catalog/policy and authoritative Build fixture migrations.
+Current validation:1663 tracked tests in35 files pass; all1643 pre-CR-002 cases retained with20 focused phase regressions. The1622 pre-HOMEWORK-001 and1490 pre-UI-001 cases remain retained. Historical GAME-056 baseline:1354 cases retained through approved catalog/policy and authoritative Build fixture migrations.
 
 npm test
 
@@ -166,6 +166,7 @@ Current screen:
 - temporary thicker yellow outline on the current nearest-enemy target
 - automatically launched cyan Laser projectiles, yellow homing Missiles with area damage, and teal orbiting Drones firing violet straight bolts (one initially; two after Twin evolution)
 - screen-fixed top-left HUD showing current/max HP, XP toward the next threshold, level and Dash readiness/cooldown
+- screen-fixed Russian phase indicator below the top-right heading; Phase 2 notification after60 active seconds
 - desktop movement using WASD or arrow keys
 - "NEBULA — Космическое выживание" heading at the top right
 - screen-fixed three-line Russian movement/Dash/pause, automatic-fire/XP and Warden guidance; hidden during pause, reward and terminal overlays
@@ -219,6 +220,36 @@ Other root files include:
 
 ## Implemented Gameplay
 
+### Two-phase difficulty (CR-002)
+
+Each create starts in Phase1 with zero elapsed gameplay time. The existing RUNNING update
+accumulates delta; the first update reaching60000ms enters Phase2 once. Manual, reward and
+focus-loss pauses, PREPARING, terminal and disposed states add no phase time. RETRY and
+NEW RUN use the existing native restart and restore Phase1/zero time.
+
+Phase1 keeps the2000ms enemy spawn interval and authored movement speeds. Phase2 resets
+the same spawn TimerEvent to1200ms, preserving the fractional progress of its current wait
+without dispatching a spawn. All current and new enemies use1.25 times their current AI
+speed, including both Warden HP phases and Charger approach/charge; frozen definitions and
+spawn snapshots remain unchanged. Charger durations, external knockback and collision rules
+remain unchanged. Exactly five gameplay TimerEvents and four RNG streams remain; the boss
+threshold stays at successful timed spawn30.
+
+The persistent «ФАЗА 1»/«ФАЗА 2» indicator sits below the top-right heading. A separate
+«ФАЗА 2» notice appears above the central overlays for the first three active seconds of
+Phase2 and hides during pauses/terminal states. It uses the same update, with no UI timer.
+
+20 focused tracked Scene tests cover boundaries59.9/60s, once-only transition, actual installed
+Phaser Clock cadence/identity, all pause reasons/composition/nonrunning states, both restart
+controls, existing/new enemy speeds and immutable snapshots, Warden/Charger, Shooter band,
+pursuit cap, contact separation and projectile collision. npm run check passes1663 tests/35 files.
+
+Installed Chrome155 verifies a natural60s active-time transition (existing DEV God Mode for
+survival), actual manual/tab-BLUR pause, reward freeze, ordinary incoming Death/RETRY and
+controlled lethal Boss Victory/NEW RUN. Same five events/four streams and Phase2 movement225
+versus base180 pass. Russian indicator/overlay bounds pass at1920x1080,1280x720,960x540;
+unmodified production input/Dash/pause/resume and Phase1 render pass without DEV API or errors.
+
 A player ship placeholder is rendered in GameplayScene and controlled with WASD or arrow keys.
 Movement is immediate at a baseline 300 pixels per second, uses frame delta, and normalizes diagonal direction.
 Releasing movement keys stops normal movement without inertia.
@@ -227,9 +258,9 @@ The ship starts at world position (2400, 1350).
 Movement is clamped inside the 4800x2700 arena using half the ship dimensions plus its outline.
 The main camera follows the ship immediately and is bounded to the arena.
 Browser resizing preserves the internal viewport and responsive 16:9 FIT presentation.
-One Chaser starts at (3000, 1350). Successful timed spawns every 2 seconds repeat Chaser, Chaser, Chaser, Shooter, Chaser, Tank (CCCSCT) up to a shared cap of 10 active enemies. Initial creation does not advance the sequence; cap/pause/death rejection leaves it unchanged, kills free slots without rewinding it, and restart resets it. Every second scheduled Tank is Elite: successful timed spawns6/12/18/24 produce regular/Elite/regular/Elite Tank; the initial Chaser is excluded and cap-blocked callbacks retain the pending number.
+One Chaser starts at (3000, 1350). Successful timed spawns every 2 seconds in Phase1 (1.2 seconds in Phase2) repeat Chaser, Chaser, Chaser, Shooter, Chaser, Tank (CCCSCT) up to a shared cap of 10 active enemies. Initial creation does not advance the sequence; cap/pause/death rejection leaves it unchanged, kills free slots without rewinding it, and restart resets it. Every second scheduled Tank is Elite: successful timed spawns6/12/18/24 produce regular/Elite/regular/Elite Tank; the initial Chaser is excluded and cap-blocked callbacks retain the pending number.
 Spawn positions are chosen just outside a random camera edge, clamped with a 25-pixel arena margin (40 for Warden), and kept at least 600 pixels from the player. Too-close candidates use the opposite arena corner.
-Chasers and Tanks share direct pursuit of the player's current world position at 180 and 100 pixels per second respectively (Elite Tank120). Shooters move at 140 pixels per second toward the player above 500 pixels, retreat below 350 and hold within the inclusive 350–500 world-center band. Movement stops at the nearest band edge even for large deltas; coincident centers retreat deterministically right. Arena clamping may prevent further retreat at an edge.
+Phase1 Chasers and Tanks share direct pursuit of the player's current world position at 180 and 100 pixels per second respectively (Elite Tank120). Shooters move at 140 pixels per second toward the player above 500 pixels, retreat below 350 and hold within the inclusive 350–500 world-center band. Phase2 multiplies these movement speeds by1.25. Movement stops at the nearest band edge even for large deltas; coincident centers retreat deterministically right. Arena clamping may prevent further retreat at an edge.
 Chaser/Tank pursuit uses frame delta and caps each step at the remaining distance to avoid overshoot at the player.
 Chaser/Shooter/Tank respect the 25-pixel arena margin; Warden uses a 40-pixel body margin.
 Enemies use one Scene-local EnemyRuntime collection with readonly spawnSnapshot and exact creating RunLifecycle, mutable current health, polygon visual/position, lastDamagingSource and external knockbackVelocity; only Charger owns transient phase state and one Graphics telegraph. EnemyDefinitions.ts owns six deeply frozen authored definitions (swarm/chaser/charger/shooter/tank/boss), a fixed ELITE_TANK_PROFILE and required explicit LEGACY_NEUTRAL scaling context. Neutral construction performs no scaling arithmetic and reads no run, Build, Tags, Analyzer, time or RNG. The pure factory validates exact record shapes, role/movement/variant pairing and positive finite safe values (XP a positive safe integer), copies primitive fields, a new nested movement and two-field interaction, validates final values and freezes all three records. Interaction response allows finite0..MAX_SAFE_INTEGER; susceptibility is boolean. Each successful createEnemy constructs exactly one detached snapshot; rejected stale/non-running or blocked pipeline attempts construct none.
@@ -240,7 +271,7 @@ Initial Chaser construction uses the captured PREPARING run at3000/1350 before f
 
 Validation:739 tests/25 files (136 new pure enemy-definition and33 new Scene cases; all570 baseline cases retained). Actual Chrome/Phaser verifies controlled Clock CCCSCT/Elite12+24/Warden30 with cap-delayed12/30 and60 Encounter draws, pursuit/Shooter/Warden HP phases/styles/hostile fire, six offensive paths, immutable values, genuine BLUR/manual/reward freezes, two Victory NEW RUN cycles, Death RETRY and paused nonterminal native restart. Controlled long-schedule collection clearing is internal fixture setup. Unmodified production input/combat/ordinary Death/real pointer RETRY passes without DEV API or pageerrors.
 
-Elite Tank is a concrete Tank variant with health18/speed120/contact2/XP5 and the existing collision radius24, versus regular Tank6/100/1/1. Small eliteTankData reuses Tank hexagon geometry with gold fill and a bright3-pixel outline; target changes restore Elite presentation. shouldSpawnEliteTank promotes only scheduled Tanks at successful timed counts divisible by12, inside the same2000ms spawn callback/cap10. It has no ranged attack, special ability, armor, new timer or portal. Actual contacting enemy damage uses the shared500ms protection path with collection-order first-hit semantics. All six player attack paths can kill Elite through existing collision/killEnemy, producing one value5 pickup; normal magnet/XP threshold/carry-over/level-up pause remain authoritative. Real Phaser validation covers24 successful spawns, cap-delayed Elite12, movement/contact/highlight/Shooter exclusion, mixed AoE rewards, every attack and two native retries restoring no Elite, initial Chaser/counter0 and five fresh timers. No generalized enemy/affix/difficulty system is implemented.
+Elite Tank is a concrete Tank variant with health18/speed120/contact2/XP5 and the existing collision radius24, versus regular Tank6/100/1/1. Small eliteTankData reuses Tank hexagon geometry with gold fill and a bright3-pixel outline; target changes restore Elite presentation. shouldSpawnEliteTank promotes only scheduled Tanks at successful timed counts divisible by12, inside the same phase-dependent spawn callback/cap10. It has no ranged attack, special ability, armor, new timer or portal. Actual contacting enemy damage uses the shared500ms protection path with collection-order first-hit semantics. All six player attack paths can kill Elite through existing collision/killEnemy, producing one value5 pickup; normal magnet/XP threshold/carry-over/level-up pause remain authoritative. Real Phaser validation covers24 successful spawns, cap-delayed Elite12, movement/contact/highlight/Shooter exclusion, mixed AoE rewards, every attack and two native retries restoring no Elite, initial Chaser/counter0 and five fresh timers. No generalized enemy/affix/difficulty system is implemented.
 
 Warden is one explicit Boss archetype with60 HP, collision radius40, contact damage2 and XP10. It replaces successful timed spawn30 after regular Tank6/Elite12/regular18/Elite24. bossSpawned becomes true only after creation; cap10/pause/death/missing-player rejection preserves pending30. While Warden is active, only new timed enemy spawns/counter advancement stop; existing enemies, weapons and hostile attacks continue. Current positive HP selects movement/visual/attack phase: above30 HP speed70/magenta/cardinal4; at30 or below speed100/red-orange/eight45-degree shots. The same hostile event owns attacks with no phase reset or transition volley. Target highlighting restores the current phase outline. Common killEnemy sets bossDefeated, retains bossSpawned and drops one XP10 pickup. After the lethal attack completes its normal cleanup, Victory freezes the run at successful spawn30. The pickup stays normal/visible/frozen without collection or direct XP credit; no spawn31 occurs. Native restart clears both flags, restores initial Chaser/counter0 and the Boss30 schedule, destroys old objects and restores five fresh timers. Real Phaser validation covers both phases, retained timer boundaries, Shooter coexistence, body/contact sweeps, center-only AoE, all six attack kill paths, two native Victory NEW RUN cycles and ordinary death RETRY.
 
@@ -598,7 +629,7 @@ separation and ENEMY_CONTACT -> PlayerDefense once, in original enemy collection
 Missiles/death still precede contact. Killed/stale Chargers cannot contact; external force alone
 never creates a sweep, collision damage, enemy death or another damage source.
 
-Spawn option B preserves natural CCCSCT2000ms/cap10/Elite12+24/Warden30 and exactly two Encounter
+Spawn option B preserves natural CCCSCT (Phase1:2000ms; Phase2:1200ms)/cap10/Elite12+24/Warden30 and exactly two Encounter
 draws per accepted timed placement. Swarm/Charger currently enter via guarded internal verification
 of the real private factory, never natural scheduling or extra DEV commands. Diagnostics has
 six spawned/killed archetype keys and the unchanged seven source keys; both new roles drop XP1.
