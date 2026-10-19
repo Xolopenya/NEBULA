@@ -124,15 +124,28 @@ export class PlayerBuild {
   }
   applyPrototypeHullPlating(): boolean {
     this.assertLive();
-    this.commit({ ...this.#modifiers, prototypeHullFlat: this.#modifiers.prototypeHullFlat + 1 });
+    this.commit(this.prototypeHullCandidate());
     return true;
   }
   applyPrototypeThruster(): boolean {
     this.assertLive();
-    this.commit({ ...this.#modifiers, prototypeThrustFlat: this.#modifiers.prototypeThrustFlat + 30 });
+    this.commit(this.prototypeThrustCandidate());
     return true;
   }
+  previewPrototypeHullPlating(): EffectiveStats {
+    this.assertLive(); return this.resolve(this.prototypeHullCandidate());
+  }
+  previewPrototypeThruster(): EffectiveStats {
+    this.assertLive(); return this.resolve(this.prototypeThrustCandidate());
+  }
   dispose(): void { this.#disposed = true; }
+
+  private prototypeHullCandidate(): RunModifiers {
+    return { ...this.#modifiers, prototypeHullFlat: this.#modifiers.prototypeHullFlat + 1 };
+  }
+  private prototypeThrustCandidate(): RunModifiers {
+    return { ...this.#modifiers, prototypeThrustFlat: this.#modifiers.prototypeThrustFlat + 30 };
+  }
 
   private deriveIdentity(tags: TagPoints): BuildIdentity {
     let highest = 0, second = 0;

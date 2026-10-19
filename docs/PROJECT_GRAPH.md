@@ -4,8 +4,8 @@
 
 - Project: NEBULA.
 - Milestone: First Playable / GAME-015 complete.
-- Source baseline HEAD: `14d0672e63c513bad0ba09b8b29274c77fc16873`.
-- This map reflects that source baseline plus the staged GAME-053 progression/pending/physical consolidation; current Scene retains Hit/death consequence authority, combat/presentation and GAME-039 DEV wiring.
+- Source baseline HEAD: `bf897a76538eed180f47b23b4eb19a712f25fc5e`.
+- This map reflects that source baseline plus the staged GAME-054 reward transaction/eligibility/Build previews; Scene retains prototype offer policy/effects, combat/presentation and GAME-039 DEV wiring.
 - Active task request defines task-specific requirements.
 - AGENTS.md defines repository policy.
 - TASK_GRAPH.md defines task scope, dependencies and status.
@@ -26,6 +26,11 @@ IDs are repository-relative paths; symbols use `path#export`.
 | `src/game/config.ts` | Full HD FIT config and scene registration |
 | `src/game/scenes/BootScene.ts` | Starts GameplayScene |
 | `src/game/scenes/GameplayScene.ts` | Owns current run simulation, presentation and DEV API per-create binding |
+| `src/game/rewards/RewardTransaction.ts` | Pure one-offer/token/ordinal/phase/selection-guard/disposal authority; detached read API |
+| `src/game/rewards/RewardTransaction.test.ts` | Canonical immutable membership, authentic identity, safe ordinals, rejection/retry/reentrancy/order and lifetime |
+| `src/game/rewards/rewardChoices.ts` | Closed18 LevelUpChoice/candidate IDs, canonical prototype pool, exact validation and frozen copies |
+| `src/game/rewards/rewardEligibility.ts` | Pure current detached hard eligibility and composed numeric/Attack/cadence feasibility |
+| `src/game/rewards/rewardEligibility.test.ts` | All18 choices, installed slots/caps/recipes/repeatables/Tags neutrality and overflow rejection |
 | `src/game/run/RunLifecycle.ts` | Focused lifecycle authority: RunState including PAUSED, PauseReason, terminal/disposal; no Phaser dependency |
 | `src/game/run/RunLifecycle.test.ts` | 19 pure lifecycle/reason/composition/terminal/disposal/independence cases |
 | `src/game/input/KeyboardInput.ts` | Concrete desktop key bindings, GameplayIntent sample/reset/dispose and held-control suppression |
@@ -103,6 +108,15 @@ IDs are repository-relative paths; symbols use `path#export`.
 | `src/game/config.ts#gameConfig` | Registers BootScene/GameplayScene; 1920x1080 FIT |
 | `src/game/scenes/BootScene.ts#BootScene` | Scene startup transition |
 | `src/game/scenes/GameplayScene.ts#GameplayScene` | Scene/run owner |
+| `src/game/rewards/RewardTransaction.ts#RewardTransaction` | assertCanOpen/open/present/trySelect/invalidate/snapshot/dispose; one authentic current offer and synchronous guard |
+| `src/game/rewards/RewardTransaction.ts#RewardToken` | Frozen object-reference authority; safe local offerId alone cannot authorize |
+| `src/game/rewards/RewardTransaction.ts#RewardOfferSnapshot` | Detached LEVEL_UP offerId/phase/candidates, no token or owner |
+| `src/game/rewards/rewardChoices.ts#RewardCandidate` | Readonly canonical ID/closed choice pair, validated and copied/frozen at open |
+| `src/game/rewards/rewardChoices.ts#levelUpPool` | Frozen canonical15 ordinary prototype entries; rewardChoices adds three evolutions |
+| `src/game/rewards/rewardEligibility.ts#isRewardEligible` | Pure current slots/ranks/recipes/evolved flags/repeatables and numeric feasibility, no RNG |
+| `src/game/rewards/rewardEligibility.ts#assertRewardFeasible` | Loud composed numeric/Attack/cadence preflight before actual Scene mutation |
+| `src/game/player/PlayerBuild.ts#PlayerBuild.previewPrototypeHullPlating` | Detached prospective EffectiveStats using the actual Hull candidate/resolver, no cache mutation |
+| `src/game/player/PlayerBuild.ts#PlayerBuild.previewPrototypeThruster` | Detached prospective EffectiveStats using the actual Thrust candidate/resolver, no cache mutation |
 | `src/game/run/RunLifecycle.ts#PauseReason` | Exactly REWARD, MANUAL, FOCUS_LOSS; requestPause/releasePause/hasPauseReason and detached ordered reason view |
 | `src/game/input/KeyboardInput.ts#GameplayIntent` | Raw moveX/moveY and activatePressed/pausePressed edges |
 | `src/game/input/KeyboardInput.ts#KeyboardInput` | Desktop adapter only; no gameplay movement/Dash simulation |
@@ -291,7 +305,8 @@ All private names below are navigation anchors, not exported symbol nodes.
 | Damage protection | read-only playerDamageProtectionRemaining; updatePlayerProtection → PlayerDefense.advanceProtection | Defense owns fixed500ms/countdown; Scene owns alpha, RUNNING guard and existing update phase |
 | Contact separation | updatePlayerContact | First inclusive overlap R32/42/44/60 or same-update Charger CHARGING sweep, minimum translation/coincident+X, player bounds21/25; before damage even under God/protection, no Impact/RNG/extra pass |
 | Level-up pause | isLevelUpPaused; enterLevelUpPause; RunLifecycle REWARD | Flag is transaction identity only; REWARD owns PAUSED; current choice releases only REWARD, other reasons retain pause |
-| Choice UI/resume | levelUpPresentation; enterLevelUpPause; acceptLevelUpChoice | Exact run/text/REWARD identity; applies one current upgrade/evolution, destroys UI, releases REWARD only; resumes if no other reason remains |
+| Choice UI/resume | rewardTransaction, rewardPresentation; enterLevelUpPause / currentReward / acceptLevelUpChoice / applyRewardChoice / clearRewardPresentation | Exact token/run/owners/presentation/Text, persistent retry handler; callback effect/pending/selected then owner invalidation/guard exit, post-return UI/next offer/final release |
+| Reward owner/eligibility | rewardTransaction / rewardContext; RewardTransaction / rewardChoices / rewardEligibility | Pure transaction authority and current detached hard feasibility; Build/progression keep their own state |
 | Run lifecycle | run; RunLifecycle; create | PREPARING/RUNNING/PAUSED/TERMINAL/DISPOSED; concrete composed reasons; first terminal from RUNNING/PAUSED; captured exact disposal |
 | Pause/input projection | bindRunInput; handlePauseRequest; projectPause; canResume; pausePresentation | Exact-owner BLUR/HIDDEN loss, separate FOCUS/VISIBLE bookkeeping, explicit focused Escape resume; Scene Clock.paused freezes five events; minimal non-reward UI |
 | Run RNG | runRandom; RunRandom; create | Fresh owner after successful RUNNING; crypto uint32 seed; exact captured shutdown/destroy disposal; old handles throw; World/Boss dormant |
@@ -340,7 +355,7 @@ All private names below are navigation anchors, not exported symbol nodes.
 ## Runtime and lifecycle
 
 BootScene.create → scene.start('GameplayScene') → GameplayScene.create
-→ fresh PREPARING lifecycle/Build/Defense → player/HUD/enemy/collections
+→ fresh PREPARING lifecycle/Build/Defense/progression/RewardTransaction → player/HUD/enemy/collections
 → spawn/Laser/Missile/Drone/hostile timers/input/UI → run.start → RunRandom → RunDiagnostics → DEV → update.
 
 update: sample intents / handle PauseRequest → lifecycle/player/intent guards → diagnostics.advance(delta) once → player movement/Dash split/bounds → Drone orbit → owned pursuit / Shooter band / Charger phase movement → one external decay/displacement + arena clamp → target/highlight
@@ -497,7 +512,7 @@ Swept geometry, strict ties, cap/expiry/world exits, Prism independent beams, Tw
 origins and Cluster primary then survivor union remain concrete Scene behavior. Complete
 owning cleanup precedes Victory; first-terminal authority stays RunLifecycle. Stale Hits/
 flights guard exact run before fresh enemies/Defense. Five events/five DEV methods and zero
-additional RNG draws remain. GAME-052 adds player-only physical Impact below; GAME-054+ remain deferred. 71 pure +16 new Scene cases,
+additional RNG draws remain. GAME-052 adds player-only physical Impact below; GAME-055+ remain deferred. 71 pure +16 new Scene cases,
 actual Chrome offensive/old-new snapshot/pause/BLUR/native terminal/restart and unmodified
 production ordinary Death/real RETRY checks pass. GATE A PASSED; GATE B PASSED.
 
@@ -512,7 +527,7 @@ snapshot and owners; stale values stay readable without mutation authority. No e
 RNG, dependency, content or difficulty/Build/Tags coupling. GAME-051 adds the death/attribution boundary below.
 136 pure +33 added Scene cases pass (739 total/25 files). Actual Chrome Clock schedule,
 movement/hostile/six-path combat/real BLUR and active-flight pauses/native restart checks pass;
-unmodified production ordinary Death/real pointer RETRY passes. GAME-050/051/052 DONE; GAME-054+
+unmodified production ordinary Death/real pointer RETRY passes. GAME-050/051/052 DONE; GAME-055+
 BACKLOG; GATE A/B PASSED.
 
 EnemyDeath.ts + GameplayScene EnemyHit/lastDamagingSource/applyEnemyHit/killEnemy and
@@ -532,7 +547,7 @@ old immutable values remain readable, old callbacks cannot mutate/draw in the ne
 seven-source/A->B/loss0/Cluster/XP/pause/genuine BLUR/native terminal/restart Chrome checks pass.
 Unmodified production ordinary enemy death/XP, incoming Death and actual pointer RETRY pass
 without DEV or pageerrors. Five events/four RNG budgets/Build/Tags/Analyzer/Defense/rewards and
-GAME-049/050 contracts remain. GAME-051/052 DONE; GAME-054+ BACKLOG; GATE A/B PASSED.
+GAME-049/050 contracts remain. GAME-051/052 DONE; GAME-055+ BACKLOG; GATE A/B PASSED.
 
 EnemyDefinitions/knockback/chargerMovement + Scene launch/Hit/movement/contact/Graphics IMPLEMENT_TASK GAME-052.
 Six identities are five normal roles plus legacy boss; Elite remains Tank-only. Definitions and
@@ -569,7 +584,7 @@ clearing), full terminal cleanup and two Victory NEW RUN/Death RETRY/PAUSED nati
 new-role/force/Graphics dirtied. Old callbacks/state/poses cannot reach fresh owners or draw RNG;
 five new events and fresh zero velocity/interaction/Tags/counters restore. Unmodified production
 uses real input/rendered output for survivor knockback, ordinary Death and actual mouse RETRY;
-DEV absent/no pageerrors. Known favicon404/bundle-size warnings remain. GAME-052 DONE; GAME-054+
+DEV absent/no pageerrors. Known favicon404/bundle-size warnings remain. GAME-052 DONE; GAME-055+
 BACKLOG; GATE A/B PASSED, with no other gate closure.
 
 PlayerProgression + experience + xpConsolidation + Scene XP/reward integration IMPLEMENT_TASK GAME-053.
@@ -590,8 +605,35 @@ Native restart disposes old progression and pickup visuals, resets1/0/0 and five
 identity/atomicity/focus/native checks pass. Installed Chrome real pointer32-XP chain, actual BLUR,
 physical1/5/10, conservation/sparse3000 and four straight/Missile/Cluster NEW RUN cycles, Death RETRY/
 paused restart pass. Unmodified production real keyboard/pixel pickup pursuit reaches Level2 and pointer
-choice, plus ordinary damage/Death/RETRY/DEV absence; no new pageerrors. GAME-054+ BACKLOG; A/B PASSED;
+choice, plus ordinary damage/Death/RETRY/DEV absence; no new pageerrors. GAME-055+ BACKLOG; A/B PASSED;
 GATE C unapproved. No new dependency, timer, DEV method, RNG stream or later reward framework.
+
+RewardTransaction + rewardChoices + rewardEligibility + Build previews + Scene integration IMPLEMENT_TASK GAME-054.
+create constructs exactly one idle RewardTransaction in PREPARING and captures it for exact shutdown/
+destroy disposal. Owner open/present/trySelect/invalidate/snapshot/dispose manages frozen canonical3,
+authentic object token/safe ordinal, two active phases and private synchronous guard; detached JSON
+reads cannot select. Old direct operations throw, old copies remain readable, equal ordinals from a
+new owner do not share authority. No lifecycle/Build/XP/RNG/diagnostic/Phaser references in the owner.
+rewardContext reads actual detached Build/legacy state and two narrow Build previews; generation and
+selection both use pure eligibility. Previews reuse PlayerBuild's prototype candidate preparation/
+resolve without cache/Tag/Defense mutation. focusedUpgrade adds only an optional nine-track mask.
+enterLevelUpPause preflights before RNG/pause/UI, preserves fixed prototype3-slot policy/cursors and
+2/3/1/2 budgets, then open -> actual named Text handlers -> present -> one offered observation.
+rewardPresentation captures exact run/progression/Build/Reward/token, Text/handler pairs and mapping;
+currentReward checks those identities before disposed reads. Named persistent handlers survive false/
+preflight failures for a valid retry without reattachment. clearRewardPresentation removes exact pairs
+on success/replacement/terminal/disposal; old cleanup cannot affect a fresh presentation.
+acceptLevelUpChoice -> trySelect -> ONE applyRewardChoice preflight/actual upgrade/pending1/selected1.
+Callback true -> accepted-token invalidation -> guard exit -> trySelect true return; ONLY afterward
+Scene removes UI/input and generates an updated next offer under same REWARD or releases final REWARD.
+Twin's provisional Arc is last failing preparation and cleaned on rejected recheck. No new XP or Build
+owner, future policy/content, dependency, TimerEvent/Clock/stream/DEV method or changed launch contract.
+1294 tracked tests/32 files preserve1158 baseline. Installed Chrome checks all18 actual mouse effects/
+future launches/frozen in-flight snapshots/same timers, rejected same-Text retry, duplicate/stale/forged0,
+exact callback order, physical32 sequential3, genuine BLUR/manual/held-input freeze, four atomic Victory
+NEW RUN cycles, Death RETRY and PAUSED native restart. Unmodified production real keyboard/pixels/natural
+physical XP/Level-Up/mouse choice and ordinary incoming Death/RETRY pass, DEV absent/no new pageerrors.
+Known favicon404/bundle/worker advice only. GAME-054 DONE; GAME-055+ BACKLOG; A/B PASSED; C unapproved.
 
 ## Common navigation queries
 

@@ -339,7 +339,7 @@ Never reuse these IDs for unrelated tasks.
 
 ## Mechanical Vertical Slice roadmap
 
-GAME-042/043/044/045 are DONE; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 READY; GAME-055+ remain BACKLOG. Each row gives phase membership, exact dependencies and a
+GAME-042/043/044/045 are DONE; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055+ remain BACKLOG. Each row gives phase membership, exact dependencies and a
 short capability; gates are review checkpoints, not automatic authorization.
 Dependency ranges are inclusive.
 
@@ -547,7 +547,7 @@ Production preview boots with DEV API absent. Known favicon404 and Vite bundle-s
 no new pageerrors observed.
 
 CURRENT_STATE and real PROJECT_GRAPH ownership are updated. DESIGN-005/GAME-039 stay DONE,
-GAME-040/041 SUPERSEDED; GAME-043 DONE; GAME-044 DONE; GAME-045 DONE; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 READY; GAME-055+ remain BACKLOG. GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 READY; GAME-055+ remain BACKLOG pending separate definition. Explicit staging
+GAME-040/041 SUPERSEDED; GAME-043 DONE; GAME-044 DONE; GAME-045 DONE; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055+ remain BACKLOG. GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055+ remain BACKLOG pending separate definition. Explicit staging
 and ignored .codex-review/GAME-042-review.txt follow AGENTS.md; no commit is created.
 
 #### GAME-043 — Seeded RNG Streams
@@ -749,7 +749,7 @@ Out of scope: GAME-044 Pause/Input, GAME-045 telemetry, GAME-046 Build, Encounte
 templates/pressure/portals/weights, full Reward Generator/Analyzer/pity/recent offers,
 World Scheduler/events, BossController/Juggernaut, RunResult/RunReport, replay recording,
 daily seeds, seed entry/query/settings/reseed DEV command, save/meta/profile, arbitrary
-named/forkable RNG framework, service locator or new dependency. GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 READY; GAME-055+ remain BACKLOG pending separate definition.
+named/forkable RNG framework, service locator or new dependency. GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055+ remain BACKLOG pending separate definition.
 
 **Implementation completion evidence**
 
@@ -769,7 +769,7 @@ fixed-seed spawn/offer sequences and cross-stream isolation. Two actual Victory 
 cycles and one Death RETRY (plus nonterminal/Missile/Cluster native restarts) dispose old
 streams and retain fresh RNG/lifecycle/API/five events with inert stale callbacks.
 Production canvas boots with DEV API absent; only known favicon404 and build chunk-size
-warnings remain. GAME-044 DONE; GAME-045 DONE; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 READY; GAME-055+ remain BACKLOG; GAME-040/041 SUPERSEDED; GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 READY; GAME-055+ remain BACKLOG pending separate definition.
+warnings remain. GAME-044 DONE; GAME-045 DONE; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055+ remain BACKLOG; GAME-040/041 SUPERSEDED; GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055+ remain BACKLOG pending separate definition.
 
 **Definition validation and documentation (historical definition-only instructions)**
 
@@ -1090,7 +1090,7 @@ Missile/Cluster cycles pass: fresh authority/adapter/RNG/API, zero reasons, unpa
 five fresh events, old streams throw and saved stale callbacks draw zero on all fresh streams.
 Unmodified production preview passes keyboard/Space/Escape and 700ms rendered pause freeze
 without DEV API/debug controls. Only known favicon404 and Vite chunk-size warnings remain.
-GAME-042/043/044 DONE; GAME-040/041 SUPERSEDED; GAME-045 DONE; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 READY; GAME-055+ remain BACKLOG; GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 READY; GAME-055+ remain BACKLOG pending separate definition.
+GAME-042/043/044 DONE; GAME-040/041 SUPERSEDED; GAME-045 DONE; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055+ remain BACKLOG; GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055+ remain BACKLOG pending separate definition.
 
 #### GAME-045 — Telemetry & Diagnostics Foundation
 
@@ -1346,8 +1346,8 @@ inert stale owners/callbacks. Unmodified production preview verifies keyboard/Da
 DEV absence and local static-only network requests. HIDDEN/VISIBLE combinations remain
 separately identified synthetic tracked coverage; known favicon404/bundle-size warnings only.
 
-GAME-045 DONE; GAME-040/041 SUPERSEDED; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 READY; GAME-055+ remain BACKLOG.
-GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 READY; GAME-055+ remain BACKLOG pending separate definition. GAME-055+ are not unlocked.
+GAME-045 DONE; GAME-040/041 SUPERSEDED; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055+ remain BACKLOG.
+GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055+ remain BACKLOG pending separate definition. GAME-055+ are not unlocked.
 
 **GATE A — Runtime Foundation — PASSED**
 
@@ -1374,7 +1374,7 @@ Implemented and verified against the acceptance contracts below.
 Establish one focused run-scoped PlayerBuild authority for 3 Combat / 1 Active / 6 Core
 slots, immutable Base Stats, unconditional Run Modifiers and cached Effective Stats.
 GameplayScene remains the composition root and current combat/progression/presentation owner.
-GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 READY; GAME-055+ remain BACKLOG; no later runtime domain is implemented here.
+GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055+ remain BACKLOG; no later runtime domain is implemented here.
 
 **Pre-implementation tracked-source audit and migration inventory**
 
@@ -1725,7 +1725,7 @@ old reads/mutations/callbacks remain inert. Extra Missile/Cluster terminal cycle
 Unmodified production preview passes keyboard/Dash/pause/current combat and DEV absence.
 Known favicon404 and Vite bundle-size warnings only. CURRENT_STATE and PROJECT_GRAPH reflect
 actual implemented ownership; no dependencies changed. GATE A remains PASSED; GAME-046 DONE;
-GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 READY; GAME-055+ remain BACKLOG. GATE B PASSED — Modern Combat on Legacy Spawning architect-approved.
+GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055+ remain BACKLOG. GATE B PASSED — Modern Combat on Legacy Spawning architect-approved.
 
 #### GAME-047 — Tags & Build Snapshot
 
@@ -1737,7 +1737,7 @@ Depends on GAME-046 DONE; preserve GAME-039/042/043/044/045/046 contracts and PA
 Extend the existing Phaser-free PlayerBuild with twelve numeric Tag totals, derived build
 identity and one canonical detached BuildSnapshot. Tags describe the build in parallel to
 stats; they never supply combat multipliers. Implemented and verified against the contracts
-below. GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 READY; GAME-055+ remain BACKLOG; GATE B PASSED.
+below. GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055+ remain BACKLOG; GATE B PASSED.
 
 **Authoritative design and current source audit**
 
@@ -2007,7 +2007,7 @@ owners/API/five events and unpaused Clock; old direct additions (including0)/rea
 and saved callbacks remain inert. Additional Missile/Cluster native cycles pass.
 Unmodified production preview retains W/Space/Escape/current combat, no DEV API/debug UI
 and no new pageerrors. Known favicon404 and Vite bundle-size warning only. Factual
-CURRENT_STATE/PROJECT_GRAPH updated. GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 READY; GAME-055+ BACKLOG; GAME-040/041
+CURRENT_STATE/PROJECT_GRAPH updated. GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055+ BACKLOG; GAME-040/041
 SUPERSEDED; GATE A PASSED; GATE B PASSED. No commit created.
 
 #### GAME-048 — Player Defense Runtime
@@ -2022,7 +2022,7 @@ current Shield and damage protection, with Shield-first numeric incoming damage,
 healing/capping and the explicit contact separation below. Scene remains composition root,
 collision/presentation/lifecycle adapter; PlayerBuild remains maximum-Hull authority.
 GAME-048 implementation is complete; the approved contracts and pre-implementation audit follow.
-GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 READY; GAME-055+ remain BACKLOG; GATE B PASSED.
+GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055+ remain BACKLOG; GATE B PASSED.
 
 **Pre-implementation defense source inventory and authoritative design audit**
 
@@ -2403,7 +2403,7 @@ handlers; Hull/reward checks use browser pointer input. Unmodified production pr
 passes W/Space/Escape/pause/combat, ordinary damage to HP0/Death and actual pointer RETRY
 back to HP5/5, no DEV API/debug UI or new pageerrors. Only known favicon404 and Vite
 large-chunk warnings remain. CURRENT_STATE/PROJECT_GRAPH describe implemented ownership.
-GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 READY; GAME-055+ BACKLOG; GAME-040/041 SUPERSEDED; GATE A PASSED; GATE B PASSED. Architect implementation approval is pending; no commit created.
+GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055+ BACKLOG; GAME-040/041 SUPERSEDED; GATE A PASSED; GATE B PASSED. Architect implementation approval is pending; no commit created.
 
 #### GAME-049 — Combat Resolution & Launch Snapshots
 
@@ -2837,7 +2837,7 @@ pointerdown handlers; real keyboard/mouse checks are reported separately. Unmodi
 production preview passes W/Space/Escape/pause/combat, ordinary damage to HP0/5 Death and
 actual mouse RETRY to HP5/5/fresh progress, absent DEV API/debug UI/new pageerrors. Production
 Death was observed after73000ms; only known favicon404/Vite large-chunk warnings remain.
-CURRENT_STATE and PROJECT_GRAPH map the implemented boundary. GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 READY; GAME-055+
+CURRENT_STATE and PROJECT_GRAPH map the implemented boundary. GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055+
 BACKLOG; GAME-040/041 SUPERSEDED; GATE A PASSED; GATE B PASSED. GAME-049 implementation and
 GATE B are architect-approved; no commit created.
 
@@ -3267,7 +3267,7 @@ Hit, creation/removal/timer/input/focus/reward/result/DEV/cleanup callbacks with
 RNG. Unmodified production input/movement/Dash/pause/combat/ordinary damage/Death and real
 pointer RETRY pass, with no DEV API/debug UI/pageerrors. Existing favicon404 and large
 bundle/Vitest worker advice only. CURRENT_STATE/PROJECT_GRAPH reflect implemented truth.
-GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 READY; GAME-055+ BACKLOG; GAME-040/041 SUPERSEDED; GATE A/B PASSED. GAME-050
+GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055+ BACKLOG; GAME-040/041 SUPERSEDED; GATE A/B PASSED. GAME-050
 implementation is architect-approved; no commit is created in this definition task.
 
 #### GAME-051 — Authoritative EnemyDeath Pipeline
@@ -3714,7 +3714,7 @@ movement/Dash/pause/combat, ordinary enemy death/physical XP, incoming Death and
 to fresh HP5/XP0/one Chaser, DEV absent/no pageerrors. Known favicon404/large bundle warning only.
 Ignored review packet contains complete source audit, browser evidence and full staged diff.
 
-GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 READY; GAME-055+ BACKLOG pending separate definition/review; GAME-040/041 SUPERSEDED;
+GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055+ BACKLOG pending separate definition/review; GAME-040/041 SUPERSEDED;
 GATE A/B PASSED. GAME-052 definition and implementation are architect-approved and DONE.
 
 
@@ -4273,7 +4273,7 @@ satellite terminal completion and frozen BossXP10 pass. Unmodified built product
 keyboard/mouse/rendered output: W/Space/Escape/combat/survivor knockback/physical XP/ordinary Death/
 actual RETRY/fresh active run; DEV absent/no pageerrors. Known favicon404/bundle warning remain.
 CURRENT_STATE and PROJECT_GRAPH reflect actual ownership/values; no dependency/future runtime.
-GAME-052 DONE; GAME-053 DONE; GAME-054 READY; GAME-055+ BACKLOG pending separate definition/review; GAME-040/041 SUPERSEDED;
+GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055+ BACKLOG pending separate definition/review; GAME-040/041 SUPERSEDED;
 GATE A/B PASSED. No other gate closed. GAME-052 implementation is architect-approved and DONE.
 
 **GATE B — Modern Combat on Legacy Spawning — PASSED** — review the preceding phase capabilities before its cutover/next proof.
@@ -4283,7 +4283,7 @@ GATE A/B PASSED. No other gate closed. GAME-052 implementation is architect-appr
 | ID | Title | Depends on | Capability | Status |
 | --- | --- | --- | --- | --- |
 | GAME-053 | Physical XP & Level Progression | GAME-051 | Physical XP, value preservation, thresholds, overflow and pending levels. | DONE |
-| GAME-054 | Reward Transaction & Eligibility | GAME-046, GAME-047, GAME-053 | One reward transaction, hard eligibility and explicit Build application. | READY |
+| GAME-054 | Reward Transaction & Eligibility | GAME-046, GAME-047, GAME-053 | One reward transaction, hard eligibility and explicit Build application. | DONE |
 | GAME-055 | Level-Up Generator | GAME-043, GAME-047, GAME-054 | Weighted Level-Up roles, Analyzer, pity and recent-offer handling. | BACKLOG |
 | GAME-056 | Laser Progression Vertical | GAME-049, GAME-055 | Laser tuning/readiness and Scatter Array / Repeater Array / Precision Lance development. | BACKLOG |
 | GAME-057 | Missile Progression | GAME-056 | Straight base Missile and Guidance / Heavy Warhead / Fragmentation progression. | BACKLOG |
@@ -4648,14 +4648,18 @@ Unmodified built production real W/Space/Escape/pixel checks pass movement/Dash/
 XP to Level2 and actual pointer choice, ordinary incoming Death/actual RETRY and DEV absence. No new
 pageerrors; known favicon404/Vite large-chunk/Vitest worker advice only. CURRENT_STATE/PROJECT_GRAPH
 reflect actual ownership; no dependencies or later runtime. Ignored review contains complete source
-inventory, browser evidence and full staged diff. GAME-053 DONE; GAME-054 READY; GAME-055+ BACKLOG; GAME-040/041 SUPERSEDED;
+inventory, browser evidence and full staged diff. GAME-053 DONE; GAME-054 DONE; GAME-055+ BACKLOG; GAME-040/041 SUPERSEDED;
 GATE A/B PASSED. GATE C remains unapproved; no new gate closure. GAME-053 implementation is architect-approved and DONE.
 
 #### GAME-054 — Reward Transaction & Eligibility
 
-STATUS: READY
+STATUS: DONE
 
-**Definition scope and authority**
+Implementation is complete against the architect-approved contract below, including all11
+approved decisions and both mandatory clarifications. Completion evidence follows the retained
+historical definition. GAME-055+ remain BACKLOG; GATE A/B PASSED; GATE C unapproved.
+
+**Definition scope and authority (historical)**
 
 Depends on GAME-046, GAME-047 and GAME-053 DONE; GAME-053 implementation is architect-approved.
 GAME-055+ remain BACKLOG. GATE A/B PASSED; GATE C unapproved. Definition only: change TASK_GRAPH,
@@ -5010,7 +5014,7 @@ Future installed Chrome/Phaser checks:
 Missing future tracked/browser/native evidence prevents implementation DONE. Definition checks
 are not these browser checks; no browser execution/evidence is claimed during definition.
 
-**Scope / validation / handoff**
+**Definition scope / validation / handoff (historical)**
 
 Later implementation surface: focused reward types/eligibility/transaction/tests, two justified
 Build previews/shared preparation/tests, existing focusedUpgrade eligible-mask extension/tests
@@ -5026,6 +5030,42 @@ base/actual inventory/exact contracts/compatibility/pending/RNG/observers/lifeti
 GAME-053 DONE/architect-approved; GAME-055+ BACKLOG; GAME-040/041 SUPERSEDED; GATE A/B PASSED;
 GATE C unapproved. No runtime implementation or new gate closure.
 
+
+**Implementation completion evidence**
+
+One Phaser-free RewardTransaction per create owns immutable canonical3 candidates, authentic
+frozen token/local safe ordinal, two active phases, private synchronous selection guard and
+exact disposal. Detached JSON reads contain no authority. rewardChoices preserves all18 IDs/
+labels/effects; rewardEligibility validates current detached Build/legacy context at generation
+and selection. Narrow Hull/Thruster previews share PlayerBuild candidate preparation/resolver;
+no cache/Tag/Defense mutation. focusedUpgrade's optional9-track mask preserves its default.
+
+Scene applyRewardChoice is the only actual effect boundary: preflight numeric/Attack/cadence/
+Build/Defense/pending/observer/timeline/next-ordinal, prepare unpublished Twin last, apply one
+upgrade, resolve one pending and observe selected once. Callback true -> token invalidation ->
+guard exit -> trySelect true return precedes UI/handler cleanup, updated next generation under
+SAME REWARD or final REWARD-only release. Persistent named pointer handlers survive rejection
+on the SAME Text/token; exact captured run/progression/Build/Reward/presentation rejects forged,
+duplicate, old same-label and stale-run callbacks. Success/terminal/disposal detach old handlers.
+No new XP/Build authority, timer/stream/DEV command, dependency, content or GAME-055+ policy.
+
+1294 tracked tests/32 files pass, retaining all1158 baseline cases; owner/eligibility/preview/
+mask and Scene tests cover auth/ordinal/disposal, false/throw retry, recursive open rejection,
+callback order, numeric/observer/Build failures and provisional Twin cleanup. Installed actual
+Chrome verifies all18 mouse effects and future launches/frozen in-flight snapshots, unchanged
+five TimerEvent callbacks/scope/args and only authored cadence resets, rejected mouse -> same
+live handler/token -> valid retry, duplicate/forged/same-label callbacks0, physical32 ->4/2/
+pending3 with three actual pointer choices/updated eligibility under continuous REWARD.
+Genuine other-tab BLUR (focus emulation disabled, hasFocus false/hidden false), wall waits,
+MANUAL/focus composition and held-input suppression pass; no automatic focus resume.
+Four atomic straight/Missile/Cluster-primary/Cluster-satellite Victory NEW RUN cycles, Death
+RETRY and PAUSED native restart restore fresh owners/1/0/0/Tags/Chaser/five events; old refs inert.
+Unmodified production real W/Space/Escape/pixel checks pass movement/Dash/pause/combat, natural
+physical XP/Level-Up/real mouse choice and ordinary incoming Death/real RETRY/fresh world;
+DEV absent/no new pageerrors. Known favicon404/Vite chunk/Vitest worker warnings only.
+CURRENT_STATE/PROJECT_GRAPH reflect actual ownership. Ignored review includes complete source
+call-site audit, browser evidence, quality checks and full staged diff. GAME-054 DONE;
+GAME-055+ BACKLOG; GAME-040/041 SUPERSEDED; GATE A/B PASSED; GATE C unapproved. No commit created.
 
 **GATE C — First Real Build Loop** — review the preceding phase capabilities before its cutover/next proof.
 

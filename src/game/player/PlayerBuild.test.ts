@@ -177,3 +177,27 @@ describe('GAME-047 Tags and BuildSnapshot', () => {
     expect(fresh.identity).toEqual({ dominantTags: [], secondaryTags: [] });
   });
 });
+
+
+describe('GAME-054 narrow Build previews', () => {
+  it.each(['HullPlating', 'Thruster'] as const)('%s preview shares actual resolver and stays detached/nonmutating', kind => {
+    const build = new PlayerBuild(); build.applyStatPercent('hull', 0.5); build.applyStatPercent('thrust', 0.25);
+    build.addTagPoints('SURVIVAL', 3); build.addCombatAnalyzerLevels(2);
+    const before = build.snapshot(), preview = kind === 'HullPlating' ? build.previewPrototypeHullPlating() : build.previewPrototypeThruster();
+    expect(build.snapshot()).toEqual(before);
+    const again = kind === 'HullPlating' ? build.previewPrototypeHullPlating() : build.previewPrototypeThruster();
+    expect(again).toEqual(preview); expect(again).not.toBe(preview);
+    if (kind === 'HullPlating') build.applyPrototypeHullPlating(); else build.applyPrototypeThruster();
+    expect(build.getEffectiveStats()).toEqual(preview); preview.hull = 0; expect(build.getEffectiveStats()).toEqual(again);
+    expect(build.snapshot().tags).toEqual(before.tags); expect(build.snapshot().identity).toEqual(before.identity);
+    build.dispose(); expect(() => build.previewPrototypeHullPlating()).toThrow('disposed PlayerBuild');
+    expect(() => build.previewPrototypeThruster()).toThrow('disposed PlayerBuild');
+  });
+  it('numeric preview failure preserves full Build and fails the real application identically', () => {
+    const build = new PlayerBuild({ ...new PlayerBuild().getBaseStats(), hull: Number.MAX_SAFE_INTEGER, thrust: Number.MAX_SAFE_INTEGER });
+    const before = build.snapshot();
+    expect(() => build.previewPrototypeHullPlating()).toThrow(RangeError); expect(() => build.applyPrototypeHullPlating()).toThrow(RangeError);
+    expect(() => build.previewPrototypeThruster()).toThrow(RangeError); expect(() => build.applyPrototypeThruster()).toThrow(RangeError);
+    expect(build.snapshot()).toEqual(before);
+  });
+});

@@ -9,6 +9,7 @@ import { RunDiagnostics } from '../run/RunDiagnostics';
 import { PlayerBuild, TAG_IDS, type BuildSnapshot } from '../player/PlayerBuild';
 import { PlayerProgression } from '../progression/PlayerProgression';
 import { PlayerDefense } from '../player/PlayerDefense';
+import { RewardTransaction } from '../rewards/RewardTransaction';
 
 class EventEmitter {
   private callbacks = new Map<string, Set<(...args: unknown[]) => void>>();
@@ -19,19 +20,24 @@ class EventEmitter {
   off(event: string, fn: (...args: unknown[]) => void) { this.callbacks.get(event)?.delete(fn); return this; }
   emit(event: string, ...args: unknown[]) { for (const fn of this.listeners(event)) fn(...args); }
   listeners(event: string) { return [...this.callbacks.get(event) ?? []]; }
+  removeAllListeners() { this.callbacks.clear(); }
 }
 
 function visual(x = 0, y = 0, radius = 0) {
-  const callbacks = new Map<string, () => void>();
+  const callbacks = new EventEmitter();
   const object = {
     x, y, radius, width: 40, height: 48, lineWidth: 2, text: '', active: true, alpha: 1,
     setStrokeStyle() { return this; }, setFillStyle() { return this; },
     setAlpha(alpha: number) { this.alpha = alpha; return this; }, setScrollFactor() { return this; }, setDepth() { return this; },
     setText(text: string) { this.text = text; return this; },
     setOrigin() { return this; }, setInteractive() { return this; },
-    once(key: string, callback: () => void) { callbacks.set(key, callback); return this; },
-    emit(key: string) { const fn = callbacks.get(key); callbacks.delete(key); fn?.(); return this; },
-    destroy() { this.active = false; },
+    on(key: string, callback: () => void) { callbacks.on(key, callback); return this; },
+    off(key: string, callback: () => void) { callbacks.off(key, callback); return this; },
+    listeners(key: string) { return callbacks.listeners(key); },
+    listenerCount(key: string) { return callbacks.listeners(key).length; },
+    once(key: string, callback: () => void) { const once = () => { callbacks.off(key, once); callback(); }; callbacks.on(key, once); return this; },
+    emit(key: string) { callbacks.emit(key); return this; },
+    destroy() { this.active = false; callbacks.removeAllListeners(); },
   };
   return object;
 }
@@ -85,6 +91,7 @@ function fixture() {
   Object.assign(scene, {
     run,
     runDiagnostics,
+    rewardTransaction: new RewardTransaction(),
     playerProgression: new PlayerProgression(), playerBuild: new PlayerBuild(), playerDefense: new PlayerDefense(5),
     time: { paused: false }, input: {}, game: { events: new EventEmitter() },
     runRandom: new RunRandom(0),
@@ -2074,5 +2081,146 @@ describe('GAME-053 physical XP and pending progression', () => {
     expect(s['creditExperience'](32, p, run, old)).toBe(false); s['acceptLevelUpChoice'](choice, { kind: 'laser', upgrade: 'power' }, run, old);
     expect(api.snapshot()).toEqual(before); expect(s['playerProgression']!.snapshot()).toEqual({ level: 1, xp: 0, threshold: 5, pendingLevels: 0 });
     expect(s['xpPickups']).toHaveLength(0); expect(p.visual.active).toBe(false); expect(s['gameplayTimers']).toHaveLength(5);
+  });
+});
+
+
+describe('GAME-054 authentic transaction integration', () => {
+  function physical32(s: GameplayScene) {
+    s['xpPickups'].push({ run: s['run']!, value: 32, speed: 0,
+      visual: visual(2400, 1350, 10) as unknown as Phaser.GameObjects.Arc });
+    s['updateXpPickups'](0);
+  }
+  it('keeps exactly the same persistent Text/handler/token after repeated rejection, then accepts once', () => {
+    const { scene: s, api } = fixture(); api.forceLevelUp();
+    const p = s['rewardPresentation']!, text = p.texts[1], handler = text.listeners('pointerdown')[0], token = p.token;
+    s['laserRanks'].power = 2; const before = api.snapshot(), pending = s['playerProgression']!.snapshot(), offer = p.reward.snapshot();
+    for (let i = 0; i < 3; i++) text.emit('pointerdown');
+    expect(text.active).toBe(true); expect(text.listeners('pointerdown')).toEqual([handler]); expect(s['rewardPresentation']).toBe(p);
+    expect(s['rewardPresentation']!.token).toBe(token); expect(p.reward.snapshot()).toEqual(offer);
+    expect(api.snapshot()).toEqual(before); expect(s['playerProgression']!.snapshot()).toEqual(pending);
+    s['laserRanks'].power = 0; text.emit('pointerdown');
+    expect(s['laserRanks'].power).toBe(1); expect(s['laser'].damage).toBe(2); expect(p.reward.snapshot()).toBeNull();
+    expect(text.listeners('pointerdown')).toEqual([]); expect(text.active).toBe(false);
+    const accepted = api.snapshot(); handler(); text.emit('pointerdown');
+    expect(api.snapshot()).toEqual(accepted); expect(s['playerProgression']!.snapshot().pendingLevels).toBe(0);
+    expect(accepted!.diagnostics.aggregates).toMatchObject({ offersPresented: 1, choicesAccepted: 1, levelsGained: 1 });
+  });
+  it('callback effect/pending/selected -> invalidate -> return -> handler/UI cleanup -> next open', () => {
+    const { scene: s, api } = fixture(); physical32(s);
+    const p = s['rewardPresentation']!, owner = p.reward, trace: string[] = [], draws = spyStreams(s);
+    const originalApply = s['applyRewardChoice'].bind(s), originalSelect = owner.trySelect.bind(owner), originalInvalidate = owner.invalidate.bind(owner);
+    const originalClear = s['clearRewardPresentation'].bind(s), originalOpen = owner.open.bind(owner);
+    let inSelect = false;
+    const apply = vi.spyOn(s as unknown as { applyRewardChoice: typeof s['applyRewardChoice'] }, 'applyRewardChoice').mockImplementation((...args) => {
+      trace.push('callback'); expect(inSelect).toBe(true);
+      expect(() => owner.open(owner.snapshot()!.candidates)).toThrow('already active');
+      const result = originalApply(...args);
+      expect(p.texts[1].active).toBe(true); expect(owner.snapshot()?.phase).toBe('PRESENTED');
+      expect(s['playerProgression']!.snapshot().pendingLevels).toBe(2); expect(api.snapshot()!.diagnostics.aggregates.choicesAccepted).toBe(1);
+      for (const draw of draws) expect(draw).not.toHaveBeenCalled(); trace.push('callback true'); return result;
+    });
+    const invalidate = vi.spyOn(owner, 'invalidate').mockImplementation(() => { trace.push('invalidate'); originalInvalidate(); });
+    const select = vi.spyOn(owner, 'trySelect').mockImplementation((...args) => { inSelect = true; const result = originalSelect(...args); inSelect = false; trace.push('return'); return result; });
+    const clear = vi.spyOn(s as unknown as { clearRewardPresentation: typeof s['clearRewardPresentation'] }, 'clearRewardPresentation').mockImplementation(old => {
+      expect(inSelect).toBe(false); expect(owner.snapshot()).toBeNull(); owner.assertCanOpen(); trace.push('cleanup'); originalClear(old);
+    });
+    const open = vi.spyOn(owner, 'open').mockImplementation(candidates => { if (inSelect) return originalOpen(candidates); expect(inSelect).toBe(false); trace.push('open'); return originalOpen(candidates); });
+    p.texts[1].emit('pointerdown');
+    expect(trace).toEqual(['callback', 'callback true', 'invalidate', 'return', 'cleanup', 'open']);
+    expect(s['rewardPresentation']!.token).not.toBe(p.token); expect(s['rewardPresentation']!.token.offerId).toBe(2);
+    expect(s['run']!.pauseReasons).toEqual(['REWARD']); expect(s.time.paused).toBe(true);
+    expect(draws.map(d => d.mock.calls.length)).toEqual([0, 2, 0, 0]);
+    for (const spy of [apply, invalidate, select, clear, open]) spy.mockRestore();
+  });
+  it('same-label next offer rejects old callbacks, clones and other owners even with equal ordinals', () => {
+    const { scene: s, api } = fixture(); s['laserRanks'] = { power: 0, fireRate: 2, speed: 2 }; physical32(s);
+    const p = s['rewardPresentation']!, text = p.texts[1], handler = text.listeners('pointerdown')[0]; text.emit('pointerdown');
+    // Laser labels intentionally repeat; captured presentation identity still changes.
+    const next = s['rewardPresentation']!, before = api.snapshot(), id = next.choices.get(next.texts[1])!;
+    expect(next.texts[1].text).toBe(text.text); expect(next.token).not.toBe(p.token);
+    expect(next.reward.trySelect({ ...next.token }, id, () => { throw Error('forged'); })).toBe(false);
+    const foreign = new RewardTransaction(); foreign.open(next.reward.snapshot()!.candidates); foreign.invalidate();
+    const token = foreign.open(next.reward.snapshot()!.candidates); foreign.present(token); expect(token.offerId).toBe(next.token.offerId);
+    expect(next.reward.trySelect(token, id, () => { throw Error('foreign'); })).toBe(false);
+    handler(); text.emit('pointerdown'); expect(api.snapshot()).toEqual(before);
+    expect(next.texts[1].listeners('pointerdown')).toHaveLength(1); expect(next.texts.every(t => t.active)).toBe(true);
+  });
+  it.each(['choicesAccepted', 'offersPresented', 'timeline', 'cadence', 'impact', 'damage'] as const)('preflight %s failure preserves owners/UI/handlers/RNG and retries', mode => {
+    const { scene: s, api } = fixture(); s['weaponFocus'] = 'drone'; s['focusCursors'].drone = 1; physical32(s);
+    const p = s['rewardPresentation']!, text = p.texts[1], handler = text.listeners('pointerdown')[0];
+    const diagnostics = s['runDiagnostics']!, original = diagnostics.snapshot(), cadence = s['droneAttackValues'].fireInterval;
+    const impact = s['playerBuild']!.getEffectiveStats().impact, multiplier = s['globalDamageMultiplier'];
+    if (mode === 'choicesAccepted' || mode === 'offersPresented') diagnostics['aggregates'][mode] = Number.MAX_SAFE_INTEGER;
+    if (mode === 'timeline') { for (let i = 0; i < 260; i++) diagnostics.recordPauseEntered(['REWARD']); diagnostics['droppedTimelineRecords'] = Number.MAX_SAFE_INTEGER; }
+    if (mode === 'cadence') s['droneAttackValues'].fireInterval = 100;
+    if (mode === 'impact') s['playerBuild']!.applyStatPercent('impact', Number.MAX_SAFE_INTEGER / 2);
+    if (mode === 'damage') s['globalDamageMultiplier'] = Number.MAX_SAFE_INTEGER;
+    const before = api.snapshot(), progression = s['playerProgression']!.snapshot(), ranks = { ...s['droneRanks'] }, draws = spyStreams(s);
+    expect(() => text.emit('pointerdown')).toThrow(RangeError);
+    expect(api.snapshot()).toEqual(before); expect(s['playerProgression']!.snapshot()).toEqual(progression); expect(s['droneRanks']).toEqual(ranks);
+    expect(p.reward.snapshot()?.phase).toBe('PRESENTED'); expect(text.listeners('pointerdown')).toEqual([handler]);
+    for (const draw of draws) expect(draw).not.toHaveBeenCalled();
+    if (mode === 'choicesAccepted' || mode === 'offersPresented') diagnostics['aggregates'][mode] = original.aggregates[mode];
+    if (mode === 'timeline') diagnostics['droppedTimelineRecords'] = 0;
+    if (mode === 'cadence') s['droneAttackValues'].fireInterval = cadence;
+    if (mode === 'impact') s['playerBuild']!.applyStatPercent('impact', -s['playerBuild']!.getRunModifiers().percent.impact + impact - 1);
+    if (mode === 'damage') s['globalDamageMultiplier'] = multiplier;
+    text.emit('pointerdown'); expect(s['droneRanks'].firingSystem).toBe(1); expect(s['playerProgression']!.snapshot().pendingLevels).toBe(2);
+  });
+  it('prepares Twin last, destroys an unpublished Arc on rejected recheck, then valid retry creates one', () => {
+    const { scene: s, api } = fixture(); s['droneRanks'] = { boltPower: 2, firingSystem: 2, boltPropulsion: 2 }; s['moduleLevels'].replication = 1;
+    api.forceLevelUp(); const p = s['rewardPresentation']!, text = p.texts[3], before = api.snapshot(), arcs: ReturnType<typeof visual>[] = [];
+    const circle = vi.spyOn(s.add, 'circle').mockImplementation((x, y, radius) => { const arc = visual(x, y, radius); arcs.push(arc); return arc as unknown as Phaser.GameObjects.Arc; });
+    const current = s['currentReward'].bind(s); let checks = 0;
+    const recheck = vi.spyOn(s as unknown as { currentReward: typeof s['currentReward'] }, 'currentReward').mockImplementation((...args) => ++checks === 3 ? false : current(...args));
+    text.emit('pointerdown'); expect(arcs).toHaveLength(1); expect(arcs[0].active).toBe(false); expect(api.snapshot()).toEqual(before);
+    expect(s['twinDroneEvolved']).toBe(false); expect(s['twinDrone']).toBeUndefined(); expect(text.listeners('pointerdown')).toHaveLength(1);
+    recheck.mockRestore(); text.emit('pointerdown'); expect(arcs).toHaveLength(2); expect(arcs[1].active).toBe(true);
+    expect(s['twinDroneEvolved']).toBe(true); expect(s['twinDrone']).toBe(arcs[1]); circle.mockRestore();
+  });
+  it('terminal/disposal detach every old handler; exact old cleanup and callbacks cannot touch fresh owners', () => {
+    const f = fixture(), s = f.scene; allowCreate(s); s.create(); window.__NEBULA_DEV__!.forceLevelUp();
+    const old = s['rewardPresentation']!, callbacks = [...old.handlers.values()], copy = old.reward.snapshot();
+    s['enterPlayerDeath'](); expect(old.reward.snapshot()).toBeNull(); expect(old.texts.every(t => !t.active && t.listenerCount('pointerdown') === 0)).toBe(true);
+    f.shutdown(); s.create(); const fresh = s['rewardTransaction']!, api = window.__NEBULA_DEV__!; api.forceLevelUp();
+    const before = api.snapshot(), p = s['rewardPresentation']!; callbacks.forEach(fn => fn());
+    expect(() => old.reward.snapshot()).toThrow('disposed RewardTransaction'); expect(copy?.candidates).toHaveLength(3);
+    expect(fresh).not.toBe(old.reward); expect(api.snapshot()).toEqual(before); expect(p.texts[1].listenerCount('pointerdown')).toBe(1);
+  });
+  it('rejects exhausted ordinal openability before any Reward draw, UI, pause or input change', () => {
+    const { scene: s } = fixture(); s['playerProgression']!.creditXp(5); const owner = s['rewardTransaction']!, draws = spyStreams(s);
+    owner['ordinal'] = Number.MAX_SAFE_INTEGER;
+    expect(() => s['enterLevelUpPause']()).toThrow('ordinal exhausted'); expect(s['run']!.state).toBe('RUNNING');
+    expect(s['levelUpPresentation']).toHaveLength(0); expect(s['rewardPresentation']).toBeUndefined(); expect(owner.snapshot()).toBeNull();
+    for (const draw of draws) expect(draw).not.toHaveBeenCalled();
+  });
+});
+
+
+describe('GAME-054 remaining preflight boundaries', () => {
+  it('refuses the next exhausted ordinal before current effect/pending/observer/UI mutation', () => {
+    const { scene: s, api } = fixture(); s['rewardTransaction']!['ordinal'] = Number.MAX_SAFE_INTEGER - 1;
+    s['playerProgression']!.creditXp(15); s['enterLevelUpPause']();
+    const p = s['rewardPresentation']!, text = p.texts[1], before = api.snapshot(), pending = s['playerProgression']!.snapshot(), draws = spyStreams(s);
+    expect(p.token.offerId).toBe(Number.MAX_SAFE_INTEGER); expect(() => text.emit('pointerdown')).toThrow('ordinal exhausted');
+    expect(api.snapshot()).toEqual(before); expect(s['playerProgression']!.snapshot()).toEqual(pending);
+    expect(text.listenerCount('pointerdown')).toBe(1); expect(s['laserRanks'].power).toBe(0);
+    for (const draw of draws) expect(draw).not.toHaveBeenCalled();
+  });
+  it('a false actual Build application leaves the same Hull choice live for a real retry', () => {
+    const { scene: s, api } = fixture(), rng = vi.spyOn(s['runRandom']!.reward, 'next').mockReturnValue(0);
+    api.forceLevelUp(); rng.mockRestore(); const p = s['rewardPresentation']!, text = p.texts[2];
+    const before = api.snapshot(), build = s['playerBuild']!, preview = build.previewPrototypeHullPlating();
+    const apply = vi.spyOn(build, 'applyPrototypeHullPlating').mockReturnValueOnce(false);
+    text.emit('pointerdown'); expect(api.snapshot()).toEqual(before); expect(text.listenerCount('pointerdown')).toBe(1);
+    text.emit('pointerdown'); expect(build.getEffectiveStats()).toEqual(preview); expect(s['moduleLevels'].hull).toBe(1);
+    expect(s['playerProgression']!.snapshot().pendingLevels).toBe(0); expect(apply).toHaveBeenCalledTimes(2); apply.mockRestore();
+  });
+  it('infeasible Hull preview filters only that candidate; disposed Build errors remain loud', () => {
+    const { scene: s, api } = fixture(); s['playerBuild'] = new PlayerBuild({ ...new PlayerBuild().getBaseStats(), hull: Number.MAX_SAFE_INTEGER });
+    const read = s['rewardContext'](s['playerBuild']!); expect(read.hullPreview).toBeNull(); expect(read.thrusterPreview).not.toBeNull();
+    api.forceLevelUp(); expect([...s['levelUpChoices'].values()]).not.toContain('passive.hull');
+    s['playerBuild']!.dispose(); expect(() => s['rewardContext'](s['playerBuild']!)).toThrow('disposed PlayerBuild');
   });
 });

@@ -137,3 +137,23 @@ describe('selectFocusedUpgrade', () => {
     expect(JSON.stringify(state)).toBe(before);
   });
 });
+
+
+describe('GAME-054 hard-eligible focus mask', () => {
+  const cursors = { laser: 0, missile: 0, drone: 0 };
+  const mask = () => ({ laser: { power: true, fireRate: true, speed: true },
+    missile: { warheadPower: true, propulsion: true, blastExpansion: true }, drone: { boltPower: true, firingSystem: true, boltPropulsion: true } });
+  it('skips an infeasible least-rank track without sampling or changing caller cursors', () => {
+    const eligible = mask(); eligible.laser.power = false;
+    expect(selectFocusedUpgrade('laser', laser, missile, drone, cursors, eligible)).toEqual({ kind: 'laser', upgrade: 'fireRate', nextCursor: 2 });
+    expect(cursors).toEqual({ laser: 0, missile: 0, drone: 0 });
+  });
+  it('falls back in canonical weapon order when a focused system has no eligible track', () => {
+    const eligible = mask(); eligible.drone = { boltPower: false, firingSystem: false, boltPropulsion: false };
+    expect(selectFocusedUpgrade('drone', laser, missile, drone, cursors, eligible)).toEqual({ kind: 'laser', upgrade: 'power', nextCursor: 1 });
+  });
+  it('returns undefined only when all tracks are capped or hard-ineligible', () => {
+    const eligible = mask(); eligible.drone = { boltPower: false, firingSystem: false, boltPropulsion: false };
+    expect(selectFocusedUpgrade('drone', masteredLaser, masteredMissile, drone, cursors, eligible)).toBeUndefined();
+  });
+});

@@ -25,23 +25,21 @@ import { PlayerDefense } from '../player/PlayerDefense';
 import { selectChoices } from '../progression/selectChoices';
 import { effectiveMissileExplosionRadius } from '../progression/spatialAmplifier';
 import { effectiveDroneBoltRadius } from '../progression/replicationMatrix';
-import { canEvolveClusterMissile } from '../progression/clusterMissile';
-import { canEvolveTwinDrone } from '../progression/twinDrone';
 import { selectEvolutionOffer, type Evolution } from '../progression/evolutionOffer';
-import { selectFocusedUpgrade, type MissileRanks, type DroneRanks, type WeaponFocus, type FocusCursors } from '../progression/focusedUpgrade';
-import { canEvolvePrismLaser, type LaserRanks } from '../progression/prismLaser';
+import { selectFocusedUpgrade, type MissileRanks, type DroneRanks, type WeaponFocus, type FocusCursors, type EligibleTracks } from '../progression/focusedUpgrade';
+import { type LaserRanks } from '../progression/prismLaser';
 import { addExperience } from '../progression/experience';
 import { PlayerProgression } from '../progression/PlayerProgression';
 import { planXpConsolidation, XP_CONSOLIDATION_THRESHOLD, XP_CONSOLIDATION_CELL_SIZE } from '../progression/xpConsolidation';
 
-type LaserUpgrade = keyof LaserRanks;
-type PassiveModule = 'hull' | 'thruster' | 'collector' | 'combat' | 'spatial' | 'replication';
-type OrdinaryChoice = { kind: 'laser'; upgrade: LaserUpgrade }
-  | { kind: 'missile'; upgrade: keyof MissileRanks }
-  | { kind: 'drone'; upgrade: keyof DroneRanks } | { kind: 'passive'; module: PassiveModule };
-type LevelUpChoice = OrdinaryChoice | { kind: 'prism' } | { kind: 'cluster' } | { kind: 'twin' };
-type BuildChange = { kind: 'percent'; stat: PercentStatKey; delta: number }
-  | { kind: 'hullPlating' } | { kind: 'thruster' };
+import { RewardTransaction, type RewardToken } from '../rewards/RewardTransaction';
+import { levelUpPool, choiceIdentity, type LevelUpChoice, type PassiveModule, type RewardCandidate } from '../rewards/rewardChoices';
+import { isRewardEligible, assertRewardFeasible, type RewardEligibilityContext } from '../rewards/rewardEligibility';
+
+type BuildChange = { kind: 'percent'; stat: PercentStatKey; delta: number } | { kind: 'hullPlating' } | { kind: 'thruster' };
+type RewardPresentation = Readonly<{ run: RunLifecycle; progression: PlayerProgression; build: PlayerBuild;
+  reward: RewardTransaction; token: RewardToken; texts: Phaser.GameObjects.Text[];
+  choices: Map<Phaser.GameObjects.Text, ChoiceIdentity>; handlers: Map<Phaser.GameObjects.Text, () => void> }>;
 
 function combatValue(value: number, minimum = Number.MIN_VALUE): number {
   if (!Number.isFinite(value) || value < minimum || value > Number.MAX_SAFE_INTEGER) {
@@ -49,35 +47,6 @@ function combatValue(value: number, minimum = Number.MIN_VALUE): number {
   }
   return value;
 }
-
-function choiceIdentity(option: LevelUpChoice): ChoiceIdentity {
-  switch (option.kind) {
-    case 'laser': return `laser.${option.upgrade}`;
-    case 'missile': return `missile.${option.upgrade}`;
-    case 'drone': return `drone.${option.upgrade}`;
-    case 'passive': return `passive.${option.module}`;
-    case 'prism': case 'cluster': case 'twin': return option.kind;
-    default: { const unreachable: never = option; throw new Error(`Unsupported choice: ${unreachable}`); }
-  }
-}
-
-const levelUpPool: readonly OrdinaryChoice[] = [
-  { kind: 'laser', upgrade: 'power' },
-  { kind: 'laser', upgrade: 'fireRate' },
-  { kind: 'laser', upgrade: 'speed' },
-  { kind: 'missile', upgrade: 'warheadPower' },
-  { kind: 'missile', upgrade: 'propulsion' },
-  { kind: 'missile', upgrade: 'blastExpansion' },
-  { kind: 'drone', upgrade: 'boltPower' },
-  { kind: 'drone', upgrade: 'firingSystem' },
-  { kind: 'drone', upgrade: 'boltPropulsion' },
-  { kind: 'passive', module: 'hull' },
-  { kind: 'passive', module: 'thruster' },
-  { kind: 'passive', module: 'collector' },
-  { kind: 'passive', module: 'combat' },
-  { kind: 'passive', module: 'spatial' },
-  { kind: 'passive', module: 'replication' },
-];
 
 const enemyPresentation = {
   swarm: { points: [0, 12, 12, 0, 24, 12, 12, 24], color: 0x84cc16, outline: 0xd9f99d },
@@ -186,6 +155,8 @@ export class GameplayScene extends Phaser.Scene {
   private droneTimer?: Phaser.Time.TimerEvent;
   private hud?: Phaser.GameObjects.Text;
   private playerProgression?: PlayerProgression;
+  private rewardTransaction?: RewardTransaction;
+  private rewardPresentation?: RewardPresentation;
   private run?: RunLifecycle;
   private runRandom?: RunRandom;
   private runDiagnostics?: RunDiagnostics;
@@ -322,9 +293,20 @@ export class GameplayScene extends Phaser.Scene {
     };
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, disposeProgression);
     this.events.once(Phaser.Scenes.Events.DESTROY, disposeProgression);
+    const reward = new RewardTransaction();
+    this.rewardTransaction = reward;
+    this.rewardPresentation = undefined;
+    const disposeReward = () => {
+      if (this.rewardPresentation?.reward === reward) this.clearRewardPresentation(this.rewardPresentation);
+      reward.dispose();
+      this.events.off(Phaser.Scenes.Events.SHUTDOWN, disposeReward);
+      this.events.off(Phaser.Scenes.Events.DESTROY, disposeReward);
+    };
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, disposeReward);
+    this.events.once(Phaser.Scenes.Events.DESTROY, disposeReward);
     this.isLevelUpPaused = false;
     this.levelUpPresentation = [];
-    this.levelUpChoices.clear();
+    this.levelUpChoices = new Map();
     this.enemies = [];
     const enemies = this.enemies;
     const disposeTelegraphs = () => {
@@ -592,13 +574,18 @@ export class GameplayScene extends Phaser.Scene {
       callbackScope: timer.callbackScope, args: timer.args });
   }
 
-  // Only the two concrete legacy choices may mutate while their exact REWARD presentation is current.
-  private applyBuildChange(change: BuildChange, run = this.run, build = this.playerBuild, choice?: Phaser.GameObjects.Text): boolean {
+  // Shared percent-stat bridge stays RUNNING-only; reward Build writes use the authenticated callback.
+  private applyBuildChange(change: BuildChange, run = this.run, build = this.playerBuild,
+    presentation?: RewardPresentation, id?: ChoiceIdentity): boolean {
     if (!run || this.run !== run || !build || this.playerBuild !== build) return false;
     if (change.kind === 'percent') {
       if (run.state !== 'RUNNING') return false;
-    } else if (run.state !== 'PAUSED' || !run.hasPauseReason('REWARD') || !this.isLevelUpPaused
-      || !choice || !this.levelUpPresentation.includes(choice)) return false;
+    } else if (!presentation || presentation !== this.rewardPresentation || presentation.run !== run
+      || presentation.build !== build || presentation.reward !== this.rewardTransaction
+      || presentation.reward.snapshot()?.phase !== 'PRESENTED' || run.state !== 'PAUSED' || !run.hasPauseReason('REWARD')
+      || presentation.reward.snapshot()?.offerId !== presentation.token.offerId
+      || id !== (change.kind === 'hullPlating' ? 'passive.hull' : 'passive.thruster')
+      || !presentation.reward.snapshot()?.candidates.some(candidate => candidate.id === id)) return false;
     const defense = this.playerDefense;
     if (!defense) return false;
     defense.snapshot(); // Assert current defense is live before changing Build.
@@ -696,10 +683,8 @@ export class GameplayScene extends Phaser.Scene {
 
   private clearTerminalInput(): void {
     this.inputAdapter?.reset();
-    for (const text of this.levelUpPresentation) text.destroy();
-    this.levelUpPresentation = [];
-    this.levelUpChoices.clear();
-    this.isLevelUpPaused = false;
+    this.rewardTransaction?.invalidate();
+    if (this.rewardPresentation) this.clearRewardPresentation(this.rewardPresentation);
     this.projectPause();
   }
 
@@ -720,17 +705,82 @@ export class GameplayScene extends Phaser.Scene {
       marginY, this.arenaHeight - marginY);
   }
 
-  private enterLevelUpPause(run = this.run, progression = this.playerProgression): void {
-    if (this.run !== run || !run || this.playerProgression !== progression || !progression
-      || (run.state !== 'RUNNING' && !(run.state === 'PAUSED' && run.hasPauseReason('REWARD')))
-      || this.isLevelUpPaused || !progression.snapshot().pendingLevels) return;
-    this.preflightProgressionObservations({ offersPresented: 1, ...(run.state === 'RUNNING' ? { pauseEntries: 1 } : {}) }, run.state === 'RUNNING' ? 2 : 1);
-    if (run.state === 'RUNNING') {
-      run.requestPause('REWARD');
-      this.observePause('RUNNING', []);
+  private rewardContext(build: PlayerBuild): RewardEligibilityContext {
+    const preview = (read: () => ReturnType<PlayerBuild['getEffectiveStats']>) => {
+      try { return read(); } catch (error) { if (error instanceof RangeError) return null; throw error; }
+    };
+    return { build: build.snapshot(), laserRanks: { ...this.laserRanks }, missileRanks: { ...this.missileRanks },
+      droneRanks: { ...this.droneRanks }, moduleLevels: { ...this.moduleLevels },
+      prismEvolved: this.prismEvolved, clusterEvolved: this.clusterEvolved, twinDroneEvolved: this.twinDroneEvolved,
+      laser: { ...this.laser }, missile: { ...this.missileValues }, drone: { ...this.droneAttackValues },
+      magnetRadius: this.xpMagnetRadius, combatMultiplier: this.globalDamageMultiplier,
+      hullPreview: preview(() => build.previewPrototypeHullPlating()), thrusterPreview: preview(() => build.previewPrototypeThruster()) };
+  }
+
+  private clearRewardPresentation(p: RewardPresentation): void {
+    for (const [text, handler] of p.handlers) text.off('pointerdown', handler);
+    p.handlers.clear();
+    for (const text of p.texts) text.destroy();
+    p.choices.clear();
+    if (this.rewardPresentation === p) {
+      this.rewardPresentation = undefined;
+      this.levelUpPresentation = [];
+      this.levelUpChoices = new Map();
+      this.isLevelUpPaused = false;
     }
+  }
+
+  private currentReward(p: RewardPresentation, text: Phaser.GameObjects.Text, id: ChoiceIdentity): boolean {
+    // Old callbacks stop before reading any disposed owner, even on a reused Scene.
+    return p === this.rewardPresentation && p.run === this.run && p.progression === this.playerProgression
+      && p.build === this.playerBuild && p.reward === this.rewardTransaction && p.run.state === 'PAUSED'
+      && p.run.hasPauseReason('REWARD') && !!this.player?.active && !!this.playerDefense
+      && this.isLevelUpPaused && text.active && p.texts.includes(text) && this.levelUpChoices === p.choices && this.levelUpChoices.get(text) === id
+      && p.progression.snapshot().pendingLevels > 0 && p.reward.snapshot()?.phase === 'PRESENTED'
+      && p.reward.snapshot()?.offerId === p.token.offerId;
+  }
+
+  private enterLevelUpPause(run = this.run, progression = this.playerProgression): void {
+    const build = this.playerBuild, rewardOwner = this.rewardTransaction;
+    if (this.run !== run || !run || this.playerProgression !== progression || !progression || !build || !rewardOwner
+      || !this.player?.active || !this.playerDefense
+      || (run.state !== 'RUNNING' && !(run.state === 'PAUSED' && run.hasPauseReason('REWARD')))
+      || this.rewardPresentation || this.isLevelUpPaused || !progression.snapshot().pendingLevels) return;
+    rewardOwner.assertCanOpen(); // Safe ordinal and guard BEFORE RNG, pause, input or UI mutation.
+    this.playerDefense.snapshot();
+    const context = this.rewardContext(build);
+    const ordinaryPool = levelUpPool.filter(option => isRewardEligible(option, context));
+    const eligible = {
+      laser: Object.fromEntries(['power', 'fireRate', 'speed'].map(upgrade => [upgrade, ordinaryPool.some(c => c.kind === 'laser' && c.upgrade === upgrade)])),
+      missile: Object.fromEntries(['warheadPower', 'propulsion', 'blastExpansion'].map(upgrade => [upgrade, ordinaryPool.some(c => c.kind === 'missile' && c.upgrade === upgrade)])),
+      drone: Object.fromEntries(['boltPower', 'firingSystem', 'boltPropulsion'].map(upgrade => [upgrade, ordinaryPool.some(c => c.kind === 'drone' && c.upgrade === upgrade)])),
+    } as EligibleTracks;
+    const focused = selectFocusedUpgrade(this.weaponFocus, this.laserRanks, this.missileRanks, this.droneRanks, this.focusCursors, eligible);
+    const focusedChoice = focused && ordinaryPool.find(option => option.kind !== 'passive' && option.kind === focused.kind && option.upgrade === focused.upgrade);
+    const evolution = selectEvolutionOffer(isRewardEligible({ kind: 'prism' }, context),
+      isRewardEligible({ kind: 'cluster' }, context), isRewardEligible({ kind: 'twin' }, context), this.evolutionOfferCursor);
+    if (ordinaryPool.length + Number(!!evolution.offered) < 3
+      || ordinaryPool.filter(c => c.kind === 'passive').length < (focusedChoice ? 1 : 2)) {
+      throw new RangeError('Insufficient feasible prototype reward choices');
+    }
+    this.preflightProgressionObservations({ offersPresented: 1, ...(run.state === 'RUNNING' ? { pauseEntries: 1 } : {}) }, run.state === 'RUNNING' ? 2 : 1);
+    if (run.state === 'RUNNING') { run.requestPause('REWARD'); this.observePause('RUNNING', []); }
     this.inputAdapter?.reset();
     this.projectPause();
+    const reward = this.runRandom!.reward.next;
+    const first = focusedChoice ?? selectChoices(ordinaryPool, 1, reward)[0];
+    if (focused) this.focusCursors[focused.kind] = focused.nextCursor;
+    const second = selectChoices(ordinaryPool.filter(option => option.kind === 'passive' && option !== first), 1, reward)[0];
+    this.evolutionOfferCursor = evolution.nextCursor;
+    const third: LevelUpChoice = evolution.offered ? { kind: evolution.offered }
+      : selectChoices(ordinaryPool.filter(option => option !== first && option !== second), 1, reward)[0];
+    const choices = [first, second, third];
+    const token = rewardOwner.open(choices.map(choice => ({ id: choiceIdentity(choice), choice })));
+    const presentation: RewardPresentation = Object.freeze({ run, progression, build, reward: rewardOwner, token,
+      texts: [], choices: new Map(), handlers: new Map() });
+    this.rewardPresentation = presentation;
+    this.levelUpPresentation = presentation.texts;
+    this.levelUpChoices = presentation.choices;
     this.isLevelUpPaused = true;
     const title = this.add.text(this.scale.width / 2, this.scale.height / 2 - 160, 'LEVEL UP — CHOOSE ONE', {
       fontFamily: 'Arial, sans-serif',
@@ -740,27 +790,6 @@ export class GameplayScene extends Phaser.Scene {
       padding: { x: 24, y: 16 },
     }).setOrigin(0.5).setScrollFactor(0).setDepth(1);
     this.levelUpPresentation.push(title);
-    const ordinaryPool = levelUpPool.filter(option =>
-      option.kind === 'passive' || (option.kind === 'laser'
-        ? this.laserRanks[option.upgrade] < 2 : option.kind === 'missile'
-          ? this.missileRanks[option.upgrade] < 2 : this.droneRanks[option.upgrade] < 2));
-    const focused = selectFocusedUpgrade(this.weaponFocus, this.laserRanks, this.missileRanks, this.droneRanks, this.focusCursors);
-    // Keep canonical pool entries so later slots can exclude by identity.
-    const focusedChoice = focused && ordinaryPool.find(option =>
-      option.kind !== 'passive' && option.kind === focused.kind && option.upgrade === focused.upgrade);
-    const reward = this.runRandom!.reward.next;
-    const first = focusedChoice ?? selectChoices(ordinaryPool, 1, reward)[0];
-    if (focused) this.focusCursors[focused.kind] = focused.nextCursor;
-    const second = selectChoices(ordinaryPool.filter(option => option.kind === 'passive' && option !== first), 1, reward)[0];
-    // Eligibility belongs to this presentation; completing a prerequisite only affects the next one.
-    const prismEligible = canEvolvePrismLaser(this.laserRanks, this.moduleLevels.combat, this.prismEvolved);
-    const clusterEligible = canEvolveClusterMissile(this.missileRanks, this.moduleLevels.spatial, this.clusterEvolved);
-    const twinEligible = canEvolveTwinDrone(this.droneRanks, this.moduleLevels.replication, this.twinDroneEvolved);
-    const evolution = selectEvolutionOffer(prismEligible, clusterEligible, twinEligible, this.evolutionOfferCursor);
-    this.evolutionOfferCursor = evolution.nextCursor;
-    const third: LevelUpChoice = evolution.offered ? { kind: evolution.offered }
-      : selectChoices(ordinaryPool.filter(option => option !== first && option !== second), 1, reward)[0];
-    const choices: LevelUpChoice[] = [first, second, third];
     choices.forEach((option, index) => {
       const choice = this.add.text(this.scale.width / 2, this.scale.height / 2 - 40 + index * 110,
         this.choiceLabel(option), {
@@ -772,10 +801,13 @@ export class GameplayScene extends Phaser.Scene {
           padding: { x: 24, y: 12 },
         }).setOrigin(0.5).setScrollFactor(0).setDepth(1)
         .setInteractive({ useHandCursor: true });
-      this.levelUpPresentation.push(choice);
-      this.levelUpChoices.set(choice, choiceIdentity(option));
-      choice.once('pointerdown', () => this.acceptLevelUpChoice(choice, option, run, progression));
+      presentation.texts.push(choice);
+      presentation.choices.set(choice, choiceIdentity(option));
+      const handler = () => { this.acceptLevelUpChoice(choice, option, run, progression, presentation); };
+      presentation.handlers.set(choice, handler);
+      choice.on('pointerdown', handler);
     });
+    if (!rewardOwner.present(token)) throw new Error('Reward presentation lost its transaction');
     this.runDiagnostics!.recordLevelUpOffered(choices.map(choiceIdentity));
   }
 
@@ -817,26 +849,49 @@ export class GameplayScene extends Phaser.Scene {
     }
   }
 
-  private acceptLevelUpChoice(choice: Phaser.GameObjects.Text, option: LevelUpChoice, run = this.run, progression = this.playerProgression): void {
-    if (this.run !== run || run?.state !== 'PAUSED' || !run.hasPauseReason('REWARD')
-      || !progression || progression !== this.playerProgression || !progression.snapshot().pendingLevels
-      || !this.isLevelUpPaused || !choice.active || !this.levelUpPresentation.includes(choice)
-      || this.levelUpChoices.get(choice) !== choiceIdentity(option)) return;
-    if (option.kind === 'laser' && this.laserRanks[option.upgrade] >= 2) return;
-    if (option.kind === 'missile' && this.missileRanks[option.upgrade] >= 2) return;
-    if (option.kind === 'drone' && this.droneRanks[option.upgrade] >= 2) return;
-    if (option.kind === 'prism' && this.prismEvolved) return;
-    if (option.kind === 'cluster' && this.clusterEvolved) return;
-    if (option.kind === 'twin' && this.twinDroneEvolved) return;
-    if (option.kind === 'prism' && !canEvolvePrismLaser(this.laserRanks, this.moduleLevels.combat, false)) return;
-    if (option.kind === 'cluster' && !canEvolveClusterMissile(this.missileRanks, this.moduleLevels.spatial, false)) return;
-    if (option.kind === 'twin' && !canEvolveTwinDrone(this.droneRanks, this.moduleLevels.replication, false)) return;
-    const pending = progression.snapshot().pendingLevels;
-    const resumes = pending === 1 && run.pauseReasons.length === 1;
+  private acceptLevelUpChoice(choice: Phaser.GameObjects.Text, option: LevelUpChoice, run = this.run,
+    progression = this.playerProgression, p = this.rewardPresentation): boolean {
+    if (!p || p.run !== run || p.progression !== progression || !this.currentReward(p, choice, choiceIdentity(option))) return false;
+    const accepted = p.reward.trySelect(p.token, choiceIdentity(option), candidate => this.applyRewardChoice(candidate, p, choice));
+    if (!accepted) return false;
+    // trySelect has invalidated the token AND exited its guard before any orchestration.
+    this.clearRewardPresentation(p);
+    this.inputAdapter?.reset();
+    if (p.progression.snapshot().pendingLevels > 0) {
+      this.enterLevelUpPause(p.run, p.progression);
+    } else {
+      const reasons = p.run.pauseReasons;
+      p.run.releasePause('REWARD');
+      this.observePause('PAUSED', reasons);
+      this.projectPause();
+    }
+    return true;
+  }
+
+  private applyRewardChoice(candidate: RewardCandidate, p: RewardPresentation, choice: Phaser.GameObjects.Text): boolean {
+    if (!this.currentReward(p, choice, candidate.id)) return false;
+    const option = candidate.choice, context = this.rewardContext(p.build);
+    if (option.kind === 'passive' && (option.module === 'hull' && !context.hullPreview
+      || option.module === 'thruster' && !context.thrusterPreview)) return false;
+    assertRewardFeasible(option, context);
+    if (!isRewardEligible(option, context)) return false;
+    const defense = this.playerDefense!.snapshot();
+    combatValue(defense.currentHull); // Dead/disposed Defense cannot accept a reward.
+    const pending = p.progression.snapshot().pendingLevels;
+    const resumes = pending === 1 && p.run.pauseReasons.length === 1;
     this.preflightProgressionObservations({ choicesAccepted: 1, ...(pending > 1 ? { offersPresented: 1 } : {}),
       ...(resumes ? { pauseResumes: 1 } : {}) }, 1 + Number(pending > 1 || resumes));
-    if (option.kind === 'passive' && (!Number.isSafeInteger(this.moduleLevels[option.module] + 1)
-      || this.moduleLevels[option.module] < 0)) throw new RangeError('Invalid passive level');
+    if (pending > 1 && !Number.isSafeInteger(p.token.offerId + 1)) throw new RangeError('Reward ordinal exhausted');
+    // Last resource preparation: unpublished until every validation has passed.
+    let provisionalTwin: Phaser.GameObjects.Arc | undefined;
+    if (option.kind === 'twin') {
+      provisionalTwin = this.add.circle(0, 0, this.droneConfig.visualRadius, 0x2dd4bf);
+      try {
+        provisionalTwin.setStrokeStyle(2, 0xccfbf1);
+        this.positionDrone(provisionalTwin, this.droneAngle + Math.PI);
+        if (!this.currentReward(p, choice, candidate.id)) { provisionalTwin.destroy(); return false; }
+      } catch (error) { provisionalTwin.destroy(); throw error; }
+    }
     if (option.kind === 'laser') this.laserRanks[option.upgrade] += 1;
     if (option.kind === 'prism') this.prismEvolved = true;
     if (option.kind === 'cluster') {
@@ -846,9 +901,7 @@ export class GameplayScene extends Phaser.Scene {
     if (option.kind === 'twin') {
       this.twinDroneEvolved = true;
       this.weaponFocus = 'drone';
-      this.twinDrone = this.add.circle(0, 0, this.droneConfig.visualRadius, 0x2dd4bf)
-        .setStrokeStyle(2, 0xccfbf1);
-      this.positionDrone(this.twinDrone, this.droneAngle + Math.PI);
+      this.twinDrone = provisionalTwin;
     }
     if (option.kind === 'laser' || option.kind === 'prism') this.weaponFocus = 'laser';
     if (option.kind === 'drone') {
@@ -874,8 +927,8 @@ export class GameplayScene extends Phaser.Scene {
     }
     if (option.kind === 'passive') {
       // Build validates first: a failed mutation must not change level, current HP or selection.
-      if (option.module === 'hull' && !this.applyBuildChange({ kind: 'hullPlating' }, run, this.playerBuild, choice)) return;
-      if (option.module === 'thruster' && !this.applyBuildChange({ kind: 'thruster' }, run, this.playerBuild, choice)) return;
+      if (option.module === 'hull' && !this.applyBuildChange({ kind: 'hullPlating' }, p.run, p.build, p, candidate.id)) return false;
+      if (option.module === 'thruster' && !this.applyBuildChange({ kind: 'thruster' }, p.run, p.build, p, candidate.id)) return false;
       this.moduleLevels[option.module] += 1;
       switch (option.module) {
         case 'hull':
@@ -893,21 +946,9 @@ export class GameplayScene extends Phaser.Scene {
       this.laser.fireInterval = Math.max(100, this.laser.fireInterval - 50);
       this.resetWeaponTimer(this.laserTimer, this.weaponInterval(this.laser.fireInterval));
     }
-    progression.resolvePendingLevel();
-    this.runDiagnostics!.recordLevelUpSelected(choiceIdentity(option));
-    this.isLevelUpPaused = false;
-    for (const text of this.levelUpPresentation) text.destroy();
-    this.levelUpPresentation = [];
-    this.levelUpChoices.clear();
-    this.inputAdapter?.reset();
-    if (progression.snapshot().pendingLevels > 0) {
-      this.enterLevelUpPause(run, progression);
-      return;
-    }
-    const reasons = run.pauseReasons;
-    run.releasePause('REWARD');
-    this.observePause('PAUSED', reasons);
-    this.projectPause();
+    if (!p.progression.resolvePendingLevel()) throw new Error('Accepted reward lost pending level');
+    this.runDiagnostics!.recordLevelUpSelected(candidate.id);
+    return true; // No UI destruction, generation, RNG or pause release inside this callback.
   }
 
   private updateXpPickups(delta: number): void {
