@@ -478,13 +478,7 @@ export class GameplayScene extends Phaser.Scene {
     if (!this.player || !intent) return;
     this.runDiagnostics!.advance(delta);
     if (this.phase === 1 && this.playerProgression!.snapshot().level >= 2) {
-      this.phase = 2;
-      this.phaseNotificationRemainingMs = 3000;
-      const timer = this.spawnTimer!;
-      // Keep the same event and fractional progress, without dispatching or catching up.
-      timer.reset({ delay: 1200, startAt: timer.elapsed / timer.delay * 1200, loop: true,
-        callback: timer.callback, callbackScope: timer.callbackScope, args: timer.args });
-      this.phaseIndicator?.setText(UI_TEXT.phaseTwo);
+      this.enterPhaseTwo();
     } else {
       this.phaseNotificationRemainingMs = Math.max(0, this.phaseNotificationRemainingMs - delta);
     }
@@ -597,6 +591,16 @@ export class GameplayScene extends Phaser.Scene {
     this.updateMissiles(delta);
     this.updatePlayerContact(chargeContacts);
     this.updateXpPickups(delta);
+  }
+
+  private enterPhaseTwo(): void {
+    this.phase = 2;
+    this.phaseNotificationRemainingMs = 3000;
+    const timer = this.spawnTimer!;
+    // Keep the same event and fractional progress, without dispatching or catching up.
+    timer.reset({ delay: 1200, startAt: timer.elapsed / timer.delay * 1200, loop: true,
+      callback: timer.callback, callbackScope: timer.callbackScope, args: timer.args });
+    this.phaseIndicator?.setText(UI_TEXT.phaseTwo);
   }
 
   private isSimulationPaused(): boolean {
