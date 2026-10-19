@@ -1,4 +1,5 @@
 import type { DevTools } from '../devTools';
+import { GAMEPLAY_SETTINGS } from '../settings/gameplaySettings';
 import { RunLifecycle, type PauseReason, type RunState } from '../run/RunLifecycle';
 import { RunRandom } from '../run/RunRandom';
 import { RunDiagnostics, type ChoiceIdentity } from '../run/RunDiagnostics';
@@ -207,9 +208,9 @@ export class GameplayScene extends Phaser.Scene {
   private readonly movementDirection = new Phaser.Math.Vector2();
   private get movementSpeed(): number { return this.playerBuild!.getEffectiveStats().thrust; }
   private readonly dashDirection = new Phaser.Math.Vector2();
-  private readonly dashSpeed = 900;
+  private readonly dashSpeed = GAMEPLAY_SETTINGS.player.dashSpeedPxPerSecond;
   private readonly dashDuration = 200;
-  private readonly dashCooldown = 3000;
+  private readonly dashCooldown = GAMEPLAY_SETTINGS.player.dashCooldownMs;
   private dashRemaining = 0;
   private dashCooldownRemaining = 0;
   private readonly chaseDirection = new Phaser.Math.Vector2();
@@ -226,9 +227,9 @@ export class GameplayScene extends Phaser.Scene {
   private clusterEvolved = false;
   private laserTimer?: Phaser.Time.TimerEvent;
   private readonly projectileRadius = 6;
-  private readonly spawnInterval = 2000;
+  private readonly spawnInterval = GAMEPLAY_SETTINGS.phases.phaseOneSpawnIntervalMs;
   private readonly minimumSpawnDistance = 600;
-  private readonly maximumEnemies = 10;
+  private readonly maximumEnemies = GAMEPLAY_SETTINGS.enemies.maximumActiveEnemies;
   private readonly enemyMargin = 25;
   private readonly arenaWidth = 4800;
   private readonly arenaHeight = 2700;
@@ -477,7 +478,7 @@ export class GameplayScene extends Phaser.Scene {
     if (this.isSimulationPaused()) return;
     if (!this.player || !intent) return;
     this.runDiagnostics!.advance(delta);
-    if (this.phase === 1 && this.playerProgression!.snapshot().level >= 2) {
+    if (this.phase === 1 && this.playerProgression!.snapshot().level >= GAMEPLAY_SETTINGS.phases.phaseTwoUnlockLevel) {
       this.enterPhaseTwo();
     } else {
       this.phaseNotificationRemainingMs = Math.max(0, this.phaseNotificationRemainingMs - delta);
@@ -516,7 +517,7 @@ export class GameplayScene extends Phaser.Scene {
       let x = enemy.visual.x, y = enemy.visual.y;
       let chargerState = enemy.charger?.state;
       const movement = enemy.spawnSnapshot.movement;
-      const speedMultiplier = this.phase === 2 ? 1.25 : 1;
+      const speedMultiplier = this.phase === 2 ? GAMEPLAY_SETTINGS.phases.phaseTwoEnemyMoveSpeedMultiplier : 1;
       if (movement.kind === 'CHARGER') {
         if (!chargerState) throw new RangeError('Missing Charger state');
         const phaseMovement = this.phase === 2 ? { ...movement,
@@ -595,10 +596,11 @@ export class GameplayScene extends Phaser.Scene {
 
   private enterPhaseTwo(): void {
     this.phase = 2;
-    this.phaseNotificationRemainingMs = 3000;
+    this.phaseNotificationRemainingMs = GAMEPLAY_SETTINGS.phases.phaseTwoNotificationDurationMs;
     const timer = this.spawnTimer!;
     // Keep the same event and fractional progress, without dispatching or catching up.
-    timer.reset({ delay: 1200, startAt: timer.elapsed / timer.delay * 1200, loop: true,
+    timer.reset({ delay: GAMEPLAY_SETTINGS.phases.phaseTwoSpawnIntervalMs,
+      startAt: timer.elapsed / timer.delay * GAMEPLAY_SETTINGS.phases.phaseTwoSpawnIntervalMs, loop: true,
       callback: timer.callback, callbackScope: timer.callbackScope, args: timer.args });
     this.phaseIndicator?.setText(UI_TEXT.phaseTwo);
   }

@@ -1,3 +1,4 @@
+import { GAMEPLAY_SETTINGS } from '../settings/gameplaySettings';
 import { initialLaser, prepareLaserChoice, laserProfile, laserAttack, laserTagCandidate,
   type LaserConfiguration, type LaserChoice, type LaserProfile } from './laserProgression';
 export type CombatSystemId = 'LASER' | 'MISSILE' | 'COMBAT_DRONE';
@@ -30,7 +31,7 @@ export type BuildSnapshot = {
   tags: TagPoints; identity: BuildIdentity; laser: LaserConfiguration;
 };
 export const DEFAULT_BASE_STATS: Readonly<BaseStats> = Object.freeze({
-  hull: 5, thrust: 300, reactorPower: 1, fireControl: 1, projectileVelocity: 1,
+  hull: 5, thrust: GAMEPLAY_SETTINGS.player.moveSpeedPxPerSecond, reactorPower: 1, fireControl: 1, projectileVelocity: 1,
   projectileScale: 1, engineering: 1, shieldSystems: 1, impact: 1, combatAnalyzer: 0,
 });
 const percentKeys: readonly PercentStatKey[] = ['hull', 'thrust', 'reactorPower', 'fireControl',

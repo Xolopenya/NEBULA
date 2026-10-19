@@ -3,6 +3,7 @@ import { createAttack, type LaserAttack, type HostileAttack, type ContactAttack 
 import * as enemyDeath from '../enemies/EnemyDeath';
 import * as enemyDefinitions from '../enemies/EnemyDefinitions';
 import { GameplayScene } from './GameplayScene';
+import { GAMEPLAY_SETTINGS } from '../settings/gameplaySettings';
 import { RunLifecycle } from '../run/RunLifecycle';
 import { RunRandom } from '../run/RunRandom';
 import { RunDiagnostics } from '../run/RunDiagnostics';
@@ -1184,7 +1185,7 @@ describe('CR-003 progression-triggered two-phase difficulty', () => {
     expect(s['phase']).toBe(1); expect(timer.delay).toBe(2000); expect(reset).not.toHaveBeenCalled();
     expect(s['playerProgression']!.snapshot().level).toBe(1);
     expect(window.__NEBULA_DEV__!.forceLevelUp()).toBe(true);
-    expect(s['playerProgression']!.snapshot().level).toBe(2);
+    expect(s['playerProgression']!.snapshot().level).toBe(GAMEPLAY_SETTINGS.phases.phaseTwoUnlockLevel);
     s.update(0, 120_000);
     expect(s['run']!.state).toBe('PAUSED'); expect(s['phase']).toBe(1);
     expect(reset).not.toHaveBeenCalled();
@@ -1192,8 +1193,9 @@ describe('CR-003 progression-triggered two-phase difficulty', () => {
     expect(s['run']!.state).toBe('RUNNING');
     timer.elapsed = 1900;
     s.update(0, 100);
-    expect(s['phase']).toBe(2); expect(s['phaseNotificationRemainingMs']).toBe(3000);
-    expect(timer.delay).toBe(1200); expect(timer.elapsed).toBe(1140);
+    expect(s['phase']).toBe(2);
+    expect(s['phaseNotificationRemainingMs']).toBe(GAMEPLAY_SETTINGS.phases.phaseTwoNotificationDurationMs);
+    expect(timer.delay).toBe(GAMEPLAY_SETTINGS.phases.phaseTwoSpawnIntervalMs); expect(timer.elapsed).toBe(1140);
     expect(timer.callback).toBe(callback); expect(timer.callbackScope).toBe(scope); expect(timer.args).toBe(args);
     expect(s['phaseIndicator']!.text).toBe('ФАЗА 2'); expect(s['phaseNotification']!.visible).toBe(true);
     expect(s['successfulTimedSpawns']).toBe(0);

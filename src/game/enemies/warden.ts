@@ -1,5 +1,7 @@
+import { GAMEPLAY_SETTINGS } from '../settings/gameplaySettings';
+
 export function shouldSpawnWarden(nextSuccessfulTimedSpawnNumber: number, bossSpawned: boolean): boolean {
-  return nextSuccessfulTimedSpawnNumber === 30 && !bossSpawned;
+  return nextSuccessfulTimedSpawnNumber === GAMEPLAY_SETTINGS.enemies.bossSpawnAtSuccessfulSpawn && !bossSpawned;
 }
 
 export function wardenPhase(health: number): 1 | 2 | undefined {
