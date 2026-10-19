@@ -6199,6 +6199,263 @@ no dependency/branch/deployment/commit. GAME-056 DONE, UI-001 READY definition o
 GAME-057+ BACKLOG, GAME-040/041 SUPERSEDED, GATE A/B PASSED, GATE C unapproved.
 Architect approval plus a separate explicit implementation request is required before localization.
 
+## HOMEWORK-001 — Public Playable University Prototype
+
+STATUS: READY
+
+DEFINITION ONLY. Proposals require architect approval and a separate implementation request.
+Educational delivery of the existing Russian prototype; no GAME-057+ expansion or publication
+authorization. UI-001 approved/committed at3d972c371f6527c25f70b9c028f24754bd9bba10
+(feat: implement UI-001 russian localization), verified ancestor of local main. Expected branch
+docs/HOMEWORK-001-public-prototype-definition started clean. Baseline1622 tests/35 files.
+GAME-056/UI-001 DONE; GAME-057+ BACKLOG; GAME-040/041 SUPERSEDED; GATE A/B PASSED;
+GATE C unapproved. No additional gate or ready gameplay task is created.
+
+**Actual repository/deployment/source audit**
+
+- Git origin: https://github.com/Xolopenya/NEBULA. Anonymous repository API GET200 confirms
+  Xolopenya/NEBULA, public/private=false, default_branch main, has_pages=false. Pages metadata
+  GET and the derived https://xolopenya.github.io/NEBULA/ both returned404 during definition.
+  This is an expected future project-site address, NOT an available playable link.
+  No authenticated Pages UI/settings mutation occurred. Required future owner setting:
+  Settings -> Pages -> Build and deployment -> Source: GitHub Actions; github-pages
+  environment must permit main. No custom domain/CNAME or gh-pages branch is proposed.
+- package.json scripts: check = typecheck + tests + tsc/Vite build. Existing lockfile v3 matches
+  root declarations; locked Phaser4.2.1/Vite8.3.4/TypeScript6.0.3/Vitest5.0.4. CI Node24 matches
+  locked engine requirements. No dependency/package/lockfile change needed.
+- vite.config.ts sets dev host127.0.0.1 only; default base '/'. Current dist/index.html
+  references /assets/index-BeTuhqfD.js and /assets/index-Cqs01O3I.css, which do not target
+  /NEBULA/. No tracked GitHub Actions workflows exist. README is English/minimal/stale
+  (GAME-004 complete), lacks game link/controls/install; CHANGELOG/HOMEWORK_REPORT are absent.
+- Current fresh npm run check PASS1622/35 and build. dist contains index.html plus one JS/one
+  CSS asset, no source maps/tests/review files. DEV publication is guarded by import.meta.env.DEV;
+  UI-001's recorded unmodified production smoke confirms global API absence. Minified JS
+  retains uncalled class method text including __NEBULA_DEV__; substring absence is not a
+  valid runtime test. Future public acceptance asserts the global API is absent.
+- .gitignore already excludes node_modules/,dist/,.vite/,coverage/,.codex-review/,*.log,
+  npm-debug.log*,.env/.env.* except example, editor/OS artifacts. It does not hide *.test.ts;
+  all35 tracked test files remain tracked. No ignore-rule change proposed.
+- Audited actual GameplayScene creation/HUD/pause/reward/Hit/XP/spawn/terminal/restart,
+  KeyboardInput, russianText, laserProgression/laserPatterns, config/main/index.1920x1080 FIT;
+  Russian HUD/guide/36 rewards/pause/terminal controls implemented. Original18 effects exist;
+  new18 Laser choices are name-only. Read CURRENT_STATE/PROJECT_GRAPH and relevant
+  GAME_DESIGN HUD/start/post-run/mobile and ARCHITECTURE UI/RNG boundaries. Target Build
+  Screen/start selector/touch/settings/audio are not implemented features or homework scope.
+
+**Eight-criterion audit — local capability, not public acceptance**
+
+PASS means actual source and recorded UI-001 runtime evidence support the local prototype.
+No new browser play or successful public deployment is claimed during this definition.
+
+| # | Requirement | Current status/evidence | Smallest remaining work |
+| --- | --- | --- | --- |
+| 1 | Public playable URL | MISSING: has_pages=false and expected URL404 | Project base, verified dist-only Pages workflow, owner setting, authorized publication and real public smoke |
+| 2 | Understandable without author | PARTIAL: Russian HUD/guide/original18 effects work; new18 names omit effects/tradeoffs; README stale | Approved18 concise descriptions below, Russian reviewer docs and first-time public play |
+| 3 | Clear primary action | PASS: move/dodge with WASD/arrows, Space Dash, fire automatic | Preserve controls; describe movement and XP collection as primary action |
+| 4 | Visible response | PASS: movement/Dash, shots/hits/deaths, pickups/HUD/levels/choices | Confirm same feedback publicly; no new feedback framework |
+| 5 | Objective or score | PASS: guide says survive/defeat Страж; XP/level shows progress, actual Victory exists | State survive/destroy enemies/collect XP/defeat Warden; no new score counter |
+| 6 | Obstacles/risk/defeat | PASS: pursuing/ranged enemies, hostile shots, HP loss and Russian Death | Ordinary incoming damage/Death public check; no balance/content change |
+| 7 | Restart | PASS: ПОВТОРИТЬ/НОВЫЙ ЗАБЕГ use guarded native scene.restart | Real pointer restart publicly; keep exact fresh-run isolation |
+| 8 | Meaningful1–2 minute session | PARTIAL: combat/progression/risk exist; prior local production ordinary Death at69s and separate natural-XP smoke; no public session evidence | Record unmodified60–120s public play with real decisions/progress; no forced survival or retimed gameplay |
+
+Warden arrives on successful timed spawn30, not a guaranteed60-second wall-clock schedule:
+cap/pause/enemies can delay it. A1–2 minute demonstration need not defeat Warden. Early death
+and real retry may occur during the recorded session; report run/session length honestly.
+Do not use DEV, changed seed, Boss timing or hidden balance changes to manufacture acceptance.
+
+**Proposed limited usability correction — explicit architect approval required**
+
+Keep all36 approved Russian names/IDs and original18 descriptions unchanged. PROPOSE ONE
+effect line below each of the new18 Laser names: names alone do not explain effects/acquisition
+tradeoffs. These are proposed descriptions of existing authored fields, not implemented copy:
+
+| Canonical ID | Proposed second line |
+| --- | --- |
+| laser.specialize.scatter | Ближний веер из 3 снарядов; урон ×0,5; интервал ×1,25. |
+| laser.specialize.repeater | Частые выстрелы: урон ×0,4; интервал ×0,35. |
+| laser.specialize.lance | Урон ×2; интервал ×1,75; до 3 целей насквозь. |
+| laser.scatter.damage | Урон снаряда: ×0,5 → ×0,65. |
+| laser.scatter.focus | Шаг веера: 15° → 12°. |
+| laser.scatter.range | Время полёта: 500 → 650 мс. |
+| laser.scatter.impact | Сила отбрасывания: 300 → 400. |
+| laser.scatter.capstone | Снарядов в залпе: 3 → 5. |
+| laser.repeater.damage | Урон снаряда: ×0,4 → ×0,5. |
+| laser.repeater.cadence | Интервал выстрелов: ×0,35 → ×0,30. |
+| laser.repeater.velocity | Скорость снаряда: ×1 → ×1,2. |
+| laser.repeater.impact | Сила отбрасывания: 80 → 120. |
+| laser.repeater.capstone | Интервал выстрелов: ×0,30 → ×0,25. |
+| laser.lance.damage | Урон снаряда: ×2 → ×2,5. |
+| laser.lance.velocity | Скорость снаряда: ×1,5 → ×2. |
+| laser.lance.penetration | Целей насквозь: 3 → 4. |
+| laser.lance.radius | Радиус снаряда: 6 → 8 пикс. |
+| laser.lance.capstone | Целей насквозь: 4 → 5. |
+
+Exact authored laserProfile values, not final composed stats. Acquisition damage/interval and
+development damage/interval/velocity multipliers reference ordinary Laser with SAME tuning;
+common Build/passive multipliers remain separate. README explains: «Меньше интервал — чаще
+выстрелы; множители веток указаны относительно обычного лазера с теми же настройками».
+Impact means force, not damage; range is lifetime, not fixed distance; radius is not diameter.
+Scatter successive contacts still diminish force1,1/2,1/4,1/8,1/16, never damage. Capstone
+requires all4 developments, making Repeater0,30 ->0,25/Lance4 ->5 valid presented transitions.
+Lance keeps nearest-target selection/bounded penetration, never claims GAME-059 priority.
+
+Future source scope: only focused russianText branch formatting/closed18-ID readonly effect
+table, relevant literal/Scene tests and necessary local presentation layout. Keep one36-name
+authority; no generic translation/preview manager. Any formatting reads detached data only,
+draws0 and mutates no Build/policy. Name+one description must fit all3 viewports with complete
+words, exactly3 readable nonoverlapping choices, correct hit areas and guide hidden.
+Keep actual Text/named pointer handler/token/canonical candidate/exact owners on rejection;
+retry remains possible without pending/Build/RNG/history change. Success keeps one upgrade/
+pending resolution/observation, guard exit/token invalidation before Scene cleanup/next offer.
+
+**Proposed Pages workflow and base**
+
+Future implementation files: .github/workflows/pages.yml, vite.config.ts, Russian README.md,
+CHANGELOG.md, docs/HOMEWORK_REPORT.md, index.html favicon metadata and approved display-only
+source/tests; factual TASK_GRAPH/CURRENT_STATE/PROJECT_GRAPH completion updates only after
+corresponding actual evidence.
+No packages/lock/ignore/other design docs. No workflow/config is created by this definition.
+
+Vite adds base: process.env.PAGES_BASE_PATH ?? '/' without changing existing server options.
+Build-job env PAGES_BASE_PATH: /${{ github.event.repository.name }}/ produces '/NEBULA/' for
+the verified repository; local default stays '/'. No owner address in runtime, router/plugin,
+custom domain or speculative generic hosting layer. Built HTML must use /NEBULA/assets/...
+Prior UI-001 production logs show an implicit favicon404. PROPOSE only a tiny metadata fix in
+index.html: <link rel="icon" href="data:,">, suppressing that optional fetch without new artwork/
+asset/dependency. Public acceptance must not quietly waive missing-asset errors.
+
+Implementation-ready workflow structure:
+
+- Trigger push.branches:[main]; optional workflow_dispatch; build/deploy restricted to
+  github.ref == 'refs/heads/main'. No PR/feature-branch publication.
+- concurrency group pages, cancel-in-progress:false, avoiding canceled active deployments.
+  ubuntu-latest, Node24; default permissions:{}.
+- build permissions contents:read/pages:read: checkout -> setup-node24 with npm lock cache ->
+  npm ci -> configure-pages (automatic enablement disabled) -> npm run check -> inspect
+  artifact inventory -> upload-pages-artifact with name github-pages/path ./dist ONLY.
+  check already includes tsc/Vite build: do not rebuild unverified output afterward.
+- deploy needs:build, permissions pages:write/id-token:write only, github-pages environment,
+  url:${{ steps.deployment.outputs.page_url }}; deploy-pages step id:deployment.
+  Failed verification/upload prevents deployment. No PAT/custom publishing script.
+- Proposed official pins from current Vite Pages example (verify release tags at implementation):
+  checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 (v7);
+  setup-node@820762786026740c76f36085b0efc47a31fe5020 (v7);
+  configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d (v6);
+  upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 (v5);
+  deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 (v5).
+  All are actions/*; do not guess versions or silently switch major versions.
+- Owner first selects GitHub Actions in Pages settings/allows main in github-pages. READY
+  grants no commit/merge/push/settings mutation/publication permission. Those operations
+  require subsequent explicit authorization; live checks follow successful deployment.
+
+Official references read during definition:
+[Vite Pages/base](https://vite.dev/guide/static-deploy.html#github-pages),
+[Vite base option](https://vite.dev/config/shared-options.html#base),
+[GitHub custom Pages workflows](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages).
+Expected URL derives from verified remote and documented project-site convention. Actual
+deploy-pages page_url/Pages metadata becomes authoritative after successful publication.
+
+**Russian README / CHANGELOG / standalone report**
+
+README: short entry for reviewer/new player, no internal engineering chronology.
+
+1. NEBULA — космический2D Bullet Heaven, учебный браузерный прототип; short description.
+2. Prominent «Играть» with actual verified public URL. Before live check explicitly label
+   «Планируемый адрес; публикация ещё не проверена», never claim available/playable.
+3. Objective: survive/destroy enemies/collect physical XP/choose improvements/defeat Страж;
+   visible level is progression, no score promise.
+4. Controls table WASD/стрелки, пробел, Esc and mouse on choices/Повторить/Новый забег;
+   focus return alone does not resume; keyboard required, no current touch controls.
+5. Mechanics: automatic Laser/Missile/Drone, risk/HP/death/restart, XP/levels/3 choices,
+   Laser3 branches/Capstones and brief interval/multiplier explanation.
+6. Stack TypeScript/Phaser4/Vite/Vitest/Node24; clone verified repo, npm ci, npm run dev;
+   use actual printed URL. Optional npm run check/build/preview, no new dependency.
+7. Limits: geometric placeholders/prototype balance/desktop keyboard; no touch/audio/save/
+   meta/polished start menu. Target platforms are not claimed delivered. Eventual public
+   game needs no account/local install/server.
+8. Attribution: ChatGPT/Codex assisted architecture/code/tests/localization/docs; decisions
+   passed separate architect review, author retains responsibility. Do not invent personal
+   identity/course/grade/time or independent human tests. Separate links to report and
+   technical CURRENT_STATE/ARCHITECTURE/TASK_GRAPH.
+
+CHANGELOG.md: one concise Russian homework entry,5–10 content lines, no fabricated releases.
+Proposed8-line content:
+
+- Реализован браузерный прототип космического выживания с автоматическим боем.
+- Добавлены движение, рывок, враги, урон, поражение и повторный запуск.
+- Реализованы физический опыт, уровни и выбор улучшений.
+- Русский интерфейс включает подсказки, награды и результаты забега.
+- Упрощены графика и оформление; баланс остаётся прототипным.
+- Сложности: пауза, безопасный перезапуск, последовательный выбор наград и пути сборки.
+- ChatGPT/Codex помогали с вариантами решений, кодом, тестами и документацией.
+- Нет сохранений, звука и сенсорного управления; статус публикации указан по факту проверки.
+Do not claim proposed descriptions/Pages already implemented. Final URL/date/status only
+after actual verification, with pending wording before that.
+
+docs/HOMEWORK_REPORT.md: standalone Russian submission, approximately150–250 words: project/
+goal, verified play link/commit/date, controls, observable action/feedback/objective/risk/
+restart, actual60–120s play result, implemented vs simplified/deferred, one technical
+difficulty, AI assistance, actual checks/limitations. Readable for non-developer; no internal
+task-ID history, invented screenshots/timings or premature deployment success.
+
+**Future tracked/local/public acceptance — not executed during definition**
+
+Preserve1622 baseline tests/all35 tracked test files. Update only new18 visible-copy
+expectations if descriptions approved. Add independent literal18-effect/transition tests,
+names/IDs/order unchanged, rank/context/reference multipliers, immutability and draw0.
+Scene: all18 through authentic offers, original18 unchanged, same-Text rejection/retry,
+duplicate/stale0, physical32/3 selections/9 draws, pause/restart owners; preserve goldens/
+five timers/four streams/five DEV methods. Actual Phaser bounds/pointer checks may use an
+ignored harness, never treat mocks/controlled setup as unmodified public play.
+
+Before upload: npm ci then npm run check with PAGES_BASE_PATH=/NEBULA/. Audit dist HTML/
+manifest: /NEBULA/assets/... exist; no /src or root /assets, source maps/tests/review/env/
+logs/node_modules/browser artifacts/source files/links. Serve this exact unmodified dist
+at /NEBULA/ on ignored local static server; direct navigation/reload and assets must return
+correct200/MIME, no SPA fallback masking404. No special root rewrite hiding wrong base.
+Chrome at1920x1080/1280x720/960x540: Russian metadata/glyphs/full descriptions, exactly3
+readable choices/no clipping/overlap/hit-area mismatch/guide collision. Deploy only dist
+contents; preserve repository source/tests and .gitignore, never delete/untrack to publish.
+
+PUBLIC checks only after authorized commit/merge/push and successful Pages deployment:
+
+- Actual deployment URL in clean installed Chrome, no login/local Vite/static server or
+  fixture injection. Direct HTTPS navigation/reload200, JS/CSS200 correct MIME/subpath,
+  Cyrillic/3 viewports, no missing assets/new pageerrors/external font fetches.
+- Real WASD/arrows, Space Dash, automatic combat/hit feedback; naturally killed enemy ->
+  physical XP pickup -> Level-Up -> genuine mouse choice. No DEV, synthetic XP, altered
+  seed/cadence or hidden fixtures.
+- Real Escape manual pause freezes gameplay; focus return alone stays paused; explicit
+  Escape resumes. Ordinary incoming damage/HP loss/КОРАБЛЬ УНИЧТОЖЕН, real ПОВТОРИТЬ
+  returns to fresh active run. New Run checked if Victory reached; do not invent a short
+  natural Warden kill. Native isolation keeps tracked/local regression coverage.
+- One continuous unmodified60–120s session, record timestamps/actions/combat/XP/choice/risk/
+  pauses/death/retry and screenshots/network/console evidence. Early death may be followed
+  by real retry within session; report actual run/session length, never force survival.
+- typeof window.__NEBULA_DEV__ === 'undefined', no debug UI/seed selector/author setup;
+  retain exactly5 development commands. Deployment does not expose DEV interfaces.
+- Record live URL, commit, Actions/deployment result, date/Chrome/viewports, HTTP/assets/
+  pageerrors/screenshots/play result in ignored review. README/report verified status only
+  after evidence; reconcile final docs and deployed revision. Any final copy-only status
+  commit/push requires authorization and site recheck. Local preview is not public success;
+  inaccessible/unverified publication leaves HOMEWORK-001 incomplete, not DONE.
+
+**Preservation and handoff**
+
+No RewardTransaction/LevelUpGenerator/PlayerBuild/RunLifecycle/EnemyDeath/physical XP edits.
+Preserve36 IDs/names, authored numbers/targeting/branch exclusivity/immutable attacks,3 Reward
+draws,5 timers,4 streams,5 DEV methods/development, production API absence, GAME-056 rejected
+Hit cleanup and exact native restart ownership. No new score/Boss/ability/balance/timer/
+dependency/UI manager/persistence or GAME-057/058/059/roadmap gate expansion.
+Future HOMEWORK-001 DONE requires all local/tracked/public criteria and factual docs; report
+deployment waiting/failure honestly. This definition stages ONLY docs/TASK_GRAPH.md.
+Run npm run check and both diff checks; inspect complete staged diff/stat; ignored review
+.codex-review/HOMEWORK-001-review.txt contains branch/base/audit/matrix/proposals/workflow/
+README/CHANGELOG/report/public acceptance/checks/full diff. Review artifacts never staged.
+No runtime/tests/other docs/config/dependency/ignore changes, commit, branch switch, merge,
+push, deployment, publication or settings mutation. HOMEWORK-001 READY only; GAME-056/UI-001
+DONE; GAME-057+ BACKLOG; GAME-040/041 SUPERSEDED; GATE A/B PASSED; GATE C unapproved.
+
 ## Graph maintenance
 
 Keep the graph compact and factual. Expand a near-term node only when it becomes the
