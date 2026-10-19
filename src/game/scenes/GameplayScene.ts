@@ -22,23 +22,22 @@ import { shouldSpawnWarden, wardenPhase, wardenBurstDirections } from '../enemie
 import { stepDash } from '../player/dash';
 import { PlayerBuild, type PercentStatKey } from '../player/PlayerBuild';
 import { PlayerDefense } from '../player/PlayerDefense';
-import { selectChoices } from '../progression/selectChoices';
 import { effectiveMissileExplosionRadius } from '../progression/spatialAmplifier';
 import { effectiveDroneBoltRadius } from '../progression/replicationMatrix';
-import { selectEvolutionOffer, type Evolution } from '../progression/evolutionOffer';
-import { selectFocusedUpgrade, type MissileRanks, type DroneRanks, type WeaponFocus, type FocusCursors, type EligibleTracks } from '../progression/focusedUpgrade';
+import { type MissileRanks, type DroneRanks, type WeaponFocus } from '../progression/focusedUpgrade';
 import { type LaserRanks } from '../progression/prismLaser';
 import { addExperience } from '../progression/experience';
 import { PlayerProgression } from '../progression/PlayerProgression';
 import { planXpConsolidation, XP_CONSOLIDATION_THRESHOLD, XP_CONSOLIDATION_CELL_SIZE } from '../progression/xpConsolidation';
 
+import { LevelUpGenerator } from '../rewards/LevelUpGenerator';
 import { RewardTransaction, type RewardToken } from '../rewards/RewardTransaction';
-import { levelUpPool, choiceIdentity, type LevelUpChoice, type PassiveModule, type RewardCandidate } from '../rewards/rewardChoices';
+import { choiceIdentity, type LevelUpChoice, type PassiveModule, type RewardCandidate } from '../rewards/rewardChoices';
 import { isRewardEligible, assertRewardFeasible, type RewardEligibilityContext } from '../rewards/rewardEligibility';
 
 type BuildChange = { kind: 'percent'; stat: PercentStatKey; delta: number } | { kind: 'hullPlating' } | { kind: 'thruster' };
 type RewardPresentation = Readonly<{ run: RunLifecycle; progression: PlayerProgression; build: PlayerBuild;
-  reward: RewardTransaction; token: RewardToken; texts: Phaser.GameObjects.Text[];
+  reward: RewardTransaction; generator: LevelUpGenerator; token: RewardToken; texts: Phaser.GameObjects.Text[];
   choices: Map<Phaser.GameObjects.Text, ChoiceIdentity>; handlers: Map<Phaser.GameObjects.Text, () => void> }>;
 
 function combatValue(value: number, minimum = Number.MIN_VALUE): number {
@@ -156,6 +155,7 @@ export class GameplayScene extends Phaser.Scene {
   private hud?: Phaser.GameObjects.Text;
   private playerProgression?: PlayerProgression;
   private rewardTransaction?: RewardTransaction;
+  private levelUpGenerator?: LevelUpGenerator;
   private rewardPresentation?: RewardPresentation;
   private run?: RunLifecycle;
   private runRandom?: RunRandom;
@@ -191,7 +191,6 @@ export class GameplayScene extends Phaser.Scene {
   private missileRanks: MissileRanks = { warheadPower: 0, propulsion: 0, blastExpansion: 0 };
   private missileTimer?: Phaser.Time.TimerEvent;
   private weaponFocus: WeaponFocus = 'laser';
-  private focusCursors: FocusCursors = { laser: 0, missile: 0, drone: 0 };
   private inputAdapter?: KeyboardInput;
   private canResume?: () => boolean;
   private pausePresentation?: Phaser.GameObjects.Text;
@@ -215,7 +214,6 @@ export class GameplayScene extends Phaser.Scene {
   private laserRanks: LaserRanks = { power: 0, fireRate: 0, speed: 0 };
   private prismEvolved = false;
   private clusterEvolved = false;
-  private evolutionOfferCursor: Evolution = 'prism';
   private laserTimer?: Phaser.Time.TimerEvent;
   private readonly projectileLifetime = 2000;
   private readonly projectileRadius = 6;
@@ -280,10 +278,8 @@ export class GameplayScene extends Phaser.Scene {
     this.missileRanks = { warheadPower: 0, propulsion: 0, blastExpansion: 0 };
     this.missileValues = { damage: 2, speed: 450, explosionRadius: 120 };
     this.weaponFocus = 'laser';
-    this.focusCursors = { laser: 0, missile: 0, drone: 0 };
     this.prismEvolved = false;
     this.clusterEvolved = false;
-    this.evolutionOfferCursor = 'prism';
     const progression = new PlayerProgression();
     this.playerProgression = progression;
     const disposeProgression = () => {
@@ -293,11 +289,14 @@ export class GameplayScene extends Phaser.Scene {
     };
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, disposeProgression);
     this.events.once(Phaser.Scenes.Events.DESTROY, disposeProgression);
+    const generator = new LevelUpGenerator();
+    this.levelUpGenerator = generator;
     const reward = new RewardTransaction();
     this.rewardTransaction = reward;
     this.rewardPresentation = undefined;
     const disposeReward = () => {
       if (this.rewardPresentation?.reward === reward) this.clearRewardPresentation(this.rewardPresentation);
+      generator.dispose();
       reward.dispose();
       this.events.off(Phaser.Scenes.Events.SHUTDOWN, disposeReward);
       this.events.off(Phaser.Scenes.Events.DESTROY, disposeReward);
@@ -683,6 +682,7 @@ export class GameplayScene extends Phaser.Scene {
 
   private clearTerminalInput(): void {
     this.inputAdapter?.reset();
+    this.levelUpGenerator?.cancelGenerated();
     this.rewardTransaction?.invalidate();
     if (this.rewardPresentation) this.clearRewardPresentation(this.rewardPresentation);
     this.projectPause();
@@ -733,7 +733,7 @@ export class GameplayScene extends Phaser.Scene {
   private currentReward(p: RewardPresentation, text: Phaser.GameObjects.Text, id: ChoiceIdentity): boolean {
     // Old callbacks stop before reading any disposed owner, even on a reused Scene.
     return p === this.rewardPresentation && p.run === this.run && p.progression === this.playerProgression
-      && p.build === this.playerBuild && p.reward === this.rewardTransaction && p.run.state === 'PAUSED'
+      && p.build === this.playerBuild && p.generator === this.levelUpGenerator && p.reward === this.rewardTransaction && p.run.state === 'PAUSED'
       && p.run.hasPauseReason('REWARD') && !!this.player?.active && !!this.playerDefense
       && this.isLevelUpPaused && text.active && p.texts.includes(text) && this.levelUpChoices === p.choices && this.levelUpChoices.get(text) === id
       && p.progression.snapshot().pendingLevels > 0 && p.reward.snapshot()?.phase === 'PRESENTED'
@@ -741,42 +741,23 @@ export class GameplayScene extends Phaser.Scene {
   }
 
   private enterLevelUpPause(run = this.run, progression = this.playerProgression): void {
-    const build = this.playerBuild, rewardOwner = this.rewardTransaction;
-    if (this.run !== run || !run || this.playerProgression !== progression || !progression || !build || !rewardOwner
+    const build = this.playerBuild, rewardOwner = this.rewardTransaction, generator = this.levelUpGenerator;
+    if (this.run !== run || !run || this.playerProgression !== progression || !progression || !build || !rewardOwner || !generator
       || !this.player?.active || !this.playerDefense
       || (run.state !== 'RUNNING' && !(run.state === 'PAUSED' && run.hasPauseReason('REWARD')))
       || this.rewardPresentation || this.isLevelUpPaused || !progression.snapshot().pendingLevels) return;
     rewardOwner.assertCanOpen(); // Safe ordinal and guard BEFORE RNG, pause, input or UI mutation.
     this.playerDefense.snapshot();
-    const context = this.rewardContext(build);
-    const ordinaryPool = levelUpPool.filter(option => isRewardEligible(option, context));
-    const eligible = {
-      laser: Object.fromEntries(['power', 'fireRate', 'speed'].map(upgrade => [upgrade, ordinaryPool.some(c => c.kind === 'laser' && c.upgrade === upgrade)])),
-      missile: Object.fromEntries(['warheadPower', 'propulsion', 'blastExpansion'].map(upgrade => [upgrade, ordinaryPool.some(c => c.kind === 'missile' && c.upgrade === upgrade)])),
-      drone: Object.fromEntries(['boltPower', 'firingSystem', 'boltPropulsion'].map(upgrade => [upgrade, ordinaryPool.some(c => c.kind === 'drone' && c.upgrade === upgrade)])),
-    } as EligibleTracks;
-    const focused = selectFocusedUpgrade(this.weaponFocus, this.laserRanks, this.missileRanks, this.droneRanks, this.focusCursors, eligible);
-    const focusedChoice = focused && ordinaryPool.find(option => option.kind !== 'passive' && option.kind === focused.kind && option.upgrade === focused.upgrade);
-    const evolution = selectEvolutionOffer(isRewardEligible({ kind: 'prism' }, context),
-      isRewardEligible({ kind: 'cluster' }, context), isRewardEligible({ kind: 'twin' }, context), this.evolutionOfferCursor);
-    if (ordinaryPool.length + Number(!!evolution.offered) < 3
-      || ordinaryPool.filter(c => c.kind === 'passive').length < (focusedChoice ? 1 : 2)) {
-      throw new RangeError('Insufficient feasible prototype reward choices');
-    }
+    const context = { ...this.rewardContext(build), weaponFocus: this.weaponFocus };
+    generator.assertCanGenerate(context);
     this.preflightProgressionObservations({ offersPresented: 1, ...(run.state === 'RUNNING' ? { pauseEntries: 1 } : {}) }, run.state === 'RUNNING' ? 2 : 1);
     if (run.state === 'RUNNING') { run.requestPause('REWARD'); this.observePause('RUNNING', []); }
     this.inputAdapter?.reset();
     this.projectPause();
-    const reward = this.runRandom!.reward.next;
-    const first = focusedChoice ?? selectChoices(ordinaryPool, 1, reward)[0];
-    if (focused) this.focusCursors[focused.kind] = focused.nextCursor;
-    const second = selectChoices(ordinaryPool.filter(option => option.kind === 'passive' && option !== first), 1, reward)[0];
-    this.evolutionOfferCursor = evolution.nextCursor;
-    const third: LevelUpChoice = evolution.offered ? { kind: evolution.offered }
-      : selectChoices(ordinaryPool.filter(option => option !== first && option !== second), 1, reward)[0];
-    const choices = [first, second, third];
-    const token = rewardOwner.open(choices.map(choice => ({ id: choiceIdentity(choice), choice })));
-    const presentation: RewardPresentation = Object.freeze({ run, progression, build, reward: rewardOwner, token,
+    const candidates = generator.generate(context, this.runRandom!.reward.next);
+    const choices = candidates.map(candidate => candidate.choice);
+    const token = rewardOwner.open(candidates);
+    const presentation: RewardPresentation = Object.freeze({ run, progression, build, reward: rewardOwner, generator, token,
       texts: [], choices: new Map(), handlers: new Map() });
     this.rewardPresentation = presentation;
     this.levelUpPresentation = presentation.texts;
@@ -808,6 +789,13 @@ export class GameplayScene extends Phaser.Scene {
       choice.on('pointerdown', handler);
     });
     if (!rewardOwner.present(token)) throw new Error('Reward presentation lost its transaction');
+    const actual = rewardOwner.snapshot();
+    if (this.run !== run || this.playerBuild !== build || this.playerProgression !== progression
+      || this.rewardTransaction !== rewardOwner || this.levelUpGenerator !== generator
+      || this.rewardPresentation !== presentation || run.state !== 'PAUSED' || !run.hasPauseReason('REWARD')
+      || actual?.phase !== 'PRESENTED' || actual.offerId !== token.offerId
+      || actual.candidates.some((candidate, i) => candidate.id !== candidates[i].id)
+      || !generator.recordPresented(token.offerId)) throw new Error('Level-Up policy presentation mismatch');
     this.runDiagnostics!.recordLevelUpOffered(choices.map(choiceIdentity));
   }
 

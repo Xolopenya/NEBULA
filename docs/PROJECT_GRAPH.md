@@ -4,8 +4,8 @@
 
 - Project: NEBULA.
 - Milestone: First Playable / GAME-015 complete.
-- Source baseline HEAD: `bf897a76538eed180f47b23b4eb19a712f25fc5e`.
-- This map reflects that source baseline plus the staged GAME-054 reward transaction/eligibility/Build previews; Scene retains prototype offer policy/effects, combat/presentation and GAME-039 DEV wiring.
+- Source baseline HEAD: `5db6c07d1c232d0a9b75d6a25e62b08e9f7ad714`.
+- This map reflects that source baseline plus staged GAME-055 weighted LevelUpGenerator ownership; Scene retains actual effects/transaction composition, combat/presentation and GAME-039 DEV wiring.
 - Active task request defines task-specific requirements.
 - AGENTS.md defines repository policy.
 - TASK_GRAPH.md defines task scope, dependencies and status.
@@ -26,6 +26,8 @@ IDs are repository-relative paths; symbols use `path#export`.
 | `src/game/config.ts` | Full HD FIT config and scene registration |
 | `src/game/scenes/BootScene.ts` | Starts GameplayScene |
 | `src/game/scenes/GameplayScene.ts` | Owns current run simulation, presentation and DEV API per-create binding |
+| `src/game/rewards/LevelUpGenerator.ts` | Per-create Phaser-free weighted policy, closed18 affinities, bounded presentation history/pity/cursor and immutable provisional state |
+| `src/game/rewards/LevelUpGenerator.test.ts` |55 pure policy cases including independent literal goldens, numeric boundaries, signature transitions and deep immutability |
 | `src/game/rewards/RewardTransaction.ts` | Pure one-offer/token/ordinal/phase/selection-guard/disposal authority; detached read API |
 | `src/game/rewards/RewardTransaction.test.ts` | Canonical immutable membership, authentic identity, safe ordinals, rejection/retry/reentrancy/order and lifetime |
 | `src/game/rewards/rewardChoices.ts` | Closed18 LevelUpChoice/candidate IDs, canonical prototype pool, exact validation and frozen copies |
@@ -108,6 +110,11 @@ IDs are repository-relative paths; symbols use `path#export`.
 | `src/game/config.ts#gameConfig` | Registers BootScene/GameplayScene; 1920x1080 FIT |
 | `src/game/scenes/BootScene.ts#BootScene` | Scene startup transition |
 | `src/game/scenes/GameplayScene.ts#GameplayScene` | Scene/run owner |
+| `src/game/rewards/LevelUpGenerator.ts#LevelUpGenerator` | assertCanGenerate/generate/recordPresented/cancelGenerated/snapshot/dispose; policy owner only, no selection authority |
+| `src/game/rewards/LevelUpGenerator.ts#LevelUpContext` | Detached RewardEligibilityContext plus weaponFocus |
+| `src/game/rewards/LevelUpGenerator.ts#LevelUpPolicySnapshot` | Detached misses/history/primarySignature/evolutionCursor/lastPresented/hasGenerated |
+| `src/game/rewards/LevelUpGenerator.ts#REWARD_AFFINITIES` | Closed deeply frozen18-ID weighting metadata, no Build Tag contributions |
+| `src/game/rewards/LevelUpGenerator.ts#LEVEL_UP_POLICY_VERSION` | GAME-055-v1 literal policy version |
 | `src/game/rewards/RewardTransaction.ts#RewardTransaction` | assertCanOpen/open/present/trySelect/invalidate/snapshot/dispose; one authentic current offer and synchronous guard |
 | `src/game/rewards/RewardTransaction.ts#RewardToken` | Frozen object-reference authority; safe local offerId alone cannot authorize |
 | `src/game/rewards/RewardTransaction.ts#RewardOfferSnapshot` | Detached LEVEL_UP offerId/phase/candidates, no token or owner |
@@ -218,7 +225,11 @@ Runtime labels below describe scene-owned concepts, not separate modules/classes
 | `src/game/scenes/GameplayScene.ts` | IMPORTS | `src/game/enemies/shooterMovement.ts#shooterMovement` |
 | `src/game/enemies/shooterMovement.test.ts` | IMPORTS | `src/game/enemies/shooterMovement.ts#shooterMovement` |
 | `src/game/enemies/shooterMovement.ts#shooterMovement` | TESTED_BY | `src/game/enemies/shooterMovement.test.ts` |
-| `src/game/scenes/GameplayScene.ts` | IMPORTS | `src/game/progression/selectChoices.ts#selectChoices` |
+| `src/game/scenes/GameplayScene.ts` | IMPORTS | `src/game/rewards/LevelUpGenerator.ts#LevelUpGenerator` |
+| `src/game/scenes/GameplayScene.ts` | CREATES | One LevelUpGenerator per actual create, exact disposeReward closure |
+| `src/game/rewards/LevelUpGenerator.ts` | IMPORTS | rewardChoices canonical copies, rewardEligibility, PlayerBuild TAG_IDS and evolutionOffer cyclic helper |
+| `src/game/rewards/LevelUpGenerator.ts` | TYPE_IMPORTS | WeaponFocus/RewardEligibilityContext; no retained owner handles |
+| `src/game/rewards/LevelUpGenerator.ts` | TESTED_BY | LevelUpGenerator.test.ts and actual GameplayScene integration |
 | `src/game/scenes/GameplayScene.ts` | CREATES | `src/game/run/RunRandom.ts#RunRandom` after successful RunLifecycle.start, from crypto uint32 entropy |
 | `src/game/scenes/GameplayScene.ts` | CREATES | `src/game/input/KeyboardInput.ts#KeyboardInput` bound to exact owning run |
 | `src/game/input/KeyboardInput.ts#KeyboardInput` | TESTED_BY | `src/game/input/KeyboardInput.test.ts` |
@@ -236,23 +247,20 @@ Runtime labels below describe scene-owned concepts, not separate modules/classes
 | `src/game/player/PlayerBuild.ts#PlayerBuild` | TESTED_BY | `src/game/player/PlayerBuild.test.ts` and actual Scene integration |
 | `src/game/run/RunDiagnostics.ts#RunDiagnostics` | TESTED_BY | `src/game/run/RunDiagnostics.test.ts` and actual Scene integration tests |
 | `src/game/progression/selectChoices.ts#selectChoices` | TESTED_BY | `src/game/progression/selectChoices.test.ts` |
-| `src/game/scenes/GameplayScene.ts` | IMPORTS | `src/game/progression/prismLaser.ts` (LaserRanks, canEvolvePrismLaser) |
+| `src/game/scenes/GameplayScene.ts` | TYPE_IMPORTS | `src/game/progression/prismLaser.ts#LaserRanks` |
 | `src/game/scenes/GameplayScene.ts` | IMPORTS | `src/game/combat/prismSpread.ts#prismSpread` |
 | `src/game/progression/prismLaser.ts#canEvolvePrismLaser` | TESTED_BY | `src/game/progression/prismLaser.test.ts` |
 | `src/game/combat/prismSpread.ts#prismSpread` | TESTED_BY | `src/game/combat/prismSpread.test.ts` |
-| `src/game/scenes/GameplayScene.ts` | IMPORTS | `src/game/progression/focusedUpgrade.ts` |
+| `src/game/scenes/GameplayScene.ts` | TYPE_IMPORTS | focusedUpgrade.ts MissileRanks/DroneRanks/WeaponFocus only |
 | `src/game/progression/focusedUpgrade.ts#selectFocusedUpgrade` | TESTED_BY | `src/game/progression/focusedUpgrade.test.ts` |
 | `src/game/scenes/GameplayScene.ts` | IMPORTS | `src/game/progression/spatialAmplifier.ts#effectiveMissileExplosionRadius` |
 | `src/game/progression/spatialAmplifier.ts#effectiveMissileExplosionRadius` | TESTED_BY | `src/game/progression/spatialAmplifier.test.ts` |
-| `src/game/scenes/GameplayScene.ts` | IMPORTS | `src/game/progression/clusterMissile.ts#canEvolveClusterMissile` |
-| `src/game/scenes/GameplayScene.ts` | IMPORTS | `src/game/progression/evolutionOffer.ts#selectEvolutionOffer` |
 | `src/game/scenes/GameplayScene.ts` | IMPORTS | `src/game/combat/clusterSatellites.ts#clusterSatelliteOffsets` |
 | `src/game/progression/clusterMissile.ts#canEvolveClusterMissile` | TESTED_BY | `src/game/progression/clusterMissile.test.ts` |
 | `src/game/progression/evolutionOffer.ts#selectEvolutionOffer` | TESTED_BY | `src/game/progression/evolutionOffer.test.ts` |
 | `src/game/combat/clusterSatellites.ts#clusterSatelliteOffsets` | TESTED_BY | `src/game/combat/clusterSatellites.test.ts` |
 | `src/game/scenes/GameplayScene.ts` | IMPORTS | `src/game/progression/replicationMatrix.ts#effectiveDroneBoltRadius` |
 | `src/game/progression/replicationMatrix.ts#effectiveDroneBoltRadius` | TESTED_BY | `src/game/progression/replicationMatrix.test.ts` |
-| `src/game/scenes/GameplayScene.ts` | IMPORTS | `src/game/progression/twinDrone.ts#canEvolveTwinDrone` |
 | `src/game/progression/twinDrone.ts#canEvolveTwinDrone` | TESTED_BY | `src/game/progression/twinDrone.test.ts` |
 | `src/game/scenes/GameplayScene.ts` | IMPORTS | `src/game/enemies/EnemyDeath.ts` (source projection, lethal preflight, one completed record) |
 | `src/game/enemies/EnemyDeath.ts` | TYPE_IMPORTS | combat.ts LaserAttack/DroneAttack; EnemyDefinitions.ts EnemyArchetype |
@@ -306,13 +314,14 @@ All private names below are navigation anchors, not exported symbol nodes.
 | Contact separation | updatePlayerContact | First inclusive overlap R32/42/44/60 or same-update Charger CHARGING sweep, minimum translation/coincident+X, player bounds21/25; before damage even under God/protection, no Impact/RNG/extra pass |
 | Level-up pause | isLevelUpPaused; enterLevelUpPause; RunLifecycle REWARD | Flag is transaction identity only; REWARD owns PAUSED; current choice releases only REWARD, other reasons retain pause |
 | Choice UI/resume | rewardTransaction, rewardPresentation; enterLevelUpPause / currentReward / acceptLevelUpChoice / applyRewardChoice / clearRewardPresentation | Exact token/run/owners/presentation/Text, persistent retry handler; callback effect/pending/selected then owner invalidation/guard exit, post-return UI/next offer/final release |
+| Reward policy | levelUpGenerator; create/disposeReward; enterLevelUpPause; LevelUpGenerator | Sole bounded policy state; exact captured generator in presentation, no Scene cursor mirror |
 | Reward owner/eligibility | rewardTransaction / rewardContext; RewardTransaction / rewardChoices / rewardEligibility | Pure transaction authority and current detached hard feasibility; Build/progression keep their own state |
 | Run lifecycle | run; RunLifecycle; create | PREPARING/RUNNING/PAUSED/TERMINAL/DISPOSED; concrete composed reasons; first terminal from RUNNING/PAUSED; captured exact disposal |
 | Pause/input projection | bindRunInput; handlePauseRequest; projectPause; canResume; pausePresentation | Exact-owner BLUR/HIDDEN loss, separate FOCUS/VISIBLE bookkeeping, explicit focused Escape resume; Scene Clock.paused freezes five events; minimal non-reward UI |
 | Run RNG | runRandom; RunRandom; create | Fresh owner after successful RUNNING; crypto uint32 seed; exact captured shutdown/destroy disposal; old handles throw; World/Boss dormant |
 | Run diagnostics | runDiagnostics; RunDiagnostics; create/update/observePause | Fresh owner from numeric seed after RNG construction; bootstrap initial Chaser; active delta once; history only, 256-row timeline; captured disposal; no Clock/input/RNG references |
 | Spawn randomness | spawnEnemy → runRandom.encounter.next | Two draws after guards: fixed side mapping then varying coordinate; deterministic fallback adds none |
-| Choice randomness | enterLevelUpPause → selectChoices → runRandom.reward.next | Explicit source at three sampling sites; one draw per sampled slot, none for focus/evolution/stable UI/acceptance |
+| Choice randomness | enterLevelUpPause -> LevelUpGenerator.generate -> runRandom.reward.next | Exactly3 ordered draws per valid offer, including reserved evolution; all preflight/reads/presentation/selection/retry draw0 |
 | Death/retry | derived isPlayerDead; enterPlayerDeath | Accepted DEATH precedes existing UI; RETRY bound to owning run; rejects Victory |
 | Victory/result | derived isRunVictorious, victoryPresentation; enterRunVictory | Atomic attack completion after new common Boss defeat, first terminal wins; fixed current-level result and identity/duplicate-guarded native NEW RUN; create clears state/UI references |
 | Enemy runtime | enemies; EnemyRuntime; createEnemy | One collection with readonly spawnSnapshot/run, mutable current health/visual/lastDamagingSource (initial null), external knockbackVelocity0/0 and Charger-only state/Graphics, derived identity/contact/XP/radius getters; EnemyDefinitions owns frozen spawn values, enemyPresentation/eliteTankData/wardenPhaseTwo own only presentation |
@@ -336,15 +345,15 @@ All private names below are navigation anchors, not exported symbol nodes.
 | Spatial Amplifier | moduleLevels.spatial; fireMissile → effectiveMissileExplosionRadius | Repeatable +15 px per level added to Missile-specific radius at launch; stored MissileRuntime.explosionRadius owns later explosion; no focus/cursor mutation or other consumers |
 | Missile explosion | updateMissiles → explodeMissile → applyEnemyHit → killEnemy | Earliest swept hit point, center-radius snapshot damage once, common XP/death; primary and optional satellites plus Missile cleanup finish before Victory; no direct hit |
 | Laser upgrades | laserRanks, LaserUpgrade; acceptLevelUpChoice | Explicit independent ranks 0..2; capped upgrades filtered out, numeric effects and same timer reset retained; create resets ranks |
-| Prism Laser | prismEvolved; enterLevelUpPause → canEvolvePrismLaser; fireLaser → prismSpread | New-presentation eligibility only; sole-eligible Slot 3 guarantee or three-evolution arbitration after focused/passive slots; same Laser timer/runtime, three full-damage shots; create resets evolved state |
+| Prism Laser | prismEvolved; enterLevelUpPause → canEvolvePrismLaser; fireLaser → prismSpread | New-presentation eligibility only; sole-eligible Slot 3 guarantee or three-evolution arbitration reserved before weighted development/passive slots; same Laser timer/runtime, three full-damage shots; create resets evolved state |
 | Cluster Missile | clusterEvolved; fireMissile → MissileRuntime.clusterEnabled; updateMissiles → explodeMissile then explodeClusterSatellites | Explicit mastery/Spatial eligibility; primary-first union of six launch-derived satellite circles, one satellite hit per surviving enemy; no extra timer/child projectile |
-| Evolution offer | evolutionOfferCursor; enterLevelUpPause → selectEvolutionOffer | Separate Prism-first cursor advances once per new presentation, sole eligible guaranteed, eligible pairs alternate/all3 cycle by cyclic scan; offered successor cursor; acceptance never advances |
+| Evolution offer | LevelUpGenerator evolutionCursor; prepare -> selectEvolutionOffer | Separate Prism-first cursor advances once per new presentation, sole eligible guaranteed, eligible pairs alternate/all3 cycle by cyclic scan; offered successor cursor; acceptance never advances |
 | Missile upgrades | missileRanks, missileValues; acceptLevelUpChoice | Explicit ranks 0..2 and mutable damage/speed/explosion radius; snapshots isolate active Missiles; create resets |
-| Weapon focus | weaponFocus, focusCursors; enterLevelUpPause → selectFocusedUpgrade | Laser baseline; three independent track cursors, least-rank cyclic offers; mastered focus scans remaining Laser/Missile/Drone order; offered cursor advances once per presentation, focus changes only on accepted weapon/evolution |
+| Weapon focus | weaponFocus; LevelUpGenerator.prepare | Laser baseline; accepted weapon/evolution updates affinity only, weighted development replaces least-rank Scene cursors; old pure helper/tests retained |
 | Passive Modules | PassiveModule, moduleLevels; acceptLevelUpChoice | Explicit Hull/Thruster/Collector/Combat/Spatial/Replication levels and effects; create resets levels and mutable values |
 | Shared stat consumers | derived playerMaxHealth/movementSpeed; fireLaser/fireMissile/fireDroneFrom; weaponInterval/resetWeaponTimer | Build Hull/Thrust, Reactor, Drone-only Engineering, Velocity/Scale and local interval/FireControl; retained Missile body radius; outgoing launch Impact once; no Shield/Analyzer effects |
 | Local compatibility | xpMagnetRadius, globalDamageMultiplier, moduleLevels | Collector activation radius, legacy Combat Processor, Spatial explosion and Replication bolt addition; Hull/Thruster levels are label/history, Build owns flat bonuses |
-| Mixed choice pool | OrdinaryChoice, LevelUpChoice, levelUpPool, choiceLabel; enterLevelUpPause → selectChoices | Six repeatable passives plus uncapped Laser/Missile/Drone tracks; focused least-rank slot, passive slot, open/evolution slot; existing text identity rejects stale callbacks |
+| Mixed choice pool | OrdinaryChoice, LevelUpChoice, levelUpPool, choiceLabel; enterLevelUpPause -> LevelUpGenerator.generate |18 existing canonical choices; weighted development/passive/pivot or reserved evolution, exactly3 Reward draws; authentic transaction still selects |
 | Hostile fire | fireHostileProjectile; hostileFireInterval | Same1500 ms global timer independently attempts nearest Shooter aimed shot and active Warden phase4/8 radial burst via launchHostileProjectile; no per-enemy timers or phase resets |
 | Collision inputs | updateProjectiles; player/enemy/projectile radii | Scene supplies per-enemy body radius24/40 + projectile/Missile/player radius; explosion coverage stays center-only |
 | Collision calculation | collision.ts; segmentCircleHitTime | Pure numeric math, no Phaser/runtime records |
@@ -375,11 +384,11 @@ detonation and cleanup → enterRunVictory → frozen gameplay / fixed result
 - Level-increasing collection removes its pickup then pauses; subsequent pickups remain frozen.
 - One current choice applies its upgrade/evolution, destroys levelUpPresentation and releases REWARD only; other reasons retain PAUSED and stale choices cannot release a new presentation's reason.
 - Final recipe prerequisite resumes normally; only the next presentation can offer an evolution. Offers use the separate three-evolution cursor; accepting Prism sets prismEvolved without consuming Combat or changing numeric Laser values/timer.
-- create resets all three evolution flags and evolutionOfferCursor to false/Prism-first. Active Missiles own clusterEnabled at launch; satellite resolution derives only from readonly launch damage/radius after primary deaths.
-- create resets missileRanks, missileValues, weaponFocus and focusCursors as well as laserRanks and prismEvolved. Prism uses the same straight-shot collection and five existing gameplay timers.
+- create resets all three evolution flags to false; fresh LevelUpGenerator owns Prism-first evolution cursor. Active Missiles own clusterEnabled at launch; satellite resolution derives only from readonly launch damage/radius after primary deaths.
+- create resets missileRanks, missileValues, weaponFocus as well as laserRanks and prismEvolved. Prism uses the same straight-shot collection and five existing gameplay timers.
 - Projectile iteration stops after cleaning the lethal hostile impact or lethal Boss player impact; remaining objects freeze. Missile/Cluster finishes its current primary/satellite affected snapshots and Missile removal before terminal entry. First terminal outcome in existing order wins; no unrelated later contact/XP work.
 - create empties missiles; native Phaser restart shuts down old display objects/UI and five timer events before create. Missile position/target/heading/lifetime freeze under existing simulation guard.
-- create resets droneRanks/droneAttackValues and all three focus cursors; Firing System resets the existing droneTimer in place only on accepted current choice. create restores one Drone at angle 0; Twin reference/flag clear; both orbit visuals/bolts freeze under simulation guard. Shared straight projectiles use each launch radius for collision/cleanup.
+- create resets droneRanks/droneAttackValues and constructs fresh generator policy; Firing System resets the existing droneTimer in place only on accepted current choice. create restores one Drone at angle 0; Twin reference/flag clear; both orbit visuals/bolts freeze under simulation guard. Shared straight projectiles use each launch radius for collision/cleanup.
 - Retry exists only in death presentation; no manual per-object reset service.
 
 ## Test coverage
@@ -434,10 +443,10 @@ GameplayScene MissileRuntime / missile / fireMissile / updateMissiles / explodeM
 GameplayScene drone / droneAngle / updateDrone / fireDrone / firePlayerProjectile IMPLEMENTS_TASK GAME-027 — Drone.
 GameplayScene.moduleLevels / mutable run values / LevelUpChoice / progression/selectChoices.ts IMPLEMENTS_TASK GAME-028 — Passive Module Foundation.
 GameplayScene.laserRanks / prismEvolved / progression/prismLaser.ts / combat/prismSpread.ts IMPLEMENTS_TASK GAME-029 — Laser → Prism Laser.
-GameplayScene.missileRanks / missileValues / weaponFocus / focusCursors / progression/focusedUpgrade.ts IMPLEMENTS_TASK GAME-030 — Missile Upgrade Foundation.
+GameplayScene.missileRanks / missileValues / weaponFocus / progression/focusedUpgrade.ts (retained helper) IMPLEMENTS_TASK GAME-030 — Missile Upgrade Foundation.
 GameplayScene.moduleLevels.spatial / fireMissile / progression/spatialAmplifier.ts IMPLEMENTS_TASK GAME-031 — Spatial Amplifier Passive.
 Spatial affects only final Missile launch explosion radius; Blast Expansion remains separate. create resets Spatial0; existing choice slots/focus and five timers remain authoritative.
-GameplayScene.clusterEvolved / evolutionOfferCursor / explodeClusterSatellites; progression/clusterMissile.ts / evolutionOffer.ts and combat/clusterSatellites.ts IMPLEMENTS_TASK GAME-032 — Cluster Missile Evolution.
+GameplayScene.clusterEvolved / explodeClusterSatellites; LevelUpGenerator now owns evolution cursor; progression/clusterMissile.ts / evolutionOffer.ts and combat/clusterSatellites.ts IMPLEMENTS_TASK GAME-032 — Cluster Missile Evolution.
 GameplayScene.droneRanks / droneAttackValues / droneTimer; progression/focusedUpgrade.ts three-weapon policy IMPLEMENTS_TASK GAME-033 — Drone Upgrade Foundation.
 GameplayScene.moduleLevels.replication / fireDrone / progression/replicationMatrix.ts IMPLEMENTS_TASK GAME-034 — Replication Matrix Passive.
 GameplayScene.twinDroneEvolved / twinDrone / positionDrone / fireDroneFrom; progression/twinDrone.ts and evolutionOffer.ts three-identity policy IMPLEMENTS_TASK GAME-035 — Twin Drone Formation.
@@ -489,7 +498,7 @@ internal ignored browser harnesses exercise the same real method without product
 Pure tests, all18 actual pointer choices with nonzero Tags, real BLUR and native restart
 checks verify gameplay/stat/Analyzer/RNG/diagnostic/five-event isolation. Existing captured
 Build disposal invalidates Tag additions/reads; fresh native Build resets twelve0/empty
-identity. No maturity/difficulty/offer weighting or later domain behavior is implemented.
+identity. No maturity/difficulty behavior is implemented; GAME-055 consumes existing identity/Analyzer for offers only.
 
 PlayerDefense + GameplayScene.playerDefense/disposeDefense/damagePlayer/updatePlayerProtection/
 updatePlayerContact IMPLEMENT_TASK GAME-048. Defense owns only three transient scalars;
@@ -512,7 +521,7 @@ Swept geometry, strict ties, cap/expiry/world exits, Prism independent beams, Tw
 origins and Cluster primary then survivor union remain concrete Scene behavior. Complete
 owning cleanup precedes Victory; first-terminal authority stays RunLifecycle. Stale Hits/
 flights guard exact run before fresh enemies/Defense. Five events/five DEV methods and zero
-additional RNG draws remain. GAME-052 adds player-only physical Impact below; GAME-055+ remain deferred. 71 pure +16 new Scene cases,
+additional RNG draws remain. GAME-052 adds player-only physical Impact below; GAME-056+ remain deferred. 71 pure +16 new Scene cases,
 actual Chrome offensive/old-new snapshot/pause/BLUR/native terminal/restart and unmodified
 production ordinary Death/real RETRY checks pass. GATE A PASSED; GATE B PASSED.
 
@@ -527,7 +536,7 @@ snapshot and owners; stale values stay readable without mutation authority. No e
 RNG, dependency, content or difficulty/Build/Tags coupling. GAME-051 adds the death/attribution boundary below.
 136 pure +33 added Scene cases pass (739 total/25 files). Actual Chrome Clock schedule,
 movement/hostile/six-path combat/real BLUR and active-flight pauses/native restart checks pass;
-unmodified production ordinary Death/real pointer RETRY passes. GAME-050/051/052 DONE; GAME-055+
+unmodified production ordinary Death/real pointer RETRY passes. GAME-050/051/052 DONE; GAME-056+
 BACKLOG; GATE A/B PASSED.
 
 EnemyDeath.ts + GameplayScene EnemyHit/lastDamagingSource/applyEnemyHit/killEnemy and
@@ -547,7 +556,7 @@ old immutable values remain readable, old callbacks cannot mutate/draw in the ne
 seven-source/A->B/loss0/Cluster/XP/pause/genuine BLUR/native terminal/restart Chrome checks pass.
 Unmodified production ordinary enemy death/XP, incoming Death and actual pointer RETRY pass
 without DEV or pageerrors. Five events/four RNG budgets/Build/Tags/Analyzer/Defense/rewards and
-GAME-049/050 contracts remain. GAME-051/052 DONE; GAME-055+ BACKLOG; GATE A/B PASSED.
+GAME-049/050 contracts remain. GAME-051/052 DONE; GAME-056+ BACKLOG; GATE A/B PASSED.
 
 EnemyDefinitions/knockback/chargerMovement + Scene launch/Hit/movement/contact/Graphics IMPLEMENT_TASK GAME-052.
 Six identities are five normal roles plus legacy boss; Elite remains Tank-only. Definitions and
@@ -584,7 +593,7 @@ clearing), full terminal cleanup and two Victory NEW RUN/Death RETRY/PAUSED nati
 new-role/force/Graphics dirtied. Old callbacks/state/poses cannot reach fresh owners or draw RNG;
 five new events and fresh zero velocity/interaction/Tags/counters restore. Unmodified production
 uses real input/rendered output for survivor knockback, ordinary Death and actual mouse RETRY;
-DEV absent/no pageerrors. Known favicon404/bundle-size warnings remain. GAME-052 DONE; GAME-055+
+DEV absent/no pageerrors. Known favicon404/bundle-size warnings remain. GAME-052 DONE; GAME-056+
 BACKLOG; GATE A/B PASSED, with no other gate closure.
 
 PlayerProgression + experience + xpConsolidation + Scene XP/reward integration IMPLEMENT_TASK GAME-053.
@@ -605,7 +614,7 @@ Native restart disposes old progression and pickup visuals, resets1/0/0 and five
 identity/atomicity/focus/native checks pass. Installed Chrome real pointer32-XP chain, actual BLUR,
 physical1/5/10, conservation/sparse3000 and four straight/Missile/Cluster NEW RUN cycles, Death RETRY/
 paused restart pass. Unmodified production real keyboard/pixel pickup pursuit reaches Level2 and pointer
-choice, plus ordinary damage/Death/RETRY/DEV absence; no new pageerrors. GAME-055+ BACKLOG; A/B PASSED;
+choice, plus ordinary damage/Death/RETRY/DEV absence; no new pageerrors. GAME-056+ BACKLOG; A/B PASSED;
 GATE C unapproved. No new dependency, timer, DEV method, RNG stream or later reward framework.
 
 RewardTransaction + rewardChoices + rewardEligibility + Build previews + Scene integration IMPLEMENT_TASK GAME-054.
@@ -617,8 +626,7 @@ new owner do not share authority. No lifecycle/Build/XP/RNG/diagnostic/Phaser re
 rewardContext reads actual detached Build/legacy state and two narrow Build previews; generation and
 selection both use pure eligibility. Previews reuse PlayerBuild's prototype candidate preparation/
 resolve without cache/Tag/Defense mutation. focusedUpgrade adds only an optional nine-track mask.
-enterLevelUpPause preflights before RNG/pause/UI, preserves fixed prototype3-slot policy/cursors and
-2/3/1/2 budgets, then open -> actual named Text handlers -> present -> one offered observation.
+enterLevelUpPause preflights before RNG/pause/UI, now delegates policy to GAME-055 LevelUpGenerator/exact3 draws, then open -> actual named Text handlers -> present -> one offered observation.
 rewardPresentation captures exact run/progression/Build/Reward/token, Text/handler pairs and mapping;
 currentReward checks those identities before disposed reads. Named persistent handlers survive false/
 preflight failures for a valid retry without reattachment. clearRewardPresentation removes exact pairs
@@ -633,7 +641,25 @@ future launches/frozen in-flight snapshots/same timers, rejected same-Text retry
 exact callback order, physical32 sequential3, genuine BLUR/manual/held-input freeze, four atomic Victory
 NEW RUN cycles, Death RETRY and PAUSED native restart. Unmodified production real keyboard/pixels/natural
 physical XP/Level-Up/mouse choice and ordinary incoming Death/RETRY pass, DEV absent/no new pageerrors.
-Known favicon404/bundle/worker advice only. GAME-054 DONE; GAME-055+ BACKLOG; A/B PASSED; C unapproved.
+Known favicon404/bundle/worker advice only. GAME-054 DONE; GAME-056+ BACKLOG; A/B PASSED; C unapproved.
+
+LevelUpGenerator + GameplayScene.levelUpGenerator/enterLevelUpPause/currentReward IMPLEMENT_TASK GAME-055.
+create constructs/captures exact policy during PREPARING; disposeReward disposes that owner.
+assertCanGenerate validates detached context/identity/eligibility and every slot path before pause,
+input/UI/RNG. generate consumes exactly3 Reward draws, reserves cyclic evolution Slot3 and returns
+separate deeply frozen candidates while retaining copied frozen provisional tuple/update.
+Actual open/Text handlers/present precede exact run/Build/progression/Reward/generator/ordinal/tuple
+check and recordPresented; then existing diagnostics. History2/misses0..4/signature/cursor commit
+only on presentation. Changed signature uses new0 for weighting and update, with0/1/0 outcomes.
+currentReward captures generator identity before disposed reads; selection order/real effects and
+retry handlers remain GAME-054. After true trySelect return, Scene cleans UI then generates from
+updated Build or releases final REWARD. clearTerminalInput cancels provisional without miss;
+shutdown/destroy invalidates old owner, native create resets empty policy. No timer/stream/DEV/
+selection authority or future content added. Existing least-rank helper/tests remain but Scene
+has no focusCursors/evolutionOfferCursor.55 pure +5 new Scene tests,1354 total/33 files, independent
+literal seeded outputs, actual Chrome all18 effects/retry/3-offer9-draw chain/real Tags+Analyzer4/
+genuine BLUR/native terminal cycles and unmodified production natural XP/input/Death/RETRY pass.
+GAME-055 DONE; GAME-056+ BACKLOG; GATE A/B PASSED; GATE C unapproved.
 
 ## Common navigation queries
 

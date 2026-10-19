@@ -14,7 +14,7 @@ Do not place future plans or speculative features here.
 
 Current phase:
 
-FIRST PLAYABLE CORE LOOP COMPLETE / GAME-054 COMPLETE
+FIRST PLAYABLE CORE LOOP COMPLETE / GAME-055 COMPLETE
 
 The project has a working browser application, development toolchain and placeholder gameplay scene.
 
@@ -61,7 +61,7 @@ Runs TypeScript without emitting files.
 
 ### Tests
 
-Current validation:1294 tracked tests in32 files pass, preserving all1158 pre-GAME-054 cases.
+Current validation:1354 tracked tests in33 files pass; all1294 baseline cases retained with approved offer-policy expectation migrations.
 
 npm test
 
@@ -205,9 +205,14 @@ Missile upgrades use explicit run-local ranks 0..2: Warhead Power raises Missile
 
 Spatial Amplifier has an explicit repeatable run-local level, starting/resetting at 0. Each selection adds 15 world pixels to effective Missile explosion radius without changing Missile-specific Blast Expansion ranks/values, damage or speed. At launch the pure effectiveMissileExplosionRadius helper combines current Missile radius + Spatial level × 15; MissileRuntime stores the final radius and explosions consume that immutable snapshot. Required combinations are 120/135/150 at baseline with Spatial 0/1/2, 165 for Blast1 + Spatial1, and 210 for Blast2 + Spatial2. Old in-flight Missiles keep their radius after Spatial selection. It is the fifth passive in the existing passive/open slots, with distinct stable choices and next-level/effect labels; acceptance retains focus and cursors. No Laser/Prism/Drone Area effect is implemented; Cluster derives satellite coverage from the same stored Missile radius. Real-browser harness validation covers actual old/new explosion coverage, unchanged progression/focus and two native retries with Spatial0 and five fresh timers.
 
-The three-slot policy starts with Laser focus and independent zero-based Laser/Missile/Drone cursors. Slot 1 offers the focused weapon's least-ranked eligible track, resolving ties by cyclic Power/Fire Rate/Speed or Warhead/Propulsion/Blast or Bolt Power/Firing System/Bolt Propulsion order. Only the offered weapon's cursor advances, once per new presentation. A mastered focus scans remaining weapons in stable Laser/Missile/Drone order without changing focus; if all three are mastered, Slot 1 samples an ordinary passive. Slot 2 samples a remaining passive. Slot 3 uses concrete Prism/Cluster/Twin offer arbitration when any evolution is eligible, otherwise samples a remaining ordinary option. Canonical pool entries are excluded after selection, keeping all three distinct. Accepting Laser or Prism sets Laser focus, accepting Missile or Cluster sets Missile focus, accepting Drone upgrades or Twin sets Drone focus, and passives leave focus unchanged. create/restart resets all three cursors and Laser focus. Seventeen focused pure tests pass for minimum rank, ties, caps, fallback and nonmutation. Real-browser validation also verifies the three-slot policy, launch snapshots and two native retries with five timers.
+The per-create LevelUpGenerator supplies three distinct weighted choices in canonical order.
+Slot1 prefers ordinary weapon tuning (Scene weaponFocus is affinity only), Slot2 remaining
+passives, Slot3 the reserved cyclic evolution or a non-primary pivot, each with ordinary fallback.
+Every offer consumes exactly THREE Reward draws, including singleton evolution. Scene no longer
+owns focusCursors or evolutionOfferCursor. Accepted weapons/evolutions retain their original
+weaponFocus updates; passives leave focus unchanged. Old pure focus/sampling helpers and tests remain.
 
-Cluster Missile is the second concrete evolution: Missile ranks 2/2/2 + Spatial level >=1, not already evolved. Spatial is not consumed and acceptance preserves ranks/values, sets Missile focus and resumes. Both final-prerequisite categories affect only the next presentation. A separate Prism-first evolutionOfferCursor advances once per new presentation: no eligible evolution leaves it unchanged; a sole eligible evolution is guaranteed; any offer sets the cursor to its immediate successor in Prism/Cluster/Twin order, scanning past ineligible identities on the next presentation. Each eligible pair alternates and all three cycle in that stable order. Stable pause UI, acceptance and stale callbacks do not advance it. All three evolutions can coexist; evolved entries leave eligibility.
+Cluster Missile is the second concrete evolution: Missile ranks 2/2/2 + Spatial level >=1, not already evolved. Spatial is not consumed and acceptance preserves ranks/values, sets Missile focus and resumes. Both final-prerequisite categories affect only the next presentation. The generator-owned Prism-first evolution cursor advances once per acknowledged presentation: no eligible evolution leaves it unchanged; a sole eligible evolution is guaranteed; any offer sets the cursor to its immediate successor in Prism/Cluster/Twin order, scanning past ineligible identities on the next presentation. Each eligible pair alternates and all three cycle in that stable order. Stable pause UI, acceptance and stale callbacks do not advance it. All three evolutions can coexist; evolved entries leave eligibility.
 
 MissileRuntime derives readonly clusterEnabled from its immutable launch Attack variant. Pre-evolution flights remain normal. On impact the existing primary explosion resolves first; an evolved launch then resolves the union of six satellite circles at 0/60/120/180/240/300 degrees, with offsets equal to stored primary radius R. Satellite radius is R/2 and damage is stored primary damage/2, without rounding or live Combat/Spatial lookups. After primary deaths, affected surviving references are snapshotted so overlapping circles apply one satellite hit per enemy and lethal removals cannot skip entries. Primary plus one satellite hit is allowed; every death still produces one XP pickup with the killed enemy's value. Centers are not clamped to the arena. Expiry/world exit produces no blasts. No child projectiles, VFX, extra timer, or generic evolution engine is added. create/restart resets all three evolution flags and the Prism-first cursor; real-browser validation includes two native retries with five fresh gameplay timers.
 
@@ -301,7 +306,7 @@ velocity multiplies Velocity, physical visual/collision radii multiply Scale. Mi
 its scaled launch body radius as well as its existing launch values. Straight shots also
 retain their launch values. Shared Scale never changes explosions, Cluster centers/radii,
 Prism spread/count, Drone body/orbit, player/enemy bodies or XP. Replication's local bolt
-addition occurs before Scale. Shield Systems and Analyzer have no gameplay consumers. Impact now resolves immutable outgoing physical force at player launch; it never changes damage or incoming Defense.
+addition occurs before Scale. Shield Systems has no gameplay consumer; Analyzer affects only Level-Up weights. Impact now resolves immutable outgoing physical force at player launch; it never changes damage or incoming Defense.
 
 Exactly five events remain. A changed shared Fire Control resets the same three player
 weapon events in place to composed delays/elapsed0, retaining callbacks and Clock pause;
@@ -607,7 +612,7 @@ cycles, Death RETRY and paused nonterminal native restart. Saved owner/pickup/ch
 timer/DEV/cleanup references are inert. Unmodified production keyboard/pixel checks verify
 movement/Dash/pause, natural physical XP to Level2 and real pointer choice, ordinary incoming
 Death/actual RETRY and DEV absence with no new pageerrors. Known favicon404/bundle/worker advice
-only. No new timer/stream/DEV method/dependency or GAME-055+ runtime; GATE A/B PASSED, GATE C unapproved.
+only. No new timer/stream/DEV method/dependency or GAME-056+ runtime; GATE A/B PASSED, GATE C unapproved.
 
 ## Reward transactions and hard eligibility
 
@@ -647,12 +652,13 @@ owners. Terminal freezes pending state and invalidates the transaction without r
 Native restart has a fresh idle Reward owner/ordinal0, progression1/0/0, Build/Defense/Tags/RNG/
 input/diagnostics/API, initial Chaser and five fresh unpaused gameplay events.
 
-All18 effects and recipes, normal seeded order and Reward budgets2/3/1/2 are retained. Reads,
-eligibility, previews and selection draw0; actual next offers draw their own updated budget.
+All18 effects and recipes are retained. GAME-055-v1 intentionally changes seeded offers and
+legacy2/3/1/2 budgets to exactly3 per offer. Reads, eligibility, previews and selection draw0;
+actual next pending offers draw3 from updated Build and presented policy history.
 Exactly four RNG streams/five TimerEvents/five DEV commands remain; DEV progression still has
 only level/xp/threshold and production exposes no API. GAME-053 XP arithmetic/physical values/
 consolidation/continuous pending chain and existing atomic terminal attack cleanup are unchanged.
-No weighting/rarity/Analyzer/pity/history/new acquisition or GAME-055+ implementation was added.
+The LevelUpGenerator policy is described below; no rarity, new acquisition or GAME-056+ runtime exists.
 
 1294 tracked cases/32 files retain1158 baseline cases. Actual installed Chrome mouse checks
 cover all18 effects/future launches and in-flight immutability, same event callbacks/scope/args,
@@ -664,7 +670,46 @@ held-input suppression pass. Four atomic Victory NEW RUN cycles, Death RETRY and
 restart isolate old refs. Unmodified built production passes real W/Space/Escape/pause/Dash/
 combat, natural physical XP to Level2/real choice, ordinary incoming Death/real RETRY and fresh
 active world. DEV absent/no new pageerrors; known favicon404/bundle/worker advice only.
-GAME-054 DONE; GAME-055+ BACKLOG; GATE A/B PASSED; GATE C unapproved.
+GAME-054/055 DONE; GAME-056+ BACKLOG; GATE A/B PASSED; GATE C unapproved.
+
+## Weighted Level-Up generator
+
+Each actual create constructs one Phaser-free LevelUpGenerator, captured by the same exact-owner
+shutdown/destroy cleanup as RewardTransaction. It owns only bounded policy: misses0..4, last2
+presented three-ID offers, primary signature, cyclic Prism-first evolution cursor, last ordinal
+and one provisional tuple/update. It retains no Build, progression, Run, Phaser or RNG handle.
+Canonical immutable affinity metadata covers only the18 existing choices and contributes no Tags.
+
+Base100 combines context primary2/secondary1.5, Slot1 primary2/secondary1.25 and weaponFocus1.5,
+Slot2 Hull/Thrust1.5, primary Analyzer1+2/(1+4/A) (A0 factor1), primary pity1+0.25*baseMisses,
+and recent1/0.5/0.25. Analyzer accepts nonnegative safe integers without a cap4. Weights remain
+25..3600/total<=64800. Eligibility, identity/stat validation and every possible slot path preflight
+before any RNG/pause/UI writes. Insufficient ordinary choices fail loudly; other evolutions never
+fill shortages. Sampling uses canonical cumulative strictly-greater boundaries and exactly3 draws.
+
+Changed dominant signature uses base0 for both weighting and prospective misses: no eligible
+match freezes new0, an available-but-missed offer yields1, any presented primary match yields0.
+Only successful recordPresented commits signature/misses/history/cursor; selection/retry/cancel
+commit nothing. Generated internal candidates, nested choices and update are independent frozen
+copies; returned candidates are a second deep-frozen copy. Snapshots deeply detach policy data.
+Disposed reads/commands throw except idempotent dispose; retained data has no authority.
+
+Scene orders open -> three real named Text controls -> present -> exact owner/ordinal/tuple check
+-> recordPresented -> existing offered observation. RewardTransaction retains all token/acceptance
+authority. Next generation occurs only after true trySelect return, token invalidation and guard
+exit/UI cleanup. Same rejected Text/token/handler survives for retry. Physical32 XP remains
+Level4/XP2/pending3 with updated actual Build between three offers,9 Reward draws and continuous
+REWARD. Terminal cancels provisional work; native restart creates completely fresh empty policy.
+
+1354 tests/33 files pass, including55 pure policy cases and5 new Scene cases; baseline1294 retained.
+Installed Chrome verifies all18 real pointer effects, retry/duplicates/order, real Build Tags and
+Analyzer4 with oldm4 -> changed signature ->0/1/0, genuine other-tab BLUR/five event phase freezes,
+32-XP/9-draw chain, straight/Missile/Cluster terminal cleanup, four Victory NEW RUN cycles,
+Death RETRY and paused native restart with exact stale-owner/callback isolation. Unmodified built
+production passes real input/Dash/pause/combat, natural XP/Level-Up/mouse choice and ordinary
+incoming Death/RETRY. DEV absent/no new pageerrors; known favicon404/Vite chunk/worker advice only.
+GAME-055 DONE; GAME-056+ BACKLOG; GATE A/B PASSED; GATE C unapproved. No new dependency/timer/stream/
+DEV command, selection authority, future content or target distribution.
 
 ## Tags and canonical BuildSnapshot
 
@@ -691,11 +736,11 @@ is deeply detached plain JSON data, including both identity arrays; old detached
 remains usable after disposal. DevSnapshot exposes this only through existing nested build;
 the five commands remain unchanged and production has no DEV API or Tag debug UI.
 
-Tag mutation never recomputes EffectiveStats, changes HP/movement/attacks/cadence/rewards,
-draws from any of the four streams, records diagnostics or resets/adds a TimerEvent.
-Stat/flat/Analyzer mutations never change Tags or recompute identity. Reads derive nothing
-and have no side effects. Analyzer remains a separate numeric stat with no reward consumer.
-No tag-based stats, reward weighting, maturity score or difficulty coupling is implemented.
+Tag mutation never recomputes EffectiveStats or changes HP/movement/attacks/cadence/current offers,
+draws from any of the four streams, records diagnostics or resets/adds a TimerEvent. Future
+LevelUpGenerator calls consume the updated identity for weighting. Stat/flat/Analyzer mutations never change Tags or recompute identity. Reads derive nothing
+and have no side effects. Analyzer remains a separate numeric stat consumed only by LevelUpGenerator weighting.
+No tag-based stats, maturity score or difficulty coupling is implemented.
 Exactly five existing events remain. Tags use existing captured Build disposal; all disposed
 reads/mutations (including zero-point additions) throw. Native restart creates a fresh
 Build with twelve zeros/empty identity, existing slots/defaults/zero modifiers and fresh
@@ -824,10 +869,10 @@ Timed spawn placement consumes exactly two Encounter draws after its existing gu
 side0/1/2/3 = left/right/top/bottom, then that edge's varying coordinate. Camera ranges,
 48px origin offset, margins25/40, distance600 and deterministic opposite-corner fallback
 are preserved. Blocked spawns and DEV spawnWarden consume none; schedules/counts are unchanged.
-Level-Up passes Reward explicitly into all three selectChoices sampling sites. Each sampled
-slot consumes one draw; focused/evolution decisions consume none. Ordinary focused offers
-use two; mastered fallback adds one and guaranteed evolution removes one. Stable presentation,
-snapshot, duplicate/stale callbacks and selection itself consume no further draws; a subsequent pending presentation draws its own current budget.
+Level-Up passes Reward explicitly into LevelUpGenerator.generate. Every valid offer consumes
+exactly3 ordered draws, including singleton evolution; canonical weighted GAME-055-v1 offers
+intentionally supersede old2/3/1/2 budgets. Stable UI, preflight, presentation acknowledgment,
+snapshots and selection/rejected/stale callbacks draw0; each next pending offer draws3.
 World and Boss remain dormant: stars, Warden phases/bursts and DEV placement are deterministic.
 
 Same seed, code/content and relevant state/decision history reproduce procedural decisions;
@@ -912,7 +957,7 @@ These should only be introduced when real project requirements justify them.
 
 The placeholder arena, bounded desktop movement, camera follow, repeated enemy spawning/chase, nearest-enemy targeting and Laser projectile impacts with enemy damage/death are implemented and browser-verified.
 
-GAME-001 through GAME-039 and GAME-042/043/044/045/046/047/048/049/050/051/052/053/054 are complete. GAME-040/041 are SUPERSEDED. GATE A PASSED — Runtime Foundation approved; GAME-055+ remain BACKLOG pending separate definition. GATE B PASSED — Modern Combat on Legacy Spawning architect-approved.
+GAME-001 through GAME-039 and GAME-042/043/044/045/046/047/048/049/050/051/052/053/054/055 are complete. GAME-040/041 are SUPERSEDED. GATE A PASSED — Runtime Foundation approved; GAME-056+ remain BACKLOG pending separate definition. GATE C remains unapproved. GATE B PASSED — Modern Combat on Legacy Spawning architect-approved.
 
 ---
 
