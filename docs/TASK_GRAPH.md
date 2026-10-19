@@ -5913,7 +5913,36 @@ Do not define GAME-106+ yet.
 
 ## UI-001 — Complete Russian Player-Facing Localization
 
-STATUS: READY
+STATUS: DONE
+
+**Implementation completion evidence — UI-001**
+
+Architect-approved Russian table implemented by ui/russianText.ts: frozen canonical36-name
+mapping, original18 effects, name-only new18 Laser choices, focused rank/level/Hull/XP/Dash/
+Victory formatting. Scene presents Russian heading/HUD/pause/rewards/Death/Victory/restart
+controls and the approved screen-fixed guide, hidden during overlays; HTML UTF-8/ru/title,
+local Arial/Segoe UI fallback. Existing authored values and computations remain unchanged.
+1622 tests/35 files PASS: all1490 baseline cases retained;94 pure localization and38 Scene
+cases added. npm run check/typecheck/build PASS; both final diff checks PASS.
+Installed Chrome155: all36 real generated offers accepted by mouse,108 catalog measurements
+at1920x1080/1280x720/960x540,141 total layout observations, minimum12 CSS px, choice height<=94,
+complete bounds/hit areas, Cyrillic screenshots and large HUD. Same Text/handler/token after
+rejected mouse attempt -> valid retry, stale/duplicate0; physical32 ->3 selections/9 draws
+under continuous REWARD; genuine other-tab BLUR with focus emulation disabled, focus return
+alone frozen/manual resume; eight actual Victory->New Run cycles, incoming Death->Retry and
+dirty PAUSED native restart. Separate unmodified production smoke verifies real WASD/Space/
+Esc, natural combat/physical XP/Level-Up/pointer selection, ordinary incoming death/retry,
+Russian metadata and no DEV API/pageerrors/external fonts. Evidence is ignored under
+.codex-review/UI-001-*. No controlled fixture is claimed as unmodified production.
+No gameplay/Build/IDs/order/weights/pity/history/seeded goldens/Hit/XP/restart changes; five
+timers/four RNG streams/five DEV methods preserved. No dependencies, test deletion, Pages or
+HOMEWORK-001 implementation. GAME-056 DONE; GAME-057+ BACKLOG; GAME-040/041 SUPERSEDED;
+GATE A/B PASSED; GATE C unapproved.
+
+**Approved definition and acceptance record**
+
+The following definition retains its original proposal/future tense as historical scope.
+The completion evidence above records current implementation and performed verification.
 
 DEFINITION ONLY. Every Russian translation/presentation decision below is PROPOSED FOR ARCHITECT
 APPROVAL. READY is definition status only, never authorization for runtime work. Depends on

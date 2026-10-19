@@ -14,7 +14,7 @@ Do not place future plans or speculative features here.
 
 Current phase:
 
-FIRST PLAYABLE CORE LOOP COMPLETE / GAME-056 COMPLETE
+FIRST PLAYABLE CORE LOOP COMPLETE / UI-001 RUSSIAN LOCALIZATION COMPLETE
 
 The project has a working browser application, development toolchain and placeholder gameplay scene.
 
@@ -61,7 +61,7 @@ Runs TypeScript without emitting files.
 
 ### Tests
 
-Current validation:1490 tracked tests in34 files pass; all1354 pre-GAME-056 cases retained through approved catalog/policy and authoritative Build fixture migrations.
+Current validation:1622 tracked tests in35 files pass; all1490 pre-UI-001 cases retained with visible-copy assertions localized. Historical GAME-056 baseline:1354 cases retained through approved catalog/policy and authoritative Build fixture migrations.
 
 npm test
 
@@ -91,6 +91,32 @@ PASS
 
 ---
 
+## Russian player-facing UI
+
+UI-001 localizes every current player-facing Text, all36 canonical reward displays and HTML
+lang/title. src/game/ui/russianText.ts owns the frozen36-ID Russian names, exact existing18
+effect descriptions and focused HUD/rank/level/cooldown formatters; new18 Laser choices stay
+name-only. GameplayScene retains all controls, transactions and gameplay ownership.
+Arial/Segoe UI/system fallback needs no font fetch. Hull fractions and integer XP/levels are
+preserved; decimal comma and units are display-only. Three-line guide uses the actual
+WASD/arrows/Space/Esc bindings and hides during every overlay; fresh native create restores it.
+
+Installed Chrome155 verifies all36 actual generated offers with real pointer acceptance at
+1920x1080,1280x720,960x540:108 catalog measurements,141 total layout observations, choice
+height<=94 internal pixels and minimum12 CSS-pixel text. Cyrillic screenshots, complete bounds,
+hit areas, large numeric HUD, terminal screens, same-Text rejected-click/retry, duplicate/stale
+callbacks, physical32 ->3 selections/9 Reward draws, genuine other-tab BLUR/focus-return freeze,
+manual pause, eight actual Victory->New Run cycles, ordinary incoming Death->Retry and dirty
+PAUSED native restart pass. Controlled fixtures are separate from unmodified production smoke.
+Unmodified built root passes real movement/Dash/pause, natural combat/physical XP/Level-Up/mouse
+selection and ordinary incoming death/retry; Russian metadata, no DEV API, no pageerrors or
+external font requests. Existing favicon404/bundle-size/worker advice remain nonblocking.
+Exactly5 gameplay timers/4 streams/5 DEV commands, canonical IDs/order/policy/seeded goldens,
+combat/XP/Build/ownership and rejected-Hit flight cleanup are unchanged. No dependency added.
+1622 tests/35 files pass (1490 baseline +94 pure localization +38 Scene cases).
+UI-001 DONE; GAME-056 DONE; GAME-057+ BACKLOG; GAME-040/041 SUPERSEDED; GATE A/B PASSED;
+GATE C unapproved. No Pages/publication, HOMEWORK-001 or future gameplay implementation.
+
 ## Current Runtime
 
 The project boots Phaser in the browser and transitions from BootScene into GameplayScene.
@@ -104,8 +130,8 @@ Current screen:
 - automatically launched cyan Laser projectiles, yellow homing Missiles with area damage, and teal orbiting Drones firing violet straight bolts (one initially; two after Twin evolution)
 - screen-fixed top-left HUD showing current/max HP, XP toward the next threshold, level and Dash readiness/cooldown
 - desktop movement using WASD or arrow keys
-- "NEBULA — GAMEPLAY SCENE" label
-- "Placeholder space arena" text
+- "NEBULA — Космическое выживание" heading at the top right
+- screen-fixed three-line Russian movement/Dash/pause, automatic-fire/XP and Warden guidance; hidden during pause, reward and terminal overlays
 
 Rendering:
 
@@ -194,9 +220,9 @@ Each Laser projectile initially deals 1 damage to the first enemy intersected al
 Enemies with remaining HP stay active. At zero HP their visual is destroyed and their runtime entry is removed, so they no longer chase, count toward the cap or participate in targeting. Death clears currentTarget immediately when applicable; normal targeting selects and highlights the next nearest enemy on the following active update.
 PlayerDefense starts with Hull5, Shield0 and protection0 on scene creation; PlayerBuild supplies max Hull5. Regular enemy contact deals1 damage; Elite Tank and Warden contact deal2. World-center distance uses player radius20 plus each enemy's stored collision radius: regular/Elite24 (combined44), Warden40 (combined60).
 Contact runs after projectile impacts/removals, separates the first inclusive overlap using the minimum circle translation and current player bounds, then routes its damage. God Mode/protection still allow separation. Accepted Shield or Hull loss starts500ms delta-based protection and alpha0.5; active expiry restores1. Multiple overlaps cause at most one contact attempt per update. Continued overlap can damage again when protection expires.
-Health clamps at zero and immediately enters a RunLifecycle DEATH outcome (read through the derived isPlayerDead getter) through the damage helper, for lethal contact or hostile hits. The transition runs once, dims the ship to alpha 0.25 and displays centered screen-fixed SHIP DESTROYED text.
+Health clamps at zero and immediately enters a RunLifecycle DEATH outcome (read through the derived isPlayerDead getter) through the damage helper, for lethal contact or hostile hits. The transition runs once, dims the ship to alpha 0.25 and displays centered screen-fixed «КОРАБЛЬ УНИЧТОЖЕН» text.
 Creation resets the player to alive. Death freezes movement, enemy chase, targeting, projectile movement/collision and contact processing. Existing enemies and projectiles remain visible and frozen; timer events stay scheduled but guarded callbacks produce no spawns or shots. The lethal hostile projectile is removed before further projectile processing stops.
-Only after death, a screen-fixed clickable RETRY control appears. Clicking it once uses Phaser scene.restart() without reloading the page. Phaser shutdown destroys old scene objects/UI and timer events; create() restores an alive player at 5 HP and normal alpha at (2400, 1350), one initial enemy, no projectiles, a fresh target selection and exactly five spawn/Laser/Missile/Drone/hostile timers. Repeated death/retry cycles resume the same gameplay.
+Only after death, a screen-fixed clickable «ПОВТОРИТЬ» control appears. Clicking it once uses Phaser scene.restart() without reloading the page. Phaser shutdown destroys old scene objects/UI and timer events; create() restores an alive player at 5 HP and normal alpha at (2400, 1350), one initial enemy, no projectiles, a fresh target selection and exactly five spawn/Laser/Missile/Drone/hostile timers. Repeated death/retry cycles resume the same gameplay.
 One global 1500 ms hostile timer independently attempts an aimed shot from the nearest active Shooter and a radial burst from an active Warden. Shooter selection filters out other archetypes and keeps collection-order ties; absent/near-zero Shooter aim cannot cancel the Warden burst. Warden fires four world-cardinal directions above30 HP, eight directions every45 degrees at positive HP<=30. All hostile shots use fixed launch direction, speed600 px/s, lifetime3000 ms, radius6 and damage1. The Shooter movement band does not limit firing range. Chasers/Tanks never fire. No per-enemy timer exists; spawning Warden or crossing30 HP neither fires immediately nor resets the existing event.
 Player and enemy shots share concrete runtime records with typed immutable Attack, derived source/damage and movement/lifetime/world-exit cleanup. Hostile shots use swept segment-circle collision against the player and disappear even when protection prevents damage before death. Both contact and hostile hits use the same global 500 ms player damage protection; its timer ticks before projectile/contact processing.
 Missile is active from run start with one global 1800 ms firing timer and Missile-specific maxActiveMissiles = 1. At the cap, callbacks create no shot and leave the timer/cadence unchanged; cleanup frees the slot for a later callback. Launch selects the nearest enemy to the player with stable collection-order ties; no enemy means no shot. Separate scene-owned MissileRuntime records contain a yellow 8-pixel circle, target reference, launch-snapshotted explosion damage, flight speed and explosion radius, last normalized heading and remaining lifetime. Each active frame directly steers toward the living target at its stored launch speed (baseline 450 px/s). The Missile keeps that living target even when another enemy becomes closer, including after reacquisition. A removed/missing target reacquires nearest to the Missile position; no replacement preserves heading, and later enemies can be acquired. Near-zero aim retains heading safely; starting overlap resolves at segment time zero. Motion is clipped to the remaining 4000 ms lifetime. Swept segment-circle collision against every active enemy (runtime collision radius + Missile radius8) detonates once at the earliest hit point, including non-target interception. Baseline explosion damage 2 applies once to a snapshot of enemies whose centers are within inclusive radius 120; no enemy collision-radius expansion or separate direct-hit damage. Lethal hits use killEnemy and one XP pickup with the killed enemy's value per enemy without skipped array entries. Lifetime expiry/whole-circle world exit only removes the Missile. Fixed Missile cadence/cap/lifetime/collision configuration remains immutable. Scene-owned missileValues supplies current damage, speed and explosion radius. Combat Processor multiplies Missile-specific damage before launch. MissileRuntime derives readonly damage/speed/explosionRadius getters from its frozen MissileAttack: movement and explosion consume these snapshots, so later choices cannot change active Missiles. Pause/death guards freeze firing, homing, position and lifetime; create/restart empties the array and native shutdown destroys old objects/timers. No explosion marker or VFX system is added.
@@ -232,7 +258,7 @@ Prism changes the existing Laser callback into three straight projectiles aimed 
 
 Exactly six run-local Passive Modules have explicit levels starting at 0, with no caps or slots. Hull Plating adds 1 max HP and heals 1 immediately, clamped to the new maximum, refreshing the HP HUD. Thruster Module adds 30 px/s normal speed without changing Dash. Collector Field adds 40 world pixels to magnet activation radius without changing collection radius 20, acceleration 900 or maximum attraction speed 600. Combat Processor adds 0.25 to the global player-weapon damage multiplier, starting at 1.0; Laser, Drone and Missile multiply their current weapon-specific damage at launch without rounding. Laser Power remains Laser-specific; hostile/contact damage is unchanged. Each repeat selection increments only that module's level and reapplies its effect. Labels identify Passive Modules, their next level and effect. Native create/restart restores module levels 0, current/max HP 5/5, movement 300, magnet 180 and multiplier 1.0, alongside existing Laser/XP/Dash/UI/weapon resets and five timers. No inventory UI, generic stats/modifier system or extra timer is introduced.
 
-A scene-owned screen-fixed text HUD displays current/max HP, XP toward the next level threshold, level and Dash READY/remaining seconds (rounded up to tenths). It reads authoritative Defense/PlayerProgression/Dash state, refreshing immediately on damage and collection, including lethal damage and level-increasing awards. Dash feedback refreshes when its displayed tenth of a second changes during active simulation. It stays visible during death, level-up choice presentation and Victory; create builds a fresh HUD with reset values on retry.
+A scene-owned screen-fixed text HUD displays current/max HP, XP toward the next level threshold, level and «Рывок: ГОТОВ»/remaining seconds (rounded up to tenths, decimal comma). It reads authoritative Defense/PlayerProgression/Dash state, refreshing immediately on damage and collection, including lethal damage and level-increasing awards. Dash feedback refreshes when its displayed tenth of a second changes during active simulation. It stays visible during death, level-up choice presentation and Victory; create builds a fresh HUD with reset values on retry.
 
 Victory is the accepted RunLifecycle VICTORY outcome, read through the derived isRunVictorious getter; fresh create owns a new authority with null outcome. Only actual common Warden removal during a production player attack can trigger it, after the owning attack finishes: straight first-hit damage/death plus projectile cleanup, or the entire Missile primary and optional Cluster survivor/satellite union plus Missile cleanup. No transition occurs inside killEnemy. The first terminal outcome in existing processing order wins: death prevents later Victory, and Victory suppresses later hostile/contact damage and unrelated attacks/XP in the same frame. Existing enemies, Drone/Twin, unrelated shots/Missiles and pickups remain visible and frozen; movement/Dash, orbit, targeting, protection, lifetimes, collisions, XP and all five callbacks have no gameplay effect. The same five scheduled TimerEvents remain, with no entry-time reset/pause/recreation; Phaser Clock timing can advance internally. Result text reads the current existing level without adding Boss XP; HP/protection/progression are not changed on entry. Only NEW RUN is interactive during Victory; no SHIP DESTROYED/RETRY or upgrade UI is shown. Its once-only control also guards repeated callbacks and old presentation identity. Native restart removes old UI/runtime/timers, clears Victory/Boss flags and all previous run state, restores initial Chaser/count0 and five fresh timers. Real Phaser harness validation covers atomic straight/Missile/Cluster boundaries, both terminal races, dirty-world freeze, stale callbacks, two actual Victory NEW RUN cycles and one ordinary native death RETRY.
 
@@ -886,7 +912,7 @@ manual/focus pause, terminal, resume and fresh run. Paused presses never queue m
 Escape pauses with MANUAL; explicit focused/visible Escape without REWARD releases MANUAL and
 FOCUS_LOSS if present. Per-create Phaser Game BLUR/HIDDEN acquire FOCUS_LOSS; FOCUS/VISIBLE
 only update separate bookkeeping. Return never auto-resumes; both tracked and actual document
-focus/visibility are required to resume. Minimal screen-fixed PAUSED / ESC to resume text stays
+focus/visibility are required to resume. Minimal screen-fixed «ПАУЗА / Esc — продолжить» text stays
 hidden behind reward transactions and is removed before terminal UI.
 
 Scene.time.paused freezes the same five events' elapsed/remaining phases throughout PAUSED;
@@ -1014,6 +1040,6 @@ GAME-001 through GAME-039 and GAME-042/043/044/045/046/047/048/049/050/051/052/0
 
 The application boots successfully.
 
-The player can move the ship, outrun Chasers and slow durable Tanks, approach ranged Shooters and automatically launch moving Laser projectiles toward the current nearest target of any type. Base/Prism/Scatter/Repeater shots disappear on impact; Lance alone penetrates bounded distinct targets. Baseline Chasers require three hits, Shooters two and Tanks six, fewer after damage upgrades. Missile automatically homes toward enemies and can damage/kill a cluster with one explosion; each enemy death still drops one pickup (regular1/Elite5/Warden10). One primary Drone, plus an opposite companion after accepting Twin, follows the ship in orbit and fires straight bolts at Drone-relative targets, independently of Laser upgrades. Spawning continues after ordinary kills; Warden defeat enters terminal Victory. Enemy contact reduces player HP with temporary protection and damage feedback; gameplay freezes at zero HP with SHIP DESTROYED displayed. Orange hostile projectiles can be dodged and damage the player. Clicking RETRY after death begins a clean new run. Warden defeat instead shows VICTORY / WARDEN DESTROYED / LEVEL REACHED / NEW RUN; NEW RUN uses native scene.restart(). The First Playable start/play/die/restart loop is complete. Killed enemies leave XP pickups that move toward the player within magnet range and are consumed on arrival. Collected values advance player XP/level state; reaching a new level freezes gameplay with three distinct choices from eligible Laser/Missile/Drone upgrades, Passive Modules and the eligible evolution offer. Each accepted choice applies its upgrade before the next pending offer; the run resumes after all pending levels and other pause reasons clear. Directional Space Dash supports short repositioning bursts without immunity. A fixed HUD shows HP, XP toward the next threshold, level and Dash cooldown throughout the run, pause and death, and resets on retry.
+The player can move the ship, outrun Chasers and slow durable Tanks, approach ranged Shooters and automatically launch moving Laser projectiles toward the current nearest target of any type. Base/Prism/Scatter/Repeater shots disappear on impact; Lance alone penetrates bounded distinct targets. Baseline Chasers require three hits, Shooters two and Tanks six, fewer after damage upgrades. Missile automatically homes toward enemies and can damage/kill a cluster with one explosion; each enemy death still drops one pickup (regular1/Elite5/Warden10). One primary Drone, plus an opposite companion after accepting Twin, follows the ship in orbit and fires straight bolts at Drone-relative targets, independently of Laser upgrades. Spawning continues after ordinary kills; Warden defeat enters terminal Victory. Enemy contact reduces player HP with temporary protection and damage feedback; gameplay freezes at zero HP with «КОРАБЛЬ УНИЧТОЖЕН» displayed. Orange hostile projectiles can be dodged and damage the player. Clicking «ПОВТОРИТЬ» after death begins a clean new run. Warden defeat instead shows «ПОБЕДА / СТРАЖ УНИЧТОЖЕН / ДОСТИГНУТ УРОВЕНЬ / НОВЫЙ ЗАБЕГ»; NEW RUN uses native scene.restart(). The First Playable start/play/die/restart loop is complete. Killed enemies leave XP pickups that move toward the player within magnet range and are consumed on arrival. Collected values advance player XP/level state; reaching a new level freezes gameplay with three distinct choices from eligible Laser/Missile/Drone upgrades, Passive Modules and the eligible evolution offer. Each accepted choice applies its upgrade before the next pending offer; the run resumes after all pending levels and other pause reasons clear. Directional Space Dash supports short repositioning bursts without immunity. A fixed HUD shows HP, XP toward the next threshold, level and Dash cooldown throughout the run, pause and death, and resets on retry.
 
 The First Playable milestone defined in TASK_GRAPH.md is now implemented.

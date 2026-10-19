@@ -29,9 +29,10 @@ class EventEmitter {
 function visual(x = 0, y = 0, radius = 0) {
   const callbacks = new EventEmitter();
   const object = {
-    x, y, radius, width: 40, height: 48, lineWidth: 2, text: '', active: true, alpha: 1,
+    x, y, radius, width: 40, height: 48, lineWidth: 2, text: '', active: true, visible: true, alpha: 1,
     setStrokeStyle() { return this; }, setFillStyle() { return this; },
     setAlpha(alpha: number) { this.alpha = alpha; return this; }, setScrollFactor() { return this; }, setDepth() { return this; },
+    setVisible(visible: boolean) { this.visible = visible; return this; },
     setText(text: string) { this.text = text; return this; },
     setOrigin() { return this; }, setInteractive() { return this; },
     on(key: string, callback: () => void) { callbacks.on(key, callback); return this; },
@@ -818,8 +819,8 @@ describe('GAME-042 real Scene terminal integration', () => {
     scene['enterPlayerDeath']();
     scene['bossDefeated'] = true;
     scene['enterRunVictory']();
-    expect(created.filter(t => t.text === 'SHIP DESTROYED')).toHaveLength(1);
-    expect(created.filter(t => t.text === 'RETRY')).toHaveLength(1);
+    expect(created.filter(t => t.text === 'КОРАБЛЬ УНИЧТОЖЕН')).toHaveLength(1);
+    expect(created.filter(t => t.text === 'ПОВТОРИТЬ')).toHaveLength(1);
     expect(scene['victoryPresentation']).toHaveLength(0);
     expect(api.snapshot()!.isPlayerDead).toBe(true);
     expect(api.spawnWarden()).toBe(false);
@@ -948,7 +949,7 @@ describe('GAME-042 real Scene terminal integration', () => {
     expect([old.state, old.outcome]).toEqual(['RUNNING', null]);
     expect([scene['drone']!.x, scene['drone']!.y]).toEqual([scene['player']!.x + 110, scene['player']!.y]);
     playerHit(scene, 100);
-    const retry = created.find(t => t.text === 'RETRY')!;
+    const retry = created.find(t => t.text === 'ПОВТОРИТЬ')!;
     const timers = [...scene['gameplayTimers']];
     const callbacks = timers.map(t => t.callback);
     shutdown();
@@ -976,7 +977,7 @@ describe('GAME-042 real Scene terminal integration', () => {
     expect(scene['enemies']).toHaveLength(1);
     expect(scene['projectiles']).toHaveLength(0);
     expect(fresh.state).toBe('RUNNING');
-    // Even if the new run dies, the old retained RETRY cannot restart it.
+    // Even if the new run dies, the old retained ПОВТОРИТЬ cannot restart it.
     playerHit(scene, 100);
     retry.emit('pointerdown');
     expect(restart).not.toHaveBeenCalled();
@@ -1087,9 +1088,9 @@ describe('Scene run-scoped randomness production boundaries', () => {
     const reward = vi.spyOn(a.scene['runRandom']!.reward, 'next');
     // GAME-055-v1 independently calculated seed0, accepting Slot1 between offers.
     const golden = [
-      ['Missile Blast Expansion Rank 1/2\n+30 px explosion radius', 'Passive: Hull Plating Lv. 1\n+1 Max HP / Heal 1', 'Drone: Bolt Propulsion Rank 1/2\n+200 px/s bolt speed'],
-      ['Laser Power \u2014 +1 damage', 'Passive: Replication Matrix Lv. 1\n+1 Drone bolt radius', 'Laser Projectile Speed \u2014 +200 px/s'],
-      ['Laser Fire Rate \u2014 -50 ms (min 100 ms)', 'Passive: Collector Field Lv. 1\n+40 px magnet radius', 'Drone: Bolt Power Rank 1/2\n+1 bolt damage'],
+      ['Радиус взрыва — ранг 1/2\n+30 пикс к радиусу взрыва', 'Бронепокрытие — ур. 1\n+1 к макс. здоровью / восстановить 1', 'Скорость снарядов дрона — ранг 1/2\n+200 пикс/с к скорости снарядов'],
+      ['Мощность лазера — +1 к урону', 'Матрица репликации — ур. 1\n+1 пикс к радиусу снаряда дрона', 'Скорость лазера — +200 пикс/с'],
+      ['Темп лазера — −50 мс (минимум 100 мс)', 'Поле сбора — ур. 1\n+40 пикс к радиусу притяжения опыта', 'Мощность дрона — ранг 1/2\n+1 к урону снаряда'],
     ];
     for (let i = 0; i < golden.length; i++) {
       expect(a.api.forceLevelUp()).toBe(true); expect(b.api.forceLevelUp()).toBe(true);
@@ -1114,13 +1115,13 @@ describe('Scene run-scoped randomness production boundaries', () => {
     const draw = vi.spyOn(scene['runRandom']!.reward, 'next'); api.forceLevelUp();
     expect(draw).toHaveBeenCalledTimes(3);
     expect(new Set(offer(scene)).size).toBe(3);
-    if (evolution) expect(offer(scene)[2]).toContain('EVOLVE: Prism Laser');
+    if (evolution) expect(offer(scene)[2]).toContain('ЭВОЛЮЦИЯ: Призменный лазер');
   });
   it('weighted development plus guaranteed evolution consumes3 draws', () => {
     const { scene, api } = fixture();
     setLaser(scene, { power: 2, fireRate: 2, speed: 2 }); scene['moduleLevels'].combat = 1;
     const draw = vi.spyOn(scene['runRandom']!.reward, 'next'); api.forceLevelUp();
-    expect(draw).toHaveBeenCalledTimes(3); expect(offer(scene)[2]).toContain('EVOLVE: Prism Laser');
+    expect(draw).toHaveBeenCalledTimes(3); expect(offer(scene)[2]).toContain('ЭВОЛЮЦИЯ: Призменный лазер');
   });
   it('snapshot seed is detached/stable with zero draws; World/Boss stay dormant through actual Warden/Level-Up/terminal paths', () => {
     const { scene, api } = fixture(); const draws = spyStreams(scene);
@@ -1186,7 +1187,7 @@ describe('GAME-044 authoritative pause and input production paths', () => {
     f.down('W'); s.update(0, 10); expect(s['player']!.y).toBe(1347);
     f.escape(); const y = s['player']!.y;
     expect(s['run']!.pauseReasons).toEqual(['MANUAL']); expect(s.time.paused).toBe(true);
-    expect(s['pausePresentation']!.text).toBe('PAUSED\nESC to resume');
+    expect(s['pausePresentation']!.text).toBe('ПАУЗА\nEsc — продолжить');
     s.update(0, 1000); expect(s['player']!.y).toBe(y);
     f.escape(); expect(s['run']!.state).toBe('RUNNING'); expect(s['pausePresentation']).toBeUndefined();
     s.update(0, 100); expect(s['player']!.y).toBe(y);
@@ -1436,8 +1437,8 @@ describe('GAME-046 PlayerBuild production consumers', () => {
   function passive(f: ReturnType<typeof fixture>, module: 'hull' | 'thruster' | 'collector' | 'combat' | 'spatial' | 'replication') {
     const draw = aimChoice(f.scene, `passive.${module}`, 1);
     expect(f.api.forceLevelUp()).toBe(true);
-    const label = { hull: 'Hull Plating', thruster: 'Thruster Module', collector: 'Collector Field', combat: 'Combat Processor', spatial: 'Spatial Amplifier', replication: 'Replication Matrix' }[module];
-    const pick = f.scene['levelUpPresentation'].find(p => p.text.startsWith('Passive: ' + label))!; expect(pick).toBeDefined(); pick.emit('pointerdown'); draw.mockRestore();
+    const label = { hull: 'Бронепокрытие', thruster: 'Маневровый двигатель', collector: 'Поле сбора', combat: 'Боевой процессор', spatial: 'Усилитель взрыва', replication: 'Матрица репликации' }[module];
+    const pick = f.scene['levelUpPresentation'].find(p => p.text.startsWith(label + ' — ур. '))!; expect(pick).toBeDefined(); pick.emit('pointerdown'); draw.mockRestore();
   }
   function weaponChoice(f: ReturnType<typeof fixture>, weapon: 'laser' | 'missile' | 'drone', cursor: number) {
     f.scene['weaponFocus'] = weapon;
@@ -1534,13 +1535,13 @@ describe('GAME-046 PlayerBuild production consumers', () => {
   it('actual evolution pointer callbacks keep Prism/Cluster/Twin recipes, slots and attack behavior', () => {
     const f = armed(), s = f.scene;
     setLaser(s, { power: 2, fireRate: 2, speed: 2 }); s['moduleLevels'].combat = 1;
-    f.api.forceLevelUp(); expect(offer(s)[2]).toContain('Prism'); s['levelUpPresentation'][3].emit('pointerdown'); s['fireLaser']();
+    f.api.forceLevelUp(); expect(offer(s)[2]).toContain('ЭВОЛЮЦИЯ: Призменный лазер'); s['levelUpPresentation'][3].emit('pointerdown'); s['fireLaser']();
     expect(s['projectiles']).toHaveLength(3); expect(s['projectiles'].every(p => p.damage === 3)).toBe(true);
     s['projectiles'] = []; s['missileRanks'] = { warheadPower: 2, propulsion: 2, blastExpansion: 2 }; passive(f, 'spatial');
-    f.api.forceLevelUp(); expect(offer(s)[2]).toContain('Cluster'); s['levelUpPresentation'][3].emit('pointerdown'); s['fireMissile']();
+    f.api.forceLevelUp(); expect(offer(s)[2]).toContain('ЭВОЛЮЦИЯ: Кассетная ракета'); s['levelUpPresentation'][3].emit('pointerdown'); s['fireMissile']();
     expect(s['missiles'][0]).toMatchObject({ clusterEnabled: true, explosionRadius: 135 });
     s['droneRanks'] = { boltPower: 2, firingSystem: 2, boltPropulsion: 2 }; passive(f, 'replication');
-    f.api.forceLevelUp(); expect(offer(s)[2]).toContain('Twin'); s['levelUpPresentation'][3].emit('pointerdown'); s['fireDrone']();
+    f.api.forceLevelUp(); expect(offer(s)[2]).toContain('ЭВОЛЮЦИЯ: Парные дроны'); s['levelUpPresentation'][3].emit('pointerdown'); s['fireDrone']();
     expect(s['projectiles']).toHaveLength(2); expect(s['twinDroneEvolved']).toBe(true);
     expect(f.api.snapshot()!.build.slots.combat).toEqual(['LASER', 'MISSILE', 'COMBAT_DRONE']);
   });
@@ -1734,7 +1735,7 @@ describe('GAME-048 defense production boundary', () => {
     }
     expect('playerDamageProtectionDuration' in s).toBe(false);
     const copy = api.snapshot()!; copy.playerShield = 999; copy.playerHealth = 999; copy.protectionRemaining = 999;
-    expect(api.snapshot()).toEqual(state); expect(s['hud']!.text).toContain('HP: 5/5');
+    expect(api.snapshot()).toEqual(state); expect(s['hud']!.text).toContain('Здоровье: 5/5');
   });
   it.each([[3, 2, 1, 5, 0], [3, 3, 0, 5, 0], [3, 5, 0, 3, 2],
     [0.5, 0.75, 0, 4.75, 0.25], [2, 100, 0, 0, 5]])(
@@ -2466,5 +2467,102 @@ describe('GAME-055 real generator integration', () => {
     const {scene:s,api}=fixture();api.forceLevelUp();const p=s['rewardPresentation']!,before=p.generator.snapshot(),fresh=new LevelUpGenerator();
     s['levelUpGenerator']=fresh;p.texts[1].emit('pointerdown');expect(p.generator.snapshot()).toEqual(before);expect(fresh.snapshot().history).toEqual([]);
     expect(p.texts[1].listenerCount('pointerdown')).toBe(1);s['levelUpGenerator']=p.generator;p.texts[1].emit('pointerdown');expect(s['playerProgression']!.snapshot().pendingLevels).toBe(0);
+  });
+});
+
+const russianChoices: [RewardCandidateId, string][] = [
+  ["laser.power", "Мощность лазера — +1 к урону"],
+  ["laser.fireRate", "Темп лазера — −50 мс (минимум 100 мс)"],
+  ["laser.speed", "Скорость лазера — +200 пикс/с"],
+  ["missile.warheadPower", "Мощность боеголовки — ранг 1/2\n+1 к урону взрыва"],
+  ["missile.propulsion", "Ракетный двигатель — ранг 1/2\n+75 пикс/с к скорости полёта"],
+  ["missile.blastExpansion", "Радиус взрыва — ранг 1/2\n+30 пикс к радиусу взрыва"],
+  ["drone.boltPower", "Мощность дрона — ранг 1/2\n+1 к урону снаряда"],
+  ["drone.firingSystem", "Темп дрона — ранг 1/2\n−150 мс к интервалу выстрелов"],
+  ["drone.boltPropulsion", "Скорость снарядов дрона — ранг 1/2\n+200 пикс/с к скорости снарядов"],
+  ["passive.hull", "Бронепокрытие — ур. 1\n+1 к макс. здоровью / восстановить 1"],
+  ["passive.thruster", "Маневровый двигатель — ур. 1\n+30 пикс/с к обычному движению"],
+  ["passive.collector", "Поле сбора — ур. 1\n+40 пикс к радиусу притяжения опыта"],
+  ["passive.combat", "Боевой процессор — ур. 1\n+0,25 к множителю урона оружия"],
+  ["passive.spatial", "Усилитель взрыва — ур. 1\n+15 пикс к радиусу взрыва ракет"],
+  ["passive.replication", "Матрица репликации — ур. 1\n+1 пикс к радиусу снаряда дрона"],
+  ["prism", "ЭВОЛЮЦИЯ: Призменный лазер\nТри луча — полный урон лазера у каждого"],
+  ["cluster", "ЭВОЛЮЦИЯ: Кассетная ракета\nОсновной взрыв + 6 дополнительных взрывов"],
+  ["twin", "ЭВОЛЮЦИЯ: Парные дроны\nВторой дрон напротив, синхронные выстрелы"],
+  ["laser.specialize.scatter", "Дробовой излучатель"],
+  ["laser.specialize.repeater", "Скорострельный излучатель"],
+  ["laser.specialize.lance", "Пробивное копьё"],
+  ["laser.scatter.damage", "Усиленная дробь"],
+  ["laser.scatter.focus", "Суженный веер"],
+  ["laser.scatter.range", "Продлённый импульс"],
+  ["laser.scatter.impact", "Отталкивающая дробь"],
+  ["laser.scatter.capstone", "ВЕРШИНА: Насыщенный залп"],
+  ["laser.repeater.damage", "Усилитель импульса"],
+  ["laser.repeater.cadence", "Ускоренный цикл"],
+  ["laser.repeater.velocity", "Быстрые импульсы"],
+  ["laser.repeater.impact", "Отталкивающие импульсы"],
+  ["laser.repeater.capstone", "ВЕРШИНА: Непрерывная серия"],
+  ["laser.lance.damage", "Заряженное копьё"],
+  ["laser.lance.velocity", "Ускоренное копьё"],
+  ["laser.lance.penetration", "Сквозное пробитие"],
+  ["laser.lance.radius", "Широкое копьё"],
+  ["laser.lance.capstone", "ВЕРШИНА: Глубокое пробитие"],
+];
+describe('UI-001 Russian production presentation', () => {
+  it.each(russianChoices)('presents and accepts canonical %s through the real transaction', (id, expected) => {
+    const { scene: s, api } = fixture();
+    const candidate = rewardChoices.find(c => choiceIdentity(c) === id)!;
+    if ('branch' in candidate && candidate.kind !== 'laserSpecialization') {
+      setLaser(s, { power: 2, fireRate: 1, speed: 0 });
+      s['playerBuild']!.applyLaserChoice({ kind: 'laserSpecialization', branch: candidate.branch }, 0);
+      if (candidate.kind === 'laserCapstone') for (const c of rewardChoices) {
+        if (c.kind === 'laserDevelopment' && c.branch === candidate.branch) s['playerBuild']!.applyLaserChoice(c, 0);
+      }
+    } else if (candidate.kind === 'laserSpecialization') setLaser(s, { power: 2, fireRate: 1, speed: 0 });
+    else if (id === 'prism') { setLaser(s); s['moduleLevels'].combat = 1; }
+    else if (id === 'cluster') {
+      s['missileRanks'] = { warheadPower: 2, propulsion: 2, blastExpansion: 2 }; s['moduleLevels'].spatial = 1;
+    } else if (id === 'twin') {
+      s['droneRanks'] = { boltPower: 2, firingSystem: 2, boltPropulsion: 2 }; s['moduleLevels'].replication = 1;
+    }
+    const timers = [...s['gameplayTimers']], rng = spyStreams(s);
+    const roll = ['prism', 'cluster', 'twin'].includes(id) ? undefined : aimChoice(s, id, candidate.kind === 'passive' ? 1 : 0);
+    expect(api.forceLevelUp()).toBe(true); roll?.mockRestore();
+    expect(s['levelUpPresentation'][0].text).toBe('НОВЫЙ УРОВЕНЬ — ВЫБЕРИТЕ ОДНО');
+    expect(s['levelUpChoices'].size).toBe(3);
+    const text = [...s['levelUpChoices']].find(([, value]) => value === id)![0];
+    expect(text.text).toBe(expected); expect(text.listeners('pointerdown')).toHaveLength(1);
+    const stale = text.listeners('pointerdown')[0]; text.emit('pointerdown');
+    expect(s['playerProgression']!.snapshot().pendingLevels).toBe(0);
+    expect(s['run']!.state).toBe('RUNNING'); expect(text.active).toBe(false);
+    expect(s['runDiagnostics']!.snapshot().aggregates.choicesAccepted).toBe(1);
+    const after = api.snapshot(); stale(); text.emit('pointerdown'); expect(api.snapshot()).toEqual(after);
+    expect(s['gameplayTimers']).toEqual(timers);
+    expect(rng[0]).not.toHaveBeenCalled(); expect(rng[2]).not.toHaveBeenCalled(); expect(rng[3]).not.toHaveBeenCalled();
+  });
+  it('initial guide and exact Russian HUD follow overlay visibility and native create ownership', () => {
+    const f = fixture(), s = f.scene; allowCreate(s); s.create(); const guide = s['guide']!;
+    expect(guide.text).toBe('Движение: WASD / стрелки. Рывок: пробел. Пауза: Esc.\n'
+      + 'Оружие стреляет автоматически. Собирайте опыт и выбирайте улучшения.\nВыживайте и победите Стража.');
+    expect(s['hud']!.text).toEqual(['Здоровье: 5/5', 'Опыт: 0/5', 'Уровень: 1', 'Рывок: ГОТОВ']);
+    s['handlePauseRequest'](); expect(guide.visible).toBe(false);
+    expect(s['pausePresentation']!.text).toBe('ПАУЗА\nEsc — продолжить');
+    s['handlePauseRequest'](); expect(guide.visible).toBe(true);
+    const roll = aimChoice(s, 'passive.hull', 1);
+    expect(window.__NEBULA_DEV__!.forceLevelUp()).toBe(true); roll.mockRestore(); expect(guide.visible).toBe(false);
+    const hull = [...s['levelUpChoices']].find(([, id]) => id === 'passive.hull')![0];
+    hull.emit('pointerdown'); expect(guide.visible).toBe(true);
+    s['enterPlayerDeath'](); expect(guide.visible).toBe(false);
+    expect(f.created.some(t => t.text === 'КОРАБЛЬ УНИЧТОЖЕН')).toBe(true);
+    expect(f.created.some(t => t.text === 'ПОВТОРИТЬ')).toBe(true);
+    f.shutdown(); s.create(); expect(s['guide']).not.toBe(guide); expect(s['guide']!.visible).toBe(true);
+    expect(s['gameplayTimers']).toHaveLength(5); expect(Object.keys(window.__NEBULA_DEV__!)).toHaveLength(5);
+  });
+  it('Victory labels show the actual level without changing terminal authority', () => {
+    const f = fixture(), s = f.scene; s['playerProgression']!.creditXp(32);
+    s['bossDefeated'] = true; s['enterRunVictory']();
+    expect(s['victoryPresentation'].map(t => t.text)).toEqual([
+      'ПОБЕДА', 'СТРАЖ УНИЧТОЖЕН', 'ДОСТИГНУТ УРОВЕНЬ: 4', 'НОВЫЙ ЗАБЕГ']);
+    expect(s['run']!.outcome).toBe('VICTORY');
   });
 });

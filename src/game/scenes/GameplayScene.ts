@@ -24,12 +24,13 @@ import { PlayerDefense } from '../player/PlayerDefense';
 import { effectiveMissileExplosionRadius } from '../progression/spatialAmplifier';
 import { effectiveDroneBoltRadius } from '../progression/replicationMatrix';
 import { type MissileRanks, type DroneRanks, type WeaponFocus } from '../progression/focusedUpgrade';
-import { laserProfile, laserAttack, isLaserChoice, prepareLaserChoice, LASER_LABELS, LASER_DEVELOPMENTS } from '../player/laserProgression';
+import { laserProfile, laserAttack, isLaserChoice, prepareLaserChoice } from '../player/laserProgression';
 import { laserDirections } from '../combat/laserPatterns';
 import { addExperience } from '../progression/experience';
 import { PlayerProgression } from '../progression/PlayerProgression';
 import { planXpConsolidation, XP_CONSOLIDATION_THRESHOLD, XP_CONSOLIDATION_CELL_SIZE } from '../progression/xpConsolidation';
 
+import { RUSSIAN_FONT, UI_TEXT, hudLines, rewardLabel, victoryLevel } from '../ui/russianText';
 import { LevelUpGenerator } from '../rewards/LevelUpGenerator';
 import { RewardTransaction, type RewardToken } from '../rewards/RewardTransaction';
 import { choiceIdentity, type LevelUpChoice, type PassiveModule, type RewardCandidate } from '../rewards/rewardChoices';
@@ -156,6 +157,7 @@ export class GameplayScene extends Phaser.Scene {
   private droneRanks: DroneRanks = { boltPower: 0, firingSystem: 0, boltPropulsion: 0 };
   private droneTimer?: Phaser.Time.TimerEvent;
   private hud?: Phaser.GameObjects.Text;
+  private guide?: Phaser.GameObjects.Text;
   private playerProgression?: PlayerProgression;
   private rewardTransaction?: RewardTransaction;
   private levelUpGenerator?: LevelUpGenerator;
@@ -236,6 +238,7 @@ export class GameplayScene extends Phaser.Scene {
     this.runDiagnostics = undefined;
     this.time.paused = false;
     this.pausePresentation = undefined;
+    this.guide = undefined;
     const disposeRun = () => {
       run.dispose();
       this.events.off(Phaser.Scenes.Events.SHUTDOWN, disposeRun);
@@ -342,7 +345,7 @@ export class GameplayScene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor('#050816');
 
     this.hud = this.add.text(32, 24, '', {
-      fontFamily: 'Arial, sans-serif',
+      fontFamily: RUSSIAN_FONT,
       fontSize: '30px',
       color: '#e2e8f0',
       backgroundColor: '#050816',
@@ -406,18 +409,19 @@ export class GameplayScene extends Phaser.Scene {
     this.bindRunInput(run);
 
     this.add
-      .text(width / 2, 80, 'NEBULA — GAMEPLAY SCENE', {
-        fontFamily: 'Arial, sans-serif',
+      .text(width - 32, 32, UI_TEXT.heading, {
+        fontFamily: RUSSIAN_FONT,
         fontSize: '28px',
         color: '#e2e8f0',
       })
-      .setOrigin(0.5)
+      .setOrigin(1, 0)
       .setScrollFactor(0);
 
-    this.add
-      .text(width / 2, height - 80, 'Placeholder space arena', {
-        fontFamily: 'Arial, sans-serif',
-        fontSize: '20px',
+    this.guide = this.add
+      .text(width / 2, height - 80, UI_TEXT.guide, {
+        fontFamily: RUSSIAN_FONT,
+        fontSize: '24px',
+        align: 'center',
         color: '#7dd3fc',
       })
       .setOrigin(0.5)
@@ -448,12 +452,8 @@ export class GameplayScene extends Phaser.Scene {
 
   private updateHud(): void {
     const progression = this.playerProgression!.snapshot();
-    this.hud?.setText([
-      `HP: ${this.playerHealth}/${this.playerMaxHealth}`,
-      `XP: ${progression.xp}/${progression.threshold}`,
-      `Level: ${progression.level}`,
-      `Dash: ${this.dashCooldownRemaining > 0 ? `${Math.ceil(this.dashCooldownRemaining / 100) / 10}s` : 'READY'}`,
-    ]);
+    this.hud?.setText(hudLines(this.playerHealth, this.playerMaxHealth, progression.xp,
+      progression.threshold, progression.level, this.dashCooldownRemaining));
   }
 
   update(_time: number, delta: number): void {
@@ -674,13 +674,14 @@ export class GameplayScene extends Phaser.Scene {
   }
 
   private projectPause(): void {
+    this.guide?.setVisible(this.run?.state === 'RUNNING');
     this.time.paused = this.run?.state === 'PAUSED';
     if (!this.time.paused || this.run?.hasPauseReason('REWARD')) {
       this.pausePresentation?.destroy();
       this.pausePresentation = undefined;
     } else if (!this.pausePresentation) {
       this.pausePresentation = this.add.text(this.scale.width / 2, this.scale.height / 2,
-        'PAUSED\nESC to resume', { fontFamily: 'Arial, sans-serif', fontSize: '48px', color: '#e2e8f0',
+        UI_TEXT.pause, { fontFamily: RUSSIAN_FONT, fontSize: '48px', color: '#e2e8f0',
           backgroundColor: '#050816', padding: { x: 24, y: 16 }, align: 'center' })
         .setOrigin(0.5).setScrollFactor(0).setDepth(2);
     }
@@ -777,9 +778,9 @@ export class GameplayScene extends Phaser.Scene {
     this.levelUpPresentation = presentation.texts;
     this.levelUpChoices = presentation.choices;
     this.isLevelUpPaused = true;
-    const title = this.add.text(this.scale.width / 2, this.scale.height / 2 - 160, 'LEVEL UP — CHOOSE ONE', {
-      fontFamily: 'Arial, sans-serif',
-      fontSize: '64px',
+    const title = this.add.text(this.scale.width / 2, this.scale.height / 2 - 160, UI_TEXT.levelUp, {
+      fontFamily: RUSSIAN_FONT,
+      fontSize: '48px',
       color: '#a3e635',
       backgroundColor: '#050816',
       padding: { x: 24, y: 16 },
@@ -788,7 +789,7 @@ export class GameplayScene extends Phaser.Scene {
     choices.forEach((option, index) => {
       const choice = this.add.text(this.scale.width / 2, this.scale.height / 2 - 40 + index * 110,
         this.choiceLabel(option), {
-          fontFamily: 'Arial, sans-serif',
+          fontFamily: RUSSIAN_FONT,
           fontSize: '32px',
           align: 'center',
           color: '#e0f2fe',
@@ -814,46 +815,7 @@ export class GameplayScene extends Phaser.Scene {
   }
 
   private choiceLabel(choice: LevelUpChoice): string {
-    if ('branch' in choice) {
-      const index = choice.kind === 'laserSpecialization' ? 0 : choice.kind === 'laserCapstone' ? 5
-        : (LASER_DEVELOPMENTS[choice.branch] as readonly string[]).indexOf(choice.upgrade) + 1;
-      return `${choice.kind === 'laserCapstone' ? 'CAPSTONE: ' : ''}${LASER_LABELS[choice.branch][index]}`;
-    }
-    if (choice.kind === 'prism') return 'EVOLVE: Prism Laser\nThree beams — full Laser damage each';
-    if (choice.kind === 'cluster') return 'EVOLVE: Cluster Missile\nPrimary blast + 6 satellite explosions';
-    if (choice.kind === 'twin') return 'EVOLVE: Twin Drone Formation\nMirrored companion, synchronized Drone bolts';
-    if (choice.kind === 'drone') {
-      const rank = this.droneRanks[choice.upgrade] + 1;
-      switch (choice.upgrade) {
-        case 'boltPower': return `Drone: Bolt Power Rank ${rank}/2\n+1 bolt damage`;
-        case 'firingSystem': return `Drone: Firing System Rank ${rank}/2\n-150 ms firing interval`;
-        case 'boltPropulsion': return `Drone: Bolt Propulsion Rank ${rank}/2\n+200 px/s bolt speed`;
-      }
-    }
-    if (choice.kind === 'laser') {
-      switch (choice.upgrade) {
-        case 'power': return 'Laser Power — +1 damage';
-        case 'fireRate': return 'Laser Fire Rate — -50 ms (min 100 ms)';
-        case 'speed': return 'Laser Projectile Speed — +200 px/s';
-      }
-    }
-    if (choice.kind === 'missile') {
-      const rank = this.missileRanks[choice.upgrade] + 1;
-      switch (choice.upgrade) {
-        case 'warheadPower': return `Missile Warhead Power Rank ${rank}/2\n+1 explosion damage`;
-        case 'propulsion': return `Missile Propulsion Rank ${rank}/2\n+75 px/s flight speed`;
-        case 'blastExpansion': return `Missile Blast Expansion Rank ${rank}/2\n+30 px explosion radius`;
-      }
-    }
-    const level = this.moduleLevels[choice.module] + 1;
-    switch (choice.module) {
-      case 'hull': return `Passive: Hull Plating Lv. ${level}\n+1 Max HP / Heal 1`;
-      case 'thruster': return `Passive: Thruster Module Lv. ${level}\n+30 px/s normal movement`;
-      case 'collector': return `Passive: Collector Field Lv. ${level}\n+40 px magnet radius`;
-      case 'combat': return `Passive: Combat Processor Lv. ${level}\n+0.25x player weapon damage`;
-      case 'spatial': return `Passive: Spatial Amplifier Lv. ${level}\n+15 Missile explosion radius`;
-      case 'replication': return `Passive: Replication Matrix Lv. ${level}\n+1 Drone bolt radius`;
-    }
+    return rewardLabel(choice, this.missileRanks, this.droneRanks, this.moduleLevels);
   }
 
   private acceptLevelUpChoice(choice: Phaser.GameObjects.Text, option: LevelUpChoice, run = this.run,
@@ -1081,16 +1043,16 @@ export class GameplayScene extends Phaser.Scene {
     this.runDiagnostics!.recordTerminal('DEATH');
     this.clearTerminalInput();
     this.player?.setAlpha(0.25);
-    this.add.text(this.scale.width / 2, this.scale.height / 2, 'SHIP DESTROYED', {
-      fontFamily: 'Arial, sans-serif',
+    this.add.text(this.scale.width / 2, this.scale.height / 2, UI_TEXT.death, {
+      fontFamily: RUSSIAN_FONT,
       fontSize: '64px',
       color: '#fca5a5',
       backgroundColor: '#050816',
       padding: { x: 24, y: 16 },
     }).setOrigin(0.5).setScrollFactor(0).setDepth(1);
     let restartRequested = false;
-    this.add.text(this.scale.width / 2, this.scale.height / 2 + 100, 'RETRY', {
-      fontFamily: 'Arial, sans-serif',
+    this.add.text(this.scale.width / 2, this.scale.height / 2 + 100, UI_TEXT.retry, {
+      fontFamily: RUSSIAN_FONT,
       fontSize: '40px',
       color: '#e0f2fe',
       backgroundColor: '#1e3a5f',
@@ -1112,21 +1074,21 @@ export class GameplayScene extends Phaser.Scene {
     const centerX = this.scale.width / 2;
     const centerY = this.scale.height / 2;
     this.victoryPresentation = [
-      this.add.text(centerX, centerY - 140, 'VICTORY', {
-        fontFamily: 'Arial, sans-serif', fontSize: '64px', color: '#a3e635',
+      this.add.text(centerX, centerY - 140, UI_TEXT.victory, {
+        fontFamily: RUSSIAN_FONT, fontSize: '64px', color: '#a3e635',
         backgroundColor: '#050816', padding: { x: 24, y: 16 },
       }),
-      this.add.text(centerX, centerY - 40, 'WARDEN DESTROYED', {
-        fontFamily: 'Arial, sans-serif', fontSize: '40px', color: '#e0f2fe',
+      this.add.text(centerX, centerY - 40, UI_TEXT.wardenDefeated, {
+        fontFamily: RUSSIAN_FONT, fontSize: '40px', color: '#e0f2fe',
         backgroundColor: '#050816', padding: { x: 24, y: 12 },
       }),
-      this.add.text(centerX, centerY + 40, `LEVEL REACHED: ${this.playerProgression!.snapshot().level}`, {
-        fontFamily: 'Arial, sans-serif', fontSize: '32px', color: '#e0f2fe',
+      this.add.text(centerX, centerY + 40, victoryLevel(this.playerProgression!.snapshot().level), {
+        fontFamily: RUSSIAN_FONT, fontSize: '32px', color: '#e0f2fe',
         backgroundColor: '#050816', padding: { x: 24, y: 12 },
       }),
     ];
-    const newRun = this.add.text(centerX, centerY + 140, 'NEW RUN', {
-      fontFamily: 'Arial, sans-serif', fontSize: '40px', color: '#e0f2fe',
+    const newRun = this.add.text(centerX, centerY + 140, UI_TEXT.newRun, {
+      fontFamily: RUSSIAN_FONT, fontSize: '40px', color: '#e0f2fe',
       backgroundColor: '#1e3a5f', padding: { x: 24, y: 12 },
     }).setInteractive({ useHandCursor: true });
     this.victoryPresentation.push(newRun);

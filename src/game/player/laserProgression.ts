@@ -34,11 +34,6 @@ export const LASER_NEW_CHOICES: readonly LaserChoice[] = Object.freeze([
     { kind: 'laserCapstone' as const, branch },
   ]),
 ].map(c => Object.freeze(c)));
-export const LASER_LABELS = Object.freeze({
-  scatter: Object.freeze(['Scatter Array', 'Dense Pellets', 'Focused Array', 'Extended Pulse', 'Repulsor Pellets', 'Saturation Array']),
-  repeater: Object.freeze(['Repeater Array', 'Pulse Amplifier', 'Rapid Cycling', 'Fast Pulses', 'Suppression Pulses', 'Continuous Array']),
-  lance: Object.freeze(['Precision Lance', 'Charged Lance', 'Accelerated Lance', 'Through-Line', 'Broad Lance', 'Deep Lance']),
-});
 const rankKeys = ['power', 'fireRate', 'speed'] as const;
 function fields(value: unknown, keys: readonly string[]): void {
   if (!value || typeof value !== 'object' || Array.isArray(value) || Reflect.ownKeys(value).length !== keys.length

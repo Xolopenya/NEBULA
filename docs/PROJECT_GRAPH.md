@@ -4,8 +4,8 @@
 
 - Project: NEBULA.
 - Milestone: First Playable / GAME-015 complete.
-- Source baseline HEAD: `9c39f99149a0756282c0d3b93d28fe37ad165b76`.
-- This map reflects that source baseline plus staged GAME-056 PlayerBuild Laser configuration,36-choice rewards and concrete Scatter/Repeater/Lance flights; Scene retains actual effects/transaction composition, combat/presentation and GAME-039 DEV wiring.
+- Source baseline HEAD: `5de2f0ecbcecd422e2d1a2dda85d500aa607bf97`.
+- This map reflects that source baseline plus staged UI-001 Russian display ownership; Scene retains combat, reward orchestration and GAME-039 DEV wiring.
 - Active task request defines task-specific requirements.
 - AGENTS.md defines repository policy.
 - TASK_GRAPH.md defines task scope, dependencies and status.
@@ -26,6 +26,8 @@ IDs are repository-relative paths; symbols use `path#export`.
 | `src/game/config.ts` | Full HD FIT config and scene registration |
 | `src/game/scenes/BootScene.ts` | Starts GameplayScene |
 | `src/game/scenes/GameplayScene.ts` | Owns current run simulation, presentation and DEV API per-create binding |
+| `src/game/ui/russianText.ts` | Phaser-free frozen36-ID Russian names, static UI copy and focused reward/HUD/terminal formatters |
+| `src/game/ui/russianText.test.ts` |94 pure literal name/effect/order/rank/level/decimal/immutability/metadata checks |
 | `src/game/rewards/LevelUpGenerator.ts` | Per-create Phaser-free weighted policy, closed36 affinities, bounded presentation history/pity/cursor and immutable provisional state |
 | `src/game/rewards/LevelUpGenerator.test.ts` |72 pure policy cases including independent literal goldens, numeric boundaries, signature transitions and deep immutability |
 | `src/game/rewards/RewardTransaction.ts` | Pure one-offer/token/ordinal/phase/selection-guard/disposal authority; detached read API |
@@ -681,6 +683,20 @@ Base/Prism keep the existing five-field flight snapshot; new mechanics carry no 
 New forms retain LASER.BASE.DIRECT; Missile/Drone/EnemyDeath/XP contracts are unchanged.
 Exactly5 gameplay events/4 streams/5 DEV methods remain. GAME-057+ BACKLOG; GATE C unapproved.
 
+## UI-001 Russian display ownership
+
+GameplayScene.create/updateHud/projectPause/choiceLabel/enterPlayerDeath/enterRunVictory ->
+ui/russianText.ts: one frozen RewardCandidateId-keyed36-name mapping, exact original18 effects,
+new18 name-only Laser choices, static text and concrete HUD/dash/victory formatters.
+laserProgression.ts retains profiles/mechanics and exports no display labels.
+index.html owns UTF-8/ru/browser title. Scene owns screen-fixed guide visibility, local48px
+reward heading and unchanged32px choice hit areas/handlers. No locale engine or new authority.
+Actual Chrome catalog108 measurements/three viewports, Cyrillic screenshots, same-Text retry,
+physical32/9 draws, genuine BLUR, terminal/native restarts and unmodified production pass.
+1622 tests/35 files (94 pure UI +38 Scene additions, all1490 baseline retained).
+Five timers/four streams/five DEV methods, reward IDs/order/goldens and gameplay remain exact.
+UI-001 DONE; GAME-057+ BACKLOG; GATE A/B PASSED; GATE C unapproved.
+
 ## Common navigation queries
 
 | Question | Likely path / anchor |
@@ -691,7 +707,7 @@ Exactly5 gameplay events/4 streams/5 DEV methods remain. GAME-057+ BACKLOG; GATE
 | Where are XP drops/magnet/collection owned? | GameplayScene.ts → killEnemy, xpPickups, updateXpPickups; create resets |
 | Where are XP thresholds and levels calculated? | progression/PlayerProgression.ts → experience.ts; Scene playerProgression |
 | Where are level-up choices/resume owned? | GameplayScene.ts → enterLevelUpPause, levelUpPresentation, acceptLevelUpChoice |
-| Where are HUD values rendered/refreshed? | GameplayScene.ts → hud, updateHud; create, damagePlayer, updateXpPickups |
+| Where are HUD values rendered/refreshed? | ui/russianText.ts → hudLines/dashLabel; GameplayScene.ts → hud/updateHud; create, damagePlayer, updateXpPickups |
 | Where is Dash input/timing/reset owned? | input/KeyboardInput.ts → Space intent; GameplayScene.ts → update, movePlayer, create; player/dash.ts#stepDash |
 | Where is player damage controlled? | PlayerDefense.ts numeric Shield/Hull/protection; GameplayScene.ts → damagePlayer ownership/God/diagnostics/HUD/terminal adapter |
 | Where are contact separation and Hull healing owned? | GameplayScene.ts → updatePlayerContact geometry; applyBuildChange/acceptLevelUpChoice → PlayerDefense.reconcileMaxHull/healHull, Build maximum |
