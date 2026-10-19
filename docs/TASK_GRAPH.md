@@ -5911,6 +5911,265 @@ BACKLOG; GAME-040/041 SUPERSEDED; GATE A/B PASSED; GATE C unapproved. No depende
 Meta/Profile/Persistence is later still, after a validated balanced slice.
 Do not define GAME-106+ yet.
 
+## UI-001 — Complete Russian Player-Facing Localization
+
+STATUS: READY
+
+DEFINITION ONLY. Every Russian translation/presentation decision below is PROPOSED FOR ARCHITECT
+APPROVAL. READY is definition status only, never authorization for runtime work. Depends on
+GAME-053/054/055/056 DONE and merged GAME-056; actual audited HEAD
+29b34149083e60aa597f7513124642f790345b9a (feat: implement GAME-056 laser progression vertical)
+is an ancestor of local main. Branch docs/UI-001-russian-localization-definition started clean.
+Baseline1490 tests/34 files. GAME-057+ BACKLOG; GAME-040/041 SUPERSEDED; GATE A/B PASSED;
+GATE C unapproved. UI-001 was not previously registered. HOMEWORK-001 publication is a separate
+later request, dependent on implemented/verified localization; no deployment authorization here.
+
+**Authority and actual source audit**
+
+Read AGENTS/skill, CURRENT_STATE, TASK_GRAPH, PROJECT_GRAPH navigation, relevant ARCHITECTURE
+UI/adapters/rewards, GAME_DESIGN HUD/run start/post-run and CONTENT_MANIFEST completeness.
+Target Build Screen/starting-system/mobile/settings/audio UI is not implemented and is not
+silently added for localization. Actual paths: main.ts constructs gameConfig; BootScene.create
+only starts GameplayScene; config is1920x1080/FIT/centered, arena4800x2700. GameplayScene.create
+constructs HUD and two placeholders; updateHud supplies four strings. syncPausePresentation
+constructs one MANUAL/FOCUS_LOSS overlay (hidden by REWARD), no separate focus-loss sentence.
+enterLevelUpPause constructs one title and exactly3 Text controls using choiceLabel; choices
+map to canonical IDs, not their text. choiceLabel dispatches18 original full labels and18 new
+Laser names via LASER_LABELS; only the3 Capstones add CAPSTONE:. enterPlayerDeath and
+enterRunVictory construct terminal messages and captured native restart buttons. No enemy-name,
+Tag, readiness, rank-summary, settings, menu, tooltip or player-facing error text is currently
+drawn. Shape/color indicators, hostile shots, pickups and Dash alpha do not contain strings.
+index.html is UTF-8/lang=en/title NEBULA; empty #game has no DOM fallback/instructions.
+main/Boot/config/CSS add no other visible text. Thrown invariant errors, console Phaser/Vite
+messages, DEV snapshots, type names, run states and diagnostic identities are internal English.
+
+**Complete current static/dynamic inventory — proposed Russian replacements**
+
+Tables use literal \n for a displayed line break and braces for interpolation. HP/XP labels
+become Russian words; NEBULA remains a proper brand, Esc/WASD are physical key labels, not
+untranslated gameplay copy. S means src/game/scenes/GameplayScene.devTools.test.ts; its literal
+offer goldens, HUD, death duplicate, evolution pointer, same-label retry, pause and terminal
+lookups must use approved concrete Russian literals while canonical-ID assertions stay English.
+All current player-facing strings follow these construction paths; no instruction text is
+assumed to exist merely because the controls are implemented.
+
+| Source file | Symbol/function | Current exact English text/template | PROPOSED Russian | Presentation context | Dynamic parameters | Width/layout risks | Tests to update |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| src/game/scenes/GameplayScene.ts | create | NEBULA — GAMEPLAY SCENE | NEBULA — Космическое выживание | top y80;28px | — | brand/title width | S: creation/HUD/pause/terminal exact-text assertions |
+| src/game/scenes/GameplayScene.ts | create | Placeholder space arena | Космическая арена | bottom h−80;20px | — | replace with guidance only as separate approved addition below | S: creation/HUD/pause/terminal exact-text assertions |
+| src/game/scenes/GameplayScene.ts | updateHud | HP: {health}/{maxHull} | Здоровье: {health}/{maxHull} | HUD x32,y24;30px | health,maxHull | long/decimal Hull | S: creation/HUD/pause/terminal exact-text assertions |
+| src/game/scenes/GameplayScene.ts | updateHud | XP: {xp}/{threshold} | Опыт: {xp}/{threshold} | HUD line2;30px | xp,threshold | safe-integer length | S: creation/HUD/pause/terminal exact-text assertions |
+| src/game/scenes/GameplayScene.ts | updateHud | Level: {level} | Уровень: {level} | HUD line3;30px | level | integer growth | S: creation/HUD/pause/terminal exact-text assertions |
+| src/game/scenes/GameplayScene.ts | updateHud | Dash: {cooldown}s / Dash: READY | Рывок: {cooldown} с / Рывок: ГОТОВ | HUD line4;30px | ceil(ms/100)/10 | one decimal/comma | S: creation/HUD/pause/terminal exact-text assertions |
+| src/game/scenes/GameplayScene.ts | syncPausePresentation | PAUSED\nESC to resume | ПАУЗА\nEsc — продолжить | center;48px | — | two-line overlay, retain HUD clearance | S: creation/HUD/pause/terminal exact-text assertions |
+| src/game/scenes/GameplayScene.ts | enterLevelUpPause | LEVEL UP — CHOOSE ONE | НОВЫЙ УРОВЕНЬ — ВЫБЕРИТЕ ОДНО | center y−160;64px | — | widest title; local32–48px if needed | S: creation/HUD/pause/terminal exact-text assertions |
+| src/game/scenes/GameplayScene.ts | enterPlayerDeath | SHIP DESTROYED | КОРАБЛЬ УНИЧТОЖЕН | center;64px | — | wide heading | S: creation/HUD/pause/terminal exact-text assertions |
+| src/game/scenes/GameplayScene.ts | enterPlayerDeath | RETRY | ПОВТОРИТЬ | center y+100;40px;pointer | — | clickable padding | S: creation/HUD/pause/terminal exact-text assertions |
+| src/game/scenes/GameplayScene.ts | enterRunVictory | VICTORY | ПОБЕДА | center y−140;64px | — | heading | S: creation/HUD/pause/terminal exact-text assertions |
+| src/game/scenes/GameplayScene.ts | enterRunVictory | WARDEN DESTROYED | СТРАЖ УНИЧТОЖЕН | center y−40;40px | — | Boss proper name translated for display only | S: creation/HUD/pause/terminal exact-text assertions |
+| src/game/scenes/GameplayScene.ts | enterRunVictory | LEVEL REACHED: {level} | ДОСТИГНУТ УРОВЕНЬ: {level} | center y+40;32px | level | long number | S: creation/HUD/pause/terminal exact-text assertions |
+| src/game/scenes/GameplayScene.ts | enterRunVictory | NEW RUN | НОВЫЙ ЗАБЕГ | center y+140;40px;pointer | — | button width | S: creation/HUD/pause/terminal exact-text assertions |
+| index.html | title | NEBULA | NEBULA — Космическое выживание | browser tab | — | tab truncation only | new metadata check |
+| index.html | html.lang | en | ru | metadata, not visible copy | — | none | new metadata check |
+
+The cooldown row expands the two actual nested-template branches: `Dash: ${value}s` and
+`Dash: READY`; there is no slash in the rendered string. Initial HUD text is empty and is
+immediately filled by updateHud, not a separate untranslated label.
+
+**All36 canonical rewards — exact current labels and proposed display names**
+
+R=context existing reward Text centered/32px/padding24x12, normally two lines; L=same control
+but NAME ONLY, no rank/effect description today (Capstone prefix included explicitly below).
+Every row is one canonical identity, in rewardChoices order: original18, acquisitions3, then
+Scatter5/Repeater5/Lance5. For rows with an em dash/effect in the first line the Russian name
+is the part before that separator. Prefixes ЭВОЛЮЦИЯ/ВЕРШИНА are presentation only.
+Source alias GameplayScene.ts in combined rows means src/game/scenes/GameplayScene.ts.
+No ID/name inference by parsing player-visible strings is allowed.
+
+| Canonical ID (unchanged) | Source file / symbol | Current exact English label | PROPOSED full Russian label | Context | Parameters | Layout risks | Tests to update |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| laser.power | src/game/scenes/GameplayScene.ts#choiceLabel | Laser Power — +1 damage | Мощность лазера — +1 к урону | R | — | name/effect length | S |
+| laser.fireRate | src/game/scenes/GameplayScene.ts#choiceLabel | Laser Fire Rate — -50 ms (min 100 ms) | Темп лазера — −50 мс (минимум 100 мс) | R | — | name/effect length | S |
+| laser.speed | src/game/scenes/GameplayScene.ts#choiceLabel | Laser Projectile Speed — +200 px/s | Скорость лазера — +200 пикс/с | R | — | name/effect length | S |
+| missile.warheadPower | src/game/scenes/GameplayScene.ts#choiceLabel | Missile Warhead Power Rank {rank}/2\n+1 explosion damage | Мощность боеголовки — ранг {rank}/2\n+1 к урону взрыва | R | rank | rank/level growth, two lines | S |
+| missile.propulsion | src/game/scenes/GameplayScene.ts#choiceLabel | Missile Propulsion Rank {rank}/2\n+75 px/s flight speed | Ракетный двигатель — ранг {rank}/2\n+75 пикс/с к скорости полёта | R | rank | rank/level growth, two lines | S |
+| missile.blastExpansion | src/game/scenes/GameplayScene.ts#choiceLabel | Missile Blast Expansion Rank {rank}/2\n+30 px explosion radius | Радиус взрыва — ранг {rank}/2\n+30 пикс к радиусу взрыва | R | rank | rank/level growth, two lines | S |
+| drone.boltPower | src/game/scenes/GameplayScene.ts#choiceLabel | Drone: Bolt Power Rank {rank}/2\n+1 bolt damage | Мощность дрона — ранг {rank}/2\n+1 к урону снаряда | R | rank | rank/level growth, two lines | S |
+| drone.firingSystem | src/game/scenes/GameplayScene.ts#choiceLabel | Drone: Firing System Rank {rank}/2\n-150 ms firing interval | Темп дрона — ранг {rank}/2\n−150 мс к интервалу выстрелов | R | rank | rank/level growth, two lines | S |
+| drone.boltPropulsion | src/game/scenes/GameplayScene.ts#choiceLabel | Drone: Bolt Propulsion Rank {rank}/2\n+200 px/s bolt speed | Скорость снарядов дрона — ранг {rank}/2\n+200 пикс/с к скорости снарядов | R | rank | rank/level growth, two lines | S |
+| passive.hull | src/game/scenes/GameplayScene.ts#choiceLabel | Passive: Hull Plating Lv. {level}\n+1 Max HP / Heal 1 | Бронепокрытие — ур. {level}\n+1 к макс. здоровью / восстановить 1 | R | level | rank/level growth, two lines | S |
+| passive.thruster | src/game/scenes/GameplayScene.ts#choiceLabel | Passive: Thruster Module Lv. {level}\n+30 px/s normal movement | Маневровый двигатель — ур. {level}\n+30 пикс/с к обычному движению | R | level | rank/level growth, two lines | S |
+| passive.collector | src/game/scenes/GameplayScene.ts#choiceLabel | Passive: Collector Field Lv. {level}\n+40 px magnet radius | Поле сбора — ур. {level}\n+40 пикс к радиусу притяжения опыта | R | level | rank/level growth, two lines | S |
+| passive.combat | src/game/scenes/GameplayScene.ts#choiceLabel | Passive: Combat Processor Lv. {level}\n+0.25x player weapon damage | Боевой процессор — ур. {level}\n+0,25 к множителю урона оружия | R | level | rank/level growth, two lines | S |
+| passive.spatial | src/game/scenes/GameplayScene.ts#choiceLabel | Passive: Spatial Amplifier Lv. {level}\n+15 Missile explosion radius | Усилитель взрыва — ур. {level}\n+15 пикс к радиусу взрыва ракет | R | level | rank/level growth, two lines | S |
+| passive.replication | src/game/scenes/GameplayScene.ts#choiceLabel | Passive: Replication Matrix Lv. {level}\n+1 Drone bolt radius | Матрица репликации — ур. {level}\n+1 пикс к радиусу снаряда дрона | R | level | rank/level growth, two lines | S |
+| prism | src/game/scenes/GameplayScene.ts#choiceLabel | EVOLVE: Prism Laser\nThree beams — full Laser damage each | ЭВОЛЮЦИЯ: Призменный лазер\nТри луча — полный урон лазера у каждого | R | — | name/effect length | S |
+| cluster | src/game/scenes/GameplayScene.ts#choiceLabel | EVOLVE: Cluster Missile\nPrimary blast + 6 satellite explosions | ЭВОЛЮЦИЯ: Кассетная ракета\nОсновной взрыв + 6 дополнительных взрывов | R | — | name/effect length | S |
+| twin | src/game/scenes/GameplayScene.ts#choiceLabel | EVOLVE: Twin Drone Formation\nMirrored companion, synchronized Drone bolts | ЭВОЛЮЦИЯ: Парные дроны\nВторой дрон напротив, синхронные выстрелы | R | — | name/effect length | S |
+| laser.specialize.scatter | src/game/player/laserProgression.ts#LASER_LABELS + GameplayScene.ts#choiceLabel | Scatter Array | Дробовой излучатель | L | — | name/effect length | S + new explicit36-name mapping |
+| laser.specialize.repeater | src/game/player/laserProgression.ts#LASER_LABELS + GameplayScene.ts#choiceLabel | Repeater Array | Скорострельный излучатель | L | — | name/effect length | S + new explicit36-name mapping |
+| laser.specialize.lance | src/game/player/laserProgression.ts#LASER_LABELS + GameplayScene.ts#choiceLabel | Precision Lance | Пробивное копьё | L | — | name/effect length | S + new explicit36-name mapping |
+| laser.scatter.damage | src/game/player/laserProgression.ts#LASER_LABELS + GameplayScene.ts#choiceLabel | Dense Pellets | Усиленная дробь | L | — | name/effect length | S + new explicit36-name mapping |
+| laser.scatter.focus | src/game/player/laserProgression.ts#LASER_LABELS + GameplayScene.ts#choiceLabel | Focused Array | Суженный веер | L | — | name/effect length | S + new explicit36-name mapping |
+| laser.scatter.range | src/game/player/laserProgression.ts#LASER_LABELS + GameplayScene.ts#choiceLabel | Extended Pulse | Продлённый импульс | L | — | name/effect length | S + new explicit36-name mapping |
+| laser.scatter.impact | src/game/player/laserProgression.ts#LASER_LABELS + GameplayScene.ts#choiceLabel | Repulsor Pellets | Отталкивающая дробь | L | — | name/effect length | S + new explicit36-name mapping |
+| laser.scatter.capstone | src/game/player/laserProgression.ts#LASER_LABELS + GameplayScene.ts#choiceLabel | CAPSTONE: Saturation Array | ВЕРШИНА: Насыщенный залп | L | — | name/effect length | S + new explicit36-name mapping |
+| laser.repeater.damage | src/game/player/laserProgression.ts#LASER_LABELS + GameplayScene.ts#choiceLabel | Pulse Amplifier | Усилитель импульса | L | — | name/effect length | S + new explicit36-name mapping |
+| laser.repeater.cadence | src/game/player/laserProgression.ts#LASER_LABELS + GameplayScene.ts#choiceLabel | Rapid Cycling | Ускоренный цикл | L | — | name/effect length | S + new explicit36-name mapping |
+| laser.repeater.velocity | src/game/player/laserProgression.ts#LASER_LABELS + GameplayScene.ts#choiceLabel | Fast Pulses | Быстрые импульсы | L | — | name/effect length | S + new explicit36-name mapping |
+| laser.repeater.impact | src/game/player/laserProgression.ts#LASER_LABELS + GameplayScene.ts#choiceLabel | Suppression Pulses | Отталкивающие импульсы | L | — | name/effect length | S + new explicit36-name mapping |
+| laser.repeater.capstone | src/game/player/laserProgression.ts#LASER_LABELS + GameplayScene.ts#choiceLabel | CAPSTONE: Continuous Array | ВЕРШИНА: Непрерывная серия | L | — | name/effect length | S + new explicit36-name mapping |
+| laser.lance.damage | src/game/player/laserProgression.ts#LASER_LABELS + GameplayScene.ts#choiceLabel | Charged Lance | Заряженное копьё | L | — | name/effect length | S + new explicit36-name mapping |
+| laser.lance.velocity | src/game/player/laserProgression.ts#LASER_LABELS + GameplayScene.ts#choiceLabel | Accelerated Lance | Ускоренное копьё | L | — | name/effect length | S + new explicit36-name mapping |
+| laser.lance.penetration | src/game/player/laserProgression.ts#LASER_LABELS + GameplayScene.ts#choiceLabel | Through-Line | Сквозное пробитие | L | — | name/effect length | S + new explicit36-name mapping |
+| laser.lance.radius | src/game/player/laserProgression.ts#LASER_LABELS + GameplayScene.ts#choiceLabel | Broad Lance | Широкое копьё | L | — | name/effect length | S + new explicit36-name mapping |
+| laser.lance.capstone | src/game/player/laserProgression.ts#LASER_LABELS + GameplayScene.ts#choiceLabel | CAPSTONE: Deep Lance | ВЕРШИНА: Глубокое пробитие | L | — | name/effect length | S + new explicit36-name mapping |
+
+**Terminology, formatting and separately proposed missing guidance**
+
+Health/HP=Здоровье (current Hull pool; no Armor mechanic implied by Бронепокрытие);
+XP=Опыт; Level=Уровень; rank=ранг; module level=ур.; Dash=Рывок; Pause=Пауза;
+Resume=Продолжить; Level Up=Новый уровень; Retry=Повторить; New Run=Новый забег;
+Victory=Победа; Warden=Страж; Capstone=Вершина; Impact=отбрасывание. Laser=лазер,
+Missile=ракета, Combat Drone=боевой дрон; Scatter=дробь/веер, Repeater=скорострельность,
+Lance=пробитие. Пробивное копьё claims penetration only, never GAME-059 priority ranking.
+Combat Processor adds0.25 to a multiplier, not0.25 absolute damage; Ship Hull plating restores1
+and raises maxHull1, no Armor stat. Replication increases projectile RADIUS, not count/orbit.
+
+Keep numeric calculations unchanged. Integer levels/ranks/XP use decimal digits without grouping;
+rank is current+1 /2, passive level is current+1. Render actual current/max Hull without rounding
+away fractional values; replace decimal dot with comma at display boundary only, no numeric
+parse-back, truncation, new cap or game arithmetic. Cooldown retains ceil(ms/100)/10 and no forced
+trailing zero, with comma separator and space before с (0.1 ->0,1 с;1 ->1 с). Effects keep authored
+literal magnitudes, use мс and пикс/с; display0.25 as0,25. Victory uses actual integer level.
+No readiness badge currently exists: do not add a new one; if later authorized, descriptive
+term is «Специализация доступна», derived solely from actual Build readiness.
+
+Current English guidance inventory for movement/Dash/autofire/XP/objective is
+ABSENT; pause and choice instructions above are the only existing instructions. Separately
+PROPOSED usability addition, requiring approval with this definition: replace the bottom
+placeholder with a concise screen-fixed Russian guide, not an extra world/UI system:
+«Движение: WASD / стрелки. Рывок: пробел. Пауза: Esc.»
+«Оружие стреляет автоматически. Собирайте опыт и выбирайте улучшения.»
+«Выживайте и победите Стража.»
+The Level-Up title already supplies «выберите одно»; pause supplies «продолжить».
+At small sizes use these3 explicit lines, local font24px at internal resolution; place in
+a bottom band with margins, hide this guide during reward/pause/terminal overlays if needed.
+This is proposed NEW copy, not a translation of nonexistent English instructions.
+
+Existing18 effect lines translate exactly the information currently displayed; do not fabricate
+ranks for Laser tuning. The18 new Laser rewards currently expose names ONLY. UI-001-v1 proposes
+retaining name-only branch controls to minimize scope; adding numeric branch effect lines is
+a separately reviewable future usability proposal, not implicit implementation work. Examples
+if separately approved: «3 → 5 снарядов», «Интервал: 0,30T → 0,25T», «Пробитие: 4 → 5 целей».
+These describe existing mechanics and never add targeting/amount/duration effects to gameplay.
+
+**Small concrete implementation plan — future, after architect approval**
+
+Prefer a narrow Phaser-free src/game/ui/russianText.ts containing one closed, readonly,
+RewardCandidateId-keyed36-entry Russian display mapping and concrete HUD/choice/terminal
+formatters. No locale lookup engine, service, language selector, packages or persistence.
+Move display-only LASER_LABELS ownership there (or translate the existing constant directly
+if no helper is needed); never create two writable copies or move domain rules into UI.
+Preserve laserProgression's authored profiles/development IDs/Tags. rewardChoices remains
+English canonical identities/unions/order; labels are not part of eligibility/sampling.
+GameplayScene.choiceLabel delegates only formatting using detached current ranks/module levels;
+create/updateHud/syncPausePresentation/terminal calls use explicit Russian text. index.html
+sets lang=ru and approved title. CSS/font changes only if local measured layout requires them.
+No README/CHANGELOG/ignore/hosting changes. Later CURRENT_STATE/PROJECT_GRAPH updates must
+describe actual implementation only; this definition edits TASK_GRAPH alone.
+
+Phaser currently uses Arial, sans-serif for EVERY Text, sizes HUD30, brand28, placeholder20,
+Level-Up title64, choices32, pause48, death64/retry40, Victory64/Boss40/level32/new-run40.
+No bundled font/custom font loader/external font fetch exists. Proposed local fallback
+Arial, "Segoe UI", sans-serif, UTF-8 sources/HTML; common system fonts contain Cyrillic but
+glyph rendering remains future browser acceptance, not a claim verified here. Do not add
+web-font/CDN dependencies. Preserve screen-space setScrollFactor(0)/origins/depth/padding,
+world-space coordinates and pointer identity. Local wordWrap max width internal canvas−64,
+not arbitrary clipping/truncation of effect/name; local title font reduction only as needed.
+Choices spaced110px vertically: require each full text bounds+padding height<=100px, at most
+two lines at current32px, or locally reduce font/adjust overlay spacing within the canvas.
+All three controls must fit with title and no overlap. HUD long safe integers/decimal Hull
+and long «Скорость снарядов дрона» are explicit worst cases. Test normal1920x1080,
+typical1280x720, smaller960x540 browser viewports under FIT; the internal resolution remains
+1920x1080. Minimum readable screen text target12 CSS px at smaller viewport; local typography
+may need larger internal body text where feasible. Measure rendered bounds, no silent cropping.
+Retry/New Run padding and clickable region must match visible text, clear HUD/top-left, no
+unnecessary opaque full-screen panels. No mobile controls or responsive combat-coordinate change.
+
+**Reward/input/lifetime compatibility and immutable boundaries**
+
+All36 IDs/canonical order/choice shapes, PlayerBuild Laser owner/ranks/form/Tags/preview atomicity,
+Base/Prism/Scatter/Repeater/Lance numbers and frozen launch mechanics stay exact. Generator
+weights/Analyzer/pity/history/evolution cursor, same seeded offer-ID goldens and EXACTLY3 Reward
+draws stay exact; no Encounter/World/Boss draws, new TimerEvents or random display choices.
+Exactly5 gameplay timers/4 streams/5 DEV methods and EnemyDeath/physical XP remain.
+RewardTransaction alone authorizes authentic token/member selection. A rejected current choice
+keeps SAME live Text/handler/token/offer/pending; no reformat-and-recreate on rejection.
+Success: preflight -> one effect -> one pending resolution -> one selected observation -> true;
+token invalidation/selection guard exit -> trySelect true return -> UI cleanup -> next updated
+offer under SAME REWARD or final REWARD release. No nested generation during callback.
+Duplicate/stale callbacks remain inert, MANUAL/REWARD/FOCUS_LOSS compose, focus return alone
+does not resume. Native scene.restart creates fresh exact owners; old labels/handlers/tokens/
+cleanup references cannot affect the fresh run. Existing rejected-Hit flight cleanup remains.
+
+**Future tracked acceptance — NOT implemented/executed during definition**
+
+Retain all1490 baseline tests and tracked *.test.ts files; update only actual visible-copy
+expectations (S currently has literal offer sequences around1090, Prism recipe labels, death
+duplicate title, HUD, same-label retry and terminal button queries). Keep explicit literal
+canonical-ID seeded goldens; never rewrite them based on Russian text. New pure table tests
+pin all36 approved Russian names with independent concrete literals, canonical bijection/order,
+no missing/undefined/malformed strings, no mutation, rank1/2, passive levels1/large, fractional
+Hull/XP integer/cooldown0/0.1/1/3 and comma/units, actual Victory level. No sampler-generated
+translation oracle, no tests asserting merely that UI equals its own mapping function.
+Scene production-path tests construct complete three-choice Russian screen, verify all36
+labels/effects/prefixes, correct real effects and unchanged Build stats/Tags/numerics; same
+rejected Text then valid retry, duplicate/cloned/stale IDs/tokens, physical32 -> three accepted
+offers/9 draws/continuous REWARD, original four streams/five timers/five DEV commands.
+Cover death/Victory messages, actual Retry/NEW RUN handlers, composed pause/focus return and
+dirty native restart isolation. Assertions use Russian display literals and canonical IDs
+separately. HTML metadata coverage and source audit for unintended English presentation.
+Internal state keys/errors/diagnostic content/DEV JSON remain English and are excluded from
+the player-facing text scan; only proper brand/physical key names are permitted exceptions.
+
+**Future actual installed Chrome/native/production acceptance — NOT performed here**
+
+Check real1920x1080,1280x720,960x540 viewport rendering: all Cyrillic glyphs, full bounds,
+no missing characters/cut names/excess wrapping, exactly3 readable clickable choices.
+Normal startup shows Russian HUD/guide, real movement/Dash/autofire/physical XP/Level-Up
+and actual mouse choice. Reach all3 Laser acquisitions/all12 developments/all3 Capstones
+through authentic rewards with labelled controlled production-path setups; verify names-only
+policy and every original18 effect line. Validate Russian pause including genuine other-tab
+BLUR with focus emulation disabled and meaningful wall waits, frozen five phases/HP/flights/
+maps/RNG, focus return alone no resume. Rejected real current mouse choice -> valid retry on
+SAME Text, duplicate/saved callbacks0, no premature pending consumption, physical32/9 draws.
+Russian Victory/Boss/level/New Run and Death/Retry; at least TWO actual Victory->NEW RUN,
+ONE ordinary incoming Death->RETRY, ONE dirty PAUSED nonterminal native scene.restart.
+Verify stale handlers/owners inert, five fresh events, baseline Build/progression reset.
+Unmodified built production root: no DEV API, real keyboard/pointer/automatic combat/XP/choice/
+pause/Death/Retry, Russian-only gameplay copy, no new pageerrors or external font fetch.
+Record screenshots/bounds/hit areas per viewport, particularly longest reward/effect/terminal.
+Do not mark implementation DONE without required actual browser/native/production evidence.
+
+**Git cleanliness, homework boundary and definition handoff**
+
+.gitignore currently excludes node_modules/,dist/,.vite/,coverage/,.codex-review/,*.log,
+npm-debug.log*, environment files and editor/OS artifacts; does NOT ignore *.test.ts.
+Generated review diffs/logs/browser images/harnesses remain ignored under .codex-review;
+temporary artifacts elsewhere must not be staged. Preserve ALL tracked tests; never delete
+or untrack them for publication. Future HOMEWORK-001 deploys ONLY built Vite dist/ artifacts,
+never source/tests/review/logs; this is deployment selection, not repository deletion.
+Do not configure Pages or change .gitignore/README/CHANGELOG here.
+
+Definition deliverable changes/stages ONLY docs/TASK_GRAPH.md. Run npm run check,
+git diff --check and cached check/stat; inspect complete staged diff; ignored
+.codex-review/UI-001-review.txt includes audited HEAD, inventory/table/proposals/risks,
+actual validation and full staged diff. No runtime or tracked test edits, no browser claims,
+no dependency/branch/deployment/commit. GAME-056 DONE, UI-001 READY definition only,
+GAME-057+ BACKLOG, GAME-040/041 SUPERSEDED, GATE A/B PASSED, GATE C unapproved.
+Architect approval plus a separate explicit implementation request is required before localization.
+
 ## Graph maintenance
 
 Keep the graph compact and factual. Expand a near-term node only when it becomes the
