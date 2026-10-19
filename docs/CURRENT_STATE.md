@@ -2,7 +2,7 @@
 
 ## Last Updated
 
-2026-10-19.
+2026-10-20.
 
 This document describes only what is currently implemented and working.
 
@@ -61,7 +61,7 @@ Runs TypeScript without emitting files.
 
 ### Tests
 
-Current validation:1622 tracked tests in35 files pass; all1490 pre-UI-001 cases retained with visible-copy assertions localized. Historical GAME-056 baseline:1354 cases retained through approved catalog/policy and authoritative Build fixture migrations.
+Current validation:1643 tracked tests in35 files pass; all1622 pre-HOMEWORK-001 cases retained with18 authorized expanded-label assertions and21 new regression cases. The1490 pre-UI-001 cases remain retained. Historical GAME-056 baseline:1354 cases retained through approved catalog/policy and authoritative Build fixture migrations.
 
 npm test
 
@@ -95,8 +95,8 @@ PASS
 
 UI-001 localizes every current player-facing Text, all36 canonical reward displays and HTML
 lang/title. src/game/ui/russianText.ts owns the frozen36-ID Russian names, exact existing18
-effect descriptions and focused HUD/rank/level/cooldown formatters; new18 Laser choices stay
-name-only. GameplayScene retains all controls, transactions and gameplay ownership.
+effect descriptions and focused HUD/rank/level/cooldown formatters; HOMEWORK-001 adds one
+approved numerical effect line to each of the new18 Laser choices. GameplayScene retains all controls, transactions and gameplay ownership.
 Arial/Segoe UI/system fallback needs no font fetch. Hull fractions and integer XP/levels are
 preserved; decimal comma and units are display-only. Three-line guide uses the actual
 WASD/arrows/Space/Esc bindings and hides during every overlay; fresh native create restores it.
@@ -115,7 +115,44 @@ Exactly5 gameplay timers/4 streams/5 DEV commands, canonical IDs/order/policy/se
 combat/XP/Build/ownership and rejected-Hit flight cleanup are unchanged. No dependency added.
 1622 tests/35 files pass (1490 baseline +94 pure localization +38 Scene cases).
 UI-001 DONE; GAME-056 DONE; GAME-057+ BACKLOG; GAME-040/041 SUPERSEDED; GATE A/B PASSED;
-GATE C unapproved. No Pages/publication, HOMEWORK-001 or future gameplay implementation.
+GATE C unapproved. HOMEWORK-001 is prepared locally; no Pages publication or future gameplay implementation.
+
+## Homework preparation — local acceptance complete, public acceptance pending
+
+HOMEWORK-001 remains READY. Source, Pages workflow and Russian reviewer documents are
+prepared for architect review; no commit/push/merge/remote setting/deployment occurred.
+russianText.ts adds exactly18 frozen authored effect lines under unchanged36 names; original18
+effects and all combat/Build/reward/XP/lifecycle rules remain exact. No Scene layout change was
+needed: all36 actual generated offers/real clicks pass at1920x1080,1280x720,960x540,
+108 catalog measurements/141 total observations; choice height<=94 internal pixels, longest
+new description control890px wide, minimum12 CSS-pixel text. Same Text/handler/token retry,
+physical32/three selections/nine draws, genuine BLUR/manual pause, eight controlled actual
+Victory->New Run cycles, Death->Retry and PAUSED native restart preserve exact owners.
+
+Vite base uses PAGES_BASE_PATH or local '/'; '/NEBULA/' check produces project-relative asset
+URLs. index.html retains Russian metadata/UTF-8 with data:, favicon. Prepared Pages workflow:
+main only, Node24/npm ci/npm run check (one build), strict dist inventory, official SHA-pinned
+configure/upload/deploy actions, serialized deployment and minimum per-job permissions.
+SHA pins verified against official releases; GitHub CI/deployment has NOT run.
+
+npm ci PASS; root and '/NEBULA/' npm run check both PASS1643 tests/35 files (all1622 baseline,
+18 new pure description/profile transitions and3 Scene cases). Dist is exactly index.html,
+assets/index-DLorAe0O.js and assets/index-Cqs01O3I.css. Strict ignored static server serves
+only /NEBULA/: direct/reload/HTML/JS/CSS200 correct MIME, missing/root asset paths truly404.
+Unmodified installed Chrome production at all3 viewports has Russian glyphs/metadata, no
+DEV API, missing assets, pageerrors, console errors or external font requests. Real keyboard
+movement/Dash/Esc and natural incoming Death/Retry smoke took71483ms wall time (Death observed
+after56000ms of loop waits); separate natural physical XP/Level-Up/mouse choice took21976ms.
+First observation reached natural Victory; this was not counted as Death acceptance.
+Controlled fixtures are separate evidence; none of this is public Pages/session verification.
+
+README/8-line CHANGELOG/short Russian report describe actual mechanics/limitations/AI help
+and explicitly pending publication/public60–120s session. Expected future URL:
+https://xolopenya.github.io/NEBULA/. Owner must separately authorize Git operations and select
+Pages Source=GitHub Actions/main environment before deployment. Public URL/revision/assets/
+clean-browser controls/real60–120s session and final factual status updates remain second phase.
+GAME-056/UI-001 DONE; GAME-057+ BACKLOG; GAME-040/041 SUPERSEDED; GATE A/B PASSED;
+GATE C unapproved. No gameplay balance, dependency, tracked-test removal or publication.
 
 ## Current Runtime
 

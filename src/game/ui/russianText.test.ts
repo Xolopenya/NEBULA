@@ -2,6 +2,9 @@ import { describe, expect, it, vi } from 'vitest';
 import html from '../../../index.html?raw';
 import { REWARD_NAMES, UI_TEXT, rewardLabel, hudLines, dashLabel, victoryLevel } from './russianText';
 import { rewardChoices, choiceIdentity, type RewardCandidateId } from '../rewards/rewardChoices';
+import { PlayerBuild } from '../player/PlayerBuild';
+import { laserProfile, type LaserChoice } from '../player/laserProgression';
+import { LevelUpGenerator } from '../rewards/LevelUpGenerator';
 import { RunRandom } from '../run/RunRandom';
 
 const expected: [RewardCandidateId, string][] = [
@@ -62,6 +65,26 @@ const descriptions: [RewardCandidateId, string][] = [
   ["cluster", "ЭВОЛЮЦИЯ: Кассетная ракета\nОсновной взрыв + 6 дополнительных взрывов"],
   ["twin", "ЭВОЛЮЦИЯ: Парные дроны\nВторой дрон напротив, синхронные выстрелы"],
 ];
+const laserEffects: [RewardCandidateId, string][] = [
+  ["laser.specialize.scatter", "Ближний веер из 3 снарядов; урон ×0,5; интервал ×1,25."],
+  ["laser.specialize.repeater", "Частые выстрелы: урон ×0,4; интервал ×0,35."],
+  ["laser.specialize.lance", "Урон ×2; интервал ×1,75; до 3 целей насквозь."],
+  ["laser.scatter.damage", "Урон снаряда: ×0,5 → ×0,65."],
+  ["laser.scatter.focus", "Шаг веера: 15° → 12°."],
+  ["laser.scatter.range", "Время полёта: 500 → 650 мс."],
+  ["laser.scatter.impact", "Сила отбрасывания: 300 → 400."],
+  ["laser.scatter.capstone", "Снарядов в залпе: 3 → 5."],
+  ["laser.repeater.damage", "Урон снаряда: ×0,4 → ×0,5."],
+  ["laser.repeater.cadence", "Интервал выстрелов: ×0,35 → ×0,30."],
+  ["laser.repeater.velocity", "Скорость снаряда: ×1 → ×1,2."],
+  ["laser.repeater.impact", "Сила отбрасывания: 80 → 120."],
+  ["laser.repeater.capstone", "Интервал выстрелов: ×0,30 → ×0,25."],
+  ["laser.lance.damage", "Урон снаряда: ×2 → ×2,5."],
+  ["laser.lance.velocity", "Скорость снаряда: ×1,5 → ×2."],
+  ["laser.lance.penetration", "Целей насквозь: 3 → 4."],
+  ["laser.lance.radius", "Радиус снаряда: 6 → 8 пикс."],
+  ["laser.lance.capstone", "Целей насквозь: 4 → 5."],
+];
 const missile = { warheadPower: 0, propulsion: 0, blastExpansion: 0 };
 const drone = { boltPower: 0, firingSystem: 0, boltPropulsion: 0 };
 const modules = { hull: 0, thruster: 0, collector: 0, combat: 0, spatial: 0, replication: 0 };
@@ -82,8 +105,8 @@ describe('Russian display boundary', () => {
   it.each(descriptions)('pins the full existing effect and magnitudes for %s', (id, text) => {
     expect(rewardLabel(rewardChoices.find(c => choiceIdentity(c) === id)!, missile, drone, modules)).toBe(text);
   });
-  it.each(expected.slice(18))('%s stays name-only', (id, name) => {
-    expect(rewardLabel(rewardChoices.find(c => choiceIdentity(c) === id)!, missile, drone, modules)).toBe(name);
+  it.each(expected.slice(18))('%s retains its approved name and gains one authored effect line', (id, name) => {
+    expect(rewardLabel(rewardChoices.find(c => choiceIdentity(c) === id)!, missile, drone, modules)).toBe(name + '\n' + laserEffects.find(([key]) => key === id)![1]);
     expect(name).not.toContain('\n');
   });
   it.each(descriptions.slice(3, 9))('preserves next rank1/2 then rank2/2 for %s', (id, first) => {
@@ -119,7 +142,63 @@ describe('Russian display boundary', () => {
   });
   it('declares UTF-8 Russian browser metadata and approved brand', () => {
     expect(html).toContain('lang="ru"'); expect(html).toContain('charset="UTF-8"');
+    expect(html).toContain('<link rel="icon" href="data:," />');
     expect(html).toContain('<title>NEBULA — Космическое выживание</title>');
     expect(UI_TEXT.heading).toBe('NEBULA — Космическое выживание');
+  });
+});
+
+
+describe('HOMEWORK-001 authored descriptions and read-only presentation', () => {
+  const transitions = [
+    ['laser.specialize.scatter', 'damage', 3, 1.5],
+    ['laser.specialize.repeater', 'damage', 3, 1.2],
+    ['laser.specialize.lance', 'maxHits', 1, 3],
+    ['laser.scatter.damage', 'damage', 1.5, 1.95],
+    ['laser.scatter.focus', 'angularStep', 15, 12],
+    ['laser.scatter.range', 'lifetime', 500, 650],
+    ['laser.scatter.impact', 'impact', 300, 400],
+    ['laser.scatter.capstone', 'pelletCount', 3, 5],
+    ['laser.repeater.damage', 'damage', 1.2, 1.5],
+    ['laser.repeater.cadence', 'fireInterval', 192.5, 165],
+    ['laser.repeater.velocity', 'projectileSpeed', 1200, 1440],
+    ['laser.repeater.impact', 'impact', 80, 120],
+    ['laser.repeater.capstone', 'fireInterval', 165, 137.5],
+    ['laser.lance.damage', 'damage', 6, 7.5],
+    ['laser.lance.velocity', 'projectileSpeed', 1800, 2400],
+    ['laser.lance.penetration', 'maxHits', 3, 4],
+    ['laser.lance.radius', 'radius', 6, 8],
+    ['laser.lance.capstone', 'maxHits', 4, 5],
+  ] as const;
+  it.each(transitions)('%s copy matches the actual local transition without applying it', (id, field, from, to) => {
+    const build = new PlayerBuild(), policy = new LevelUpGenerator(), random = new RunRandom(42);
+    const draws = (['encounter', 'reward', 'world', 'boss'] as const).map(k => vi.spyOn(random[k], 'next'));
+    for (const upgrade of ['power', 'power', 'fireRate'] as const) build.applyLaserChoice({ kind: 'laser', upgrade }, 0);
+    const choice = rewardChoices.find(c => choiceIdentity(c) === id)!;
+    if (!('branch' in choice)) throw Error('Expected Laser branch fixture');
+    if (choice.kind !== 'laserSpecialization') {
+      build.applyLaserChoice({ kind: 'laserSpecialization', branch: choice.branch }, 0);
+      if (choice.kind === 'laserCapstone') for (const development of rewardChoices) {
+        if (development.kind === 'laserDevelopment' && development.branch === choice.branch) build.applyLaserChoice(development, 0);
+      }
+    }
+    const state = build.snapshot(), history = policy.snapshot(), candidates = JSON.stringify(rewardChoices);
+    const before = laserProfile(state.laser), next = build.previewLaserChoice(choice as LaserChoice, 0).profile;
+    expect(before[field]).toBeCloseTo(from); expect(next[field]).toBeCloseTo(to);
+    if (id === 'laser.specialize.scatter') {
+      expect(next.pelletCount).toBe(3); expect(next.fireInterval / before.fireInterval).toBeCloseTo(1.25);
+    } else if (id === 'laser.specialize.repeater') expect(next.fireInterval / before.fireInterval).toBeCloseTo(.35);
+    else if (id === 'laser.specialize.lance') {
+      expect(next.damage / before.damage).toBe(2); expect(next.fireInterval / before.fireInterval).toBe(1.75);
+    }
+    const ranks = Object.freeze({ ...missile }), droneRanks = Object.freeze({ ...drone }), levels = Object.freeze({ ...modules });
+    const text = rewardLabel(choice, ranks, droneRanks, levels);
+    expect(text).toBe(expected.find(([key]) => key === id)![1] + '\n' + laserEffects.find(([key]) => key === id)![1]);
+    expect(text.split('\n')).toHaveLength(2); expect(text).not.toMatch(/undefined|�|0\.\d/);
+    expect(build.snapshot()).toEqual(state); expect(policy.snapshot()).toEqual(history);
+    expect(JSON.stringify(rewardChoices)).toBe(candidates);
+    expect(ranks).toEqual(missile); expect(droneRanks).toEqual(drone); expect(levels).toEqual(modules);
+    for (const spy of draws) { expect(spy).not.toHaveBeenCalled(); spy.mockRestore(); }
+    random.dispose(); policy.dispose(); build.dispose();
   });
 });

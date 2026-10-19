@@ -6203,6 +6203,42 @@ Architect approval plus a separate explicit implementation request is required b
 
 STATUS: READY
 
+**Implementation prepared — local acceptance PASS; public acceptance PENDING**
+
+HOMEWORK-001 remains READY, not DONE. Approved18 exact Laser effect lines implemented in
+russianText.ts with unchanged36 names/original18 effects. No gameplay/Scene layout/authority
+edits. npm ci and root plus '/NEBULA/' npm run check PASS1643 tests/35 files: all1622 retained,
+18 pure numeric-description/profile-transition and3 Scene cases added. Existing policy goldens,
+three Reward draws/five timers/four streams/five DEV methods/production API absence preserved.
+Local Chrome155: all36 generated offers accepted by real pointer,108 catalog/141 total
+measurements at1920x1080/1280x720/960x540; complete Cyrillic/no clipping/overlap, correct Text
+hit areas, max control height94px/new description width890px/minimum12 CSS px. Same live
+Text/handler/token rejected-click/retry, physical32/pending3/three selections/nine draws,
+genuine BLUR/manual/REWARD freeze, eight controlled Victory->New Run cycles, Death->Retry
+and dirty PAUSED native restart pass. Exact /NEBULA/ static production direct/reload/HTML/
+JS/CSS200 correct MIME; negative root/missing assets404, no fallback. Separate unmodified
+production real keyboard/Dash/Esc/natural combat/damage/Death/Retry smoke71483ms wall time;
+natural physical XP/Level-Up/mouse choice21976ms. First observation reached natural Victory,
+not incorrectly claimed as Death. No injected Scene references/DEV/pageerrors/missing assets.
+Dist inventory: index.html, assets/index-DLorAe0O.js, assets/index-Cqs01O3I.css only.
+Vite environment base/local '/' and data:, favicon implemented. Official action SHA/release
+pins verified, main-only job guards/minimum permissions/one check-built dist upload audited.
+Workflow source is prepared; no GitHub CI/deployment run. Russian README/8-line CHANGELOG/
+report explicitly mark URL/public60–120s playtest pending. Public criteria1/8 are still pending;
+local comprehension/action/feedback/objective/risk/restart verified, not public acceptance.
+No commit/push/merge/settings mutation/deployment. Owner's separate approval and GitHub Pages
+Source=GitHub Actions/main environment are required before second-phase publication.
+Only actual clean public URL/revision/assets/gameplay/session evidence permits DONE and final
+status docs; any later commit/push also needs explicit approval and deployed recheck.
+GAME-056/UI-001 DONE; GAME-057+ BACKLOG; GAME-040/041 SUPERSEDED; GATE A/B PASSED;
+GATE C unapproved. No gate/roadmap/dependency/package/lock/ignore/test-deletion changes.
+
+**Approved definition and historical audit/acceptance record**
+
+The original future/proposal wording and definition-time matrix below are retained as the
+approved scope record. Current prepared/local/pending facts are above; READY grants no
+publication or final DONE status.
+
 DEFINITION ONLY. Proposals require architect approval and a separate implementation request.
 Educational delivery of the existing Russian prototype; no GAME-057+ expansion or publication
 authorization. UI-001 approved/committed at3d972c371f6527c25f70b9c028f24754bd9bba10

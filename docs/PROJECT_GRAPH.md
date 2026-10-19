@@ -4,8 +4,8 @@
 
 - Project: NEBULA.
 - Milestone: First Playable / GAME-015 complete.
-- Source baseline HEAD: `5de2f0ecbcecd422e2d1a2dda85d500aa607bf97`.
-- This map reflects that source baseline plus staged UI-001 Russian display ownership; Scene retains combat, reward orchestration and GAME-039 DEV wiring.
+- Source baseline HEAD: `96cde61f543e83bccecae334bb70624e0e62baa0`.
+- This map reflects that baseline plus staged HOMEWORK-001 Laser effect copy, environment-based Vite base and prepared Pages workflow; runtime authorities remain unchanged.
 - Active task request defines task-specific requirements.
 - AGENTS.md defines repository policy.
 - TASK_GRAPH.md defines task scope, dependencies and status.
@@ -26,8 +26,8 @@ IDs are repository-relative paths; symbols use `path#export`.
 | `src/game/config.ts` | Full HD FIT config and scene registration |
 | `src/game/scenes/BootScene.ts` | Starts GameplayScene |
 | `src/game/scenes/GameplayScene.ts` | Owns current run simulation, presentation and DEV API per-create binding |
-| `src/game/ui/russianText.ts` | Phaser-free frozen36-ID Russian names, static UI copy and focused reward/HUD/terminal formatters |
-| `src/game/ui/russianText.test.ts` |94 pure literal name/effect/order/rank/level/decimal/immutability/metadata checks |
+| `src/game/ui/russianText.ts` | Phaser-free frozen36-ID Russian names/18 branch effects, static UI copy and focused reward/HUD/terminal formatters |
+| `src/game/ui/russianText.test.ts` |112 pure literal name/effect/profile-transition/order/rank/level/decimal/immutability/metadata checks |
 | `src/game/rewards/LevelUpGenerator.ts` | Per-create Phaser-free weighted policy, closed36 affinities, bounded presentation history/pity/cursor and immutable provisional state |
 | `src/game/rewards/LevelUpGenerator.test.ts` |72 pure policy cases including independent literal goldens, numeric boundaries, signature transitions and deep immutability |
 | `src/game/rewards/RewardTransaction.ts` | Pure one-offer/token/ordinal/phase/selection-guard/disposal authority; detached read API |
@@ -48,7 +48,7 @@ IDs are repository-relative paths; symbols use `path#export`.
 | `src/game/player/PlayerDefense.ts` | Phaser-free current Hull/Shield/protection arithmetic, detached snapshot and exact-owner disposal; no maximum or lifecycle ownership |
 | `src/game/player/PlayerDefense.test.ts` | 35 pure validation/Shield-first/loss/protection/heal/cap/detachment/lifetime cases |
 | `src/game/devTools.ts` | DevSnapshot with numeric runSeed/runState/copied ordered pauseReasons and detached nested diagnostics/build; five-command DevTools types, no runtime registry |
-| `src/game/scenes/GameplayScene.devTools.test.ts` | 303 tracked Scene/DevTools/lifecycle/RNG/pause/input/diagnostics/Build/Tag/Defense/combat/enemy-snapshot/death-attribution cases, including installed Phaser Clock phase integration |
+| `src/game/scenes/GameplayScene.devTools.test.ts` | 385 tracked Scene/DevTools/lifecycle/RNG/pause/input/diagnostics/Build/Tag/Defense/combat/enemy-snapshot/death-attribution/localization cases, including installed Phaser Clock phase integration |
 | `src/game/enemies/EnemyDeath.ts` | Phaser-free exact source/death values, source/record factories and independent lethal-data preflight; no consequence authority |
 | `src/game/enemies/EnemyDeath.test.ts` | 127 pure seven-source/exact-shape/identity/numeric/preflight/freeze/detachment cases |
 | `src/game/enemies/knockback.ts` | Pure direction/validated scaled-safe vector impulse cap600 and analytic linear decay1200; no gameplay authority |
@@ -687,15 +687,31 @@ Exactly5 gameplay events/4 streams/5 DEV methods remain. GAME-057+ BACKLOG; GATE
 
 GameplayScene.create/updateHud/projectPause/choiceLabel/enterPlayerDeath/enterRunVictory ->
 ui/russianText.ts: one frozen RewardCandidateId-keyed36-name mapping, exact original18 effects,
-new18 name-only Laser choices, static text and concrete HUD/dash/victory formatters.
+new18 Laser labels with HOMEWORK-001 numerical effect lines, static text and concrete HUD/dash/victory formatters.
 laserProgression.ts retains profiles/mechanics and exports no display labels.
 index.html owns UTF-8/ru/browser title. Scene owns screen-fixed guide visibility, local48px
 reward heading and unchanged32px choice hit areas/handlers. No locale engine or new authority.
 Actual Chrome catalog108 measurements/three viewports, Cyrillic screenshots, same-Text retry,
 physical32/9 draws, genuine BLUR, terminal/native restarts and unmodified production pass.
-1622 tests/35 files (94 pure UI +38 Scene additions, all1490 baseline retained).
+UI-001 validation baseline:1622 tests/35 files (94 pure UI +38 Scene additions, all1490 retained).
 Five timers/four streams/five DEV methods, reward IDs/order/goldens and gameplay remain exact.
 UI-001 DONE; GAME-057+ BACKLOG; GATE A/B PASSED; GATE C unapproved.
+
+## HOMEWORK-001 prepared display and delivery boundary
+
+ui/russianText.ts owns a closed frozen18-effect table appended to unchanged36 display names.
+Original18 effects, domain reward choices/weights/Build/profiles/Hit/XP/restart remain unchanged.
+Scene controls/layout/handler/token ownership are unchanged;21 tests added (18 pure transitions/
+immutability/draw0,3 authentic Scene retry/physical32-chain/terminal-native isolation).
+1643 tests/35 files retain1622 baseline; root and '/NEBULA/' checks pass.
+vite.config.ts -> PAGES_BASE_PATH ?? '/' determines build asset base; index.html adds data:,
+favicon. .github/workflows/pages.yml is PREPARED, not executed on GitHub: main-only build
+ci/check/inventory/upload-dist -> deploy needs build, official verified pins/minimum permissions.
+README.md/CHANGELOG.md/docs/HOMEWORK_REPORT.md are Russian pre-publication reviewer documents.
+Strict /NEBULA/ local static HTTP/three-viewport production and separate controlled actual
+reward/pause/native checks pass; no public URL/session claim. HOMEWORK-001 READY, public
+acceptance pending separate authorization/deployment. Five timers/four streams/five DEV
+development methods/production API absence and GAME-057+ BACKLOG/GATE C unapproved preserved.
 
 ## Common navigation queries
 

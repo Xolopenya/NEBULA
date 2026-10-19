@@ -2489,24 +2489,24 @@ const russianChoices: [RewardCandidateId, string][] = [
   ["prism", "ЭВОЛЮЦИЯ: Призменный лазер\nТри луча — полный урон лазера у каждого"],
   ["cluster", "ЭВОЛЮЦИЯ: Кассетная ракета\nОсновной взрыв + 6 дополнительных взрывов"],
   ["twin", "ЭВОЛЮЦИЯ: Парные дроны\nВторой дрон напротив, синхронные выстрелы"],
-  ["laser.specialize.scatter", "Дробовой излучатель"],
-  ["laser.specialize.repeater", "Скорострельный излучатель"],
-  ["laser.specialize.lance", "Пробивное копьё"],
-  ["laser.scatter.damage", "Усиленная дробь"],
-  ["laser.scatter.focus", "Суженный веер"],
-  ["laser.scatter.range", "Продлённый импульс"],
-  ["laser.scatter.impact", "Отталкивающая дробь"],
-  ["laser.scatter.capstone", "ВЕРШИНА: Насыщенный залп"],
-  ["laser.repeater.damage", "Усилитель импульса"],
-  ["laser.repeater.cadence", "Ускоренный цикл"],
-  ["laser.repeater.velocity", "Быстрые импульсы"],
-  ["laser.repeater.impact", "Отталкивающие импульсы"],
-  ["laser.repeater.capstone", "ВЕРШИНА: Непрерывная серия"],
-  ["laser.lance.damage", "Заряженное копьё"],
-  ["laser.lance.velocity", "Ускоренное копьё"],
-  ["laser.lance.penetration", "Сквозное пробитие"],
-  ["laser.lance.radius", "Широкое копьё"],
-  ["laser.lance.capstone", "ВЕРШИНА: Глубокое пробитие"],
+  ["laser.specialize.scatter", "Дробовой излучатель\nБлижний веер из 3 снарядов; урон ×0,5; интервал ×1,25."],
+  ["laser.specialize.repeater", "Скорострельный излучатель\nЧастые выстрелы: урон ×0,4; интервал ×0,35."],
+  ["laser.specialize.lance", "Пробивное копьё\nУрон ×2; интервал ×1,75; до 3 целей насквозь."],
+  ["laser.scatter.damage", "Усиленная дробь\nУрон снаряда: ×0,5 → ×0,65."],
+  ["laser.scatter.focus", "Суженный веер\nШаг веера: 15° → 12°."],
+  ["laser.scatter.range", "Продлённый импульс\nВремя полёта: 500 → 650 мс."],
+  ["laser.scatter.impact", "Отталкивающая дробь\nСила отбрасывания: 300 → 400."],
+  ["laser.scatter.capstone", "ВЕРШИНА: Насыщенный залп\nСнарядов в залпе: 3 → 5."],
+  ["laser.repeater.damage", "Усилитель импульса\nУрон снаряда: ×0,4 → ×0,5."],
+  ["laser.repeater.cadence", "Ускоренный цикл\nИнтервал выстрелов: ×0,35 → ×0,30."],
+  ["laser.repeater.velocity", "Быстрые импульсы\nСкорость снаряда: ×1 → ×1,2."],
+  ["laser.repeater.impact", "Отталкивающие импульсы\nСила отбрасывания: 80 → 120."],
+  ["laser.repeater.capstone", "ВЕРШИНА: Непрерывная серия\nИнтервал выстрелов: ×0,30 → ×0,25."],
+  ["laser.lance.damage", "Заряженное копьё\nУрон снаряда: ×2 → ×2,5."],
+  ["laser.lance.velocity", "Ускоренное копьё\nСкорость снаряда: ×1,5 → ×2."],
+  ["laser.lance.penetration", "Сквозное пробитие\nЦелей насквозь: 3 → 4."],
+  ["laser.lance.radius", "Широкое копьё\nРадиус снаряда: 6 → 8 пикс."],
+  ["laser.lance.capstone", "ВЕРШИНА: Глубокое пробитие\nЦелей насквозь: 4 → 5."],
 ];
 describe('UI-001 Russian production presentation', () => {
   it.each(russianChoices)('presents and accepts canonical %s through the real transaction', (id, expected) => {
@@ -2564,5 +2564,56 @@ describe('UI-001 Russian production presentation', () => {
     expect(s['victoryPresentation'].map(t => t.text)).toEqual([
       'ПОБЕДА', 'СТРАЖ УНИЧТОЖЕН', 'ДОСТИГНУТ УРОВЕНЬ: 4', 'НОВЫЙ ЗАБЕГ']);
     expect(s['run']!.outcome).toBe('VICTORY');
+  });
+});
+
+describe('HOMEWORK-001 expanded Laser transaction continuity', () => {
+  it('rejected expanded specialization retains the exact Text/handler/token then accepts one real retry', () => {
+    const { scene: s, api } = fixture(); setLaser(s, { power: 2, fireRate: 1, speed: 0 });
+    const roll = aimChoice(s, 'laser.specialize.scatter', 0); api.forceLevelUp(); roll.mockRestore();
+    const p = s['rewardPresentation']!, text = [...p.choices].find(([, id]) => id === 'laser.specialize.scatter')![0];
+    expect(text.text).toBe('Дробовой излучатель\nБлижний веер из 3 снарядов; урон ×0,5; интервал ×1,25.');
+    const handler = p.handlers.get(text)!, before = api.snapshot(), pending = p.progression.snapshot(), history = p.generator.snapshot();
+    const draws = spyStreams(s), apply = vi.spyOn(p.build, 'applyLaserChoice').mockReturnValueOnce(false);
+    text.emit('pointerdown');
+    expect(api.snapshot()).toEqual(before); expect(p.progression.snapshot()).toEqual(pending); expect(p.generator.snapshot()).toEqual(history);
+    expect(s['rewardPresentation']).toBe(p); expect(text.active).toBe(true);
+    expect(p.handlers.get(text)).toBe(handler); expect(text.listeners('pointerdown')).toEqual([handler]);
+    expect(s['rewardPresentation']!.token).toBe(p.token);
+    text.emit('pointerdown'); expect(s['playerBuild']!.snapshot().laser.form).toBe('SCATTER');
+    expect(p.progression.snapshot().pendingLevels).toBe(0); expect(s['run']!.state).toBe('RUNNING');
+    expect(apply).toHaveBeenCalledTimes(2); expect(text.active).toBe(false);
+    const accepted = api.snapshot(); handler(); text.emit('pointerdown'); expect(api.snapshot()).toEqual(accepted);
+    for (const draw of draws) expect(draw).not.toHaveBeenCalled(); apply.mockRestore();
+  });
+  it('physical32 opens an expanded specialization then preserves pending3/three choices/nine draws', () => {
+    const { scene: s, api } = fixture(); setLaser(s, { power: 2, fireRate: 1, speed: 0 });
+    const timers = [...s['gameplayTimers']], random = s['runRandom']!, draws = spyStreams(s);
+    s['xpPickups'].push({ run: s['run']!, value: 32, speed: 0,
+      visual: visual(2400, 1350, 10) as unknown as Phaser.GameObjects.Arc });
+    s['updateXpPickups'](0);
+    expect(s['playerProgression']!.snapshot()).toEqual({ level: 4, xp: 2, threshold: 20, pendingLevels: 3 });
+    expect(s['levelUpPresentation'][1].text.split('\n')).toHaveLength(2);
+    for (let pending = 3; pending > 0; pending--) {
+      expect(s['run']!.pauseReasons).toEqual(['REWARD']); expect(s.time.paused).toBe(true);
+      expect(s['playerProgression']!.snapshot().pendingLevels).toBe(pending);
+      const text = s['levelUpPresentation'][1], callback = text.listeners('pointerdown')[0];
+      text.emit('pointerdown'); const after = api.snapshot(); callback(); expect(api.snapshot()).toEqual(after);
+    }
+    expect(draws.map(d => d.mock.calls.length)).toEqual([0, 9, 0, 0]);
+    expect(s['run']!.state).toBe('RUNNING'); expect(s['gameplayTimers']).toEqual(timers);
+    expect(s['runRandom']).toBe(random); expect(Object.keys(api)).toHaveLength(5);
+    expect(api.snapshot()!.diagnostics.aggregates).toMatchObject({ xpCollected: 32, xpDevCredited: 0, choicesAccepted: 3 });
+  });
+  it('expanded offer terminal/disposal handlers cannot mutate a native fresh run', () => {
+    const f = fixture(), s = f.scene; allowCreate(s); s.create(); const oldRun = s['run']!;
+    setLaser(s, { power: 2, fireRate: 1, speed: 0 }); window.__NEBULA_DEV__!.forceLevelUp();
+    const p = s['rewardPresentation']!, callbacks = [...p.handlers.values()];
+    expect(p.texts[1].text).toContain('\n'); s['enterPlayerDeath']();
+    expect(p.texts.every(t => !t.active)).toBe(true); expect(s['run']!.outcome).toBe('DEATH');
+    f.shutdown(); s.create(); const api = window.__NEBULA_DEV__!, before = api.snapshot();
+    for (const callback of callbacks) callback();
+    expect(api.snapshot()).toEqual(before); expect(oldRun.state).toBe('DISPOSED');
+    expect(s['run']).not.toBe(oldRun); expect(s['gameplayTimers']).toHaveLength(5);
   });
 });

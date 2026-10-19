@@ -56,6 +56,31 @@ export const REWARD_NAMES: Readonly<Record<RewardCandidateId, string>> = Object.
   'laser.lance.capstone': 'ВЕРШИНА: Глубокое пробитие',
 });
 
+type LaserRewardId = Extract<RewardCandidateId,
+  `laser.${'specialize' | 'scatter' | 'repeater' | 'lance'}.${string}`>;
+
+// Exact authored local effects; multipliers reference the ordinary Laser with equal tuning.
+const LASER_EFFECTS: Readonly<Record<LaserRewardId, string>> = Object.freeze({
+  'laser.specialize.scatter': 'Ближний веер из 3 снарядов; урон ×0,5; интервал ×1,25.',
+  'laser.specialize.repeater': 'Частые выстрелы: урон ×0,4; интервал ×0,35.',
+  'laser.specialize.lance': 'Урон ×2; интервал ×1,75; до 3 целей насквозь.',
+  'laser.scatter.damage': 'Урон снаряда: ×0,5 → ×0,65.',
+  'laser.scatter.focus': 'Шаг веера: 15° → 12°.',
+  'laser.scatter.range': 'Время полёта: 500 → 650 мс.',
+  'laser.scatter.impact': 'Сила отбрасывания: 300 → 400.',
+  'laser.scatter.capstone': 'Снарядов в залпе: 3 → 5.',
+  'laser.repeater.damage': 'Урон снаряда: ×0,4 → ×0,5.',
+  'laser.repeater.cadence': 'Интервал выстрелов: ×0,35 → ×0,30.',
+  'laser.repeater.velocity': 'Скорость снаряда: ×1 → ×1,2.',
+  'laser.repeater.impact': 'Сила отбрасывания: 80 → 120.',
+  'laser.repeater.capstone': 'Интервал выстрелов: ×0,30 → ×0,25.',
+  'laser.lance.damage': 'Урон снаряда: ×2 → ×2,5.',
+  'laser.lance.velocity': 'Скорость снаряда: ×1,5 → ×2.',
+  'laser.lance.penetration': 'Целей насквозь: 3 → 4.',
+  'laser.lance.radius': 'Радиус снаряда: 6 → 8 пикс.',
+  'laser.lance.capstone': 'Целей насквозь: 4 → 5.',
+});
+
 // No rounding, grouping or parse-back into gameplay arithmetic.
 function decimal(value: number): string { return String(value).replace('.', ','); }
 
@@ -74,7 +99,7 @@ export function victoryLevel(level: number): string { return `ДОСТИГНУТ
 export function rewardLabel(choice: LevelUpChoice, missileRanks: Readonly<MissileRanks>,
   droneRanks: Readonly<DroneRanks>, moduleLevels: Readonly<Record<PassiveModule, number>>): string {
   const name = REWARD_NAMES[choiceIdentity(choice)];
-  if ('branch' in choice) return name; // Approved name-only Laser progression controls.
+  if ('branch' in choice) return `${name}\n${LASER_EFFECTS[choiceIdentity(choice) as LaserRewardId]}`;
   if (choice.kind === 'prism') return `${name}\nТри луча — полный урон лазера у каждого`;
   if (choice.kind === 'cluster') return `${name}\nОсновной взрыв + 6 дополнительных взрывов`;
   if (choice.kind === 'twin') return `${name}\nВторой дрон напротив, синхронные выстрелы`;
