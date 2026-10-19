@@ -4,8 +4,8 @@
 
 - Project: NEBULA.
 - Milestone: First Playable / GAME-015 complete.
-- Source baseline HEAD: `b1a320ebca81486db4c451dce3c3a054c420e957`.
-- This map reflects that source baseline plus the staged GAME-052 enemy interaction/Swarm/Charger; current Scene retains Hit/death consequence authority, combat/presentation and GAME-039 DEV wiring.
+- Source baseline HEAD: `14d0672e63c513bad0ba09b8b29274c77fc16873`.
+- This map reflects that source baseline plus the staged GAME-053 progression/pending/physical consolidation; current Scene retains Hit/death consequence authority, combat/presentation and GAME-039 DEV wiring.
 - Active task request defines task-specific requirements.
 - AGENTS.md defines repository policy.
 - TASK_GRAPH.md defines task scope, dependencies and status.
@@ -39,7 +39,7 @@ IDs are repository-relative paths; symbols use `path#export`.
 | `src/game/player/PlayerDefense.ts` | Phaser-free current Hull/Shield/protection arithmetic, detached snapshot and exact-owner disposal; no maximum or lifecycle ownership |
 | `src/game/player/PlayerDefense.test.ts` | 35 pure validation/Shield-first/loss/protection/heal/cap/detachment/lifetime cases |
 | `src/game/devTools.ts` | DevSnapshot with numeric runSeed/runState/copied ordered pauseReasons and detached nested diagnostics/build; five-command DevTools types, no runtime registry |
-| `src/game/scenes/GameplayScene.devTools.test.ts` | 277 tracked Scene/DevTools/lifecycle/RNG/pause/input/diagnostics/Build/Tag/Defense/combat/enemy-snapshot/death-attribution cases, including installed Phaser Clock phase integration |
+| `src/game/scenes/GameplayScene.devTools.test.ts` | 303 tracked Scene/DevTools/lifecycle/RNG/pause/input/diagnostics/Build/Tag/Defense/combat/enemy-snapshot/death-attribution cases, including installed Phaser Clock phase integration |
 | `src/game/enemies/EnemyDeath.ts` | Phaser-free exact source/death values, source/record factories and independent lethal-data preflight; no consequence authority |
 | `src/game/enemies/EnemyDeath.test.ts` | 127 pure seven-source/exact-shape/identity/numeric/preflight/freeze/detachment cases |
 | `src/game/enemies/knockback.ts` | Pure direction/validated scaled-safe vector impulse cap600 and analytic linear decay1200; no gameplay authority |
@@ -52,7 +52,11 @@ IDs are repository-relative paths; symbols use `path#export`.
 | `src/game/combat/combat.test.ts` | 83 pure kind/variant/shape/copy/freeze/numeric/composition/phase/actual-loss cases |
 | `src/game/combat/collision.ts` | Pure numeric collision math |
 | `src/game/combat/collision.test.ts` | Tracked geometry tests |
-| `src/game/progression/experience.ts` | Pure XP threshold/award arithmetic and state type |
+| `src/game/progression/experience.ts` | Shared validated exact BigInt threshold/award arithmetic, bounded binary search and safe pool/state validation |
+| `src/game/progression/PlayerProgression.ts` | Run-scoped pure level/XP/pending owner, detached snapshot, exact-owner disposal |
+| `src/game/progression/PlayerProgression.test.ts` | Pure owner, pending, detachment, MAX_SAFE exact oracle, invalid/overflow/lifetime cases |
+| `src/game/progression/xpConsolidation.ts` | Ephemeral deterministic64px-cell minimum-tree merge planner with soft256 threshold; no mutation/Phaser/RNG |
+| `src/game/progression/xpConsolidation.test.ts` | Grid/priority/unsafe/magnet/conservation/naive-oracle and large sparse/dense performance cases |
 | `src/game/progression/experience.test.ts` | Tracked progression tests |
 | `src/game/progression/selectChoices.ts` | Pure supplied-pool selection without replacement; required explicit random source |
 | `src/game/progression/selectChoices.test.ts` | Tracked deterministic selection tests |
@@ -135,7 +139,9 @@ IDs are repository-relative paths; symbols use `path#export`.
 | `src/game/combat/combat.ts#calculateEnemyDamage` | Pure positive HP/damage validation, negative transient overkill HP and actual stored loss |
 | `src/game/combat/collision.ts#segmentCircleHitTime` | First segment-circle hit in [0,1], else Infinity |
 | `src/game/progression/experience.ts#ExperienceState` | Numeric level and XP toward next level |
-| `src/game/progression/experience.ts#xpForNextLevel` | Prototype threshold calculation |
+| `src/game/progression/experience.ts#xpForNextLevel` | Validated5*level threshold |
+| `src/game/progression/PlayerProgression.ts#PlayerProgression` | snapshot/creditXp/resolvePendingLevel/dispose, one current run owner |
+| `src/game/progression/xpConsolidation.ts#planXpConsolidation` | Original-index pair plan, revalidated by Scene before application |
 | `src/game/progression/experience.ts#addExperience` | Pure award/level/carry calculation |
 | `src/game/progression/selectChoices.ts#selectChoices` | Select N distinct entries without mutating the supplied pool |
 | `src/game/progression/focusedUpgrade.ts#selectFocusedUpgrade` | Offer Laser/Missile track and next offered-weapon cursor without mutation |
@@ -187,7 +193,9 @@ Runtime labels below describe scene-owned concepts, not separate modules/classes
 | `src/game/combat/collision.ts#segmentCircleHitTime` | TESTED_BY | `src/game/combat/collision.test.ts` |
 | `src/game/scenes/BootScene.ts#BootScene` | USES | GameplayScene startup via scene.start |
 | `src/game/scenes/GameplayScene.ts#GameplayScene` | OWNS | Player, enemies, projectiles, timers, temporary UI |
-| `src/game/scenes/GameplayScene.ts` | IMPORTS | `src/game/progression/experience.ts` (addExperience, xpForNextLevel, ExperienceState) |
+| `src/game/scenes/GameplayScene.ts` | IMPORTS | `src/game/progression/experience.ts` (addExperience preflight), PlayerProgression.ts (PlayerProgression), xpConsolidation.ts (plan/constants) |
+| `src/game/progression/PlayerProgression.ts` | IMPORTS | `src/game/progression/experience.ts` (shared threshold/award) |
+| `src/game/scenes/GameplayScene.ts` | OWNS | PlayerProgression lifetime, physical pickups and current reward presentation |
 | `src/game/progression/experience.test.ts` | IMPORTS | `src/game/progression/experience.ts` |
 | `src/game/progression/experience.ts` | TESTED_BY | `src/game/progression/experience.test.ts` |
 | `src/game/scenes/GameplayScene.ts` | IMPORTS | `src/game/player/dash.ts#stepDash` |
@@ -297,9 +305,10 @@ All private names below are navigation anchors, not exported symbol nodes.
 | Enemy movement | update; chaseDirection; shooterMovement; stepCharger; stepKnockback | Owned movement supplies Swarm240/Chaser180/Tank100/Elite120 pursuit, Shooter140/350–500 band, Warden70/100 HP pursuit and Charger phases; AI then one external decay/displacement, clamp max(25,radius), blocked outward component removal |
 | Target/highlight | selectNearestEnemy, currentTarget; update | Nearest active enemy; optional origin/archetype filter reused by Missile/Shooter; temporary outline restores current Boss phase3px/Elite3px/regular2px style |
 | Enemy death | updateProjectiles / updateMissiles → applyEnemyHit → killEnemy | Exact RUNNING Hit.run/target.run/member/actual depleted HP/source guard; one copied frozen record, Boss flag, physical pickup1/5/10, clear target, destroy visual, splice member, observe source; owning cleanup precedes Victory |
-| XP drops | xpPickups; XpPickup; killEnemy | World-space visual at death record x/y + record value1/5/10 + speed; common magnet/collection, create resets collection |
+| XP drops | xpPickups; XpPickup; killEnemy | Creating run + world-space visual at death record x/y + record value1/5/10 + speed; common magnet/collection, create resets collection |
 | XP magnet/collection | updateXpPickups | Stationary outside range; accelerated approach; arrival credits pickup.value then destroys/removes |
-| Player XP/levels | playerExperience; create; updateXpPickups → addExperience | Scene owns state/reset/collection; pure module owns thresholds and carry |
+| Player XP/levels | playerProgression; create; updateXpPickups → creditExperience | One PlayerProgression owns level/XP/pending; shared experience arithmetic; Scene exact-run/source/diagnostic preflight |
+| XP consolidation | consolidateXpPickups → planXpConsolidation | >256 soft threshold,64px cells/outside magnet/earliest safe pair/older anchor; Scene revalidates and destroys newer, no XP/RNG/observer loss |
 | Shared projectiles | projectiles; ProjectileRuntime | readonly typed Laser/Drone/Hostile Attack + exact run; source/damage/radius derived read-only; visual/velocity/remainingLifetime |
 | Projectile stepping | updateProjectiles | Lifetime-clipped motion; swept impact; reverse removal; lethal Boss projectile cleanup precedes Victory and stops later shots |
 | Projectile cleanup | updateProjectiles | Impact, lifetime and world-exit destruction |
@@ -363,7 +372,7 @@ detonation and cleanup → enterRunVictory → frozen gameplay / fixed result
 | Classification | Owner | Evidence |
 | --- | --- | --- |
 | TRACKED TESTS | collision.test.ts → segmentCircleHitTime | 9 tests: hits, misses, overlap, tangent, zero step, bounds, ordering |
-| TRACKED TESTS | experience.test.ts → experience.ts | 8 tests: thresholds, credit, exact/excess/multiple levels, zero/nonmutation, split awards |
+| TRACKED TESTS | experience.test.ts → experience.ts | 23 tests: original8 plus safe threshold/state/representational boundary validation |
 | TRACKED TESTS | selectChoices.test.ts → selectChoices | 6 tests: size/distinctness/membership/nonmutation, deterministic RNG, later repeats, empty/full selection and invalid input |
 | TRACKED TESTS | spatialAmplifier.test.ts → effectiveMissileExplosionRadius | Six tests: baseline/stacking, Blast combinations, deterministic numeric inputs and uncapped repeats |
 | TRACKED TESTS | clusterMissile.test.ts → canEvolveClusterMissile | Eight cases: each missing rank, Spatial0/exact/higher, evolved exclusion, nonmutation |
@@ -395,7 +404,7 @@ Ignored harnesses are not graph nodes and do not run in npm run check.
 
 GameplayScene.killEnemy / xpPickups IMPLEMENTS_TASK GAME-016 — XP Drop.
 GameplayScene.updateXpPickups IMPLEMENTS_TASK GAME-017 — XP Magnet Collection.
-GameplayScene.playerExperience / progression/experience.ts IMPLEMENTS_TASK GAME-018 — Player XP and Level Rules.
+PlayerProgression / progression/experience.ts / GameplayScene.creditExperience IMPLEMENT_TASK GAME-018 — Player XP and Level Rules.
 GameplayScene.isLevelUpPaused / enterLevelUpPause / isSimulationPaused IMPLEMENTS_TASK GAME-019.
 GameplayScene.levelUpPresentation / acceptLevelUpChoice IMPLEMENTS_TASK GAME-020.
 GameplayScene.laser / laserTimer / acceptLevelUpChoice IMPLEMENTS_TASK GAME-021.
@@ -488,7 +497,7 @@ Swept geometry, strict ties, cap/expiry/world exits, Prism independent beams, Tw
 origins and Cluster primary then survivor union remain concrete Scene behavior. Complete
 owning cleanup precedes Victory; first-terminal authority stays RunLifecycle. Stale Hits/
 flights guard exact run before fresh enemies/Defense. Five events/five DEV methods and zero
-additional RNG draws remain. GAME-052 adds player-only physical Impact below; GAME-053+ remain deferred. 71 pure +16 new Scene cases,
+additional RNG draws remain. GAME-052 adds player-only physical Impact below; GAME-054+ remain deferred. 71 pure +16 new Scene cases,
 actual Chrome offensive/old-new snapshot/pause/BLUR/native terminal/restart and unmodified
 production ordinary Death/real RETRY checks pass. GATE A PASSED; GATE B PASSED.
 
@@ -503,7 +512,7 @@ snapshot and owners; stale values stay readable without mutation authority. No e
 RNG, dependency, content or difficulty/Build/Tags coupling. GAME-051 adds the death/attribution boundary below.
 136 pure +33 added Scene cases pass (739 total/25 files). Actual Chrome Clock schedule,
 movement/hostile/six-path combat/real BLUR and active-flight pauses/native restart checks pass;
-unmodified production ordinary Death/real pointer RETRY passes. GAME-050/051/052 DONE; GAME-053+
+unmodified production ordinary Death/real pointer RETRY passes. GAME-050/051/052 DONE; GAME-054+
 BACKLOG; GATE A/B PASSED.
 
 EnemyDeath.ts + GameplayScene EnemyHit/lastDamagingSource/applyEnemyHit/killEnemy and
@@ -523,7 +532,7 @@ old immutable values remain readable, old callbacks cannot mutate/draw in the ne
 seven-source/A->B/loss0/Cluster/XP/pause/genuine BLUR/native terminal/restart Chrome checks pass.
 Unmodified production ordinary enemy death/XP, incoming Death and actual pointer RETRY pass
 without DEV or pageerrors. Five events/four RNG budgets/Build/Tags/Analyzer/Defense/rewards and
-GAME-049/050 contracts remain. GAME-051/052 DONE; GAME-053+ BACKLOG; GATE A/B PASSED.
+GAME-049/050 contracts remain. GAME-051/052 DONE; GAME-054+ BACKLOG; GATE A/B PASSED.
 
 EnemyDefinitions/knockback/chargerMovement + Scene launch/Hit/movement/contact/Graphics IMPLEMENT_TASK GAME-052.
 Six identities are five normal roles plus legacy boss; Elite remains Tank-only. Definitions and
@@ -560,8 +569,29 @@ clearing), full terminal cleanup and two Victory NEW RUN/Death RETRY/PAUSED nati
 new-role/force/Graphics dirtied. Old callbacks/state/poses cannot reach fresh owners or draw RNG;
 five new events and fresh zero velocity/interaction/Tags/counters restore. Unmodified production
 uses real input/rendered output for survivor knockback, ordinary Death and actual mouse RETRY;
-DEV absent/no pageerrors. Known favicon404/bundle-size warnings remain. GAME-052 DONE; GAME-053+
+DEV absent/no pageerrors. Known favicon404/bundle-size warnings remain. GAME-052 DONE; GAME-054+
 BACKLOG; GATE A/B PASSED, with no other gate closure.
+
+PlayerProgression + experience + xpConsolidation + Scene XP/reward integration IMPLEMENT_TASK GAME-053.
+create constructs progression during PREPARING, captures it and the physical array for exact shutdown.
+Only owner creditXp writes numeric level/XP/pending, resolvePendingLevel decrements one; BigInt cost/
+binary search is shared with Scene preflight. HUD/result/DEV project one snapshot; DEV keeps3 fields.
+creditExperience requires captured current RUNNING run/owner/player plus physical member/value or
+legitimate DEV remainder. Diagnostics affected sums/evictions preflight before any cross-owner mutation.
+killEnemy remains sole normal drop creator; collection remains reverse-order updateXpPickups.
+consolidateXpPickups applies the pure original-index plan after current live identity/cell/value checks,
+destroys newer and compacts captured array in place. No expiry/hard cap, RNG or observer effects.
+enterLevelUpPause presents one pending opportunity; acceptLevelUpChoice checks exact Text/candidate/
+run/progression and preflights observers, applies actual upgrade, resolves one, then generates updated
+eligibility under the same REWARD. Only the final choice releases REWARD; other reasons survive.
+Terminal retains earned numeric/pending state, destroys reward UI and suppresses collection/generation.
+Native restart disposes old progression and pickup visuals, resets1/0/0 and five events; old refs inert.
+1158 tracked cases/30 files preserve1078 baseline; pure exact oracle/planner/performance and Scene pending/
+identity/atomicity/focus/native checks pass. Installed Chrome real pointer32-XP chain, actual BLUR,
+physical1/5/10, conservation/sparse3000 and four straight/Missile/Cluster NEW RUN cycles, Death RETRY/
+paused restart pass. Unmodified production real keyboard/pixel pickup pursuit reaches Level2 and pointer
+choice, plus ordinary damage/Death/RETRY/DEV absence; no new pageerrors. GAME-054+ BACKLOG; A/B PASSED;
+GATE C unapproved. No new dependency, timer, DEV method, RNG stream or later reward framework.
 
 ## Common navigation queries
 
@@ -571,7 +601,7 @@ BACKLOG; GATE A/B PASSED, with no other gate closure.
 | Where does enemy death happen? | GameplayScene.ts → actual EnemyHit → applyEnemyHit (HP/source/preflight) → killEnemy (guard/record/consequences); EnemyDeath.ts pure values/factories |
 | Where is kill attribution counted? | RunDiagnostics.ts → required recordEnemyKilled(...,killSource), explicit seven-key mapping and aggregates.killsBySource; DEV nested diagnostics only |
 | Where are XP drops/magnet/collection owned? | GameplayScene.ts → killEnemy, xpPickups, updateXpPickups; create resets |
-| Where are XP thresholds and levels calculated? | src/game/progression/experience.ts; scene playerExperience |
+| Where are XP thresholds and levels calculated? | progression/PlayerProgression.ts → experience.ts; Scene playerProgression |
 | Where are level-up choices/resume owned? | GameplayScene.ts → enterLevelUpPause, levelUpPresentation, acceptLevelUpChoice |
 | Where are HUD values rendered/refreshed? | GameplayScene.ts → hud, updateHud; create, damagePlayer, updateXpPickups |
 | Where is Dash input/timing/reset owned? | input/KeyboardInput.ts → Space intent; GameplayScene.ts → update, movePlayer, create; player/dash.ts#stepDash |

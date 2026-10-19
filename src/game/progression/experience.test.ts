@@ -32,3 +32,18 @@ describe('experience rules', () => {
     expect(split).toEqual(addExperience(initial, 34));
   });
 });
+
+describe('experience safe boundary', () => {
+  it.each([0, -1, 1.5, NaN, Infinity, Number.MAX_SAFE_INTEGER, '1', null, undefined])('rejects invalid threshold %s', level => {
+    expect(() => xpForNextLevel(level as number)).toThrow(RangeError);
+  });
+  it.each([{ level: 1, xp: -1 }, { level: 1, xp: 5 }, { level: 2, xp: 0.5 }, { level: 0, xp: 0 }, { level: 1, xp: NaN }])('rejects non-normalized state %j', state => {
+    expect(() => addExperience(state, 0)).toThrow(RangeError);
+  });
+  it('rejects an unrepresentable earned level instead of discarding it', () => {
+    const level = Math.floor(Number.MAX_SAFE_INTEGER / 5), state = { level, xp: 0 };
+    expect(addExperience(state, 0)).toEqual(state);
+    expect(() => addExperience(state, xpForNextLevel(level))).toThrow(RangeError); expect(state.xp).toBe(0);
+    expect(addExperience({ level: level - 1, xp: 0 }, xpForNextLevel(level - 1))).toEqual(state);
+  });
+});

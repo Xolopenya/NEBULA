@@ -30,7 +30,9 @@ import { canEvolveTwinDrone } from '../progression/twinDrone';
 import { selectEvolutionOffer, type Evolution } from '../progression/evolutionOffer';
 import { selectFocusedUpgrade, type MissileRanks, type DroneRanks, type WeaponFocus, type FocusCursors } from '../progression/focusedUpgrade';
 import { canEvolvePrismLaser, type LaserRanks } from '../progression/prismLaser';
-import { addExperience, xpForNextLevel, type ExperienceState } from '../progression/experience';
+import { addExperience } from '../progression/experience';
+import { PlayerProgression } from '../progression/PlayerProgression';
+import { planXpConsolidation, XP_CONSOLIDATION_THRESHOLD, XP_CONSOLIDATION_CELL_SIZE } from '../progression/xpConsolidation';
 
 type LaserUpgrade = keyof LaserRanks;
 type PassiveModule = 'hull' | 'thruster' | 'collector' | 'combat' | 'spatial' | 'replication';
@@ -113,6 +115,7 @@ type EnemyRuntime = {
 type ChargeContact = Readonly<{ run: RunLifecycle; position: Vector }>;
 
 type XpPickup = {
+  readonly run: RunLifecycle;
   visual: Phaser.GameObjects.Arc;
   value: number;
   speed: number;
@@ -182,7 +185,7 @@ export class GameplayScene extends Phaser.Scene {
   private droneRanks: DroneRanks = { boltPower: 0, firingSystem: 0, boltPropulsion: 0 };
   private droneTimer?: Phaser.Time.TimerEvent;
   private hud?: Phaser.GameObjects.Text;
-  private playerExperience: ExperienceState = { level: 1, xp: 0 };
+  private playerProgression?: PlayerProgression;
   private run?: RunLifecycle;
   private runRandom?: RunRandom;
   private runDiagnostics?: RunDiagnostics;
@@ -193,6 +196,7 @@ export class GameplayScene extends Phaser.Scene {
   private victoryPresentation: Phaser.GameObjects.Text[] = [];
   private isLevelUpPaused = false;
   private levelUpPresentation: Phaser.GameObjects.Text[] = [];
+  private levelUpChoices = new Map<Phaser.GameObjects.Text, ChoiceIdentity>();
   private moduleLevels: Record<PassiveModule, number> = { hull: 0, thruster: 0, collector: 0, combat: 0, spatial: 0, replication: 0 };
   private globalDamageMultiplier = 1;
   private get playerMaxHealth(): number { return this.playerBuild!.getEffectiveStats().hull; }
@@ -309,9 +313,18 @@ export class GameplayScene extends Phaser.Scene {
     this.prismEvolved = false;
     this.clusterEvolved = false;
     this.evolutionOfferCursor = 'prism';
-    this.playerExperience = { level: 1, xp: 0 };
+    const progression = new PlayerProgression();
+    this.playerProgression = progression;
+    const disposeProgression = () => {
+      progression.dispose();
+      this.events.off(Phaser.Scenes.Events.SHUTDOWN, disposeProgression);
+      this.events.off(Phaser.Scenes.Events.DESTROY, disposeProgression);
+    };
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, disposeProgression);
+    this.events.once(Phaser.Scenes.Events.DESTROY, disposeProgression);
     this.isLevelUpPaused = false;
     this.levelUpPresentation = [];
+    this.levelUpChoices.clear();
     this.enemies = [];
     const enemies = this.enemies;
     const disposeTelegraphs = () => {
@@ -325,6 +338,14 @@ export class GameplayScene extends Phaser.Scene {
     this.bossSpawned = false;
     this.bossDefeated = false;
     this.xpPickups = [];
+    const pickups = this.xpPickups;
+    const disposePickups = () => {
+      for (const pickup of pickups) pickup.visual.destroy();
+      this.events.off(Phaser.Scenes.Events.SHUTDOWN, disposePickups);
+      this.events.off(Phaser.Scenes.Events.DESTROY, disposePickups);
+    };
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, disposePickups);
+    this.events.once(Phaser.Scenes.Events.DESTROY, disposePickups);
     this.currentTarget = undefined;
     this.projectiles = [];
     this.missiles = [];
@@ -437,10 +458,11 @@ export class GameplayScene extends Phaser.Scene {
   }
 
   private updateHud(): void {
+    const progression = this.playerProgression!.snapshot();
     this.hud?.setText([
       `HP: ${this.playerHealth}/${this.playerMaxHealth}`,
-      `XP: ${this.playerExperience.xp}/${xpForNextLevel(this.playerExperience.level)}`,
-      `Level: ${this.playerExperience.level}`,
+      `XP: ${progression.xp}/${progression.threshold}`,
+      `Level: ${progression.level}`,
       `Dash: ${this.dashCooldownRemaining > 0 ? `${Math.ceil(this.dashCooldownRemaining / 100) / 10}s` : 'READY'}`,
     ]);
   }
@@ -676,6 +698,7 @@ export class GameplayScene extends Phaser.Scene {
     this.inputAdapter?.reset();
     for (const text of this.levelUpPresentation) text.destroy();
     this.levelUpPresentation = [];
+    this.levelUpChoices.clear();
     this.isLevelUpPaused = false;
     this.projectPause();
   }
@@ -697,10 +720,15 @@ export class GameplayScene extends Phaser.Scene {
       marginY, this.arenaHeight - marginY);
   }
 
-  private enterLevelUpPause(): void {
-    const run = this.run;
-    if (this.isLevelUpPaused || run?.state !== 'RUNNING' || !run.requestPause('REWARD')) return;
-    this.observePause('RUNNING', []);
+  private enterLevelUpPause(run = this.run, progression = this.playerProgression): void {
+    if (this.run !== run || !run || this.playerProgression !== progression || !progression
+      || (run.state !== 'RUNNING' && !(run.state === 'PAUSED' && run.hasPauseReason('REWARD')))
+      || this.isLevelUpPaused || !progression.snapshot().pendingLevels) return;
+    this.preflightProgressionObservations({ offersPresented: 1, ...(run.state === 'RUNNING' ? { pauseEntries: 1 } : {}) }, run.state === 'RUNNING' ? 2 : 1);
+    if (run.state === 'RUNNING') {
+      run.requestPause('REWARD');
+      this.observePause('RUNNING', []);
+    }
     this.inputAdapter?.reset();
     this.projectPause();
     this.isLevelUpPaused = true;
@@ -745,7 +773,8 @@ export class GameplayScene extends Phaser.Scene {
         }).setOrigin(0.5).setScrollFactor(0).setDepth(1)
         .setInteractive({ useHandCursor: true });
       this.levelUpPresentation.push(choice);
-      choice.once('pointerdown', () => this.acceptLevelUpChoice(choice, option, run));
+      this.levelUpChoices.set(choice, choiceIdentity(option));
+      choice.once('pointerdown', () => this.acceptLevelUpChoice(choice, option, run, progression));
     });
     this.runDiagnostics!.recordLevelUpOffered(choices.map(choiceIdentity));
   }
@@ -788,15 +817,26 @@ export class GameplayScene extends Phaser.Scene {
     }
   }
 
-  private acceptLevelUpChoice(choice: Phaser.GameObjects.Text, option: LevelUpChoice, run = this.run): void {
+  private acceptLevelUpChoice(choice: Phaser.GameObjects.Text, option: LevelUpChoice, run = this.run, progression = this.playerProgression): void {
     if (this.run !== run || run?.state !== 'PAUSED' || !run.hasPauseReason('REWARD')
-      || !this.isLevelUpPaused || !this.levelUpPresentation.includes(choice)) return;
+      || !progression || progression !== this.playerProgression || !progression.snapshot().pendingLevels
+      || !this.isLevelUpPaused || !choice.active || !this.levelUpPresentation.includes(choice)
+      || this.levelUpChoices.get(choice) !== choiceIdentity(option)) return;
     if (option.kind === 'laser' && this.laserRanks[option.upgrade] >= 2) return;
     if (option.kind === 'missile' && this.missileRanks[option.upgrade] >= 2) return;
     if (option.kind === 'drone' && this.droneRanks[option.upgrade] >= 2) return;
     if (option.kind === 'prism' && this.prismEvolved) return;
     if (option.kind === 'cluster' && this.clusterEvolved) return;
     if (option.kind === 'twin' && this.twinDroneEvolved) return;
+    if (option.kind === 'prism' && !canEvolvePrismLaser(this.laserRanks, this.moduleLevels.combat, false)) return;
+    if (option.kind === 'cluster' && !canEvolveClusterMissile(this.missileRanks, this.moduleLevels.spatial, false)) return;
+    if (option.kind === 'twin' && !canEvolveTwinDrone(this.droneRanks, this.moduleLevels.replication, false)) return;
+    const pending = progression.snapshot().pendingLevels;
+    const resumes = pending === 1 && run.pauseReasons.length === 1;
+    this.preflightProgressionObservations({ choicesAccepted: 1, ...(pending > 1 ? { offersPresented: 1 } : {}),
+      ...(resumes ? { pauseResumes: 1 } : {}) }, 1 + Number(pending > 1 || resumes));
+    if (option.kind === 'passive' && (!Number.isSafeInteger(this.moduleLevels[option.module] + 1)
+      || this.moduleLevels[option.module] < 0)) throw new RangeError('Invalid passive level');
     if (option.kind === 'laser') this.laserRanks[option.upgrade] += 1;
     if (option.kind === 'prism') this.prismEvolved = true;
     if (option.kind === 'cluster') {
@@ -853,11 +893,17 @@ export class GameplayScene extends Phaser.Scene {
       this.laser.fireInterval = Math.max(100, this.laser.fireInterval - 50);
       this.resetWeaponTimer(this.laserTimer, this.weaponInterval(this.laser.fireInterval));
     }
+    progression.resolvePendingLevel();
     this.runDiagnostics!.recordLevelUpSelected(choiceIdentity(option));
     this.isLevelUpPaused = false;
     for (const text of this.levelUpPresentation) text.destroy();
     this.levelUpPresentation = [];
+    this.levelUpChoices.clear();
     this.inputAdapter?.reset();
+    if (progression.snapshot().pendingLevels > 0) {
+      this.enterLevelUpPause(run, progression);
+      return;
+    }
     const reasons = run.pauseReasons;
     run.releasePause('REWARD');
     this.observePause('PAUSED', reasons);
@@ -865,10 +911,13 @@ export class GameplayScene extends Phaser.Scene {
   }
 
   private updateXpPickups(delta: number): void {
-    if (!this.player || this.isSimulationPaused()) return;
+    if (!this.player || this.isSimulationPaused() || !this.playerProgression) return;
+    const run = this.run!, progression = this.playerProgression;
+    this.consolidateXpPickups(run, progression);
     for (let i = this.xpPickups.length - 1; i >= 0; i -= 1) {
       if (this.isSimulationPaused()) return;
       const pickup = this.xpPickups[i];
+      if (pickup.run !== run || !pickup.visual.active) continue;
       const dx = this.player.x - pickup.visual.x;
       const dy = this.player.y - pickup.visual.y;
       const distance = Math.hypot(dx, dy);
@@ -882,12 +931,12 @@ export class GameplayScene extends Phaser.Scene {
       const step = pickup.speed * accelerating
         + 0.5 * this.xpMagnetAcceleration * accelerating * accelerating
         + this.xpMagnetMaxSpeed * (seconds - accelerating);
-      pickup.speed = Math.min(this.xpMagnetMaxSpeed,
-        pickup.speed + this.xpMagnetAcceleration * seconds);
       if (distance <= this.xpCollectionRadius + step) {
-        this.creditExperience(pickup.value, pickup);
+        this.creditExperience(pickup.value, pickup, run, progression);
         continue;
       }
+      pickup.speed = Math.min(this.xpMagnetMaxSpeed,
+        pickup.speed + this.xpMagnetAcceleration * seconds);
       pickup.visual.x += dx / distance * step;
       pickup.visual.y += dy / distance * step;
     }
@@ -1021,7 +1070,7 @@ export class GameplayScene extends Phaser.Scene {
         fontFamily: 'Arial, sans-serif', fontSize: '40px', color: '#e0f2fe',
         backgroundColor: '#050816', padding: { x: 24, y: 12 },
       }),
-      this.add.text(centerX, centerY + 40, `LEVEL REACHED: ${this.playerExperience.level}`, {
+      this.add.text(centerX, centerY + 40, `LEVEL REACHED: ${this.playerProgression!.snapshot().level}`, {
         fontFamily: 'Arial, sans-serif', fontSize: '32px', color: '#e0f2fe',
         backgroundColor: '#050816', padding: { x: 24, y: 12 },
       }),
@@ -1366,6 +1415,7 @@ export class GameplayScene extends Phaser.Scene {
     const record = createEnemyDeathRecord(enemyDeathInput(enemy, source));
     if (record.archetype === 'boss') this.bossDefeated = true;
     this.xpPickups.push({
+      run: hit.run,
       visual: this.add.circle(record.x, record.y, 10, 0xa3e635)
         .setStrokeStyle(2, 0xecfccb),
       value: record.xpValue,
@@ -1412,29 +1462,89 @@ export class GameplayScene extends Phaser.Scene {
     return enemy;
   }
 
-  private creditExperience(amount: number, collectedPickup?: XpPickup): void {
-    const previousLevel = this.playerExperience.level;
-    this.playerExperience = addExperience(this.playerExperience, amount);
+  private consolidateXpPickups(run: RunLifecycle, progression: PlayerProgression): void {
+    if (run !== this.run || run.state !== 'RUNNING' || progression !== this.playerProgression || !this.player) return;
+    const pickups = this.xpPickups;
+    if (pickups.length <= XP_CONSOLIDATION_THRESHOLD) return;
+    progression.snapshot(); // Assert live owner before touching physical objects.
+    const plan = planXpConsolidation(pickups.map(p => ({ x: p.visual.x, y: p.visual.y, value: p.value,
+      eligible: p.run === run && p.visual.active })), this.player, this.xpMagnetRadius);
+    const removed = new Set<XpPickup>();
+    for (const [older, newer] of plan) {
+      const a = pickups[older], b = pickups[newer];
+      if (run !== this.run || run.state !== 'RUNNING' || progression !== this.playerProgression
+        || pickups !== this.xpPickups || removed.has(a) || removed.has(b)) break;
+      const eligible = (p: XpPickup) => p.run === run && p.visual.active
+        && Number.isFinite(p.visual.x) && Number.isFinite(p.visual.y)
+        && Number.isSafeInteger(p.value) && p.value > 0
+        && Math.hypot(p.visual.x - this.player!.x, p.visual.y - this.player!.y) > this.xpMagnetRadius;
+      if (!eligible(a) || !eligible(b) || a.value > Number.MAX_SAFE_INTEGER - b.value
+        || Math.floor(a.visual.x / XP_CONSOLIDATION_CELL_SIZE) !== Math.floor(b.visual.x / XP_CONSOLIDATION_CELL_SIZE)
+        || Math.floor(a.visual.y / XP_CONSOLIDATION_CELL_SIZE) !== Math.floor(b.visual.y / XP_CONSOLIDATION_CELL_SIZE)) continue;
+      a.value += b.value;
+      a.speed = 0;
+      b.visual.destroy();
+      removed.add(b);
+    }
+    // Keep the captured array identity for exact-create cleanup, and preserve survivor order.
+    if (removed.size) {
+      let write = 0;
+      for (const p of pickups) if (!removed.has(p)) pickups[write++] = p;
+      pickups.length = write;
+    }
+  }
+
+  private preflightProgressionObservations(increments: Partial<Record<'xpCredited' | 'xpCollected' | 'xpDevCredited'
+    | 'levelsGained' | 'offersPresented' | 'choicesAccepted' | 'pauseEntries' | 'pauseResumes', number>>, rows = 0): void {
+    const snapshot = this.runDiagnostics!.snapshot();
+    if (snapshot.terminal) throw new Error('Cannot observe progression after terminal');
+    for (const [key, amount] of Object.entries(increments)) {
+      const current = snapshot.aggregates[key as keyof typeof increments];
+      if (!Number.isSafeInteger(current) || !Number.isSafeInteger(amount) || amount < 0
+        || current < 0 || current > Number.MAX_SAFE_INTEGER - amount) throw new RangeError('Progression diagnostic overflow');
+    }
+    const evictions = Math.max(0, snapshot.timeline.length + rows - 256);
+    if (snapshot.droppedTimelineRecords > Number.MAX_SAFE_INTEGER - evictions) throw new RangeError('Progression timeline overflow');
+  }
+
+  private creditExperience(amount: number, collectedPickup: XpPickup | undefined, run: RunLifecycle, progression: PlayerProgression): boolean {
+    if (run !== this.run || run?.state !== 'RUNNING' || progression !== this.playerProgression || !progression || !this.player) return false;
+    const before = progression.snapshot();
+    if (collectedPickup) {
+      if (collectedPickup.run !== run || !this.xpPickups.includes(collectedPickup) || !collectedPickup.visual.active) return false;
+      if (!Number.isSafeInteger(collectedPickup.value) || collectedPickup.value <= 0 || amount !== collectedPickup.value) {
+        throw new RangeError('Invalid physical XP credit');
+      }
+    } else if (amount !== before.threshold - before.xp) return false;
+    const next = addExperience(before, amount), levelsGained = next.level - before.level;
+    const pending = before.pendingLevels + levelsGained;
+    if (!Number.isSafeInteger(pending) || pending > next.level - 1) throw new RangeError('Invalid pending levels');
+    this.preflightProgressionObservations({ xpCredited: amount, [collectedPickup ? 'xpCollected' : 'xpDevCredited']: amount,
+      levelsGained, ...(pending > 0 ? { offersPresented: 1, pauseEntries: 1 } : {}) }, pending > 0 ? 2 : 0);
+    if (amount === 0) return true;
+    progression.creditXp(amount);
     this.updateHud();
     if (collectedPickup) {
       collectedPickup.visual.destroy();
       this.xpPickups.splice(this.xpPickups.indexOf(collectedPickup), 1);
     }
-    this.runDiagnostics!.recordXpCredited(amount, this.playerExperience.level - previousLevel, collectedPickup ? 'pickup' : 'dev');
-    if (this.playerExperience.level > previousLevel) this.enterLevelUpPause();
+    this.runDiagnostics!.recordXpCredited(amount, levelsGained, collectedPickup ? 'pickup' : 'dev');
+    if (pending > 0) this.enterLevelUpPause(run, progression);
+    return true;
   }
 
   private publishDevTools(): void {
     // Phaser reuses this Scene on restart: validity belongs to this create, not this object.
-    const run = this.run!;
+    const run = this.run!, progression = this.playerProgression!;
     let valid = true;
-    const canMutate = () => valid && this.run === run && !this.isSimulationPaused() && !!this.player;
+    const canMutate = () => valid && this.run === run && this.playerProgression === progression && !this.isSimulationPaused() && !!this.player;
     const activeWarden = () => this.enemies.find(enemy => enemy.archetype === 'boss' && enemy.health > 0);
     const api: DevTools = {
       snapshot: () => {
         if (!valid) return null;
         const boss = activeWarden();
         const defense = this.playerDefense!.snapshot();
+        const { level, xp, threshold } = progression.snapshot();
         return {
           runSeed: this.runRandom!.runSeed,
           diagnostics: this.runDiagnostics!.snapshot(),
@@ -1443,7 +1553,7 @@ export class GameplayScene extends Phaser.Scene {
           isPlayerDead: this.isPlayerDead, isRunVictorious: this.isRunVictorious,
           isLevelUpPaused: this.isLevelUpPaused, godMode: this.godMode,
           playerHealth: defense.currentHull, playerShield: defense.currentShield,
-          progression: { ...this.playerExperience, threshold: xpForNextLevel(this.playerExperience.level) },
+          progression: { level, xp, threshold },
           protectionRemaining: defense.protectionRemaining,
           bossSpawned: this.bossSpawned, bossDefeated: this.bossDefeated,
           warden: boss ? { health: boss.health, phase: wardenPhase(boss.health) ?? null } : null,
@@ -1453,8 +1563,8 @@ export class GameplayScene extends Phaser.Scene {
       },
       forceLevelUp: () => {
         if (!canMutate()) return false;
-        this.creditExperience(xpForNextLevel(this.playerExperience.level) - this.playerExperience.xp);
-        return true;
+        const state = progression.snapshot();
+        return this.creditExperience(state.threshold - state.xp, undefined, run, progression);
       },
       spawnWarden: () => {
         if (!canMutate() || this.bossSpawned || this.bossDefeated || activeWarden()

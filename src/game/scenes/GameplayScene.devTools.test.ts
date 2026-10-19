@@ -7,6 +7,7 @@ import { RunLifecycle } from '../run/RunLifecycle';
 import { RunRandom } from '../run/RunRandom';
 import { RunDiagnostics } from '../run/RunDiagnostics';
 import { PlayerBuild, TAG_IDS, type BuildSnapshot } from '../player/PlayerBuild';
+import { PlayerProgression } from '../progression/PlayerProgression';
 import { PlayerDefense } from '../player/PlayerDefense';
 
 class EventEmitter {
@@ -84,7 +85,7 @@ function fixture() {
   Object.assign(scene, {
     run,
     runDiagnostics,
-    playerBuild: new PlayerBuild(), playerDefense: new PlayerDefense(5),
+    playerProgression: new PlayerProgression(), playerBuild: new PlayerBuild(), playerDefense: new PlayerDefense(5),
     time: { paused: false }, input: {}, game: { events: new EventEmitter() },
     runRandom: new RunRandom(0),
     cameras: { main: { worldView: { left: 1440, right: 3360, top: 810, bottom: 1890 } } },
@@ -462,9 +463,10 @@ describe('current scene DevTools production operations', () => {
   });
   it('credits exactly one real level from remainder, opens three choices and rejects duplicates', () => {
     const { scene, api } = fixture();
-    scene['playerExperience'] = { level: 2, xp: 7 };
+    scene['playerProgression']!.creditXp(12);
+    scene['playerProgression']!.resolvePendingLevel();
     expect(api.forceLevelUp()).toBe(true);
-    expect(scene['playerExperience']).toEqual({ level: 3, xp: 0 });
+    expect(scene['playerProgression']!.snapshot()).toEqual({ level: 3, xp: 0, threshold: 15, pendingLevels: 1 });
     expect(scene['levelUpPresentation']).toHaveLength(4);
     expect(api.snapshot()!.isLevelUpPaused).toBe(true);
     expect(api.forceLevelUp()).toBe(false);
@@ -472,10 +474,10 @@ describe('current scene DevTools production operations', () => {
   });
   it('normal collected pickup is credited/removed before the real choice pause', () => {
     const { scene } = fixture();
-    const pickup = { visual: visual(2400, 1350), value: 5, speed: 0 };
+    const pickup = { run: scene['run']!, visual: visual(2400, 1350), value: 5, speed: 0 };
     scene['xpPickups'] = [pickup as unknown as (typeof scene)['xpPickups'][number]];
     scene['updateXpPickups'](0);
-    expect(scene['playerExperience']).toEqual({ level: 2, xp: 0 });
+    expect(scene['playerProgression']!.snapshot()).toEqual({ level: 2, xp: 0, threshold: 10, pendingLevels: 1 });
     expect(scene['xpPickups']).toHaveLength(0);
     expect(pickup.visual.active).toBe(false);
     expect(scene['levelUpPresentation']).toHaveLength(4);
@@ -1036,7 +1038,7 @@ describe('GAME-044 authoritative pause and input production paths', () => {
     const f = inputFixture(), s = f.scene;
     s['createEnemy'](2500, 1350, 'shooter', s['run']!); s['currentTarget'] = s['enemies'][0];
     s['fireLaser'](); s['fireMissile'](); s['fireHostileProjectile']();
-    s['xpPickups'] = [{ visual: visual(2400, 1350), value: 5, speed: 0 } as unknown as (typeof s)['xpPickups'][number]];
+    s['xpPickups'] = [{ run: s['run']!, visual: visual(2400, 1350), value: 5, speed: 0 } as unknown as (typeof s)['xpPickups'][number]];
     primeProtection(s, 200); f.escape();
     const state = () => JSON.stringify({ snapshot: f.api.snapshot(), drone: s['droneAngle'], dash: s['dashRemaining'],
       enemies: s['enemies'], projectiles: s['projectiles'], missiles: s['missiles'], pickups: s['xpPickups'] });
@@ -1068,8 +1070,10 @@ describe('GAME-044 authoritative pause and input production paths', () => {
     const f = inputFixture(), s = f.scene;
     const event = { elapsed: 123, reset: vi.fn() };
     Object.assign(s, weapon === 'laser' ? { laserTimer: event } : { droneTimer: event });
+    s['weaponFocus'] = weapon; s['focusCursors'][weapon] = 1;
     f.api.forceLevelUp(); const choice = s['levelUpPresentation'][1];
-    s['acceptLevelUpChoice'](choice, weapon === 'laser' ? { kind: 'laser', upgrade: 'fireRate' } : { kind: 'drone', upgrade: 'firingSystem' });
+    expect(s['levelUpChoices'].get(choice)).toBe(weapon === 'laser' ? 'laser.fireRate' : 'drone.firingSystem');
+    choice.emit('pointerdown');
     expect(event.reset).toHaveBeenCalledWith(expect.objectContaining({ delay: weapon === 'laser' ? 550 : 1050, loop: true }));
     expect(weapon === 'laser' ? s['laserTimer'] : s['droneTimer']).toBe(event);
     expect(s['run']!.state).toBe('RUNNING');
@@ -1266,7 +1270,10 @@ describe('GAME-046 PlayerBuild production consumers', () => {
     s['applyBuildChange']({ kind: 'percent', stat: 'hull', delta: 1 }); expect(s['playerMaxHealth']).toBe(10); expect(s['playerHealth']).toBe(5);
     s['applyBuildChange']({ kind: 'percent', stat: 'hull', delta: -1.5 }); expect(s['playerMaxHealth']).toBe(2.5); expect(s['playerHealth']).toBe(2.5);
     passive(f, 'hull'); expect([s['playerMaxHealth'], s['playerHealth']]).toEqual([3.5, 3.5]);
-    f.api.forceLevelUp(); const pick = s['levelUpPresentation'][1], before = f.api.snapshot()!.diagnostics;
+    const draw = vi.spyOn(s['runRandom']!.reward, 'next').mockReturnValue(0);
+    f.api.forceLevelUp(); draw.mockRestore();
+    const pick = s['levelUpPresentation'][2], before = f.api.snapshot()!.diagnostics;
+    expect(s['levelUpChoices'].get(pick)).toBe('passive.hull');
     s['playerBuild']!.dispose(); expect(() => s['acceptLevelUpChoice'](pick, { kind: 'passive', module: 'hull' })).toThrow('disposed PlayerBuild');
     expect(s['moduleLevels'].hull).toBe(1); expect(s['playerHealth']).toBe(3.5); expect(s['isLevelUpPaused']).toBe(true);
     expect(s['runDiagnostics']!.snapshot()).toEqual(before);
@@ -1831,7 +1838,7 @@ describe('GAME-052 physical interaction and Charger integration', () => {
     s.update(0, 500); expect(s['enemies']).not.toContain(e); expect(s['playerHealth']).toBe(5);
     expect(e.knockbackVelocity).toEqual(originalVelocity); expect(e.charger!.telegraph.active).toBe(false);
     expect(s['runDiagnostics']!.snapshot().aggregates).toMatchObject({ killed: { byArchetype: { charger: 1 } }, xpDropped: 1, xpCollected: 1 });
-    expect(s['xpPickups']).toHaveLength(0); expect(s['playerExperience'].xp).toBe(1);
+    expect(s['xpPickups']).toHaveLength(0); expect(s['playerProgression']!.snapshot().xp).toBe(1);
   });
   it.each(['MANUAL', 'REWARD', 'FOCUS_LOSS'] as const)('%s freezes Charger, Graphics and force then resumes remaining time', reason => {
     const { scene: s } = inputFixture(), e = s['createEnemy'](2700, 1350, 'charger', s['run']!)!; s.update(0, 100);
@@ -1938,5 +1945,134 @@ describe('GAME-052 physical interaction and Charger integration', () => {
     const hit = vi.spyOn(s as unknown as { applyEnemyHit: typeof s['applyEnemyHit'] }, 'applyEnemyHit');
     s['explodeClusterSatellites'](2560, 1350, m); expect(hit).toHaveBeenCalledTimes(1);
     expect(hit.mock.calls[0][0]).toMatchObject({ origin: { x: 2680, y: 1350 } }); expect(e.knockbackVelocity.x).toBeLessThan(0);
+  });
+});
+
+
+describe('GAME-053 physical XP and pending progression', () => {
+  function pickup(s: GameplayScene, value = 1, x = 2400, y = 1350) {
+    const p = { run: s['run']!, visual: visual(x, y, 10), value, speed: 0 } as unknown as (typeof s)['xpPickups'][number];
+    s['xpPickups'].push(p); return p;
+  }
+  function credit(s: GameplayScene, p: ReturnType<typeof pickup>, amount = p.value) {
+    return s['creditExperience'](amount, p, s['run']!, s['playerProgression']!);
+  }
+  it('collects one32 pickup once and presents three distinct sequential offers under one REWARD', () => {
+    const f = inputFixture(), s = f.scene, p = pickup(s, 32), draws = spyStreams(s), events = [...s['gameplayTimers']];
+    s['updateXpPickups'](0);
+    expect(s['playerProgression']!.snapshot()).toEqual({ level: 4, xp: 2, threshold: 20, pendingLevels: 3 });
+    const first = s['levelUpPresentation'][1]; const firstIdentity = s['levelUpChoices'].get(first)!;
+    expect(credit(s, p)).toBe(false);
+    for (let remaining = 3; remaining > 0; remaining--) {
+      const current = s['levelUpPresentation'][1];
+      expect(s['run']!.pauseReasons).toEqual(['REWARD']); expect(s.time.paused).toBe(true);
+      expect(s['playerProgression']!.snapshot().pendingLevels).toBe(remaining);
+      f.down('W'); f.down('SPACE'); s.update(0, 1000);
+      current.emit('pointerdown'); f.up('W'); f.up('SPACE');
+      if (remaining > 1) {
+        expect(s['run']!.state).toBe('PAUSED'); expect(s['levelUpPresentation'][1]).not.toBe(current);
+        const before = f.api.snapshot(); s['acceptLevelUpChoice'](first, { kind: 'laser', upgrade: firstIdentity.split('.')[1] as 'power' });
+        expect(f.api.snapshot()).toEqual(before);
+      }
+    }
+    expect(s['run']!.state).toBe('RUNNING'); expect(s['inputAdapter']!.sample()).toMatchObject({ moveX: 0, moveY: 0 });
+    expect(s['playerProgression']!.snapshot().pendingLevels).toBe(0); expect(p.visual.active).toBe(false);
+    expect(f.api.snapshot()!.diagnostics.aggregates).toMatchObject({ xpCredited: 32, xpCollected: 32, xpDevCredited: 0,
+      levelsGained: 3, offersPresented: 3, choicesAccepted: 3, pauseEntries: 1, pauseResumes: 1 });
+    expect(draws.map(d => d.mock.calls.length)).toEqual([0, 6, 0, 0]); expect(s['gameplayTimers']).toEqual(events);
+    expect(Object.keys(f.api.snapshot()!.progression)).toEqual(['level', 'xp', 'threshold']);
+  });
+  it('next sequential offer sees actual just-completed evolution prerequisite', () => {
+    const { scene: s } = fixture();
+    s['laserRanks'] = { power: 2, fireRate: 2, speed: 1 }; s['moduleLevels'].combat = 1;
+    pickup(s, 32); s['updateXpPickups'](0);
+    expect(s['levelUpChoices'].get(s['levelUpPresentation'][1])).toBe('laser.speed');
+    expect([...s['levelUpChoices'].values()]).not.toContain('prism');
+    s['levelUpPresentation'][1].emit('pointerdown');
+    expect(s['laserRanks'].speed).toBe(2); expect([...s['levelUpChoices'].values()]).toContain('prism');
+    const evolve = [...s['levelUpChoices']].find(([, id]) => id === 'prism')![0]; evolve.emit('pointerdown');
+    expect(s['prismEvolved']).toBe(true); expect([...s['levelUpChoices'].values()]).not.toContain('prism');
+    expect(s['playerProgression']!.snapshot().pendingLevels).toBe(1);
+  });
+  it.each([-1, 0, 0.5, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1])('malformed physical XP%s rejects before mutation', value => {
+    const { scene: s, api } = fixture(), p = pickup(s, value), before = api.snapshot(), owner = s['playerProgression']!.snapshot();
+    expect(() => s['updateXpPickups'](0)).toThrow(RangeError);
+    expect(api.snapshot()).toEqual(before); expect(s['playerProgression']!.snapshot()).toEqual(owner);
+    expect(s['xpPickups']).toContain(p); expect(p.visual.active).toBe(true); expect(p.speed).toBe(0);
+  });
+  it('rejects mismatched value, removed/stale/inactive pickup and illegitimate DEV credit', () => {
+    const { scene: s, api } = fixture(), p = pickup(s), before = api.snapshot();
+    expect(() => credit(s, p, 2)).toThrow(RangeError); expect(api.snapshot()).toEqual(before);
+    p.visual.destroy(); expect(credit(s, p)).toBe(false);
+    const old = pickup(s); s['xpPickups'].pop(); expect(credit(s, old)).toBe(false);
+    const foreign = pickup(s); Object.assign(foreign, { run: new RunLifecycle() }); expect(credit(s, foreign)).toBe(false);
+    expect(s['creditExperience'](2, undefined, s['run']!, s['playerProgression']!)).toBe(false);
+  });
+  it.each(['xpCredited', 'xpCollected', 'levelsGained', 'offersPresented', 'pauseEntries'] as const)('preflights %s overflow before cross-owner credit', key => {
+    const { scene: s, api } = fixture(), p = pickup(s, 5);
+    s['runDiagnostics']!['aggregates'][key] = Number.MAX_SAFE_INTEGER;
+    const before = api.snapshot(), owner = s['playerProgression']!.snapshot();
+    expect(() => credit(s, p)).toThrow(RangeError); expect(api.snapshot()).toEqual(before);
+    expect(s['playerProgression']!.snapshot()).toEqual(owner); expect(p.visual.active).toBe(true); expect(s['xpPickups']).toContain(p);
+  });
+  it.each(['choicesAccepted', 'offersPresented'] as const)('selection preflights %s before actual Build/pending/UI changes', key => {
+    const { scene: s, api } = fixture(); pickup(s, 32); s['updateXpPickups'](0);
+    s['runDiagnostics']!['aggregates'][key] = Number.MAX_SAFE_INTEGER;
+    const before = api.snapshot(), owner = s['playerProgression']!.snapshot(), ranks = { ...s['laserRanks'] }, current = s['levelUpPresentation'][1];
+    expect(() => s['acceptLevelUpChoice'](current, { kind: 'laser', upgrade: 'power' })).toThrow(RangeError);
+    expect(api.snapshot()).toEqual(before); expect(s['laserRanks']).toEqual(ranks); expect(s['playerProgression']!.snapshot()).toEqual(owner);
+    expect(current.active).toBe(true); expect(s['levelUpPresentation'][1]).toBe(current);
+  });
+  it('rejects mismatched actual candidate while preserving live presentation', () => {
+    const { scene: s, api } = fixture(); api.forceLevelUp(); const p = s['levelUpPresentation'][1], before = api.snapshot();
+    s['acceptLevelUpChoice'](p, { kind: 'passive', module: 'hull' }); expect(api.snapshot()).toEqual(before); expect(p.active).toBe(true);
+  });
+  it.each([180, 220])('preserves magnet%s, exact acceleration/cap and collection boundary', magnet => {
+    const { scene: s } = fixture(); s['xpMagnetRadius'] = magnet;
+    const outside = pickup(s, 1, 2400 + magnet + 0.001), inside = pickup(s, 1, 2400 + magnet);
+    outside.speed = 100; s['updateXpPickups'](100);
+    expect(outside.speed).toBe(0); expect(outside.visual.x).toBe(2400 + magnet + 0.001);
+    expect(inside.speed).toBe(90); expect(inside.visual.x).toBeCloseTo(2400 + magnet - 4.5);
+    inside.visual.x = 2400 + magnet; inside.speed = 590; s['updateXpPickups'](20);
+    expect(inside.speed).toBe(600); expect(inside.visual.x).toBeCloseTo(2400 + magnet - (590 / 90 + 0.5 * 900 / 8100 + 600 * (0.02 - 1 / 90)));
+    const boundary = pickup(s, 1, 2420); s['updateXpPickups'](0); expect(boundary.visual.active).toBe(false);
+  });
+  it('reverse collection pauses after newest threshold pickup, leaving older one untouched', () => {
+    const { scene: s } = fixture(), older = pickup(s), newer = pickup(s, 5); s['updateXpPickups'](0);
+    expect(s['xpPickups']).toEqual([older]); expect(newer.visual.active).toBe(false); expect(older.visual.active).toBe(true);
+  });
+  it('consolidates actual visuals in survivor order, conserves XP and credits anchor only once', () => {
+    const { scene: s, api } = fixture();
+    for (let i = 0; i < 255; i++) pickup(s, 1, 4000 + i * 64, 2000);
+    const a = pickup(s, 2, 3000, 2000), b = pickup(s, 3, 3001, 2001), before = api.snapshot()!.diagnostics;
+    s['updateXpPickups'](0); expect(s['xpPickups']).toHaveLength(256);
+    expect(s['xpPickups'].at(-1)).toBe(a); expect([a.visual.x, a.visual.y, a.value, a.speed]).toEqual([3000, 2000, 5, 0]);
+    expect(b.visual.active).toBe(false); expect(credit(s, b)).toBe(false); expect(api.snapshot()!.diagnostics).toEqual(before);
+    expect(s['xpPickups'].reduce((sum, p) => sum + p.value, 0)).toBe(260);
+    a.visual.x = 2400; a.visual.y = 1350; s['updateXpPickups'](0);
+    expect(api.snapshot()!.diagnostics.aggregates).toMatchObject({ xpCollected: 5, xpDropped: 0, levelsGained: 1 });
+  });
+  it.each(['MANUAL', 'REWARD', 'FOCUS_LOSS'] as const)('%s freezes physical/consolidation and XP state', reason => {
+    const { scene: s, api } = fixture(); for (let i = 0; i < 258; i++) pickup(s, 1, 3000, 2000);
+    s['run']!.requestPause(reason); s['projectPause'](); const before = api.snapshot(), ps = s['xpPickups'].map(p => [p.value, p.speed, p.visual.x]);
+    s['updateXpPickups'](10000); expect(api.snapshot()).toEqual(before); expect(s['xpPickups'].map(p => [p.value, p.speed, p.visual.x])).toEqual(ps);
+  });
+  it('REWARD+FOCUS_LOSS holds all pending choices; terminal freezes unresolved state', () => {
+    const f = inputFixture(), s = f.scene; pickup(s, 32); s['updateXpPickups'](0); s.game.events.emit('blur');
+    for (let i = 0; i < 3; i++) s['levelUpPresentation'][1].emit('pointerdown');
+    expect(s['run']!.pauseReasons).toEqual(['FOCUS_LOSS']); s.game.events.emit('focus'); expect(s['run']!.state).toBe('PAUSED'); f.escape();
+    expect(s['run']!.state).toBe('RUNNING'); pickup(s, 100); s['updateXpPickups'](0);
+    const oldChoice = s['levelUpPresentation'][1], before = s['playerProgression']!.snapshot(); s['enterPlayerDeath']();
+    const d = f.api.snapshot()!.diagnostics, draws = spyStreams(s); oldChoice.emit('pointerdown'); s['enterLevelUpPause'](); s['updateXpPickups'](1000);
+    expect(s['playerProgression']!.snapshot()).toEqual(before); expect(f.api.snapshot()!.diagnostics).toEqual(d); for (const draw of draws) expect(draw).not.toHaveBeenCalled();
+  });
+  it('native create disposes captured old owner/pickups and rejects stale callbacks', () => {
+    const f = fixture(), s = f.scene; allowCreate(s); s.create(); const old = s['playerProgression']!, run = s['run']!;
+    const p = pickup(s, 32); s['updateXpPickups'](0); const choice = s['levelUpPresentation'][1], copy = old.snapshot();
+    f.shutdown(); s.create(); const api = window.__NEBULA_DEV__!, before = api.snapshot();
+    expect(() => old.snapshot()).toThrow('disposed PlayerProgression'); expect(copy.pendingLevels).toBe(3);
+    expect(s['creditExperience'](32, p, run, old)).toBe(false); s['acceptLevelUpChoice'](choice, { kind: 'laser', upgrade: 'power' }, run, old);
+    expect(api.snapshot()).toEqual(before); expect(s['playerProgression']!.snapshot()).toEqual({ level: 1, xp: 0, threshold: 5, pendingLevels: 0 });
+    expect(s['xpPickups']).toHaveLength(0); expect(p.visual.active).toBe(false); expect(s['gameplayTimers']).toHaveLength(5);
   });
 });
