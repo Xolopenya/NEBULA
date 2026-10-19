@@ -339,7 +339,7 @@ Never reuse these IDs for unrelated tasks.
 
 ## Mechanical Vertical Slice roadmap
 
-GAME-042/043/044/045 are DONE; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055+ remain BACKLOG. Each row gives phase membership, exact dependencies and a
+GAME-042/043/044/045 are DONE; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055 READY; GAME-056+ remain BACKLOG. Each row gives phase membership, exact dependencies and a
 short capability; gates are review checkpoints, not automatic authorization.
 Dependency ranges are inclusive.
 
@@ -547,7 +547,7 @@ Production preview boots with DEV API absent. Known favicon404 and Vite bundle-s
 no new pageerrors observed.
 
 CURRENT_STATE and real PROJECT_GRAPH ownership are updated. DESIGN-005/GAME-039 stay DONE,
-GAME-040/041 SUPERSEDED; GAME-043 DONE; GAME-044 DONE; GAME-045 DONE; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055+ remain BACKLOG. GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055+ remain BACKLOG pending separate definition. Explicit staging
+GAME-040/041 SUPERSEDED; GAME-043 DONE; GAME-044 DONE; GAME-045 DONE; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055 READY; GAME-056+ remain BACKLOG. GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055 READY; GAME-056+ remain BACKLOG pending separate definition. Explicit staging
 and ignored .codex-review/GAME-042-review.txt follow AGENTS.md; no commit is created.
 
 #### GAME-043 — Seeded RNG Streams
@@ -749,7 +749,7 @@ Out of scope: GAME-044 Pause/Input, GAME-045 telemetry, GAME-046 Build, Encounte
 templates/pressure/portals/weights, full Reward Generator/Analyzer/pity/recent offers,
 World Scheduler/events, BossController/Juggernaut, RunResult/RunReport, replay recording,
 daily seeds, seed entry/query/settings/reseed DEV command, save/meta/profile, arbitrary
-named/forkable RNG framework, service locator or new dependency. GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055+ remain BACKLOG pending separate definition.
+named/forkable RNG framework, service locator or new dependency. GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055 READY; GAME-056+ remain BACKLOG pending separate definition.
 
 **Implementation completion evidence**
 
@@ -769,7 +769,7 @@ fixed-seed spawn/offer sequences and cross-stream isolation. Two actual Victory 
 cycles and one Death RETRY (plus nonterminal/Missile/Cluster native restarts) dispose old
 streams and retain fresh RNG/lifecycle/API/five events with inert stale callbacks.
 Production canvas boots with DEV API absent; only known favicon404 and build chunk-size
-warnings remain. GAME-044 DONE; GAME-045 DONE; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055+ remain BACKLOG; GAME-040/041 SUPERSEDED; GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055+ remain BACKLOG pending separate definition.
+warnings remain. GAME-044 DONE; GAME-045 DONE; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055 READY; GAME-056+ remain BACKLOG; GAME-040/041 SUPERSEDED; GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055 READY; GAME-056+ remain BACKLOG pending separate definition.
 
 **Definition validation and documentation (historical definition-only instructions)**
 
@@ -1090,7 +1090,7 @@ Missile/Cluster cycles pass: fresh authority/adapter/RNG/API, zero reasons, unpa
 five fresh events, old streams throw and saved stale callbacks draw zero on all fresh streams.
 Unmodified production preview passes keyboard/Space/Escape and 700ms rendered pause freeze
 without DEV API/debug controls. Only known favicon404 and Vite chunk-size warnings remain.
-GAME-042/043/044 DONE; GAME-040/041 SUPERSEDED; GAME-045 DONE; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055+ remain BACKLOG; GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055+ remain BACKLOG pending separate definition.
+GAME-042/043/044 DONE; GAME-040/041 SUPERSEDED; GAME-045 DONE; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055 READY; GAME-056+ remain BACKLOG; GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055 READY; GAME-056+ remain BACKLOG pending separate definition.
 
 #### GAME-045 — Telemetry & Diagnostics Foundation
 
@@ -1346,8 +1346,8 @@ inert stale owners/callbacks. Unmodified production preview verifies keyboard/Da
 DEV absence and local static-only network requests. HIDDEN/VISIBLE combinations remain
 separately identified synthetic tracked coverage; known favicon404/bundle-size warnings only.
 
-GAME-045 DONE; GAME-040/041 SUPERSEDED; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055+ remain BACKLOG.
-GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055+ remain BACKLOG pending separate definition. GAME-055+ are not unlocked.
+GAME-045 DONE; GAME-040/041 SUPERSEDED; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055 READY; GAME-056+ remain BACKLOG.
+GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055 READY; GAME-056+ remain BACKLOG pending separate definition. GAME-056+ are not unlocked.
 
 **GATE A — Runtime Foundation — PASSED**
 
@@ -1374,7 +1374,7 @@ Implemented and verified against the acceptance contracts below.
 Establish one focused run-scoped PlayerBuild authority for 3 Combat / 1 Active / 6 Core
 slots, immutable Base Stats, unconditional Run Modifiers and cached Effective Stats.
 GameplayScene remains the composition root and current combat/progression/presentation owner.
-GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055+ remain BACKLOG; no later runtime domain is implemented here.
+GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055 READY; GAME-056+ remain BACKLOG; no later runtime domain is implemented here.
 
 **Pre-implementation tracked-source audit and migration inventory**
 
@@ -1725,7 +1725,7 @@ old reads/mutations/callbacks remain inert. Extra Missile/Cluster terminal cycle
 Unmodified production preview passes keyboard/Dash/pause/current combat and DEV absence.
 Known favicon404 and Vite bundle-size warnings only. CURRENT_STATE and PROJECT_GRAPH reflect
 actual implemented ownership; no dependencies changed. GATE A remains PASSED; GAME-046 DONE;
-GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055+ remain BACKLOG. GATE B PASSED — Modern Combat on Legacy Spawning architect-approved.
+GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055 READY; GAME-056+ remain BACKLOG. GATE B PASSED — Modern Combat on Legacy Spawning architect-approved.
 
 #### GAME-047 — Tags & Build Snapshot
 
@@ -1737,7 +1737,7 @@ Depends on GAME-046 DONE; preserve GAME-039/042/043/044/045/046 contracts and PA
 Extend the existing Phaser-free PlayerBuild with twelve numeric Tag totals, derived build
 identity and one canonical detached BuildSnapshot. Tags describe the build in parallel to
 stats; they never supply combat multipliers. Implemented and verified against the contracts
-below. GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055+ remain BACKLOG; GATE B PASSED.
+below. GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055 READY; GAME-056+ remain BACKLOG; GATE B PASSED.
 
 **Authoritative design and current source audit**
 
@@ -2007,7 +2007,7 @@ owners/API/five events and unpaused Clock; old direct additions (including0)/rea
 and saved callbacks remain inert. Additional Missile/Cluster native cycles pass.
 Unmodified production preview retains W/Space/Escape/current combat, no DEV API/debug UI
 and no new pageerrors. Known favicon404 and Vite bundle-size warning only. Factual
-CURRENT_STATE/PROJECT_GRAPH updated. GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055+ BACKLOG; GAME-040/041
+CURRENT_STATE/PROJECT_GRAPH updated. GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055 READY; GAME-056+ BACKLOG; GAME-040/041
 SUPERSEDED; GATE A PASSED; GATE B PASSED. No commit created.
 
 #### GAME-048 — Player Defense Runtime
@@ -2022,7 +2022,7 @@ current Shield and damage protection, with Shield-first numeric incoming damage,
 healing/capping and the explicit contact separation below. Scene remains composition root,
 collision/presentation/lifecycle adapter; PlayerBuild remains maximum-Hull authority.
 GAME-048 implementation is complete; the approved contracts and pre-implementation audit follow.
-GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055+ remain BACKLOG; GATE B PASSED.
+GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055 READY; GAME-056+ remain BACKLOG; GATE B PASSED.
 
 **Pre-implementation defense source inventory and authoritative design audit**
 
@@ -2403,7 +2403,7 @@ handlers; Hull/reward checks use browser pointer input. Unmodified production pr
 passes W/Space/Escape/pause/combat, ordinary damage to HP0/Death and actual pointer RETRY
 back to HP5/5, no DEV API/debug UI or new pageerrors. Only known favicon404 and Vite
 large-chunk warnings remain. CURRENT_STATE/PROJECT_GRAPH describe implemented ownership.
-GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055+ BACKLOG; GAME-040/041 SUPERSEDED; GATE A PASSED; GATE B PASSED. Architect implementation approval is pending; no commit created.
+GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055 READY; GAME-056+ BACKLOG; GAME-040/041 SUPERSEDED; GATE A PASSED; GATE B PASSED. Architect implementation approval is pending; no commit created.
 
 #### GAME-049 — Combat Resolution & Launch Snapshots
 
@@ -2837,7 +2837,7 @@ pointerdown handlers; real keyboard/mouse checks are reported separately. Unmodi
 production preview passes W/Space/Escape/pause/combat, ordinary damage to HP0/5 Death and
 actual mouse RETRY to HP5/5/fresh progress, absent DEV API/debug UI/new pageerrors. Production
 Death was observed after73000ms; only known favicon404/Vite large-chunk warnings remain.
-CURRENT_STATE and PROJECT_GRAPH map the implemented boundary. GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055+
+CURRENT_STATE and PROJECT_GRAPH map the implemented boundary. GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055 READY; GAME-056+
 BACKLOG; GAME-040/041 SUPERSEDED; GATE A PASSED; GATE B PASSED. GAME-049 implementation and
 GATE B are architect-approved; no commit created.
 
@@ -3267,7 +3267,7 @@ Hit, creation/removal/timer/input/focus/reward/result/DEV/cleanup callbacks with
 RNG. Unmodified production input/movement/Dash/pause/combat/ordinary damage/Death and real
 pointer RETRY pass, with no DEV API/debug UI/pageerrors. Existing favicon404 and large
 bundle/Vitest worker advice only. CURRENT_STATE/PROJECT_GRAPH reflect implemented truth.
-GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055+ BACKLOG; GAME-040/041 SUPERSEDED; GATE A/B PASSED. GAME-050
+GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055 READY; GAME-056+ BACKLOG; GAME-040/041 SUPERSEDED; GATE A/B PASSED. GAME-050
 implementation is architect-approved; no commit is created in this definition task.
 
 #### GAME-051 — Authoritative EnemyDeath Pipeline
@@ -3714,7 +3714,7 @@ movement/Dash/pause/combat, ordinary enemy death/physical XP, incoming Death and
 to fresh HP5/XP0/one Chaser, DEV absent/no pageerrors. Known favicon404/large bundle warning only.
 Ignored review packet contains complete source audit, browser evidence and full staged diff.
 
-GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055+ BACKLOG pending separate definition/review; GAME-040/041 SUPERSEDED;
+GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055 READY; GAME-056+ BACKLOG pending separate definition/review; GAME-040/041 SUPERSEDED;
 GATE A/B PASSED. GAME-052 definition and implementation are architect-approved and DONE.
 
 
@@ -4273,7 +4273,7 @@ satellite terminal completion and frozen BossXP10 pass. Unmodified built product
 keyboard/mouse/rendered output: W/Space/Escape/combat/survivor knockback/physical XP/ordinary Death/
 actual RETRY/fresh active run; DEV absent/no pageerrors. Known favicon404/bundle warning remain.
 CURRENT_STATE and PROJECT_GRAPH reflect actual ownership/values; no dependency/future runtime.
-GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055+ BACKLOG pending separate definition/review; GAME-040/041 SUPERSEDED;
+GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055 READY; GAME-056+ BACKLOG pending separate definition/review; GAME-040/041 SUPERSEDED;
 GATE A/B PASSED. No other gate closed. GAME-052 implementation is architect-approved and DONE.
 
 **GATE B — Modern Combat on Legacy Spawning — PASSED** — review the preceding phase capabilities before its cutover/next proof.
@@ -4284,7 +4284,7 @@ GATE A/B PASSED. No other gate closed. GAME-052 implementation is architect-appr
 | --- | --- | --- | --- | --- |
 | GAME-053 | Physical XP & Level Progression | GAME-051 | Physical XP, value preservation, thresholds, overflow and pending levels. | DONE |
 | GAME-054 | Reward Transaction & Eligibility | GAME-046, GAME-047, GAME-053 | One reward transaction, hard eligibility and explicit Build application. | DONE |
-| GAME-055 | Level-Up Generator | GAME-043, GAME-047, GAME-054 | Weighted Level-Up roles, Analyzer, pity and recent-offer handling. | BACKLOG |
+| GAME-055 | Level-Up Generator | GAME-043, GAME-047, GAME-054 | Weighted Level-Up roles, Analyzer, pity and recent-offer handling. | READY |
 | GAME-056 | Laser Progression Vertical | GAME-049, GAME-055 | Laser tuning/readiness and Scatter Array / Repeater Array / Precision Lance development. | BACKLOG |
 | GAME-057 | Missile Progression | GAME-056 | Straight base Missile and Guidance / Heavy Warhead / Fragmentation progression. | BACKLOG |
 | GAME-058 | Combat Drone Progression | GAME-056 | Combat Drone Scatter / Repeater / Precision progression. | BACKLOG |
@@ -4648,7 +4648,7 @@ Unmodified built production real W/Space/Escape/pixel checks pass movement/Dash/
 XP to Level2 and actual pointer choice, ordinary incoming Death/actual RETRY and DEV absence. No new
 pageerrors; known favicon404/Vite large-chunk/Vitest worker advice only. CURRENT_STATE/PROJECT_GRAPH
 reflect actual ownership; no dependencies or later runtime. Ignored review contains complete source
-inventory, browser evidence and full staged diff. GAME-053 DONE; GAME-054 DONE; GAME-055+ BACKLOG; GAME-040/041 SUPERSEDED;
+inventory, browser evidence and full staged diff. GAME-053 DONE; GAME-054 DONE; GAME-055 READY; GAME-056+ BACKLOG; GAME-040/041 SUPERSEDED;
 GATE A/B PASSED. GATE C remains unapproved; no new gate closure. GAME-053 implementation is architect-approved and DONE.
 
 #### GAME-054 — Reward Transaction & Eligibility
@@ -4657,7 +4657,7 @@ STATUS: DONE
 
 Implementation is complete against the architect-approved contract below, including all11
 approved decisions and both mandatory clarifications. Completion evidence follows the retained
-historical definition. GAME-055+ remain BACKLOG; GATE A/B PASSED; GATE C unapproved.
+historical definition. GAME-055 READY; GAME-056+ remain BACKLOG; GATE A/B PASSED; GATE C unapproved.
 
 **Definition scope and authority (historical)**
 
@@ -5065,7 +5065,245 @@ physical XP/Level-Up/real mouse choice and ordinary incoming Death/real RETRY/fr
 DEV absent/no new pageerrors. Known favicon404/Vite chunk/Vitest worker warnings only.
 CURRENT_STATE/PROJECT_GRAPH reflect actual ownership. Ignored review includes complete source
 call-site audit, browser evidence, quality checks and full staged diff. GAME-054 DONE;
-GAME-055+ BACKLOG; GAME-040/041 SUPERSEDED; GATE A/B PASSED; GATE C unapproved. No commit created.
+GAME-055 READY; GAME-056+ BACKLOG; GAME-040/041 SUPERSEDED; GATE A/B PASSED; GATE C unapproved. No commit created.
+
+#### GAME-055 — Level-Up Generator
+
+STATUS: READY
+
+**Authority / implementation boundary**
+
+Definition only. Depends on GAME-043/047/054 DONE; GAME-054 architect-approved implementation
+is committed at audit HEAD f4d50ee0ebda88147c02f0a19f3194a7d0f0910e. Baseline1294 tests/32 files.
+GAME-056+ BACKLOG; GATE A/B PASSED; GATE C unapproved. Architect approves all14 decisions for
+GAME-055-v1 subject to the two mandatory clarifications below. READY remains definition status;
+separate implementation authorization is required. No source/tests/other docs change.
+
+Established requirements: ARCHITECTURE#Rewards-and-transaction and #RNG-and-determinism require
+hard eligibility before relevance/Analyzer/weighted randomness, one transaction and soft recent
+penalties; GAME_DESIGN#Reward-sources-and-Level-Up / #Combat-Analyzer require three distinct
+choices, Synergy/Neutral/Pivot goals, diminishing Analyzer influence and presentation-based soft
+pity reset. BALANCE#Difficulty-influence-and-role-expectations calls Analyzer0..4 a hypothesis,
+not an implemented cap/formula. CONTENT_MANIFEST#Build-and-progression fixes future content scope,
+not permission to introduce it. CURRENT_STATE#Reward-transactions-and-hard-eligibility and actual
+source describe current reality; PROJECT_GRAPH is navigation, with historical provenance only.
+Numerical policy values, metadata, owner/API and cutovers below originated as PROPOSED decisions;
+the architect has accepted all14 subject to the clarified pity transition and candidate integrity.
+
+**Actual source / tests inventory and compatibility facts**
+
+| Current source anchor | Audited fact / required seam |
+| --- | --- |
+| rewards/RewardTransaction.ts:assertCanOpen/open/present/trySelect | Sole offer/token/ordinal/selection guard; copied frozen3 canonical candidates; detached JSON reads; callback ends before invalidation/guard exit/Scene orchestration |
+| rewards/rewardChoices.ts:levelUpPool/rewardChoices/copyCandidate | Canonical15 ordinary entries in Laser/Missile/Drone/passive order plus prism/cluster/twin; exact closed shapes/ID agreement; no category weights or relevance metadata |
+| rewards/rewardEligibility.ts:isRewardEligible/assertRewardFeasible | Current detached Build/legacy ranks/modules/flags/numeric feasibility at generation AND application; slots/cap2/recipes/preview/launch/cadence; no Tags/Analyzer hard gate |
+| scenes/GameplayScene.ts:rewardContext/enterLevelUpPause (708..812) | Hard-filter ordinary pool; deterministic focused first, sampled passive second, cyclic guaranteed evolution or ordinary third; Scene focus/evolution cursors; budgets2/3/1/2 |
+| progression/focusedUpgrade.ts / evolutionOffer.ts / selectChoices.ts | Least-rank/cyclic focus with optional9-track mask; Prism-first cyclic eligible evolution; uniform sampling by input identity, one draw/slot; not weighted |
+| player/PlayerBuild.ts:snapshot/addCombatAnalyzerLevels/deriveIdentity | Numeric Tags all0 in normal prototype; highest positive tied tags dominant, next distinct positive tier secondary; safe integer Analyzer starts0 and may reach MAX_SAFE_INTEGER; no authored reward-tag map |
+| progression/PlayerProgression.ts:creditXp/resolvePendingLevel | Sole level/XP/pending owner; fresh32 XP ->4/2/pending3; one accepted upgrade resolves one, without new XP/level |
+| run/RunRandom.ts:stream | Four explicit independent seeded Mulberry32 streams; only Reward consumed by offers, World/Boss dormant; disposed handles throw |
+| run/RunDiagnostics.ts:recordLevelUpOffered/Selected/snapshot | Offered once on actual presentation, selected once after application/pending; six timeline kinds/newest256; no pity/history counters |
+| Scene:create/disposeReward/currentReward/acceptLevelUpChoice/applyRewardChoice/clearTerminalInput | Exact run/Build/progression/Reward/presentation/Text ownership, persistent retryable named handlers; post-trySelect next offer; terminal invalidates, native restart captures exact owners |
+| RewardTransaction.test / rewardEligibility.test / PlayerBuild.test / RunRandom.test / focusedUpgrade.test / evolutionOffer.test / selectChoices.test / GameplayScene.devTools.test | Existing auth/immutability/ordinal/retry/order, caps/recipes/slots/numerics/Tags neutrality, RNG goldens/budgets, pending/BLUR/native/terminal coverage; no weighted policy/pity/history owner yet |
+
+All18 current rewards retain IDs, labels, values, prerequisites and actual application. Nine
+weapon tracks still cap2; six passives repeat subject to numeric feasibility; Prism/Cluster/Twin
+retain existing recipes and no extra Combat slot. No new acquisition, Core/Active/Doctrine,
+Analyzer reward, specialization or target-distribution behavior. Existing prototype Tags remain0.
+
+**GAME-055-v1 decision table — architect-approved with mandatory clarifications**
+
+| # | Decision | PROPOSED exact contract |
+| --- | --- | --- |
+| 1 | Roles / guarantees | Ordered slots DEVELOPMENT/SYNERGY, STABILITY, PIVOT; roles internal, no UI labels. Slot1 weighted ordinary weapon tuning if any, else all ordinary. Slot2 remaining passives if any, else all remaining ordinary. Slot3 reserved eligible evolution if any, else remaining non-primary-match ordinary if any, else all remaining ordinary. Distinct IDs globally; category guarantees apply only when available, relevance in Slot1 is a soft preference |
+| 2 | Categories / base/context weights | Current weapon tuning, prototype passive, evolution only; base100 each. Relevance r=2 for any dominant-tag overlap, else1 secondary overlap, else0. Context multiplier1+0.5*r. Slot1 primary-match multiplier2, secondary1.25, otherwise1; additionally current weaponFocus tuning multiplier1.5. Slot2 hull/thruster multiplier1.5, others1. Slot3 multiplier1. All combine multiplicatively with Analyzer, pity and recent factors below |
+| 3 | Analyzer | A=effectiveStats.combatAnalyzer validated nonnegative safe integer. a=0 at A0, otherwise1/(1+4/A). Primary-match weight multiplied by1+2*a, all others1. A1 gives1.4, A4 gives2, asymptote3; no Build cap imposed and no overflow-prone A+4/product. Never changes hard eligibility, category guarantees, effects, difficulty or pivot availability |
+| 4 | Pity | Store miss count m in0..4; primary-match weight multiplier1+0.25*base (max2), no forced candidate. Base=0 when dominant signature changes, otherwise stored m. Prospective misses=0 if no primary tags or ANY presented primary match; otherwise freeze base if no relevant eligible candidate exists, else min(4,base+1). Changed signature therefore yields0/no eligible match,1/available-but-missed,0/relevant offer. Commit signature/m ONLY on successful recordPresented, never generation/selection |
+| 5 | Recent history | Last TWO actually presented offers, each three canonical IDs, oldest evicted on third presentation; at most6 IDs, no unbounded counters. k=number of these offers containing candidate ID (0..2), multiplier2^(-k):1/0.5/0.25. Soft penalty only, never history exclusion, even for forced evolution or singleton pool. Record offered, not selected IDs |
+| 6 | Unavailable pools / fallback | Filter hard eligibility first; reserve one cyclic evolution if eligible. Require >=2 ordinary with a reserved evolution, otherwise >=3 ordinary, before RNG/pause/UI changes. Category/relevance fallback per row1, no fabricated rewards, duplicate fill or ineligible emergency. If insufficient usable distinct candidates: explicit content/invariant RangeError,0 draws, unchanged policy/transaction/Build/pending/UI. Other nonreserved evolutions do not fill shortages |
+| 7 | Evolution / mastery / focus cutover | Preserve Prism-first cyclic evolution arbitration and advance to offered successor ONLY on presentation; no eligibility bypass or recent exclusion. Reserve it for Slot3, overriding Pivot role that offer. Fully mastered tracks leave ordinary pool via GAME-054 eligibility; no unequip/free-slot requirement. Replace deterministic least-rank Slot1 with weighted policy; remove Scene focusCursors from production offer ownership, retain helpers/tests without unrelated deletion. Accepted-choice weaponFocus remains current Scene affinity input; evolution cursor moves to policy owner, no duplicate writable cursor |
+| 8 | Validation / bounds | Validate canonical ID/choice mapping/dedup, context, integer A/m, sorted valid primary/secondary tags, history0..2 each3 distinct canonical IDs and evolution cursor before sampling. Current weight in[25,3600], total<=18*3600=64800; positive finite values only. NaN/Infinity/negative/zero authored weights or overflow fail before sampling, no silent clamp/uniform fallback. Capped m and history are authored policy bounds, not silent numeric repair |
+| 9 | Sampling | Canonical rank is rewardChoices order:15 existing ordinary then prism/cluster/twin; no locale/object-key sort. For each slot derive remaining preferred/fallback pool in canonical order, compute weights from the SAME pre-offer context/history/m, one u in[0,1), t=u*sum, first cumulative weight STRICTLY greater than t. At rounding-only t>=sum choose last positive candidate. Remove chosen ID before next slot. No rejection sampling, retries or normalization reorder |
+| 10 | RNG | EXACTLY THREE Reward draws, Slot1 then Slot2 then Slot3, including singleton pools/reserved cyclic evolution (probability1). Intentional change from GAME-054 budgets2/3/1/2 ->3/3/3/3; same-seed offers intentionally change. No evolution arbitration, filter, validation, snapshot, presentation acknowledgment, selection, retry, pause, terminal or disposal draws. No Encounter/World/Boss draws |
+| 11 | Golden sequences | Version literal policy fixture as GAME-055-v1; fixed canonical metadata/formulas/order/float arithmetic. Pin hand-calculated boundary draws0, cumulative equality and near1; hardcoded literal seed0 and123456789 offer-ID sequences over multiple presentations, tagged/untagged/Analyzer/pity/history/evolution/restricted states, exact3 draw counts. Do not derive expected IDs with production sampler. Preserve RunRandom algorithm goldens and zero other-stream advancement |
+| 12 | Ownership / disposal | NEW focused Phaser-free per-create LevelUpGenerator owns ONLY pity, bounded presented history, dominant signature, evolution cursor and one provisional generated tuple/last presented ordinal. No Build/XP/pending/transaction token/Run/Phaser/RNG handles retained. Scene constructs/captures/disposes it with exact run; snapshots detached, all disposed commands/reads throw except idempotent dispose. RewardTransaction remains sole selection authority |
+| 13 | Observations | Commit policy history/pity/cursor once AFTER actual RewardTransaction.present success and real UI, before existing offered observation; preflight this update and diagnostic capacity BEFORE generation. Acknowledgment is presentation bookkeeping, never candidate acceptance. Existing offered/selected/XP/timeline aggregates unchanged; no new six-kind timeline event/DEV fields/commands/transport. Policy snapshot supplies local read-only inspection/tests only |
+| 14 | Consecutive pending | One actual generated offer at a time; next context from current Build/legacy state after previous real upgrade/pending/selected and trySelect return. Previous PRESENTED history/pity influences next; generation never caches future Build or batch. Continuous same REWARD, no intermediate RUNNING, no duplicate XP/levels; terminal cancels provisional state without resolving pending; native restart clears all policy state |
+
+**Closed relevance metadata proposal (not Build tag contributions)**
+
+The repository has no reward affinity metadata. PROPOSED fixed read-only policy table below
+adds no reward or effect and never adds Build tag points. Match means nonempty intersection,
+not sum of points, thresholds or a second build identity calculation. Use BuildSnapshot.identity
+with canonical TAG_IDS order, validating consistency with its supplied tag totals; do not persist
+another identity owner. Zero-tag prototype has no primary/secondary matches: Analyzer/pity have
+no normal-run effect until real Tags exist; focused weapon affinity and recent penalties still work.
+No synthetic starter Tags, DEV setter or invented Analyzer reward may be added to demonstrate it.
+
+| Existing IDs | PROPOSED policy affinity tags |
+| --- | --- |
+| laser.power | PRECISION |
+| laser.fireRate | RAPID_FIRE |
+| laser.speed | PROJECTILES |
+| missile.warheadPower | EXPLOSIONS |
+| missile.propulsion | PROJECTILES |
+| missile.blastExpansion | EXPLOSIONS, CONTROL |
+| drone.boltPower / drone.firingSystem / drone.boltPropulsion | DRONES, TECHNOLOGY |
+| passive.hull / passive.thruster / passive.collector | SURVIVAL / MOBILITY / SUPPORT respectively |
+| passive.combat / passive.spatial / passive.replication | PROJECTILES / EXPLOSIONS / DRONES respectively |
+| prism / cluster / twin | PRECISION+PROJECTILES / EXPLOSIONS / DRONES respectively |
+
+Primary signature is ordered dominant TAG_IDS joined as a fixed tuple (not a hash/UUID).
+For BOTH weighting and the prospective update, base m=0 when the signature differs from the
+last PRESENTED signature; otherwise base m=stored m. Usable pool for pity includes eligible
+ordinary plus the one reserved evolution, before role restrictions/history penalties.
+Calculate prospective misses from that base and the pre-offer usable pool/final3:
+
+- no primary tags OR any presented primary match (including evolution):0;
+- primary tags but no relevant eligible candidate:freeze base m;
+- relevant eligible candidates existed but all3 presented choices missed:min(4,base m+1).
+
+Thus old m4 -> changed signature commits0 with no eligible match,1 for an available-but-missed
+match,0 for a relevant presented offer. Never carry old-signature m4 into the new signature.
+Commit the new signature and calculated misses ONLY on successful recordPresented. Generation
+may retain this prospective update internally but leaves committed signature/m untouched;
+selection, rejected/duplicate acknowledgment and cancellation never commit either field.
+Pity remains probabilistic: even m4 can miss; it never forces or excludes pivots.
+
+**Focused integration and failure boundary proposal**
+
+PROPOSED rewards/LevelUpGenerator.ts and tests plus a closed relevance/weight helper where useful;
+no generic generator/content callback registry. Constructor() fresh m0/history[]/signature[]/
+cursor prism/no provisional/lastPresented0. Concrete API:
+
+- assertCanGenerate(context): live/no outstanding provisional; validate current detached context,
+  usable pools, every slot fallback path and bounded weight/update arithmetic, no draws or writes.
+- generate(context, rewardNext): repeat assertCanGenerate before sampling; current detached
+  RewardEligibilityContext plus weaponFocus, no owner references. Build the usable pool with
+  existing isRewardEligible, validate slots/weights/fallback feasibility for every possible
+  preceding draw path before calling RNG. Derive next history/pity/cursor within bounded state.
+  Sample3 once, compute the prospective update from that tuple, and store ONE independently
+  copied provisional candidate array with frozen outer array, candidate records and nested
+  choice records. Independently copy/freeze its prospective history/signature/update as well.
+  Return a SEPARATE independently copied, deeply frozen candidate array/records/nested choices;
+  TypeScript readonly alone is insufficient. No returned reference can mutate the stored tuple
+  or prospective update. Do not commit presented history, signature or miss count at generation.
+- recordPresented(offerId): accept a positive safe ordinal greater than lastPresented only with
+  a provisional record, otherwise return false without mutation; duplicate acknowledgment false.
+  Commit the prepared bounded update and clear provisional. Scene must first verify its exact
+  current run/Generator/Reward owners, actual PRESENTED offerId and all3 candidate IDs equal the
+  generated tuple. This method has NO selection token and grants no application permission.
+- cancelGenerated(): idempotent drop provisional, no history/pity/cursor/RNG/XP effects. Terminal
+  invokes only on the creating live owner; cancellation after sampling never rewinds RNG or
+  permits automatic reroll of the same earned opportunity after a UI construction invariant.
+- snapshot(): detached JSON {misses,history,primarySignature,evolutionCursor,lastPresented,
+  hasGenerated}; no candidate token, Build/UI/owner or RNG handle. Every read deeply detaches
+  candidate/history/signature data; never expose mutable internal references. Old reads remain
+  isolated after acknowledgment, cancellation, disposal or a later generated offer. Reads0 draws.
+- dispose(): clear provisional/history, invalidate owner, idempotent; other disposed calls throw
+  Error containing 'disposed LevelUpGenerator'. No terminal analytics or lifetime counter.
+
+Scene first checks exact run/Progression/Build/Reward/Generator, pending>0/current player/Defense,
+RUNNING or sequential PAUSED+REWARD, no current offer/UI. Reward.assertCanOpen and all observer/
+policy/input validation happen before random values, pause/input/UI writes. Generator
+assertCanGenerate(context) lets Scene finish feasibility validation before acquiring first REWARD;
+generate repeats that validation without extra draws.
+After preflight acquire/project REWARD once, generate3, Reward.open -> construct actual named
+persistent Text handlers -> Reward.present -> recordPresented -> recordLevelUpOffered exactly1.
+The prepared policy update is bounded and cannot fail after presentation on normal authored data;
+wrong owner/ordinal/tuple is a loud integration invariant, not silent false presentation success.
+No valid retry regenerates choices, changes policy state, acknowledges presentation or draws RNG.
+
+A malformed RNG value at draw j is an invariant error: j calls occurred, no completed provisional/
+presented history/transaction/UI; prior consumed stream state is not rolled back. No automatic
+resample. Unexpected open/UI/observation failure after successful sampling is also a loud
+invariant under held REWARD, not a recoverable atomic retry or permission to resolve pending.
+Scene preflights diagnostics using existing preflightProgressionObservations and safe next
+transaction ordinal; selected/next-offer/final-resume checks remain before actual upgrade writes.
+The application callback performs one upgrade/resolve/selected and returns true; token invalidation
+and guard exit precede Scene UI cleanup, new generator call or final release. Retain exact named
+persistent handler cleanup and authentic-token/candidate/owner acceptance checks from GAME-054.
+
+**Explicit compatibility decisions and future expansion boundary**
+
+Intentional policy cutovers needing architect approval: Slot1 no longer guarantees least-rank
+focus; Slot2 retains a passive whenever available; cyclic guaranteed evolution retains priority
+and recipes but third-slot draw is now consumed; new weights/history alter seed->offer sequences.
+This is a policy change only, not changed effects or RNG algorithm. Historical2/3/1/2 and old
+literal Scene offer sequences are baseline facts, not new generator acceptance. During later
+implementation migrate ONLY obsolete policy expectations to approved v1 literal outputs and3
+budgets; retain all existing game/transaction/XP/attack/lifetime assertions and explain each edit.
+Keep focusedUpgrade/selectChoices/evolution helper tests; removal/refactor solely for cleanup
+is not authorized. Preserve zero-RNG checks on selection/reads/retries and other streams.
+
+Potential target conflict: GAME_DESIGN describes synergy/neutral/pivot plus future specialization
+readiness; current GAME-054 guarantees legacy evolution in Slot3. PROPOSED resolution: preserve
+that explicit prototype guarantee, qualify Pivot availability on those offers, and reserve new
+specialization readiness/guarantees for GAME-056/057/058. This definition introduces no runtime
+variants for future content. Later scoped definitions must explicitly extend canonical IDs,
+hard eligibility, policy metadata and guaranteed-development precedence while keeping stable
+ordering/positive soft weights/transaction interface. No string effect scripts or open registry.
+Multi-weapon target distribution remains GAME-059. No future Active/Core/Doctrine acquisition or
+new UI. BALANCE0..4 is a hypothesis; the proposed bounded asymptotic weighting is not a Build cap.
+
+**Required future tracked tests and actual Chrome acceptance — not run during definition**
+
+Pure policy tests: all18 metadata entries/exact canonical shapes/duplicates; role order and each
+preferred-pool/fallback case; no invalid candidates; fully mastered, one/multiple evolutions and
+cursor progression; exactly3 distinct IDs; insufficient ordinary/evolution-only/empty pools fail
+before RNG/state mutation. Table-driven exact weight factors, primary/secondary ties, zero Tags,
+A0/1/4/huge/MAX_SAFE_INTEGER plus negative/fractional/NaN/Infinity rejection; finite positive
+bounds and cumulative arithmetic; no Tag/Build/stat/Defense/RNG mutation from preflight/reads.
+Boundary rolls0/equality/near1, singleton consumption, exactly3 ordered draws, malformed draw j
+accounting/no retry, cross-stream independence, literal multi-offer seeded goldens. Pity misses
+0..4/saturation/relevant-any-slot reset/no eligible match freeze/primary signature change/zero
+Tags reset; no update from selection/failure/rejected acknowledgments. History2-window/FIFO/k0/1/2
+penalties and identical recurring offers remain possible. Provisional cancel/duplicate acknowledgment,
+safe ordinal validation, detached snapshots, disposed empty reads/calls and independent new owners.
+Mandatory pure transition cases: establish old committed signature/m4 through real presentation
+operations, change signature, then separately test no eligible match ->0, eligible-but-missed ->1,
+relevant presented ->0. Before recordPresented, assert old committed signature/m4 unchanged;
+success commits new signature/result, duplicate acknowledgment and cancellation never commit.
+Mandatory provisional-integrity cases: attempt returned-array reorder/splice/replacement and
+nested candidate ID/choice mutation; frozen writes reject (or remain ineffective), internal
+provisional tuple/prospective history/signature/m stay exact. Acknowledge once and reject duplicate;
+cancel before acknowledgment with no policy commit, generate later, and mutate/read retained old
+snapshots to prove no alias to current candidates/history/signature or fresh-run state.
+
+Scene tests: actual policy -> existing RewardTransaction -> real current Text/one application,
+all18 effect contracts unchanged; capture exact Generator owner in every generation/presentation
+path and cleanup. Reads/duplicate/stale/forged callbacks/failed choice remain0 RNG/history changes,
+rejected current Text same handler then valid retry; callback true/token invalid/guard exit BEFORE
+next generation. Controlled physical32 ->4/2/pending3: three distinct transactions, updated actual
+Build/legacy prerequisites and committed previous-offer history,9 Reward draws total if3 valid
+offers, same REWARD/no intermediate RUNNING/no extra XP/levels. Observers once and overflow
+preflight; five timers/five DEV methods/three-field progression/four streams unchanged. Terminal
+cancels provisional without pity advance/selection; exact stale cleanup cannot touch fresh policy.
+
+Future installed actual Chrome/Phaser: ordinary enemy death -> physical XP -> real collection/
+Level-Up/mouse choice; labelled controlled weighted/pity/history fixtures with legitimate real
+Build Tag/Analyzer methods (not shipping DEV commands), actual presented candidate IDs and RNG
+counts. Mouse rejection -> SAME Text/token/handler valid retry, duplicate/saved same-label callbacks0.
+Three actual pointer32-XP pending offers with updated Build/history and continuous REWARD. Genuine
+other-tab BLUR with focus emulation disabled, MANUAL/REWARD/FOCUS_LOSS wall waits and held-input
+suppression, five same TimerEvent phases/all stream counts frozen; focus return alone cannot resume.
+Boss-time ordinary XP, Death-first/Victory-first and straight/Missile/Cluster owning cleanup before
+Victory, frozen physical Boss10. At least TWO actual Victory NEW RUN, ONE ordinary Death RETRY,
+ONE PAUSED nonterminal native scene.restart with dirty transactions/pity/history/pending and saved
+owner/Text/key/focus/timer/DEV/cleanup refs; fresh policy0/[]/prism plus progression1/0/0/current
+Build/zero Tags/five fresh unpaused events, disposed old owners/inert callbacks. Unmodified built
+production real W/Space/Escape/Dash/pause/combat/natural XP/mouse reward/ordinary Death/real RETRY,
+DEV absent/no new pageerrors; controlled fixtures do not replace this smoke. Report known
+favicon404/Vite chunk/Vitest worker warnings separately. Missing future evidence prevents DONE.
+
+**Definition validation and handoff**
+
+THIS task modifies/stages ONLY TASK_GRAPH. npm run check; git diff --check; cached check/stat and
+COMPLETE staged diff inspection. Ignored .codex-review/GAME-055-review.txt includes source inventory,
+authoritative anchors, proposed decision table, RNG changes, compatibility/future acceptance and
+full staged diff. No new browser scenarios executed or claimed during definition. GAME-055 READY,
+GAME-054 DONE; GAME-056+ BACKLOG; GAME-040/041 SUPERSEDED; GATE A/B PASSED; GATE C unapproved.
+No runtime/tests/packages/dependencies/other docs, implementation, commit or new gate closure.
 
 **GATE C — First Real Build Loop** — review the preceding phase capabilities before its cutover/next proof.
 
