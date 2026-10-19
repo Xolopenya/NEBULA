@@ -339,7 +339,7 @@ Never reuse these IDs for unrelated tasks.
 
 ## Mechanical Vertical Slice roadmap
 
-GAME-042/043/044/045 are DONE; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055 DONE; GAME-056+ remain BACKLOG. Each row gives phase membership, exact dependencies and a
+GAME-042/043/044/045 are DONE; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055 DONE; GAME-056 READY; GAME-057+ remain BACKLOG. Each row gives phase membership, exact dependencies and a
 short capability; gates are review checkpoints, not automatic authorization.
 Dependency ranges are inclusive.
 
@@ -547,7 +547,7 @@ Production preview boots with DEV API absent. Known favicon404 and Vite bundle-s
 no new pageerrors observed.
 
 CURRENT_STATE and real PROJECT_GRAPH ownership are updated. DESIGN-005/GAME-039 stay DONE,
-GAME-040/041 SUPERSEDED; GAME-043 DONE; GAME-044 DONE; GAME-045 DONE; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055 DONE; GAME-056+ remain BACKLOG. GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055 DONE; GAME-056+ remain BACKLOG pending separate definition. Explicit staging
+GAME-040/041 SUPERSEDED; GAME-043 DONE; GAME-044 DONE; GAME-045 DONE; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055 DONE; GAME-056 READY; GAME-057+ remain BACKLOG. GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055 DONE; GAME-056 READY; GAME-057+ remain BACKLOG pending separate definition. Explicit staging
 and ignored .codex-review/GAME-042-review.txt follow AGENTS.md; no commit is created.
 
 #### GAME-043 — Seeded RNG Streams
@@ -749,7 +749,7 @@ Out of scope: GAME-044 Pause/Input, GAME-045 telemetry, GAME-046 Build, Encounte
 templates/pressure/portals/weights, full Reward Generator/Analyzer/pity/recent offers,
 World Scheduler/events, BossController/Juggernaut, RunResult/RunReport, replay recording,
 daily seeds, seed entry/query/settings/reseed DEV command, save/meta/profile, arbitrary
-named/forkable RNG framework, service locator or new dependency. GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055 DONE; GAME-056+ remain BACKLOG pending separate definition.
+named/forkable RNG framework, service locator or new dependency. GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055 DONE; GAME-056 READY; GAME-057+ remain BACKLOG pending separate definition.
 
 **Implementation completion evidence**
 
@@ -769,7 +769,7 @@ fixed-seed spawn/offer sequences and cross-stream isolation. Two actual Victory 
 cycles and one Death RETRY (plus nonterminal/Missile/Cluster native restarts) dispose old
 streams and retain fresh RNG/lifecycle/API/five events with inert stale callbacks.
 Production canvas boots with DEV API absent; only known favicon404 and build chunk-size
-warnings remain. GAME-044 DONE; GAME-045 DONE; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055 DONE; GAME-056+ remain BACKLOG; GAME-040/041 SUPERSEDED; GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055 DONE; GAME-056+ remain BACKLOG pending separate definition.
+warnings remain. GAME-044 DONE; GAME-045 DONE; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055 DONE; GAME-056 READY; GAME-057+ remain BACKLOG; GAME-040/041 SUPERSEDED; GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055 DONE; GAME-056 READY; GAME-057+ remain BACKLOG pending separate definition.
 
 **Definition validation and documentation (historical definition-only instructions)**
 
@@ -1090,7 +1090,7 @@ Missile/Cluster cycles pass: fresh authority/adapter/RNG/API, zero reasons, unpa
 five fresh events, old streams throw and saved stale callbacks draw zero on all fresh streams.
 Unmodified production preview passes keyboard/Space/Escape and 700ms rendered pause freeze
 without DEV API/debug controls. Only known favicon404 and Vite chunk-size warnings remain.
-GAME-042/043/044 DONE; GAME-040/041 SUPERSEDED; GAME-045 DONE; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055 DONE; GAME-056+ remain BACKLOG; GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055 DONE; GAME-056+ remain BACKLOG pending separate definition.
+GAME-042/043/044 DONE; GAME-040/041 SUPERSEDED; GAME-045 DONE; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055 DONE; GAME-056 READY; GAME-057+ remain BACKLOG; GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055 DONE; GAME-056 READY; GAME-057+ remain BACKLOG pending separate definition.
 
 #### GAME-045 — Telemetry & Diagnostics Foundation
 
@@ -1346,8 +1346,8 @@ inert stale owners/callbacks. Unmodified production preview verifies keyboard/Da
 DEV absence and local static-only network requests. HIDDEN/VISIBLE combinations remain
 separately identified synthetic tracked coverage; known favicon404/bundle-size warnings only.
 
-GAME-045 DONE; GAME-040/041 SUPERSEDED; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055 DONE; GAME-056+ remain BACKLOG.
-GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055 DONE; GAME-056+ remain BACKLOG pending separate definition. GAME-056+ are not unlocked.
+GAME-045 DONE; GAME-040/041 SUPERSEDED; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055 DONE; GAME-056 READY; GAME-057+ remain BACKLOG.
+GATE A PASSED — Runtime Foundation approved; GAME-046 DONE; GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055 DONE; GAME-056 READY; GAME-057+ remain BACKLOG pending separate definition. GAME-056 READY is definition status only; GAME-057+ are not unlocked.
 
 **GATE A — Runtime Foundation — PASSED**
 
@@ -1374,7 +1374,7 @@ Implemented and verified against the acceptance contracts below.
 Establish one focused run-scoped PlayerBuild authority for 3 Combat / 1 Active / 6 Core
 slots, immutable Base Stats, unconditional Run Modifiers and cached Effective Stats.
 GameplayScene remains the composition root and current combat/progression/presentation owner.
-GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055 DONE; GAME-056+ remain BACKLOG; no later runtime domain is implemented here.
+GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055 DONE; GAME-056 READY; GAME-057+ remain BACKLOG; no later runtime domain is implemented here.
 
 **Pre-implementation tracked-source audit and migration inventory**
 
@@ -1725,7 +1725,7 @@ old reads/mutations/callbacks remain inert. Extra Missile/Cluster terminal cycle
 Unmodified production preview passes keyboard/Dash/pause/current combat and DEV absence.
 Known favicon404 and Vite bundle-size warnings only. CURRENT_STATE and PROJECT_GRAPH reflect
 actual implemented ownership; no dependencies changed. GATE A remains PASSED; GAME-046 DONE;
-GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055 DONE; GAME-056+ remain BACKLOG. GATE B PASSED — Modern Combat on Legacy Spawning architect-approved.
+GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055 DONE; GAME-056 READY; GAME-057+ remain BACKLOG. GATE B PASSED — Modern Combat on Legacy Spawning architect-approved.
 
 #### GAME-047 — Tags & Build Snapshot
 
@@ -1737,7 +1737,7 @@ Depends on GAME-046 DONE; preserve GAME-039/042/043/044/045/046 contracts and PA
 Extend the existing Phaser-free PlayerBuild with twelve numeric Tag totals, derived build
 identity and one canonical detached BuildSnapshot. Tags describe the build in parallel to
 stats; they never supply combat multipliers. Implemented and verified against the contracts
-below. GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055 DONE; GAME-056+ remain BACKLOG; GATE B PASSED.
+below. GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055 DONE; GAME-056 READY; GAME-057+ remain BACKLOG; GATE B PASSED.
 
 **Authoritative design and current source audit**
 
@@ -2007,7 +2007,7 @@ owners/API/five events and unpaused Clock; old direct additions (including0)/rea
 and saved callbacks remain inert. Additional Missile/Cluster native cycles pass.
 Unmodified production preview retains W/Space/Escape/current combat, no DEV API/debug UI
 and no new pageerrors. Known favicon404 and Vite bundle-size warning only. Factual
-CURRENT_STATE/PROJECT_GRAPH updated. GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055 DONE; GAME-056+ BACKLOG; GAME-040/041
+CURRENT_STATE/PROJECT_GRAPH updated. GAME-047 DONE; GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055 DONE; GAME-056 READY; GAME-057+ BACKLOG; GAME-040/041
 SUPERSEDED; GATE A PASSED; GATE B PASSED. No commit created.
 
 #### GAME-048 — Player Defense Runtime
@@ -2022,7 +2022,7 @@ current Shield and damage protection, with Shield-first numeric incoming damage,
 healing/capping and the explicit contact separation below. Scene remains composition root,
 collision/presentation/lifecycle adapter; PlayerBuild remains maximum-Hull authority.
 GAME-048 implementation is complete; the approved contracts and pre-implementation audit follow.
-GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055 DONE; GAME-056+ remain BACKLOG; GATE B PASSED.
+GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055 DONE; GAME-056 READY; GAME-057+ remain BACKLOG; GATE B PASSED.
 
 **Pre-implementation defense source inventory and authoritative design audit**
 
@@ -2403,7 +2403,7 @@ handlers; Hull/reward checks use browser pointer input. Unmodified production pr
 passes W/Space/Escape/pause/combat, ordinary damage to HP0/Death and actual pointer RETRY
 back to HP5/5, no DEV API/debug UI or new pageerrors. Only known favicon404 and Vite
 large-chunk warnings remain. CURRENT_STATE/PROJECT_GRAPH describe implemented ownership.
-GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055 DONE; GAME-056+ BACKLOG; GAME-040/041 SUPERSEDED; GATE A PASSED; GATE B PASSED. Architect implementation approval is pending; no commit created.
+GAME-048 DONE; GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055 DONE; GAME-056 READY; GAME-057+ BACKLOG; GAME-040/041 SUPERSEDED; GATE A PASSED; GATE B PASSED. Architect implementation approval is pending; no commit created.
 
 #### GAME-049 — Combat Resolution & Launch Snapshots
 
@@ -2837,7 +2837,7 @@ pointerdown handlers; real keyboard/mouse checks are reported separately. Unmodi
 production preview passes W/Space/Escape/pause/combat, ordinary damage to HP0/5 Death and
 actual mouse RETRY to HP5/5/fresh progress, absent DEV API/debug UI/new pageerrors. Production
 Death was observed after73000ms; only known favicon404/Vite large-chunk warnings remain.
-CURRENT_STATE and PROJECT_GRAPH map the implemented boundary. GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055 DONE; GAME-056+
+CURRENT_STATE and PROJECT_GRAPH map the implemented boundary. GAME-049 DONE; GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055 DONE; GAME-056 READY; GAME-057+
 BACKLOG; GAME-040/041 SUPERSEDED; GATE A PASSED; GATE B PASSED. GAME-049 implementation and
 GATE B are architect-approved; no commit created.
 
@@ -3267,7 +3267,7 @@ Hit, creation/removal/timer/input/focus/reward/result/DEV/cleanup callbacks with
 RNG. Unmodified production input/movement/Dash/pause/combat/ordinary damage/Death and real
 pointer RETRY pass, with no DEV API/debug UI/pageerrors. Existing favicon404 and large
 bundle/Vitest worker advice only. CURRENT_STATE/PROJECT_GRAPH reflect implemented truth.
-GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055 DONE; GAME-056+ BACKLOG; GAME-040/041 SUPERSEDED; GATE A/B PASSED. GAME-050
+GAME-050 DONE; GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055 DONE; GAME-056 READY; GAME-057+ BACKLOG; GAME-040/041 SUPERSEDED; GATE A/B PASSED. GAME-050
 implementation is architect-approved; no commit is created in this definition task.
 
 #### GAME-051 — Authoritative EnemyDeath Pipeline
@@ -3714,7 +3714,7 @@ movement/Dash/pause/combat, ordinary enemy death/physical XP, incoming Death and
 to fresh HP5/XP0/one Chaser, DEV absent/no pageerrors. Known favicon404/large bundle warning only.
 Ignored review packet contains complete source audit, browser evidence and full staged diff.
 
-GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055 DONE; GAME-056+ BACKLOG pending separate definition/review; GAME-040/041 SUPERSEDED;
+GAME-051 DONE; GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055 DONE; GAME-056 READY; GAME-057+ BACKLOG pending separate definition/review; GAME-040/041 SUPERSEDED;
 GATE A/B PASSED. GAME-052 definition and implementation are architect-approved and DONE.
 
 
@@ -4273,7 +4273,7 @@ satellite terminal completion and frozen BossXP10 pass. Unmodified built product
 keyboard/mouse/rendered output: W/Space/Escape/combat/survivor knockback/physical XP/ordinary Death/
 actual RETRY/fresh active run; DEV absent/no pageerrors. Known favicon404/bundle warning remain.
 CURRENT_STATE and PROJECT_GRAPH reflect actual ownership/values; no dependency/future runtime.
-GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055 DONE; GAME-056+ BACKLOG pending separate definition/review; GAME-040/041 SUPERSEDED;
+GAME-052 DONE; GAME-053 DONE; GAME-054 DONE; GAME-055 DONE; GAME-056 READY; GAME-057+ BACKLOG pending separate definition/review; GAME-040/041 SUPERSEDED;
 GATE A/B PASSED. No other gate closed. GAME-052 implementation is architect-approved and DONE.
 
 **GATE B — Modern Combat on Legacy Spawning — PASSED** — review the preceding phase capabilities before its cutover/next proof.
@@ -4284,8 +4284,8 @@ GATE A/B PASSED. No other gate closed. GAME-052 implementation is architect-appr
 | --- | --- | --- | --- | --- |
 | GAME-053 | Physical XP & Level Progression | GAME-051 | Physical XP, value preservation, thresholds, overflow and pending levels. | DONE |
 | GAME-054 | Reward Transaction & Eligibility | GAME-046, GAME-047, GAME-053 | One reward transaction, hard eligibility and explicit Build application. | DONE |
-| GAME-055 | Level-Up Generator | GAME-043, GAME-047, GAME-054 | Weighted Level-Up roles, Analyzer, pity and recent-offer handling. | READY |
-| GAME-056 | Laser Progression Vertical | GAME-049, GAME-055 | Laser tuning/readiness and Scatter Array / Repeater Array / Precision Lance development. | BACKLOG |
+| GAME-055 | Level-Up Generator | GAME-043, GAME-047, GAME-054 | Weighted Level-Up roles, Analyzer, pity and recent-offer handling. | DONE |
+| GAME-056 | Laser Progression Vertical | GAME-049, GAME-055 | Laser tuning/readiness and Scatter Array / Repeater Array / Precision Lance development. | READY |
 | GAME-057 | Missile Progression | GAME-056 | Straight base Missile and Guidance / Heavy Warhead / Fragmentation progression. | BACKLOG |
 | GAME-058 | Combat Drone Progression | GAME-056 | Combat Drone Scatter / Repeater / Precision progression. | BACKLOG |
 | GAME-059 | Multi-System Combat Runtime | GAME-057, GAME-058 | Multiple installed Combat Systems with independent concrete runtime ownership. | BACKLOG |
@@ -4648,7 +4648,7 @@ Unmodified built production real W/Space/Escape/pixel checks pass movement/Dash/
 XP to Level2 and actual pointer choice, ordinary incoming Death/actual RETRY and DEV absence. No new
 pageerrors; known favicon404/Vite large-chunk/Vitest worker advice only. CURRENT_STATE/PROJECT_GRAPH
 reflect actual ownership; no dependencies or later runtime. Ignored review contains complete source
-inventory, browser evidence and full staged diff. GAME-053 DONE; GAME-054 DONE; GAME-055 DONE; GAME-056+ BACKLOG; GAME-040/041 SUPERSEDED;
+inventory, browser evidence and full staged diff. GAME-053 DONE; GAME-054 DONE; GAME-055 DONE; GAME-056 READY; GAME-057+ BACKLOG; GAME-040/041 SUPERSEDED;
 GATE A/B PASSED. GATE C remains unapproved; no new gate closure. GAME-053 implementation is architect-approved and DONE.
 
 #### GAME-054 — Reward Transaction & Eligibility
@@ -4657,7 +4657,7 @@ STATUS: DONE
 
 Implementation is complete against the architect-approved contract below, including all11
 approved decisions and both mandatory clarifications. Completion evidence follows the retained
-historical definition. GAME-055 DONE; GAME-056+ remain BACKLOG; GATE A/B PASSED; GATE C unapproved.
+historical definition. GAME-055 DONE; GAME-056 READY; GAME-057+ remain BACKLOG; GATE A/B PASSED; GATE C unapproved.
 
 **Definition scope and authority (historical)**
 
@@ -5065,7 +5065,7 @@ physical XP/Level-Up/real mouse choice and ordinary incoming Death/real RETRY/fr
 DEV absent/no new pageerrors. Known favicon404/Vite chunk/Vitest worker warnings only.
 CURRENT_STATE/PROJECT_GRAPH reflect actual ownership. Ignored review includes complete source
 call-site audit, browser evidence, quality checks and full staged diff. GAME-054 DONE;
-GAME-055 DONE; GAME-056+ BACKLOG; GAME-040/041 SUPERSEDED; GATE A/B PASSED; GATE C unapproved. No commit created.
+GAME-055 DONE; GAME-056 READY; GAME-057+ BACKLOG; GAME-040/041 SUPERSEDED; GATE A/B PASSED; GATE C unapproved. No commit created.
 
 #### GAME-055 — Level-Up Generator
 
@@ -5336,8 +5336,446 @@ production passes real W/Space/Escape/Dash/pause/combat, natural XP/Level-Up/mou
 incoming Death/real RETRY, DEV absent and no new pageerrors. Known favicon404/chunk/worker warnings
 only. CURRENT_STATE/PROJECT_GRAPH reflect actual ownership. Ignored review contains full staged
 diff, call-site audit, numerical/immutable/RNG proofs, tracked/browser/native/production evidence.
-GAME-054/055 DONE; GAME-056+ BACKLOG; GAME-040/041 SUPERSEDED; GATE A/B PASSED; GATE C unapproved.
+GAME-054/055 DONE; GAME-056 READY; GAME-057+ BACKLOG; GAME-040/041 SUPERSEDED; GATE A/B PASSED; GATE C unapproved.
 No dependencies, extra TimerEvents/streams/DEV commands, GAME-056+ runtime, gate closure or commit.
+
+#### GAME-056 — Laser Progression Vertical
+
+STATUS: READY
+
+**Definition authority and approval boundary**
+
+DEFINITION ONLY. GAME-046..055 DONE; audit HEAD
+5c06277689d387e17bca4a5e75b1d9ca38aa413c (GAME-055 implement weighted level-up generator),
+1354 tests/33 files. GAME-057+ BACKLOG; GAME-040/041 SUPERSEDED; GATE A/B PASSED; GATE C
+unapproved. Architect approves the scope and decisions subject to the two clarifications below;
+READY awaits final definition approval, not implementation authorization. PROPOSED/CONFLICT labels
+below retain the original proposal provenance; the accepted decisions are unchanged except for
+the explicit GAME-059 targeting boundary and numeric-infeasibility fallback clarified here.
+Only TASK_GRAPH changes in this task. No browser acceptance is claimed during definition.
+
+The roadmap explicitly requires Laser tuning/readiness AND Scatter Array / Repeater Array /
+Precision Lance development. GAME_DESIGN#Laser / #Combat-System-progression and CONTENT_MANIFEST
+#Build-and-progression require those THREE branches, four characteristic upgrades and one
+Capstone EACH. Their names/directions are established; exact upgrade names, numbers, readiness
+interpretation and legacy Prism migration are GAME-056 decisions approved subject to those
+clarifications, not facts inherited from those references. ARCHITECTURE#Player-Runtime-
+versus-PlayerBuild assigns configuration to Build; #Combat-contracts assigns immutable launch
+truth and independent pellets; #Rewards-and-transaction preserves existing acceptance authority.
+BALANCE hypotheses are not the source of the new approved branch numbers below. No absent mechanic is current fact.
+
+**Actual HEAD inventory — EXISTING / SOURCE-BACKED**
+
+| Actual file / symbol | Current truth / directly relevant tracked coverage |
+| --- | --- |
+| scenes/GameplayScene.ts:create / laser / laserRanks / prismEvolved | Scene owns local damage/interval/speed, three ranks and Prism flag; fresh1/600/1200, ranks0/0/0, Prismfalse. Build installs all3 prototype Combat systems; single-system starting selection is future GAME-094 |
+| GameplayScene.fireLaser / aimProjectile / launchPlayerProjectile | RUNNING/player/currentTarget/installed LASER guards; ship-center origin, cached nearest target, distance<0.001 suppresses whole volley; normalized fixed direction, no homing/RNG; cyan0x67e8f9 Circle for Base and Prism |
+| GameplayScene.update / selectNearestEnemy | Player/enemy movement precede nearest squared ship-center selection; strict less-than retains first collection tie. kill clears target; next active update reacquires. No cross-system reservation/distribution |
+| progression/prismLaser.ts / prismLaser.test.ts | All ranks>=2, Combat Processor>=1, !evolved; wrapper also requires LASER. Eight pure recipe cases. Neither ranks nor Combat consumed |
+| combat/prismSpread.ts / prismSpread.test.ts | Unit center,-12,+12 degrees, same origin/aim, seven geometry cases, threshold0.001 permits firing; no individual target choice per beam |
+| combat/combat.ts:createAttack / composePlayerDamage / composePlayerImpact | Copied frozen Attack and five-field player flight snapshot; (local*C)*Reactor, Velocity/Scale once, Impact200*ShipImpact. Engineering validated but never multiplied for Laser |
+| GameplayScene.weaponInterval / resetWeaponTimer / create | One Laser event among five; localInterval/FireControl finite>=1ms. Local cadence resets same event/elapsed0 with callback/scope/args retained; shared Fire Control resets same3 weapon events. Damage/speed/Prism do not reset/fire immediately |
+| GameplayScene.updateProjectiles / combat/collision.ts | Lifetime-clipped segment against enemy radius+frozen projectile radius, inclusive earliest intersection and first collection tie; one Hit then removal, whole-body world exit, reverse flight iteration. Prism flights share Attack but no hit-history restriction |
+| GameplayScene.applyEnemyHit / killEnemy; EnemyDeath.ts | Exact current run/member/positive HP guard; one HP result/write, negative overkill/no transfer. Positive loss updates source; loss0 may still displace. Lethal removal before displacement; one record/physical XP/observer, owning shot cleanup before Victory |
+| enemies/EnemyDefinitions.ts / knockback.ts | Frozen enemy response; local200*ShipImpact at launch, response once at Hit. Vector sum cap600px/s, decay1200px/s^2, arena clamp. Responses Swarm1.5/Charger0.75/Chaser1/Shooter1/Tank0.25/Elite0.125/Boss0.05 |
+| player/PlayerBuild.ts:snapshot / resolve / deriveIdentity | Ten cached stats/ordinary additive percentages; twelve canonical Tags/top-two positive tied tiers. No Laser configuration in current BuildSnapshot; all prototype choices contribute0 Tags |
+| rewards/rewardChoices.ts / rewardEligibility.ts | Closed18 IDs/exact shapes; laser.power/fireRate/speed require installed system/rank<2, prism complete recipe. Numeric/Attack/cadence feasibility at generation and application; Tags/Analyzer never hard gate |
+| RewardTransaction.ts; GameplayScene.currentReward/applyRewardChoice | Sole authentic token/current offer/selection guard; persistent named retryable Text handlers. Preflight/effect/pending1/selected1 -> callback true -> invalidate/guard exit -> true return -> cleanup/next offer/final release |
+| LevelUpGenerator.ts / LevelUpGenerator.test.ts | GAME-055-v1,18 canonical IDs; weapon/passive/pivot or cyclic evolution, exact3 Reward draws. m0..4/history2/signature/cursor commit only recordPresented; independent frozen provisional/return copies;55 pure cases |
+| PlayerProgression.ts; RunLifecycle/RunRandom/RunDiagnostics.ts | Physical32 ->4/2/pending3, composed pause/first terminal, four streams, Laser firing0 RNG; six timeline kinds/newest256 and seven kill-source counters. Diagnostics separately hardcodes18 reward IDs |
+| GameplayScene.devTools.test.ts; combat/combat.test.ts; PlayerBuild.test.ts; rewardEligibility/RewardTransaction tests; EnemyDefinitions/EnemyDeath/knockback tests | Current production-path coverage includes all18 effects, shared stats, independent Prism flights, earliest/ties, old/new snapshots, force/loss0, authoritative death/XP/terminal, retry/pending/pause/native ownership. Preserve baseline1354 assertions |
+
+Current exact local values, unchanged for Base and legacy Prism:
+
+| Field / canonical ID | Rank0 | Rank1 | Rank2 / cap | Provenance |
+| --- | --- | --- | --- | --- |
+| Damage / laser.power |1 |2 |3 /2 | Scene +1 local damage per accepted rank |
+| Interval / laser.fireRate |600ms |550ms |500ms /2 | max(100,600-50*f); floor100 exists but normal rank2 never reaches it |
+| Speed / laser.speed |1200px/s |1400px/s |1600px/s /2 | Scene +200 per rank |
+| Body / lifetime / local Impact |6px /2000ms /200 |same |same | Scene launch constants |
+| Evolution / prism |one-time |all ranks2/2/2 |Combat>=1 | Three independent full-current-damage nonpiercing beams, no extra Combat slot |
+
+C=Combat Processor multiplier, initially1, +0.25 per passive level. With local D,T,V and
+EffectiveStats R,F,P,S,I: damage=(D*C)*R; delay=T/F; speed=V*P; radius=6*S; impact=200*I;
+lifetime2000. Engineering has no Laser factor. Final positive numbers must be finite<=MAX_SAFE
+and delay>=1; impact allows0. Build/local changes affect FUTURE shots. Valid hpLost0 keeps old
+attribution but can still apply physical force. Existing sources: LASER.BASE.DIRECT and
+LASER.PRISM.DIRECT. Missile/Cluster/Drone/Twin/Defense/EnemyDeath/physical XP are separate contracts.
+
+**Architect decision table — complete proposal, not approved runtime**
+
+CONFLICT rows record the concrete resolutions submitted and accepted, not implementation-time guesses.
+
+| # | Decision | Classification / exact decision submitted |
+| --- | --- | --- |
+| 1 | Vertical scope | EXISTING / SOURCE-BACKED: roadmap names3 branches. PROPOSED FOR ARCHITECT APPROVAL: preserve Base/Prism and add exactly3 branches with4 rank1 upgrades +1 rank1 Capstone each;18 new rewards total |
+| 2 | Weapon identity | EXISTING / SOURCE-BACKED: deterministic nonhoming weak precise shot. PROPOSED FOR ARCHITECT APPROVAL: Scatter close coverage/control, Repeater sustained cadence, Lance slow linear penetration; no Missile homing/area or Drone origins |
+| 3 | Local tracks/caps | EXISTING / SOURCE-BACKED: power/fireRate/speed0..2 and values above. PROPOSED FOR ARCHITECT APPROVAL: retain ranks in every form, move sole truth into Build and derive local profile; no writable Scene mirrors |
+| 4 | New content | PROPOSED FOR ARCHITECT APPROVAL: exactly18 new IDs/shapes/labels/effects in the closed tables below; no extra unnamed content |
+| 5 | Numbers/provenance | EXISTING / SOURCE-BACKED: Base/Prism values and shared composition. PROPOSED FOR ARCHITECT APPROVAL: EVERY branch factor, upgrade, Capstone, Tag amount and color below is new tuning, not an approved BALANCE value |
+| 6 | Prism | CONFLICT / REQUIRES RESOLUTION: Prism is not a target specialization. PROPOSED resolution: retain ID/recipe/three full beams as exclusive legacy alternative; acquiring branch disables Prism, acquiring Prism disables all3 branches; no stacking/conversion/respec |
+| 7 | Post-evolution | PROPOSED FOR ARCHITECT APPROVAL: old tuning remains available below2; only chosen branch unlocks its4 independent rank1 upgrades; Capstone requires all4. Legacy Prism gets no new development/Capstone and keeps its mastered recipe |
+| 8 | Shared stats | EXISTING / SOURCE-BACKED: (local*C)*R, delay/F, speed*P, radius*S, localImpact*I. PROPOSED FOR ARCHITECT APPROVAL: branch factors resolve LOCAL profile first, exact order below; no Engineering Laser factor |
+| 9 | Geometry/Impact | EXISTING / SOURCE-BACKED: independent Base/Prism swept nonpiercing flights. PROPOSED FOR ARCHITECT APPROVAL: Scatter independent pellets/diminishing IMPACT only, Repeater normal flights, Lance bounded per-FLIGHT piercing; no universal Attack hit suppression |
+| 10 | Target/GAME-059 | EXISTING / SOURCE-BACKED: cached nearest-target seam. Retain for every form/one common aim per volley in GAME-056. Lance high damage/velocity/bounded penetration does NOT implement priority targeting; weapon-specific priority ranking is deferred to GAME-059 alongside, but distinct from, cross-system avoidance of duplicate targets. GAME-059 remains BACKLOG |
+| 11 | Canonical IDs | EXISTING / SOURCE-BACKED:18 old identities. PROPOSED FOR ARCHITECT APPROVAL: append18 to total36, retain old order/labels, closed correlated shapes, no string effect registry |
+| 12 | Eligibility | PROPOSED FOR ARCHITECT APPROVAL: installed LASER and sum actual tuning ranks>=3 while BASE for readiness; passives/stats/Tags/other weapons do not count; current form/rank/recipe/numeric preflight at generation AND selection; no Tag branch gate |
+| 13 | Generator | Accepted resolution: while BASE ready and >=1 branch acquisition is legitimately eligible, Slot1 samples exactly ONE eligible branch with the approved single weighted draw; other acquisitions cannot appear in Slots2/3, legacy evolution retains Slot3 precedence. If ZERO acquisitions are eligible solely due to numeric feasibility, retain readiness and use ordinary GAME-055 three-slot policy over the remaining eligible pool; complete preflight before RNG/REWARD/UI, retry readiness at the next actual offer, exactly3 draws per successful offer. Insufficient complete pool retains explicit generation failure; no modal/private sampler/nested transaction |
+| 14 | Tags/Analyzer | EXISTING / SOURCE-BACKED: old18 affinities add0 actual Tags. PROPOSED FOR ARCHITECT APPROVAL: NEW branch acquisition adds1 per listed branch Tag once, atomic Build mutation; tuning/Prism/development/Capstones add0. No synthetic starter tilt or new Tag; Analyzer/tie rules unchanged |
+| 15 | Timer | EXISTING / SOURCE-BACKED: one Laser event/five total. PROPOSED FOR ARCHITECT APPROVAL: same event resets iff accepted change alters effective cadence, using existing reset semantics; no immediate volley/per-beam timers/delayedCall |
+| 16 | RNG | EXISTING / SOURCE-BACKED: Laser geometry/targeting/Hits0 RNG, offers3 Reward draws. PROPOSED FOR ARCHITECT APPROVAL: preserve budgets with36 catalog; version new literal sequences GAME-056-v1 and migrate only affected policy fixtures |
+| 17 | Death/diagnostics | EXISTING / SOURCE-BACKED: one adapter/death/XP route, negative overkill, seven buckets. PROPOSED FOR ARCHITECT APPROVAL: new direct Laser forms use existing BASE/DIRECT bucket, Prism stays PRISM; append reward identities only, no eighth source/new event/kill registry |
+| 18 | Visuals | EXISTING / SOURCE-BACKED: cyan circles, Base upgrades change values/cadence, Prism adds spread. PROPOSED FOR ARCHITECT APPROVAL: closed circle colors below, no particle/shader/assets/dependency; physical feedback is actual movement |
+| 19 | Lifetime | EXISTING / SOURCE-BACKED: pause composition/native restart/exact owners/first terminal. PROPOSED FOR ARCHITECT APPROVAL: bounded new flight/volley state follows same lifetime; fresh Build resets Laser, no maps/targets carried across create |
+| 20 | Modules | EXISTING / SOURCE-BACKED: ARCHITECTURE assigns configuration to Build. PROPOSED FOR ARCHITECT APPROVAL: narrow pure player/laserProgression.ts helper, Build-owned state and concrete Scene flight extension, no second weapon authority/manager/framework |
+
+**PROPOSED progression and compatibility**
+
+Everything future-facing below is definition scope, not implemented runtime; approval is as stated above.
+The roadmap/manifest justify the minimum3*(4+1) specialized entries, not an arbitrary large catalog.
+
+PlayerBuild owns detached BuildSnapshot.laser:
+{ranks:{power,fireRate,speed},form:'BASE'|'PRISM'|'SCATTER'|'REPEATER'|'LANCE',
+upgrades:canonical chosen-branch upgrade IDs[],capstone:boolean}. Fresh0/0/0,BASE,[],false.
+Readiness is derived form===BASE && sum(ranks)>=3; no writable ready flag/mastery counter.
+2/1/0 qualifies,2/0/0 does not. Only accepted local tuning increments count. Branch acquisition
+changes form once, preserves tuning, applies authored Tags once; Prism uses existing recipe.
+Either disables other forms. Old tuning below2 stays eligible in any form. Four chosen-branch
+upgrades may be taken in any order, each0/1. Capstone0/1 requires all4, no free slot or Tags.
+No forced Capstone/repeat filler. All Laser choices set existing weaponFocus='laser'.
+
+Legacy Base->Prism remains reachable by choosing other offered rewards until six tuning
+investments +Combat1. Readiness at3 does not force a branch or consume an extra XP opportunity.
+Exclusivity is the accepted explicit NEW eligibility restriction; Base/Prism numeric,
+recipe and independent-beam behavior remain exact. Do not rename Prism Scatter or silently
+remove it. An all3-branches modal is a DIFFERENT policy, not an optional implementation of row13.
+
+**PROPOSED authored profiles/catalog — every new number requires approval**
+
+L=1+power; T=max(100,600-50*fireRate); V=1200+200*speed from unchanged capped tuning.
+Damage/cadence/speed below are LOCAL factors; radius/lifetime/Impact are absolute local values.
+Effects replace their named field once, never compound an old rank repeatedly. All new max ranks1.
+
+| Acquire ID / display / exact choice | Initial local profile | Requirements / actual Tag delta |
+| --- | --- | --- |
+| laser.specialize.scatter / Scatter Array / {kind:'laserSpecialization',branch:'scatter'} |D=0.5*L; interval=1.25*T; speed=0.75*V; radius6; lifetime500ms; Impact300; center,-15,+15 degrees |BASE,sum tuning>=3; +1 CLOSE_COMBAT,+1 PROJECTILES,+1 CONTROL |
+| laser.specialize.repeater / Repeater Array / {kind:'laserSpecialization',branch:'repeater'} |D=0.4*L; interval=0.35*T; speed=V; radius6; lifetime2000ms; Impact80; one shot |BASE,sum tuning>=3; +1 RAPID_FIRE,+1 PROJECTILES |
+| laser.specialize.lance / Precision Lance / {kind:'laserSpecialization',branch:'lance'} |D=2*L; interval=1.75*T; speed=1.5*V; radius6; lifetime2000ms; Impact240; one shot/max3 distinct hits |BASE,sum tuning>=3; +1 PRECISION,+1 PROJECTILES |
+
+Development shapes form the CLOSED correlated union:
+{kind:'laserDevelopment',branch:'scatter',upgrade:'damage'|'focus'|'range'|'impact'} |
+{kind:'laserDevelopment',branch:'repeater',upgrade:'damage'|'cadence'|'velocity'|'impact'} |
+{kind:'laserDevelopment',branch:'lance',upgrade:'damage'|'velocity'|'penetration'|'radius'}.
+Capstone shape: {kind:'laserCapstone',branch:'scatter'|'repeater'|'lance'}.
+Each development requires that form and its own rank0; Capstone also all4 upgrades. All add0 Tags,
+preserve tuning and are incompatible with Prism/other branches. No fractional/negative/rank2 state.
+
+| Canonical ID / display | Exact0->1 effect, all other local fields unchanged |
+| --- | --- |
+| laser.scatter.damage / Dense Pellets | damage factor0.5->0.65 |
+| laser.scatter.focus / Focused Array | angular step15->12 degrees |
+| laser.scatter.range / Extended Pulse | lifetime500->650ms |
+| laser.scatter.impact / Repulsor Pellets | Impact300->400 |
+| laser.scatter.capstone / Saturation Array | pellet count3->5; order center,-h,+h,-2h,+2h using current angular step h |
+| laser.repeater.damage / Pulse Amplifier | damage factor0.4->0.5 |
+| laser.repeater.cadence / Rapid Cycling | interval factor0.35->0.30 |
+| laser.repeater.velocity / Fast Pulses | speed factor1->1.2 |
+| laser.repeater.impact / Suppression Pulses | Impact80->120 |
+| laser.repeater.capstone / Continuous Array | interval factor0.30->0.25 (all4 required); still one shot per callback |
+| laser.lance.damage / Charged Lance | damage factor2->2.5 |
+| laser.lance.velocity / Accelerated Lance | speed factor1.5->2 |
+| laser.lance.penetration / Through-Line | max distinct hits3->4 per flight |
+| laser.lance.radius / Broad Lance | physical local radius6->8, no angle/explosion change |
+| laser.lance.capstone / Deep Lance | max distinct hits4->5; full frozen damage at each target |
+
+No post-Capstone ranks, crits, Armor, status, ricochet, homing, blast/recursive children or damage
+transfer. Repeater has no burst/subtimer. Scatter sacrifices range/precision for close coverage,
+Repeater needs sustained contact, Lance sacrifices cadence for linear hits. None acquires Missile
+homing or Drone origins. These are authored playtest hypotheses, not source-backed balance.
+
+**PROPOSED Build ownership, arithmetic and atomic application**
+
+Narrow PlayerBuild.previewLaserChoice(choice,combatProcessorLevel) and applyLaserChoice reuse
+one pure validated candidate preparation, with current primitive Combat level for Prism recipe.
+Preview returns detached prospective Laser/Tags/identity/profile,0 writes/RNG. Prepare EVERY
+rank/form/upgrade/Capstone/Tag-total/identity result, validate safe sums, then commit together;
+do not call public addTagPoints repeatedly and risk partial state. Existing captured Build
+disposal applies. No second Laser owner or writable Scene local damage/interval/speed/rank/form
+mirror. Legacy reward-context projections derive from the SAME Build snapshot; validate any
+projected ranks/form/local profile against snapshot.laser, never trust a contradictory copy. Read-only compatibility projections may derive old private names.
+Migrate fixture SETUP
+to real Build operations without weakening baseline damage/geometry/transaction/lifetime assertions.
+
+Compose local profile first, then shared values in this exact order:
+damage=((L*branchDamageFactor)*C)*Reactor; delay=(T*branchIntervalFactor)/FireControl;
+speed=(V*branchSpeedFactor)*ProjectileVelocity; radius=localBodyRadius*ProjectileScale;
+impact=localImpact*ShipImpact; lifetime=localLifetime. Base/Prism factors1, body6/life2000/Impact200.
+Engineering is validated but has no Laser multiplier. No second C/Reactor/Scale/ShipImpact and
+no Tag combat factor. No hidden post-division floor/clamp; finite positive<=MAX_SAFE_INTEGER,
+delay>=1ms, impact finite0..MAX_SAFE_INTEGER. Reject positive-product underflow/overflow.
+
+Before actual accepted choice writes, Scene prepares candidate Build/profile, frozen Attack
+and mechanical fields, timer delay, pending/ordinal/observer capacity and complete Tag candidate.
+Recheck exact current run/Build/progression/Generator/Reward/token/candidate/presentation/Text.
+Callback commits ONE Build upgrade, resets SAME Laser event iff effective delay changes, resolves
+ONE pending and records ONE selected. Return true; ONLY AFTER token invalidation/guard exit/
+trySelect true may Scene destroy handlers/UI/reset input/generate next actual offer under same
+REWARD or release final REWARD. Rejected numeric preflight/false current click preserves SAME
+Text/token/handler. Unexpected engine failure remains loud, never an atomic false success.
+Shared-stat candidate consumers also preflight specialized Laser arithmetic BEFORE Build commit;
+retain the existing three-event Fire Control reset and all other shared consumers. No reset for
+damage/speed/Scale/Impact/Tags/Prism alone, and no immediate volley from a selected upgrade.
+
+**PROPOSED concrete attack extension and GAME-059 targeting seam**
+
+Retain LASER BASE/PRISM variants and exact existing five numeric snapshot fields. New forms
+alone may add LaserAttack.mechanics exactly {pattern:'SCATTER'|'REPEATER'|'LANCE',maxHits:number,
+pelletCount:number}, copied and deeply frozen by createAttack before visual creation. Legal
+combinations: Scatter1/(3|5), Repeater1/1, Lance(3|4|5)/1. Existing attacks omit mechanics;
+other kinds reject it. Scatter shares ONE immutable Attack per volley. New forms use BASE
+attribution; mechanics distinguishes pattern without a new damage-source variant/eighth counter. No whole/live BuildSnapshot on flights. Old attacks
+keep frozen damage/speed/radius/Impact/lifetime/pattern/hit limits after ALL subsequent upgrades.
+
+Origin remains ship center/currentTarget captured at launch; <0.001 suppresses WHOLE volley.
+One common aim per Base/Prism/Scatter/Repeater/Lance action, deterministic geometry. Prism stays
+center,-12,+12 with independent FULL-DAMAGE nonpiercing flights sharing one immutable Attack;
+no universal target-hit Set suppresses different beams against the same enemy. Beams/pellets are
+one Combat system, not additional slots. GAME-056 preserves current cached nearest-target
+selection for EVERY form, including Lance. Its high damage, velocity and bounded penetration
+implement only those mechanics; penetration alone does NOT implement GAME_DESIGN's priority
+targeting. Weapon-specific priority-target ranking is deferred to GAME-059, to be defined
+alongside cross-system target distribution. Ranking a weapon's targets and avoiding duplicate
+targets across systems are distinct concerns. GAME-059 must later supply a valid target at
+fireLaser's selection boundary, including the established preference that independent systems
+choose different living enemies when enough valid targets exist. No reservations/TargetManager/new scoring here,
+no per-beam Prism targets, no change to Missile homing or Drone/Twin origin-specific targeting.
+
+Future GAME-059 integration acceptance (separate BACKLOG task): define and verify Lance-specific
+priority selection independently of cross-system duplicate-target avoidance, then verify their
+combined result at the Laser selection boundary alongside the other Combat systems. Cover enough
+and insufficient valid targets under the GAME-059-defined ranking/distribution rules, retaining
+immutable launch aim and independent flight behavior. GAME-056 must not claim priority targeting
+from penetration or introduce new targeting code; GAME-059 remains BACKLOG.
+
+Base/Prism/Repeater/Scatter keep earliest inclusive swept segment-circle/collection tie, one
+target then flight removal. Scatter damage stays independent per pellet. Only physical Impact
+diminishes for SAME volley/enemy by1,1/2,1/4,... in accepted contact order; total<2 times frozen
+per-pellet Impact per enemy. A Scatter-only volley Map stores enemy refs->contact count, shared
+by<=5 flights, at most5 enemy entries; never used to suppress damage, never global. Preflight
+force before HP, commit contact count only for accepted Hit. hpLost0 counts physical contact and
+may displace but retains attribution; lethal targets are removed before displacement. Force is
+frozenImpact*diminishingFactor*enemyResponse, not another ShipImpact multiplication. Existing
+vector cap600/decay1200/clamp persist. Clear/drop map when final flight ends and on owner cleanup.
+
+Lance keeps visited EXACT enemy refs and remaining capacity per FLIGHT (max5), not per Attack.
+Scan only positive-HP members of the current creating run. For each lifetime-clipped segment
+repeatedly choose earliest unvisited intersection on the SAME
+segment, collection-order ties, until no contact/capacity exhausted. Full frozen damage/Impact
+per distinct accepted target, no carry-over. Same flight cannot hit a survivor again on later
+frames; another flight can. Add visited/decrement only on accepted current-run Hit. After budget
+exhaustion remove flight. Boss death finishes owning flight cleanup then enters Victory immediately,
+with no later targets/flights after terminal. A null/stale Hit stops this flight update without
+retrying the same contact or consuming capacity. Bounded<=5 accepted hits plus collection scanning;
+no duplicate HP/death adapter. Existing non-Lance collision order remains unchanged.
+
+All forms route applyEnemyHit -> calculateEnemyDamage -> killEnemy -> one record/physical pickup/
+observer, with exact spawn-snapshot response/seven source counters. No corpse force, wall damage,
+overkill transfer or Laser kill registry. Movement uses min(delta,remainingLifetime), then expires;
+whole-body exit x<-r/x>4800+r/y<-r/y>2700+r removes. No launch clamp/homing/live target config/RNG.
+Scale affects radius once, not angles/count/lifetime, Missile explosion or other bodies. Preserve
+full Missile/Cluster primary+satellite owning completion before Victory although out of this scope.
+
+Visual proposal: Base/Prism cyan0x67e8f9 unchanged; Scatter orange0xfb923c, Repeater yellow0xfde047,
+Lance pale blue0xbae6fd. Reuse Circle physical radius and geometry/cadence, no final-art claim.
+Base upgrades retain cyan appearance; current values/shared Scale express their actual changes.
+No hit particles/shader/flash timer/assets/framework; HP/death and physical movement are distinct
+feedback. Profile worst legal FireControl/many flights in Chrome. Never hide low FPS by dropping
+attacks, probabilistic thinning or new gameplay caps. No sixth TimerEvent/delayedCall/wall scheduler.
+
+**PROPOSED RewardTransaction / LevelUpGenerator / Tags integration**
+
+Retain old18 order/IDs/shapes/labels/affinities/effects except explicit form eligibility and Build
+ownership migration above. Append three acquisition IDs scatter/repeater/lance, then Scatter four
+upgrades in table order +Capstone, Repeater four +Capstone, Lance four +Capstone. Total36.
+Validate correlated closed shapes/canonical ID agreement/dedup, no arbitrary string effect parser.
+Append these same18 IDs to existing RunDiagnostics choice validation/ChoiceIdentity, no new event.
+
+All new entries classify as ordinary Laser development. While BASE ready and any acquisition
+candidate numerically eligible, Slot1 preferred pool is exactly eligible branch acquisitions,
+canonical scatter/repeater/lance order, one existing weighted draw. This guarantees ONE branch
+opportunity per pending offer until branch/Prism chosen, not all3 simultaneous or automatic grant.
+If ZERO branch acquisitions are eligible SOLELY due to numeric feasibility, defer specialization
+and use the existing ordinary GAME-055 three-slot policy over the remaining eligible rewards:
+ordinary Slot1 weapon preference, Slot2 passive preference and Slot3 evolution/pivot precedence,
+including their existing ordinary fallbacks. Readiness remains derived and true; do not mutate
+Build or pending progression, commit policy prematurely, invent filler or grant a branch
+automatically. Retry the SAME readiness decision at the NEXT actual offer, not by rerolling the
+current one. Malformed state/other eligibility failures are not numeric-fallback authorization.
+Validate complete three-DISTINCT-eligible-candidate feasibility for EVERY fallback slot path
+BEFORE any RNG/REWARD/UI; a successful fallback still consumes EXACTLY THREE Reward draws.
+If the entire available pool is insufficient, retain existing explicit generation failure with
+0 draws and no REWARD/UI entry or progression/policy mutation. Ordinary successful presentation
+retains the existing recordPresented-only policy commit; generation itself commits nothing.
+When an acquisition is eligible, Slot2 prefers remaining passives; Slot3 retains existing reserved
+cyclic Prism/Cluster/Twin, otherwise remaining non-primary pivot then ordinary fallback.
+Unchosen acquisition alternatives are EXCLUDED from Slots2/3, so at mostONE appears. Branch
+upgrades/Capstones classify as normal Laser ordinary candidates after acquisition. Preflight
+usable pools AFTER this placement rule; extra acquisitions cannot fill shortages.
+When ready Slot1 is an acquisition, require >=1 eligible NON-acquisition ordinary choice with
+a reserved evolution, otherwise>=2, before draws; without acquisition use existing>=2/3 rules.
+Relevant-eligible pity pool includes candidates that can actually appear: all feasible acquisition
+alternatives can reach Slot1. Existing evolution priority and no emergency evolution filler remain.
+
+ALL new entries use their branch's canonical ordered affinity: Scatter [CLOSE_COMBAT,PROJECTILES,
+CONTROL]; Repeater [RAPID_FIRE,PROJECTILES]; Lance [PRECISION,PROJECTILES]. Metadata is NOT automatic
+Tag mutation. Separate authored acquisition effect adds exactly1 per listed Tag ONCE, atomically
+in PlayerBuild. Old18/tuning/new development/Capstones add0. No synthetic starter tilt, new Tag,
+Analyzer reward/DEV setter or Tag eligibility gate. Existing highest/second distinct positive
+tiers/canonical ties remain. Later Tag loss never revokes acquired form/upgrades/Capstone.
+
+Weights retain base100, context primary2/secondary1.5, Slot1 primary2/secondary1.25, Laser-focus1.5
+for new Laser entries (other focus1), Slot2 hull/thruster1.5/other1, Slot3 role1. Analyzer multiplier at A0=1,
+otherwise primary1+2/(1+4/A), safe integer with no cap4; primary pity1+0.25*base m0..4; history2
+presentations/k0..2 gives1/.5/.25, no hard exclusion. Same pre-offer committed context for all3.
+Only catalog-size bound extends explicitly: per-candidate25..3600 unchanged, conservative total
+<=36*3600=129600 instead of18*3600=64800. No unbounded content authorization. Canonical cumulative
+strictly-greater sampling/rounding-only final candidate, distinct IDs, EXACTLY THREE Reward draws
+including singleton evolution. No extra acquisition/evolution roll/retry sampler. Validate EVERY
+possible preceding slot outcome before RNG/REWARD/input/UI; insufficient usable pool remains loud.
+
+Generator retains ONLY bounded pity/history/signature/cursor/provisional/ordinal. Actual real UI
+and Reward.present and exact run/Build/progression/Generator/Reward/ordinal/tuple/Text check precede
+recordPresented, then offered observer. Independent frozen internal/returned candidates/updates,
+deeply detached reads. Generate/cancel/selection/retry commit0 policy. Changed signature uses0
+for BOTH effective/prospective misses; only successful recordPresented commits new0/no eligible,
+1/available miss,0/relevant presentation. Actual branch Tag acquisition must NOT commit pity;
+the next offer reads updated Build. Progression remains sole XP/pending owner; physical32 ->4/2/
+pending3, three real apply/resolve/selected operations and9 Reward draws, continuous REWARD. No
+second offer authority/selection path, nested open/transaction, extra choice screen, reroll or batch.
+
+**PROPOSED implementation seams and exclusions**
+
+- player/laserProgression.ts: narrow pure closed types/initial configuration/validated candidate
+  preparation/derived readiness/profile/authored tables and pure tests, not a new runtime owner.
+- player/PlayerBuild.ts: private Laser configuration, narrow atomic preview/apply, detached
+  snapshot.laser, existing disposal. Preserve ten stats/slots/modifiers and Tags except explicit
+  new branch delta. No writable profile/rank/form mirror in Scene/Generator.
+- rewards/rewardChoices.ts / rewardEligibility.ts / LevelUpGenerator.ts: closed36 catalog/context
+  projection/feasibility/acquisition Slot1 rule. RewardTransaction accepts expanded catalog types
+  via same route, no acceptance algorithm redesign. RunDiagnostics expands choice identities only.
+- combat/combat.ts: narrow validated copied frozen Laser-only mechanics. combat/laserPatterns.ts
+  if useful for concrete pure directions/bounded contacts, no universal modifier/physics service.
+- GameplayScene.ts: composition/current Build profile/same timer/target-selection seam, concrete
+  Scatter volley/Lance flight state, exact cleanup and same authenticated reward callback.
+  devTools retains five methods and forwards existing nested Build snapshot, no new controls.
+- Later implementation updates CURRENT_STATE/PROJECT_GRAPH after verification. Keep all1354
+  baseline assertions except documented newly affected catalog-size/policy literal expectations
+  and private-state fixture SETUP migration. Pin independent GAME-056-v1 literal sequences.
+
+No GAME-057/058 progression,059 target distribution, new Combat systems, Active/Core, Armory or
+Weapon Module event, starting-system selection, Director/encounter/enemy/Elite/Boss work,
+persistence/network, new streams/events/DEV commands/dependencies/ECS/generic weapon manager.
+Exact creating run guards precede old reads. MANUAL/REWARD/FOCUS_LOSS freeze event phases, flight
+position/lifetime/Impact/maps/HP/RNG. Terminal first wins, blocks fresh hits/deaths/XP/offers,
+invalidates UI/provisional work. Native restart restores Build Laser0/BASE/[]/false, new Reward/
+Generator/progression1/0/pending0/Defense/RNG/Input/Diagnostics, initial enemies and five unpaused
+events. Captured disposal removes old flights/maps/handlers; saved old owner/flight/key/focus/
+timer/cleanup refs cannot redirect into new owners. Native scene.restart, not manual create/reload.
+
+**Future tracked acceptance — required at implementation, NOT executed here**
+
+Pure: preserve1354 baseline; all tuning ranks0/1/2/caps/floor and exact Base truth, complete Prism
+recipe/center+-12/full beam snapshots, every proposed profile/upgrade/Capstone and combination.
+Assert L/T/V sources, exact local/C/Reactor/F/P/S/I once, Engineering exclusion, zero force,
+NaN/Infinity/negative/fractional rank/unsafe/underflow/overflow/invalid-shape preflight before
+mutation. Validate one Build authority, preview/read detachment, tuning sum2/3 readiness including
+2/1/0, branch/Prism exclusivity, independent rank1 upgrades/all4 Capstone/repeat rejection, atomic
++1 branch Tag deltas/ties and0 from old18/development. No Tag/Analyzer hard gate or startup Tags.
+
+Geometry/force: deterministic normalized Base/Prism/Scatter directions/order,0.001 threshold,
+Scale radius-only, lifetime-clipped earliest inclusive/ties; Scatter independent damage and
+per-enemy Impact1/.5/.25... total<2/max5 map entries. Lance max3/4/5 exact-ref visits, independent
+flights, no repeat survivor across frames, full damage/no transfer, bounded same-step traversal
+and Boss early stop. Invalid mechanics rejected before visuals/HP. All geometry/profile/Hit
+operations draw0. Lethal no displacement, valid hpLost0 force without source overwrite.
+
+Reward: old18 identity/order/effects +new18 closed mappings/categories/affinities/count36, exact
+weight factors25..3600/total<=129600. Readiness/form/rank/recipe/numeric eligibility at generation
+and application; every preceding slot path, guaranteed acquisition Slot1/exclusion Slots2/3,
+shortage0 draws/no duplicate filler, legacy evolution precedence, independent seed0/123456789
+old-unaffected/new-ready/specialized literal sequences. Exactly3 draws including singleton,
+other streams0, unchanged RunRandom goldens. Signaturem4->new0/1/0 only on actual ack, FIFO2/soft
+penalties, frozen nested candidates/updates, duplicate/old/mismatched ack, retry/cancel/stale
+read/disposed-owner isolation; Tag acquisition does not prematurely update committed policy.
+
+Numeric-specialization fallback: tracked pure tests for ZERO, ONE and MULTIPLE feasible branches
+while BASE ready. ONE/MULTIPLE must use exactly one eligible acquisition in Slot1 via one weighted
+draw and exclude all other acquisitions from Slots2/3. ZERO solely numeric must preserve readiness
+and use ordinary GAME-055 policy, with three distinct eligible candidates, all possible fallback
+slot paths preflighted and exactly3 Reward draws/other streams0. Assert no generation-time Build,
+pending progression or policy mutation, no filler/autogrant and normal presentation-only commit.
+Insufficient entire pool fails explicitly before RNG/REWARD/UI with pending/readiness unchanged.
+After legitimate numeric feasibility changes, the next actual offer retries the same readiness
+decision and successfully offers specialization in Slot1; no lost readiness or premature branch.
+
+Scene production paths: initial Laser/one same timer, authentic rank choices, all3 forms/12
+upgrades/3 Capstones, actual legacy Prism path/independent same-enemy beams, old/new frozen
+flights/pattern/budgets. Existing nearest tie/death->next-update reacquisition; Laser plus
+Missile/Cluster/Drone/Twin together with existing targeting. Swept force/loss0/negative HP/one
+death/physical XP/source-aware diagnostics, seven buckets. Rejected preflight then SAME Text/
+handler/token retry; stale/forged/duplicate0, callback completes before next generation. Candidate
+Build/Tag atomicity and observer/next-ordinal overflow. Actual physical32 pickup ->3 sequential
+offers/updated form/Tags/eligibility/history ->9 draws under continuous REWARD/final composed
+reason release. Freeze all5 phases/flight/maps/HP/RNG; terminal owning cleanup including Lance
+Boss early stop. Dirty native Victory/Death/PAUSED restart isolates old inputs/flights/owners/
+timers/cleanup and resets configuration. Preserve Defense/EnemyDeath/XP and all other weapons.
+Exercise numeric-only specialization fallback through the production offer route: no pending
+resolution until an actual accepted choice, full three-candidate preflight before RNG/REWARD/UI,
+and later actual-offer specialization after legitimate numeric feasibility changes.
+
+**Future installed Chrome/Phaser acceptance — NOT performed during definition**
+
+A. DEV boot: current all3-weapon prototype Build, Base1/600/1200/6/2000/200, five actual TimerEvents/
+five DEV methods, fresh Laser configuration/maps/Generator/progression, no synthetic starter Tags.
+B. Base: actual targeting/flight/swept Hit/HP/death/physical XP/knockback. Authentic XP->Level-Up/
+real mouse tuning choices; future shots updated/old flights fixed, same cadence timer/no extra
+volley. Real legacy Prism2/2/2+Combat1 evolution, three visible independent full-damage beams,
+correct attribution and one event. Fixtures cannot replace authentic selection verification.
+C. Branches: legitimate readiness/actual mouse acquisition of EACH branch, each of4 upgrades
+and Capstone; visible deterministic geometry, Scatter force bound, Repeater cadence, Lance
+small/large-step max distinct hits/no repeat victim. Record stats/map sizes/source counters/
+five timer identities/phase and four stream counts, old/new launch values and branch Tag effect.
+D. Rewards: rejection then SAME Text valid retry/duplicate/saved callbacks0; actual physical32/
+three mouse choices/9 draws/continuous REWARD, updated Build/Tag identity/eligibility/history,
+legacy evolution precedence; no shipping new DEV command. Legitimate controlled setups labelled.
+Verify numeric-only zero-branch fallback presents three distinct eligible ordinary choices with
+3 Reward draws, retained BASE readiness and unchanged pending until acceptance; after legitimate
+numeric feasibility changes, the next actual offer presents one eligible specialization in Slot1.
+E. Pause: MANUAL, REWARD and genuine other-tab BLUR with focus emulation disabled, meaningful
+wall waits freeze all5 phases/flights/maps/HP/RNG; focus return alone never resumes, held movement/
+Dash suppressed. HIDDEN synthetic tests separately labelled, not evidence of real BLUR.
+F. Terminal: Death-first/Victory-first; Base/Prism/new-form Boss kills, straight owning cleanup and
+Lance early-stop before Victory; Missile/Cluster primary+satellite regression, one Boss record/
+physicalXP10 frozen. TWO actual Victory->NEW RUN, ONE ordinary incoming Death->RETRY and ONE
+PAUSED nonterminal native scene.restart with dirty ranks/form/upgrades/Tags/attacks/maps/pity/
+history/pending/UI. Exact old callbacks/owners inert, fresh configuration and five unpaused events.
+G. Unmodified built production: real W/Space/Escape/movement/Dash/pause/combat, natural physical
+XP/Level-Up/real mouse choice, ordinary damage->Death/actual RETRY, DEV absent/no new pageerrors.
+Controlled fixture acceptance never substitutes for production smoke. Profile visible readability
+and worst legal cadence/many shots; no silent thinning/cap. Known favicon404/chunk/Vitest worker
+warnings distinguished from new errors. Missing required evidence prevents marking DONE.
+
+**Definition validation and handoff**
+
+This task changes/stages ONLY docs/TASK_GRAPH.md, GAME-056 BACKLOG->READY. Run npm run check,
+git diff --check, git diff --cached --check/stat and inspect COMPLETE cached diff. Ignored
+.codex-review/GAME-056-review.txt includes exact audit HEAD/source inventory/current facts,
+all20 architect decisions/proposed values/catalog/conflicts, reward/combat/target integration,
+future pure/Scene/Chrome/native/production acceptance and complete staged diff. No runtime/tests/
+other docs/packages changed, no browser checks claimed, no commit. GAME-055 DONE; GAME-057+
+BACKLOG; GAME-040/041 SUPERSEDED; GATE A/B PASSED; GATE C unapproved. Final architect approval
+of these two clarifications and explicit implementation authorization are required before runtime work.
+
 
 **GATE C — First Real Build Loop** — review the preceding phase capabilities before its cutover/next proof.
 
