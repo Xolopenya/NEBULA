@@ -4286,7 +4286,7 @@ GATE A/B PASSED. No other gate closed. GAME-052 implementation is architect-appr
 | GAME-054 | Reward Transaction & Eligibility | GAME-046, GAME-047, GAME-053 | One reward transaction, hard eligibility and explicit Build application. | DONE |
 | GAME-055 | Level-Up Generator | GAME-043, GAME-047, GAME-054 | Weighted Level-Up roles, Analyzer, pity and recent-offer handling. | DONE |
 | GAME-056 | Laser Progression Vertical | GAME-049, GAME-055 | Laser tuning/readiness and Scatter Array / Repeater Array / Precision Lance development. | DONE |
-| GAME-057 | Missile Progression | GAME-056 | Straight base Missile and Guidance / Heavy Warhead / Fragmentation progression. | BACKLOG |
+| GAME-057 | Missile Progression | GAME-056 | Definition below: straight BASE, legacy homing CLUSTER and Guidance / Heavy Warhead / Fragmentation; final approval pending. | READY |
 | GAME-058 | Combat Drone Progression | GAME-056 | Combat Drone Scatter / Repeater / Precision progression. | BACKLOG |
 | GAME-059 | Multi-System Combat Runtime | GAME-057, GAME-058 | Multiple installed Combat Systems with independent concrete runtime ownership. | BACKLOG |
 
@@ -5802,6 +5802,474 @@ headless Chrome responsiveness is ~57-60fps/~1.2s with600 Scatter/730 Repeater/2
 fastest Repeater delay1.25ms. No thinning/new caps/timers. Known favicon404/Vite chunk/Vitest worker
 advice only. CURRENT_STATE/PROJECT_GRAPH reflect actual ownership. GAME-055/056 DONE; GAME-057+
 BACKLOG; GAME-040/041 SUPERSEDED; GATE A/B PASSED; GATE C unapproved. No dependency or commit.
+
+#### GAME-057 — Missile Progression Vertical: implementation definition
+
+STATUS: READY — definition ready for architect review, **not approved for implementation**.
+Only this document changes. Runtime, tests, public prototype and CR-002..005 remain intact.
+GAME-058/059 and later tasks remain BACKLOG; GATE A/B PASSED; GATE C remains UNAPPROVED.
+Historical completion notes above retain their historical statuses, not current authorization.
+
+**Architect decisions and final amendment scope**
+
+The architect approved the three authored branches, all18 IDs/Russian copy/numeric profiles,
+four developments and one Capstone each, Build-owned config/atomic preview/apply, fuse-only
+Engineering, moving depth-one explosive fragments, capacity512 live+reserved children, seven
+source buckets, shared Laser/Missile acquisition pool, RewardTransaction/exact3 Reward draws,
+five timers/four streams/five DEV commands, GAME-059 boundary and performance budgets below.
+This final definition remains READY pending final architectural approval; no runtime work.
+
+Migration alternative B is selected: BASE selects the current nearest living target at launch,
+freezes the initial heading, then flies straight without post-launch homing or reacquisition.
+Preserve its existing damage/speed/lifetime/body/blast/tuning/collision sweep and cap1.
+CLUSTER is an explicit legacy exception: retain current homing/target retention/reacquisition,
+six satellite circles/survivor union/damage/cleanup. GUIDANCE is the authored homing branch
+with its approved proximity fuse; HEAVY and FRAGMENTATION also remain straight.
+Historical alternative A (retaining BASE homing) is rejected. No compatibility setting,
+dual-mode BASE, legacy manager or new random targeting rule is permitted.
+
+This resolves the authored GAME_DESIGN/ARCHITECTURE straight-BASE migration while explicitly
+preserving CLUSTER. The source audit below describes today's homing BASE, not the future BASE
+contract. Existing BASE homing expectations must be migrated intentionally, with replacement
+straight-flight assertions; unchanged CLUSTER regressions must remain. Other approved mechanics,
+rewards, formulas and balance are unchanged. Only definitive catalog order and the narrow
+per-child detonation-origin body-collision grace are added below. Faster/slower numeric and
+two-branch/salvo/synchronous-fragment alternatives are not selected.
+
+**Actual implemented baseline and source audit (pre-definition HEAD)**
+
+Locations below refer to the unchanged source at this definition's BASE (hash in review packet).
+They are factual current behavior, distinct from every proposal below.
+
+| Source location | Current authority / exact behavior |
+| --- | --- |
+| `src/game/player/PlayerBuild.ts:30..92` | Detached BuildSnapshot owns slots, stats, Tags/identity and Laser config only. Exactly three Combat slots start LASER/MISSILE/COMBAT_DRONE; Missile is installed in the second slot. No Missile acquisition/equipment feature is needed here |
+| `src/game/scenes/GameplayScene.ts:197..204,283..294` | Scene owns Missile values/ranks/cluster flag, reset each create. maxActiveMissiles1, interval1800ms, lifetime4000ms, physical radius8px; damage2, speed450px/s, local explosion radius120px; ranks0/0/0 |
+| `GameplayScene.ts:934..942`; `rewards/rewardEligibility.ts:103..157` | Warhead Power +1 damage/rank, Propulsion +75px/s/rank, Blast Expansion +30px/rank. Each rank0..2, no cadence tuning: maxima4 damage,600px/s,180px local blast. Eligibility is installed slot plus rank<2 and prospective numeric feasibility |
+| `progression/clusterMissile.ts:3..8`; `rewardEligibility.ts:157..159` | Cluster requires all three ranks>=2, Spatial>=1, not already Cluster, installed Missile and feasible composed values. No level/time/Tag gate |
+| `progression/spatialAmplifier.ts:1..3` | Repeatable Spatial adds15px/level to Missile-local blast, with no authored rank cap; prospective sums must remain representable |
+| `GameplayScene.ts:1343..1382` | Launch requires RUNNING, player, installed Missile, fewer than1 live parent and a nearest-player enemy. No RNG; snapshot values at launch. Yellow circle0xfacc15. Acquire heading to target; distance<0.001 retains heading |
+| `GameplayScene.ts:1384..1427` | Retain living target; after loss reacquire nearest to Missile, stable collection-order ties; aim instantly each update with no turn-rate cap. If no target retain last heading. Travel min(delta, remainingLifetime). Earliest inclusive swept body hit against enemy radius + Missile radius, collection ties stable. No direct hit damage; detonate at interpolated impact point. Exit/expiry silently removes a noncolliding Missile |
+| `GameplayScene.ts:1429..1460`; `combat/clusterSatellites.ts:1..13` | Primary snapshots current enemy centers within inclusive blast circle and hits each once. Cluster then snapshots survivors covered by union of six circles, offsetR at world angles0/60/120/180/240/300 degrees, radiusR/2; first covering circle supplies radial origin. Each survivor gets at most one satellite Hit; a primary survivor can get both |
+| `combat/combat.ts:3..12,66..80,99..120` | MISSILE variant BASE or CLUSTER; frozen six-field snapshot damage/speed/radius/lifetime/impact/explosionRadius. PRIMARY full launch damage; CLUSTER SATELLITE half. No other Missile Hit phase is legal |
+| `GameplayScene.ts:1035..1062,1462..1490`; `enemies/EnemyDeath.ts:3..26` | Single applyEnemyHit -> damage -> lethal killEnemy path. Blast Impact radial, snapshot400*ShipImpact, satellite factor0.5, multiplied by enemy response; no damage falloff, no new HP authority. Source buckets MISSILE.BASE.PRIMARY, MISSILE.CLUSTER.PRIMARY/SATELLITE. One physical XP drop at each actual death; no direct XP award |
+| `GameplayScene.ts:404..408,610..660` | One existing owned Missile TimerEvent; delay1800/FireControl. Shared FireControl resets same event in place with other weapon events; existing Missile tuning/Cluster do not reset cadence. No queue/catch-up after cap rejection |
+| `rewards/rewardChoices.ts:6..35`; `LevelUpGenerator.ts:9..42,144..215` | Canonical36 choices: original18 in unchanged order plus18 Laser choices. Exactly3 Reward draws/offer; policy GAME-056-v1. Missile has three tuning IDs and cluster only; no Missile branches implemented |
+| `RewardTransaction.ts:21..75`; `GameplayScene.ts:791..963` | Authentic owner/token/ordinal/Text selection, same-handler rejection retry, selection invalidation before post-return next-offer orchestration. One pending level resolved per accepted choice; REWARD remains through sequential offers |
+| `RunLifecycle.ts:1..58`; `RunDiagnostics.ts:4..19,115..137,194..219` | REWARD/MANUAL/FOCUS_LOSS composition; first terminal immutable. Diagnostics observes actual source-aware deaths, newest256 semantic rows and active elapsed; neither decides progression nor combat |
+| `GameplayScene.ts:241..458,474..486,596..607,713..742`; `settings/gameplaySettings.ts:1..29` | Native create owns fresh Build/lifecycle/RNG/input/diagnostics/rewards and five events. Current Phase2 after level>=2 and final reward/pause release; same spawn event2000->1200ms with fractional progress; enemy speed*1.25; notification3000 active ms. Player300px/s, Dash900/cooldown3000, enemy cap10, successful spawn30 boss. Do not rewrite settings or these behaviors |
+
+Current damage = ((2+warheadRank)*CombatProcessor)*Reactor; CombatProcessor=1+0.25*combatLevel.
+Engineering affects Drone damage only today, not Missile damage. Speed=(450+75*propulsionRank)
+*ProjectileVelocity; physical radius=8*ProjectileScale; blast=(120+30*blastRank)+15*Spatial.
+Projectile Scale does not multiply blast. Impact=400*ShipImpact, independent of damage;
+knockback helper caps external summed velocity600px/s and decays1200px/s². PRIMARY deaths,
+full Cluster survivor union and root visual/removal all finish before Victory. Pauses freeze
+positions/headings/lifetimes/HP/XP and same five clock phases; terminal leaves other flights frozen.
+Native restart removes old Phaser objects/events, disposes exact owners and rejects stale callbacks.
+
+Baseline verification for this definition: **1664 passing tests /36 files**, `npm run check`.
+This supersedes historical1490/1643/1663 evidence only as the new implementation's test floor.
+Actual source/test audit includes combat, Cluster geometry/recipe, Spatial, Build, EnemyDeath,
+RewardTransaction, LevelUpGenerator, RunLifecycle, diagnostics and CR-003/settings regressions.
+
+**Approved ownership and atomic mutation contract**
+
+Add one focused Phaser-free `player/missileProgression.ts` plus pure tests, patterned after
+Laser's validation/preview boundaries, without copying Laser pellet/penetration mechanics.
+PlayerBuild alone owns a closed `MissileConfiguration` with exactly ranks:{warheadPower,
+propulsion,blastExpansion}, form:BASE|CLUSTER|GUIDANCE|HEAVY|FRAGMENTATION,
+upgrades:canonical Missile development IDs[], capstone:boolean. Fresh BASE/0/0/0/[]/false.
+Detached BuildSnapshot gains exactly missile; retain existing Laser fields and all slots/stats.
+Scene removes mutable missileValues/missileRanks/clusterEvolved authority. Read-only compatibility
+getters may derive projections from Build for migrated consumers/tests; no writable mirrors.
+
+Build.previewMissileChoice validates prospective config, local profile, resulting Tag sums,
+composed launches (including children), cadence and supported consumer ranges on detached data.
+Build.applyMissileChoice uses that same prepared candidate and commits config+Tags+identity once;
+rejection changes nothing. Scene's existing authenticated applyRewardChoice calls this boundary,
+preflights progression/diagnostics before commit and resets only the same Missile event **if its
+composed delay actually changes**. No-op, reads, unchanged-cadence choices and pause do not reset it.
+Shared stat changes preflight all current weapon consumers, including the new missile launch plan.
+No new Build-owned TimerEvent, target, current flight, run, RNG or reward token.
+
+Missile readiness: installed slot, BASE, sum of three existing ranks>=3. Each tuning remains0..2
+and remains available after specializing until its own cap. Global stats/Spatial/Tags do not
+count as tuning. Acquiring exactly one branch consumes one existing opportunity, sets form
+once, retains tuning and adds1 to each listed branch Tag once. Legacy Cluster requires the
+unchanged2/2/2+Spatial1 recipe while BASE; it excludes all three new forms and vice versa.
+Developments: selected matching branch, each once, independent order, canonical snapshot order.
+Capstone: matching branch, all four developments, not already acquired. No Tag gate/revocation.
+Tuning, developments, Capstones and Cluster add0 Tags. No new Combat-slot acquisition content.
+
+**Approved numeric profiles — not currently implemented values**
+
+Let D=2+w, V=450+75p, R=120+30b, T=1800ms, S=Spatial level, E=effective Engineering.
+w/p/b are original ranks0..2. Table values are weapon-local before shared stats. For every
+parent: final damage=(localDamage*CombatProcessor)*Reactor, speed=localSpeed*Velocity,
+body=localBody*Scale, blast=localBlast+15*S, impact=localImpact*ShipImpact,
+delay=localInterval/FireControl. Lifetime is active ms; no hidden global duration scaling.
+Engineering never changes Missile damage/cadence/velocity. It only changes Guidance's fuse.
+
+| Form | Damage / interval / velocity | Body / blast / lifetime / Impact | Flight behavior, maximum parent flights, visual |
+| --- | --- | --- | --- |
+| BASE (intentional migration B) | D / T / V | 8 / R /4000 /400 | Nearest target at launch only; fixed heading, no homing/reacquisition; cap1, existing yellow circle; unchanged sweep/blast/tuning |
+| CLUSTER (explicit legacy exception) | D / T / V | 8 / R /4000 /400 | Existing instant homing/retention/reacquisition/last heading; cap1, existing yellow circle; satellite behavior unchanged |
+| Guidance | 0.9D /0.85T /1.2V | 8 / R /5000 /300 | Existing homing plus target-specific proximity fuse F=min(0.75*finalBlast,64*sqrt(E)); cap1; cyan0x38bdf8 body, outline2 and short cyan direction tick |
+| Heavy Warhead | 3D /1.5T /0.75V | 12 /1.5R /4000 /800 | Heading fixed at nearest-player launch target, no homing/reacquisition; cap1; orange0xfb923c body, outline3; wide orange one-frame explosion ring |
+| Fragmentation parent | 0.75D /1.2T /V | 8 /0.85R /4000 /300 | Fixed launch heading, no homing; cap1; magenta0xe879f9 body. One primary blast, then4 radial moving fragments, no recursion |
+| Fragmentation child | 0.25*parent FINAL damage /no timer /900*Velocity | 3*Scale /0.2*parent FINAL blast /500 /0.25*parent FINAL impact | Straight, evenly spaced world-axis headings, own collision explosion once; same MISSILE.BASE.PRIMARY attribution; child body lime0xa3e635; cap512 children globally |
+
+Guidance F is frozen at launch, never a live target/stat read. On each update select the earliest
+of the unchanged all-enemy body sweeps and a center-distance F sweep against the retained/current
+reacquired living target. Tie favors the existing body sweep. Fuse impact point is interpolated;
+use the unchanged center-only explosion test, not an enlarged blast or guaranteed target damage.
+No fuse candidate without a living target; heading retention still works. Engineering is a
+bounded-distance consumer, with E>=0.01, no RNG and no new global stat formula.
+Fragment children copy shared stats exactly once at parent launch: child damage/Impact/blast
+derive from frozen parent final values; their speed/body use the same captured stats. Never
+multiply Reactor/Combat/Impact/Spatial again. Child Attack is a regular six-field Missile BASE
+Attack with its own small explosion radius, not a Laser bolt disguised with a dummy field.
+
+At ready ranks1/1/1, S0 and all shared multipliers1: BASE3/1800/525/body8/blast150/life4000/I400;
+Guidance2.7/1530/630/body8/blast150/life5000/I300/F64;
+Heavy9/2700/393.75/body12/blast225/life4000/I800;
+Fragment parent2.25/2160/525/body8/blast127.5/life4000/I300,
+each initial child0.5625 damage,900px/s,body3,blast25.5,life500,I75.
+These are comparison examples, not a readiness requirement to invest in all three tracks equally.
+
+**Definitive canonical reward catalog and approved Russian display copy**
+
+Append these18 IDs after the unchanged36 canonical entries. Acquisition order guidance,heavy,
+fragmentation occupy new indices1..3 (global37..39); Guidance developments+Capstone4..8,
+Heavy9..13, Fragmentation14..18 (global40..54), exactly as the table below. Count54.
+This is definitive sampling order, not display grouping; require independent literal seeded
+generator golden tests against this order, including all simultaneous-ready/fallback paths.
+All values below replace the corresponding profile coefficient; they are not repeated stacks.
+Descriptions use display-only decimal comma; numeric computation retains exact numeric values.
+
+| Canonical ID | Russian name | Russian effect description / exact prospective change |
+| --- | --- | --- |
+| missile.specialize.guidance | Система наведения | Самонаведение и подрыв рядом с целью; урон ×0,9, интервал ×0,85, скорость ×1,2, полёт 5 с, импульс 300 |
+| missile.specialize.heavy | Тяжёлая боеголовка | Прямой полёт; урон ×3, интервал ×1,5, скорость ×0,75, корпус 12 пикс., радиус взрыва ×1,5, импульс 800 |
+| missile.specialize.fragmentation | Осколочная боеголовка | Прямой полёт; урон ×0,75, интервал ×1,2, радиус взрыва ×0,85, импульс 300; после взрыва 4 летящих осколка |
+| missile.guidance.payload | Точная боеголовка | Множитель урона: 0,9 → 1,1 |
+| missile.guidance.propulsion | Маневровый двигатель | Множитель скорости: 1,2 → 1,5 |
+| missile.guidance.fuse | Датчик сближения | База дистанции подрыва: 64 → 80 пикс.; масштаб Инженерии и предел 75% радиуса взрыва сохраняются |
+| missile.guidance.endurance | Запас топлива | Время полёта: 5 → 6 с |
+| missile.guidance.capstone | ВЕРШИНА: Последний сигнал | При окончании времени полёта ракета взрывается один раз; выход за границу по-прежнему удаляет её |
+| missile.heavy.payload | Усиленный заряд | Множитель урона: 3 → 3,5 |
+| missile.heavy.propulsion | Тяжёлый двигатель | Множитель скорости: 0,75 → 0,9 |
+| missile.heavy.blast | Объёмный взрыв | Множитель местного радиуса взрыва: 1,5 → 1,8; Пространственный усилитель добавляется после него |
+| missile.heavy.reload | Зарядный механизм | Множитель интервала: 1,5 → 1,25 |
+| missile.heavy.capstone | ВЕРШИНА: Разрушитель | Множитель урона 4, корпус 16 пикс., импульс 1200; радиус и интервал сохраняются |
+| missile.fragmentation.payload | Усиление боеголовки | Множитель урона основной боеголовки: 0,75 → 1; каждый осколок сохраняет 25% её урона |
+| missile.fragmentation.reload | Подача боеприпасов | Множитель интервала: 1,2 → 1 |
+| missile.fragmentation.fragments | Сегментированный корпус | Число осколков: 4 → 6 |
+| missile.fragmentation.endurance | Дальние осколки | Время полёта осколков: 0,5 → 0,7 с |
+| missile.fragmentation.capstone | ВЕРШИНА: Осколочное кольцо | Число осколков: 6 → 8; каждый взрывается один раз, без новых осколков |
+
+All unspecified numbers stay the branch base profile. Guidance Capstone is only expiry detonation,
+not extra damage or another explosion after collision. Children silently expire/exit; they do
+not acquire Guidance or its Capstone. All fragment directions start+X in increasing2*pi*i/count;
+all children start at the parent impact center with no offset. Only the bounded initial
+parent-collision body exclusion specified below applies; it never excludes explosion splash.
+No jitter, randomness or independent target selection. Distinct fragments may damage the same
+surviving enemy and may hit a primary survivor: that is authored multi-hit behavior. One fragment's
+small explosion hits each current target once; no per-root cross-fragment immunity/history.
+
+Acquisition Tag contributions / all18 reward affinities, in canonical TAG_IDS order:
+Guidance PRECISION/PROJECTILES/EXPLOSIONS/TECHNOLOGY; Heavy PROJECTILES/EXPLOSIONS/CONTROL;
+Fragmentation PROJECTILES/EXPLOSIONS. Only acquisition adds1 to each; affinity adds0 by itself.
+Do not add a public missile mutation DEV command or turn Tags into stats.
+
+**Launch, Hit, Cluster and terminal contracts**
+
+Keep Attack kind MISSILE and BASE/CLUSTER variants, existing six-field combat snapshot and
+the seven EnemyDeath/diagnostic source buckets. New forms and child blasts use BASE/PRIMARY;
+legacy Cluster uses CLUSTER PRIMARY/SATELLITE. No invented DIRECT Missile phase or new HP/XP
+adapter. Fragments must not be described as newly attributed kills of their own source kind.
+
+Prepare a closed immutable Missile launch plan containing the existing Attack plus copied
+behavior: STRAIGHT for BASE (migration B); HOMING for legacy CLUSTER;
+HOMING_FUSE with frozen F/expiry flag for Guidance;
+STRAIGHT for Heavy; STRAIGHT_FRAGMENTING with count and one prevalidated frozen child Missile
+BASE Attack for Fragmentation. Child behavior is STRAIGHT with no fragmentation. Validate/copy
+exact own fields in each variant; depth is at most1. No mutable Build/Scene/run/target/position
+reference in plan. Runtime owns only exact run, plan, visual, target/heading/lifetime and
+necessary one-shot detonation/removal state. Each child additionally owns at most one nullable
+exact EnemyRuntime reference for initial body-collision exclusion, outside the immutable launch
+plan. No set/registry/ID list. Disposed owners/stale contexts cannot act.
+
+Process actual parent impacts as today: sweep -> complete affected primary snapshot -> full
+legacy Cluster union if present -> create the complete child burst if Fragmentation -> remove
+parent -> terminal decision. Children are future flights, not deferred pieces of a synchronous
+Cluster blast; none update during their birth update (iterate a stable pre-update flight list).
+If parent primary kills Boss, child creation/parent removal finishes before Victory, and children
+then freeze without future damage, just like other unrelated flights. No skipped Cluster
+satellites because a primary killed Boss. A child killing Boss completes its own entire small
+explosion and removal before Victory. No later unrelated child/XP/contact processing that frame.
+DEATH-first/VICTORY-first ordering remains the production order, not a new event bus.
+
+Each actual blast calls existing applyEnemyHit ENEMY_BLAST/PRIMARY or SATELLITE. Same center-only
+inclusive geometry, snapshot-before-splice, first-circle Cluster origin, radial force, EnemyDeath
+preflight/source attribution, one physical XP1/5/10 and deferred physical collection. No direct
+damage on Missile contact and no extra primary damage to the collision victim. Shared hit helper
+may be a narrow reuse of explodeMissile; do not build an explosion registry or new combat engine.
+
+Ordinary BASE/CLUSTER cap remains1. New primary caps also1; child flights do not consume this
+parent cap. Separate Scene-local bounded child collection max512, not an Encounter capacity
+manager. At parent launch reserve its frozen count (0/4/6/8) against live children+reserved<=512;
+reject whole launch without RNG/timer reset if insufficient. Successful collision transfers
+reservation to exactly that burst; expiry/exit/terminal disposal releases it. No partial burst,
+queue, reroll, recursion, enemy-ID history, retained death record or growing per-target set.
+Bounds/delta/positions validated before publishing visuals; on exceptional engine failure
+surface an invariant failure rather than silently accepting a partial gameplay mutation.
+
+**Fragment detonation-origin body-collision grace — exact bounded contract**
+
+Capture the actual enemy producing the parent's earliest body-sweep collision using the
+existing strict hit<firstHit update and stable collection-order tie rule. This reference is
+not the launch target, nearest enemy, or every primary-blast victim. After the full parent
+primary blast, give each child that exact reference only if it remains alive, current-run,
+in the enemy collection with an active visual and the child's body is still overlapping or
+tangent. If the original died/was removed/disposed during the blast, use null immediately.
+This is one transient per-child direct body-sweep filter, with no new death/HP/source authority.
+
+Let P be the child's center, C the original enemy's current center, and
+B=child.attack.snapshot.radius+original.collisionRadius (sum of actual collision radii,
+including captured child Projectile Scale). Separation means squaredDistance(P,C)>B*B,
+strictly. Equality is tangency and is NOT full separation. Use existing finite geometry
+and exact comparisons; no epsilon, grace duration, distance padding or render-size proxy.
+If born outside this sum radius, clear at birth: there is no extra protection thereafter.
+At the start of each positive active child update, first clear if the exact original is
+dead/removed/disposed/stale-run/inactive, or already strictly separated at its current pose.
+Once cleared, never restore the exclusion even if the same enemy returns to the flight path.
+
+For a retained reference, omit only that original from direct body-sweep candidates while
+overlap/tangency persists. All other living enemies retain normal inclusive earliest-sweep
+collision tests from t0, stable ties and collision-triggered independent small explosions.
+All explosion affected-target snapshots remain unfiltered: splash may damage the original
+even before separation. Other fragments/parents may independently damage it as usual.
+
+Use the actual same-update enemy pose after existing enemy AI/knockback, held fixed for
+the child segment exactly as current Missile collision does; do not add swept enemy-motion
+history. Re-evaluate current pose next active update. An original moving away can clear the
+exclusion before flight movement; moving into/remaining overlapping retains it until exit.
+After clearance, an original later moving into the child's path is an ordinary collision.
+
+For large delta, first limit travel by remaining lifetime and the earliest OTHER collision.
+For a surviving child segment P(t)=P0+t*d, t in[0,1], compare its consumed endpoint to the
+same C/B and clear if strictly outside. A straight segment starting in/on a fixed circle
+can exit at most once and cannot re-enter during that segment, so omitting the original
+for that segment is exact, not an immunity extending past a possible later re-entry.
+The exit boundary is the outward root of |P0+t*d-C|²=B²; separation begins strictly after
+that root. Do not immediately collide again at the inclusive exit boundary. No root/fraction
+needs retaining between frames. Full-segment travel continues after exit with other enemies
+still collidable; at the next update the cleared original is included normally.
+
+Center launch: retain until travel puts the center strictly beyond B; landing exactly at B
+retains the reference. Tangential launch: zero movement does not separate; an outward or
+tangential nonzero segment clears as soon as strictly outside; an inward segment retains
+through the circle until its far-side exit. If another enemy collides before exit, resolve
+that child blast normally (including original splash), then consume/clean up the child.
+Children still take no birth-update step. A dead original cannot hold a stale reference:
+existing enemy-removal/disposal cleanup clears matching references in the bounded child
+collection synchronously; this is reference cleanup, not a second EnemyDeath mechanism.
+
+MANUAL/REWARD/FOCUS_LOSS pauses freeze movement and separation processing with existing guards;
+no wall-time release. Accepted terminal freezes remaining flight geometry but clears all
+child exclusion references because terminal cannot resume; it creates no late collision/Hit.
+Native shutdown/restart destroys old children and clears all old references, with none copied
+to fresh run. Child detonation/expiry/arena exit/rejected publication releases its reference
+with existing child/reservation cleanup exactly once. Unpublished/rejected/stale-run children
+retain no original. At most512 live/reserved children and one reference per live child; no
+shared hit history, general target immunity, new timer, damage source or growing collection.
+
+**Numeric feasibility and safety**
+
+Ranks integer0..2; four unique development IDs belonging to chosen branch; boolean Capstone
+only with all four; exact closed shapes (including rejection of symbols/hidden/extra keys).
+Finite actual numbers, no coercion; positive values<=MAX_SAFE_INTEGER, Impact>=0 with nonzero
+product underflow rejected. Validate every intermediate composed damage/radius/velocity/body,
+child quarter damage/Impact and final products before Build/HP/flight/visual/timer writes.
+Cadence>=1ms; FireControl remains current0.01..100; Guidance sqrt(E) finite and F>0 bounded
+by0.75*finalBlast (including all upgraded paths). New tuning increments must be representable.
+Safe integer ranks/Tag sums/ordinals and canonical order validated atomically. Reject invalid
+delta/position/nonfinite geometry through the existing numeric boundary plus focused safe
+geometry where required; retain BASE/CLUSTER accepted finite input ranges (no new arena-size
+cap on their projectile bodies). Do not weaken strictness or clamp overflow into a different
+reward. Huge valid stats are not permission to allocate by radius,
+speed, Engineering or lifetime; counts/lifetimes remain authored finite bounds.
+
+**RewardTransaction / LevelUpGenerator integration**
+
+RewardTransaction remains unchanged sole selection authority. Extend the canonical choice
+union/identity validation, russianText display and diagnostics ChoiceIdentity union only for
+these18 IDs; no new transaction/token/ordinal or policy owner. Missile readiness is a derived
+Build fact, not a Scene flag or separate progression. Missile preview/eligibility replaces the
+current mutable Scene projections in RewardEligibilityContext; any retained projections must
+be validated equal to Build, as current Laser context is. Shared passive increments preflight
+new composed child/fuse consumers too. A numeric-infeasible candidate is ineligible; malformed
+context is an error, not a silent fallback. Terminal/stale/foreign-slot callbacks reject early.
+
+Generalize only the concrete acquisition pool to ready Laser and Missile candidates. Slot1
+contains all hard-eligible/numerically feasible acquisitions from both installed ready BASE
+systems, canonical Laser-before-Missile order, existing weights; choose one with that slot's
+single draw. This guarantees a specialization opportunity, not the player's preferred weapon
+in every simultaneous-ready offer. No private cursor/pity just for Missile; unchosen readiness
+persists. Acquisitions cannot occupy Slots2/3. With zero feasible acquisitions use the existing
+ordinary fallback while retaining readiness. If a preferred candidate leaves no full distinct
+three-choice completion, remove that path in preflight before any draw and admit other complete
+paths; if no acquisition path can complete but ordinary can, fall back to ordinary. Only a
+malformed context or no possible complete offer throws. No post-draw rerolls or RNG refunds.
+
+Slots2/3 retain passive preference/diversity preference, no duplicate IDs and the existing
+Prism/Cluster/Twin reserved evolution in Slot3 when eligible. That slot still consumes a draw
+even for a singleton. Slot1 acquisition plus Slot3 legacy Cluster can coexist as *alternatives*
+in one offer; accepting one immediately makes the other mutually exclusive in later offers.
+No two rewards applied from one transaction. Guidance/Heavy/Fragmentation are not added to the
+legacy evolution cursor. Laser readiness, Prism exclusion and Drone/Twin rules are untouched.
+
+Policy candidate version GAME-057-v1: canonical54, weight bounds25..3600, total<=194400
+(54*3600), replacing only the old36/129600 capacity checks. Retain exact formula: base100,
+primary relevance2/secondary1.5, Slot1 primary2/secondary1.25, weaponFocus1.5 (extend concrete
+Missile branch choices to missile focus, keep Laser handling), Slot2 Hull/Thruster1.5,
+primary Analyzer1+2/(1+4/A) with A0=>1, primary pity1+0.25*baseMisses, recent1/0.5/0.25.
+Pity0..4, signature pivot, last-two history, canonical cumulative strictly-greater boundaries,
+presentation-only commit and disposed behavior stay exact. No new Analyzer cap or RNG stream.
+
+Exactly3 ordered Reward draws per successful offer, including constrained/singleton slots;
+reads/previews/present/selection/rejected retry/stale callbacks consume0. Successful offer
+generation may intentionally change seed goldens because54 candidates/new pools change weights;
+retain exact unaffected fixtures where offers truly remain unaffected, explicitly migrate only
+proven changed goldens with independently calculated literals. No thinning or weakened asserts.
+
+Scene selection sequence remains preflight -> one authenticated Build apply -> one pending
+resolution/selected observation -> return true -> transaction invalidation/guard exit -> exact
+old Text/handler cleanup -> next updated offer under same REWARD, or final REWARD release.
+Expected rejection preserves the SAME Text/handler/token/offer for retry. Real pointer selection,
+duplicate/stale same-label rejection and sequential physical32XP -> three offers/nine draws
+remain mandatory. Native create/disposal resets Missile config via fresh Build and destroys
+all parent/child visuals, releases reservations and invalidates all exact old callbacks.
+
+**GAME-059 boundary and performance envelope**
+
+Keep nearest-player launch selection and stable ties. BASE/HEAVY/FRAGMENTATION freeze heading
+at launch and never reacquire. Only legacy CLUSTER and GUIDANCE retain local homing/nearest-
+Missile reacquisition. Guidance fuse checks its own living target; no threat ranking,
+Precision Lance priority, independent Combat-system target distribution or global TargetManager.
+Use one concrete launch-target boundary so GAME-059 can later supply a target without rewriting
+immutable flight behavior. New children have deterministic headings and no target claims.
+GAME-058 owns Drone progression; it gets no config/offer/motion implementation here.
+
+One existing Missile event; total gameplay events remain5 and random streams4. No child timer,
+setTimeout, per-weapon loop or offscreen simulation. With current cap10 enemies, each explosion
+snapshots at most10 targets. Cluster scans at most6*10 coverage tests; no child flights.
+Approved fastest Fragmentation interval1800/100=18ms, child life<=700ms, count<=8:
+ceil(700/18)*8=312 child flights, plus conservative one-burst slack8 =>320 <512; at most1 parent.
+The cap is independent of a future teacher-edited enemy cap; O((children+parents)*N) sweeps and
+O(8N) burst processing, no all-pairs flight collisions. At default FireControl1, <=8 children
+from the last burst are live. Huge Velocity changes travel, not allocation. Max blast damage
+to one survivor from one fully developed Fragmentation parent is D+8*(0.25D)=3D before shared
+multipliers, separate independent blasts, not guaranteed all eight geometrically intersect.
+Heavy/Guidance remain one parent; their fastest intervals22.5/15.3ms and long lifetime do not
+multiply parent occupancy. Bounds deliberately trade throughput for safety as legacy cap1 does.
+
+Acceptance must measure max-FireControl100 point-blank bursts, default/large legal Scale and
+Spatial, parent1/children<=512/reservations consistent, stable UI responsiveness, no sustained
+monotonic retained collection growth, and console/pageerrors0. Record actual frame-time/fps,
+flight counts and machine/browser; no invented performance pass. At1280x720 use a10s measured
+max-rate window on the review machine, target mean>=45fps and p95 frame time<=33.3ms; compare
+the unmodified baseline on the same machine using the approved acceptance budgets.
+After cleanup observe at least20s without monotonic flight/budget retention. If this fails, bring measured
+candidate balance changes for approval; do not silently lower counts, skip hits or add a new cap.
+
+**Russian presentation and future tracked acceptance**
+
+Use russianText.ts names/descriptions and existing display-only number formatting; no font
+fetch/framework/debug UI. Three controls must all fit/hit-test at1920x1080,1280x720,960x540.
+Measure longest branch acquisition and Capstone descriptions with actual generated offers,
+line wrap/hit areas/Font CSS size (>=12px at960), HUD and persistent Phase indicator separation.
+Labels above are approved canonical copy; wording may wrap, but must retain exact numeric meaning.
+Existing Scene Text is32px with110px choice-center spacing and no wrapping. That cannot be
+assumed safe for the longer new acquisitions. Approved presentation rule: word-wrap at1720
+internal pixels, retain32px text and existing padding/hit-area ownership; allow at most three
+text lines and142px total Text height. Keep current layout if all choices are<=94px tall;
+otherwise place the three measured controls top-down from y460 with16px gaps, ending<=918,
+below the existing title. Measure actual engine bounds, not character estimates. If a label
+exceeds these bounds, shorten its Russian wording without changing meaning before acceptance;
+do not shrink below12 CSS pixels or hide a choice. This is a narrow presentation adjustment,
+not a new overlay/transaction/localization framework or a change to selection identity.
+
+Future test floor1664 existing cases; add meaningful pure/Scene tests, not placeholder count.
+
+| Layer | Required tracked acceptance |
+| --- | --- |
+| BASE migration / CLUSTER regression | Intentionally migrate only BASE homing expectations to nearest-target launch + frozen straight heading, including target movement/death/no reacquisition. Retain numeric/tuning/cap1/sweep/blast/expiry assertions. CLUSTER keeps exact homing/retention/reacquisition/satellite survivor union and cleanup. GUIDANCE homing/fuse remains authored; HEAVY/FRAGMENTATION straight |
+| Config/Build | Fresh/detached/exact shapes/canonical upgrades/disposal, tuning combinations0..2, readiness sums2/3, installed slots, independent configs, one-time branches, Cluster2/2/2+Spatial1/exclusions, all4 developments/Capstone; preview/apply atomicity and tags+1 exactly once |
+| Profiles/safety | Every branch and each4 upgrades and Capstone, numerical examples above, composition order and Spatial-after-local, Scale body-only, Engineering fuse-only, min/max/NaN/infinity/negative/unsafe/underflow/zero Impact, all affected shared-stat/passive previews and unrepresentable increments |
+| Snapshot isolation | OLD/new tuning/shared stats/branch/development/Capstone launches, frozen parent/child Attack and behavior, target movement allowed but later Build not read, no reference alias, child factor applied once |
+| Geometry/Hit | Cardinal/diagonal/zero target/coincident/large delta/lifetime truncation/bounds, fixed Heavy/Fragment headings, Guidance target loss/fuse-body tie/expiry flag, center-only once-per-blast; Cluster primary+first-circle survivor union, child independent hits but no duplicate within its own blast, exact branch/source damage and Impact |
+| Death/XP/terminal | All three existing Missile source buckets through applyEnemyHit/EnemyDeath; physical1/5/10, no direct XP, duplicate/stale hit rejection. Parent/Cluster primary or satellite/child Boss lethal, every current blast victim resolved, root/child cleanup complete before one Victory; DEATH-first and VICTORY-first races; other flights frozen |
+| Children/bounds | Single exact parent collision reference; sum-of-radii strict separation, center/tangent/inside/outside births, moving original, large delta/lifetime partition, other-enemy collisions, original splash, later re-entry, death/removal/disposal/rejection/terminal cleanup; 4/6/8 canonical directions, lifetime500/700, body3/blast0.2 parent/quarter damage+Impact, no recursion, zero birth-frame stepping, cap512 and reserved budget full-burst transfer/release, no leak on expiry/exit/rejection/terminal/shutdown/native restart |
+| Rewards | Exact54 canonical order with acquisitions37..39/Guidance40..44/Heavy45..49/Fragmentation50..54; literal independently calculated seeded generator goldens for this definitive order, unchanged Russian labels/affinities, both systems ready/only one ready/no feasible acquisition/partial infeasibility with valid full-offer fallback, reserved Cluster alternative, 3 draws always and0 on reads/retry/selection; unchanged pity/Analyzer/history/presentation commit |
+| Transaction/pause | Actual current named pointer handler/token selection; same Text rejected then valid retry, duplicate/stale equal-label/forged tokens0, sequential physical32XP/three updated selections/nine draws. MANUAL/REWARD/FOCUS_LOSS combinations freeze all flights/heading/lifetime/countdown/clock phases; focus return never auto-resumes |
+| Fresh-run/isolation | DEATH RETRY; >=2 Victory NEW RUN; dirty PAUSED restart. New Build/BASE ranks0/no child/reservations, correct owners/events/RNG/input/diagnostics; old callback/Attack/cleanup references inert or disposed, no fresh RNG draws |
+| Invariants | Same5 event identities during a run, same4 streams, same5 DEV commands/production absence, CR-003 Level2-after-authentic-choice Phase2 and CR-004 helper, CR-005 settings defaults/edited settings consumers untouched; Laser1490-era and all later regression cases retained |
+
+**Future actual installed Chrome / Phaser acceptance — not performed during definition**
+
+1. Verify migrated BASE with actual Clock firing: aim at nearest living enemy on launch, then
+   move/kill that enemy and observe fixed heading with no homing/reacquisition. Verify unchanged
+   BASE numbers/tuning/body sweeps/blast/expiry. Separately verify explicit legacy CLUSTER
+   homing/reacquisition, exact primary/satellite victim HP/union and full detonation cleanup.
+2. Through existing DEV forceLevelUp/controlled valid setup and real mouse choices, acquire
+   each new branch, all four developments and Capstone. Verify actual old/new flight visuals,
+   homing/fuse/locked headings, enemy HP/Impact/source/physical XP and configured intervals.
+   At all three viewports test every new label/choice hit area, not synthetic stand-in Text.
+3. Physical32XP, real sequential mouse selections, changed Build between offers,9 Reward draws,
+   rejected SAME Text then valid retry; duplicate/stale callbacks no effect. Cover simultaneous
+   Laser+Missile readiness and numerically infeasible acquisition fallback with valid offers.
+4. Real keyboard manual pause; real generated REWARD; genuine foreground-other-tab BLUR with
+   focus emulation disabled, composed reward+focus/manual reasons. Record unchanged parent/
+   child positions/headings/lifetimes/budget, five timer phases and four stream draws across
+   wall waits. Return remains paused until explicit focused/visible Escape.
+5. Actual incoming damage Death/real RETRY; at least two actual Boss lethal Victory/real NEW RUN
+   cycles including Cluster satellite and Fragment child kills; dirty PAUSED native restart.
+   Inspect exact old owner/visual/callback disposal, current detonation completion, fresh BASE
+   config and children0/budget0; preserve frozen BossXP10 after terminal.
+6. Controlled fragment-origin Chrome checks: keep the actual parent collision enemy alive
+   through the primary, use center and tangent child births plus normal body impact geometry,
+   and record multiple frames proving children visibly leave the blast rather than all
+   immediately disappearing on that enemy at birth. Move the original away/through the path,
+   verify strict separation and irreversible reference clearance, later legitimate independent
+   collisions/damage and unfiltered splash to the original. Other enemies must still intercept
+   children before exit. Include a parent blast killing the original, a long frame, pause,
+   terminal, child expiry/exit, dirty restart and rejected child publication; inspect no stale
+   references and no extra damage sources/timers. Matching pure/Scene tests must assert exact
+   center/tangent boundaries and retained/cleared states rather than screenshots alone.
+7. Controlled fastest-cadence performance acceptance described above; record evidence separately
+   from normal play. No extra DEV method to make testing convenient; ignored harness may expose
+   existing private factories in a dedicated controlled page only.
+8. Separately serve the unmodified built production root: real movement/Dash/Escape, natural
+   combat/physical XP/reward mouse selection, ordinary Death/RETRY, no DEV API/debug controls,
+   no missing assets/external font fetch/new console errors. Controlled fixtures are not proof
+   of natural production balance or a public deployment. No GitHub Pages change/publication.
+
+**Final architectural approval / exit**
+
+Three branches, all18 rewards/copy/profiles/developments/Capstones, Build authority, fuse-only
+Engineering, depth-one fragments/capacity512, seven source buckets, shared specialization
+pool, exact3 Reward draws, five timers/four streams/five DEV commands, GAME-059 boundary and
+performance budgets are approved. Migration B is selected, A rejected. The definitive catalog
+order and bounded per-child original-collision grace above resolve the required amendments.
+GAME-057 remains READY pending final architectural approval of this corrected definition;
+this turn authorizes neither implementation nor any Git commit/merge/push/branch switch.
+After final approval and an implementation request, implement only this contract, run full
+checks/real browser acceptance, update actual-state docs and return without commit. No
+GAME-058/059, new enemies/bosses/phases/scoring/save/deployment/global targeting/framework/
+dependencies/DEV commands are authorized. GAME-058+ BACKLOG; GATE A/B PASSED; C unapproved.
 
 **GATE C — First Real Build Loop** — review the preceding phase capabilities before its cutover/next proof.
 
