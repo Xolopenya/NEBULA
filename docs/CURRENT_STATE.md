@@ -61,7 +61,7 @@ Runs TypeScript without emitting files.
 
 ### Tests
 
-Current validation:1663 tracked tests in35 files pass; all1643 pre-CR-002 cases retained with20 focused phase regressions. The1622 pre-HOMEWORK-001 and1490 pre-UI-001 cases remain retained. Historical GAME-056 baseline:1354 cases retained through approved catalog/policy and authoritative Build fixture migrations.
+Current validation:1891 tracked tests in40 files pass. All1832 pre-GAME-057-C cases are retained through authoritative Missile fixture migration, with59 focused flight/Scene cases added. BASE homing expectations intentionally migrate to straight flight; Cluster homing/survivor-union/source regressions remain.
 
 npm test
 
@@ -91,17 +91,71 @@ PASS
 
 ---
 
+## GAME-057-C Missile runtime verification
+
+The committed stage-C runtime connects all18 Missile rewards through the genuine RewardTransaction.
+Cadence-changing Missile choices and Fire Control changes reset the same event with exact
+fractional progress and original callback/scope/args; unchanged cadence does not reset it.
+Long reward lines wrap at1720 internal pixels, retaining32px font and three measured controls.
+Controls taller than94px use the approved y460 top-down layout with16px gaps and height<=142.
+Tracked coverage is1891 tests/40 files. Actual in-app browser (Chrome155 engine) smoke verified
+a real Guidance mouse selection, Phase2, clock-driven flights/damage/physical XP, keyboard
+pause/freeze/resume, and unmodified production artifact boot with DEV API absent and no errors.
+The standalone installed Chrome provider was unavailable. These are stage-C smoke results;
+the more extensive stage-D results and remaining acceptance blocker are recorded below.
+
+## GAME-057-D acceptance — incomplete
+
+No runtime defect was reproduced and no source, test, dependency or balance change was needed.
+npm run check passes1891 tests/40 files, retaining the full stage-C suite. Source audit confirms
+one Build Missile authority, canonical54 rewards, the same generator/transaction, exactly3
+draws per offer, five gameplay timers, four RNG streams and five DEV commands.
+
+Actual in-app Chromium155 on Windows verified all18 Missile rewards with real mouse selection
+and actual combat at1920x1080,1280x720,960x540:54 accepted selections, measured three-control
+layouts, <=142px height and measured font>=15.54CSS pixels at960. Separate real Phaser controlled fixtures
+cover BASE straight flight, Cluster homing/reacquisition/satellite XP, Guidance frozen fuse/
+Engineering/body/expiry/exit, Heavy Impact/ring,4/6/8 moving children, strict origin grace,
+other-enemy/unfiltered splash, origin death, large delta, capacity511/512, interrupted burst
+cleanup, same-Text rejection/retry, physical32XP/three selections/nine draws and stale callbacks.
+Two real controlled Victory/New Run cycles (Cluster satellite and fragment child), incoming
+Death/Retry and dirty PAUSED native restart verify fresh BASE/owners/five timers and cleanup.
+Real Escape and genuine REWARD freeze active parents/children, reservations, timer phases and RNG.
+
+At1280x720,2s warm-up +10s measured windows pass the approved mean>=45FPS/p95<=33.3ms budget:
+unmodified built runtime with passive observation59.91FPS/p9517.0ms; controlled max-rate
+Fragmentation59.997FPS/p9517.8ms (Scale1/Spatial0); final clean Scale20/Spatial20 ten-enemy
+load59.81FPS/p9520.6ms, reaching320 live children. Each stress run additionally observes20s after cleanup
+with zero flights/reservations/retained flight visuals. Artificial512-capacity checks are
+separate from Clock-driven load. These are local measurements, not a general hardware promise.
+
+Separately, the unmodified production root passes real movement/Dash/Escape, natural combat,
+physical XP to Level2, real mouse reward selection, Phase2 and ordinary incoming Death/Retry.
+Its reward/pause/terminal layouts are inspected at all three display sizes. Same built artifact
+boots without DEV API; no production errors.
+Controlled fixtures/passive observation are explicitly separate from the unmodified root.
+
+PENDING: genuine foreground-other-tab focus loss and its MANUAL/REWARD combinations on this
+revision. The available IAB reports hasFocus=true/hidden=false after opening another tab or
+hiding the browser; available controls cannot disable focus emulation. No synthetic BLUR is
+counted as actual browser acceptance. Tracked focus/lifecycle regressions pass, but do not
+replace this missing real-browser scenario. GAME-057 is NOT READY for final acceptance;
+TASK_GRAPH completion is not advanced, GAME-058/059 remain BACKLOG and GATE C stays unapproved.
+Ignored evidence and complete staged diff: .codex-review/GAME-057-D-review.txt.
+
 ## Russian player-facing UI
 
-UI-001 localizes every current player-facing Text, all36 canonical reward displays and HTML
-lang/title. src/game/ui/russianText.ts owns the frozen36-ID Russian names, exact existing18
+UI-001 localizes every current player-facing Text, all54 canonical reward displays and HTML
+lang/title. src/game/ui/russianText.ts owns the frozen54-ID Russian names, exact existing18
 effect descriptions and focused HUD/rank/level/cooldown formatters; HOMEWORK-001 adds one
-approved numerical effect line to each of the new18 Laser choices. GameplayScene retains all controls, transactions and gameplay ownership.
+approved numerical effect line to each of the new18 Laser choices. GAME-057 adds18 approved Missile names/effects. GameplayScene retains rendering/transactions; Build owns both weapon configurations.
 Arial/Segoe UI/system fallback needs no font fetch. Hull fractions and integer XP/levels are
 preserved; decimal comma and units are display-only. Three-line guide uses the actual
 WASD/arrows/Space/Esc bindings and hides during every overlay; fresh native create restores it.
 
-Installed Chrome155 verifies all36 actual generated offers with real pointer acceptance at
+Historical UI-001/HOMEWORK-001 evidence below concerns the pre-GAME-05736-entry catalog;
+it does not assert current Missile or current focus-loss acceptance.
+Installed Chrome155 verified all36 actual generated offers with real pointer acceptance at
 1920x1080,1280x720,960x540:108 catalog measurements,141 total layout observations, choice
 height<=94 internal pixels and minimum12 CSS-pixel text. Cyrillic screenshots, complete bounds,
 hit areas, large numeric HUD, terminal screens, same-Text rejected-click/retry, duplicate/stale
@@ -164,7 +218,7 @@ Current screen:
 - cyan player ship placeholder starting at the arena center, drawn with Phaser geometry
 - red diamond Chasers, amber regular Tanks and gold Elite Tanks pursuing the player; purple square Shooters approaching, holding or retreating to a preferred distance band; a larger magenta/red Warden at successful timed spawn30
 - temporary thicker yellow outline on the current nearest-enemy target
-- automatically launched cyan Laser projectiles, yellow homing Missiles with area damage, and teal orbiting Drones firing violet straight bolts (one initially; two after Twin evolution)
+- automatically launched cyan Laser projectiles, yellow straight BASE Missiles with area damage (legacy Cluster homes; authored branches have their own flight/visuals), and teal orbiting Drones firing violet straight bolts (one initially; two after Twin evolution)
 - screen-fixed top-left HUD showing current/max HP, XP toward the next threshold, level and Dash readiness/cooldown
 - screen-fixed Russian phase indicator below the top-right heading; Phase 2 notification after Level2 reward selection
 - desktop movement using WASD or arrow keys
@@ -236,7 +290,7 @@ in the existing update. MANUAL, REWARD, FOCUS_LOSS and terminal states freeze th
 
 The existing 20 phase regression cases now cover progression/reward completion instead of
 the old time trigger, plus cadence, movement, pauses, notification duration and both restart
-controls. npm run check passes all 1663 tests / 35 files. Fast installed Chrome155 verifies
+controls. Historical CR-003 validation passed all1663 tests/35 files. Fast installed Chrome155 verified
 DEV forceLevelUp, genuine reward mouse selection, Phase 2 indicator/notification, 225px/s
 Chaser movement versus base180, unchanged event/stream identities, Escape freeze and actual
 lethal contact/RETRY reset. No 60-second wait or broad content acceptance was repeated.
@@ -284,11 +338,11 @@ Creation resets the player to alive. Death freezes movement, enemy chase, target
 Only after death, a screen-fixed clickable «ПОВТОРИТЬ» control appears. Clicking it once uses Phaser scene.restart() without reloading the page. Phaser shutdown destroys old scene objects/UI and timer events; create() restores an alive player at 5 HP and normal alpha at (2400, 1350), one initial enemy, no projectiles, a fresh target selection and exactly five spawn/Laser/Missile/Drone/hostile timers. Repeated death/retry cycles resume the same gameplay.
 One global 1500 ms hostile timer independently attempts an aimed shot from the nearest active Shooter and a radial burst from an active Warden. Shooter selection filters out other archetypes and keeps collection-order ties; absent/near-zero Shooter aim cannot cancel the Warden burst. Warden fires four world-cardinal directions above30 HP, eight directions every45 degrees at positive HP<=30. All hostile shots use fixed launch direction, speed600 px/s, lifetime3000 ms, radius6 and damage1. The Shooter movement band does not limit firing range. Chasers/Tanks never fire. No per-enemy timer exists; spawning Warden or crossing30 HP neither fires immediately nor resets the existing event.
 Player and enemy shots share concrete runtime records with typed immutable Attack, derived source/damage and movement/lifetime/world-exit cleanup. Hostile shots use swept segment-circle collision against the player and disappear even when protection prevents damage before death. Both contact and hostile hits use the same global 500 ms player damage protection; its timer ticks before projectile/contact processing.
-Missile is active from run start with one global 1800 ms firing timer and Missile-specific maxActiveMissiles = 1. At the cap, callbacks create no shot and leave the timer/cadence unchanged; cleanup frees the slot for a later callback. Launch selects the nearest enemy to the player with stable collection-order ties; no enemy means no shot. Separate scene-owned MissileRuntime records contain a yellow 8-pixel circle, target reference, launch-snapshotted explosion damage, flight speed and explosion radius, last normalized heading and remaining lifetime. Each active frame directly steers toward the living target at its stored launch speed (baseline 450 px/s). The Missile keeps that living target even when another enemy becomes closer, including after reacquisition. A removed/missing target reacquires nearest to the Missile position; no replacement preserves heading, and later enemies can be acquired. Near-zero aim retains heading safely; starting overlap resolves at segment time zero. Motion is clipped to the remaining 4000 ms lifetime. Swept segment-circle collision against every active enemy (runtime collision radius + Missile radius8) detonates once at the earliest hit point, including non-target interception. Baseline explosion damage 2 applies once to a snapshot of enemies whose centers are within inclusive radius 120; no enemy collision-radius expansion or separate direct-hit damage. Lethal hits use killEnemy and one XP pickup with the killed enemy's value per enemy without skipped array entries. Lifetime expiry/whole-circle world exit only removes the Missile. Fixed Missile cadence/cap/lifetime/collision configuration remains immutable. Scene-owned missileValues supplies current damage, speed and explosion radius. Combat Processor multiplies Missile-specific damage before launch. MissileRuntime derives readonly damage/speed/explosionRadius getters from its frozen MissileAttack: movement and explosion consume these snapshots, so later choices cannot change active Missiles. Pause/death guards freeze firing, homing, position and lifetime; create/restart empties the array and native shutdown destroys old objects/timers. No explosion marker or VFX system is added.
+Missile starts at BASE with one existing1800ms firing event and parent cap1. PlayerBuild is its sole mutable configuration owner; Scene missileRanks/missileValues/clusterEvolved are detached read-only projections. BASE chooses the nearest living enemy at launch, freezes its heading and flies straight, without post-launch homing/reacquisition. Defaults remain damage2/speed450/body8/blast120/life4000/Impact400; tuning retains all three0..2 tracks. Every flight holds a closed immutable MissileLaunchPlan and the existing six-field Attack, so later Build/shared/passive changes affect future launches only. Existing inclusive earliest body sweep, center-only AoE, physical XP and source buckets are retained. CLUSTER alone preserves legacy instant homing/retention/nearest-Missile reacquisition and six-circle survivor union. Guidance uses homing plus frozen target-specific fuse min(.75*finalBlast,fuseBase*sqrt(Engineering)); body wins ties. Its Capstone explodes once on expiry, while exit remains silent. Heavy uses the approved straight orange profile and a one-frame orange blast ring. Fragmentation uses a straight magenta parent and4/6/8 radial moving lime children, with quarter frozen damage/Impact,20% frozen blast, captured900*Velocity speed and3*Scale body,500/700ms lifetime and no recursion. Parent creation reserves the whole burst against512 live+reserved children; rejection creates no partial burst. Children never move on their birth update. Each child has at most one exact parent-collision enemy reference, excluded from direct body sweeps only until strict sum-of-radii separation, with tangency retained. Other enemies and splash remain unfiltered. Death/removal, terminal, child cleanup and native restart clear references/reservations. Parent blast/Cluster union/child publication/removal finish before Victory; unrelated flights then freeze. Five TimerEvents, four RNG streams and five DEV commands remain unchanged.
 
 Missile upgrades use explicit run-local ranks 0..2: Warhead Power raises Missile-specific damage 2 → 3 → 4; Propulsion raises speed 450 → 525 → 600 px/s; Blast Expansion raises explosion radius 120 → 150 → 180 px. Each accepted upgrade increments only its track, and capped tracks leave the pool. Mastery is the explicit 2/2/2 state used by the Cluster recipe. create/restart resets ranks and current values to baseline.
 
-Spatial Amplifier has an explicit repeatable run-local level, starting/resetting at 0. Each selection adds 15 world pixels to effective Missile explosion radius without changing Missile-specific Blast Expansion ranks/values, damage or speed. At launch the pure effectiveMissileExplosionRadius helper combines current Missile radius + Spatial level × 15; MissileRuntime stores the final radius and explosions consume that immutable snapshot. Required combinations are 120/135/150 at baseline with Spatial 0/1/2, 165 for Blast1 + Spatial1, and 210 for Blast2 + Spatial2. Old in-flight Missiles keep their radius after Spatial selection. It is the fifth passive in the existing passive/open slots, with distinct stable choices and next-level/effect labels; acceptance retains focus and cursors. No Laser/Prism/Drone Area effect is implemented; Cluster derives satellite coverage from the same stored Missile radius. Real-browser harness validation covers actual old/new explosion coverage, unchanged progression/focus and two native retries with Spatial0 and five fresh timers.
+Spatial Amplifier has an explicit repeatable run-local level, starting/resetting at 0. Each selection adds15 world pixels to the local Missile blast after branch multipliers, without changing tuning ranks, damage or speed. The pure composeMissileProfile bridge freezes local blast +15*Spatial at launch; explosions consume that snapshot. BASE/Cluster combinations remain120/135/150 at baseline with Spatial0/1/2,165 for Blast1+Spatial1,210 for Blast2+Spatial2. Old flights keep their radius after selection. Fragment blast is20% of its frozen parent's final blast. No Laser/Prism/Drone Area effect is implemented; Cluster satellite coverage uses its stored blast. Existing passive/focus/cursor, native reset and five-timer contracts remain.
 
 The per-create LevelUpGenerator supplies three distinct weighted choices in canonical order.
 Slot1 prefers one eligible specialization while BASE ready, otherwise ordinary weapon development (Scene weaponFocus is affinity only); Slot2 prefers remaining
@@ -299,7 +353,7 @@ weaponFocus updates; passives leave focus unchanged. Old pure focus/sampling hel
 
 Cluster Missile is the second concrete evolution: Missile ranks 2/2/2 + Spatial level >=1, not already evolved. Spatial is not consumed and acceptance preserves ranks/values, sets Missile focus and resumes. Both final-prerequisite categories affect only the next presentation. The generator-owned Prism-first evolution cursor advances once per acknowledged presentation: no eligible evolution leaves it unchanged; a sole eligible evolution is guaranteed; any offer sets the cursor to its immediate successor in Prism/Cluster/Twin order, scanning past ineligible identities on the next presentation. Each eligible pair alternates and all three cycle in that stable order. Stable pause UI, acceptance and stale callbacks do not advance it. All three evolutions can coexist; evolved entries leave eligibility.
 
-MissileRuntime derives readonly clusterEnabled from its immutable launch Attack variant. Pre-evolution flights remain normal. On impact the existing primary explosion resolves first; an evolved launch then resolves the union of six satellite circles at 0/60/120/180/240/300 degrees, with offsets equal to stored primary radius R. Satellite radius is R/2 and damage is stored primary damage/2, without rounding or live Combat/Spatial lookups. After primary deaths, affected surviving references are snapshotted so overlapping circles apply one satellite hit per enemy and lethal removals cannot skip entries. Primary plus one satellite hit is allowed; every death still produces one XP pickup with the killed enemy's value. Centers are not clamped to the arena. Expiry/world exit produces no blasts. No child projectiles, VFX, extra timer, or generic evolution engine is added. create/restart resets all three evolution flags and the Prism-first cursor; real-browser validation includes two native retries with five fresh gameplay timers.
+MissileRuntime derives readonly clusterEnabled from its immutable launch Attack variant. Pre-evolution flights remain normal. On impact the existing primary explosion resolves first; an evolved launch then resolves the union of six satellite circles at 0/60/120/180/240/300 degrees, with offsets equal to stored primary radius R. Satellite radius is R/2 and damage is stored primary damage/2, without rounding or live Combat/Spatial lookups. After primary deaths, affected surviving references are snapshotted so overlapping circles apply one satellite hit per enemy and lethal removals cannot skip entries. Primary plus one satellite hit is allowed; every death still produces one XP pickup with the killed enemy's value. Centers are not clamped to the arena. Expiry/world exit produces no blasts. Cluster itself adds no child projectiles or extra timer; Fragmentation is the separate depth-one moving-child branch. create/restart resets Build forms, the Drone evolution flag and the Prism-first cursor; real-browser validation includes two native retries with five fresh gameplay timers.
 
 Exactly one teal radius-10 world-space Drone starts to the right of the player at orbit angle 0. Scene-owned angle advances clockwise at 2 rad/s using active frame delta, wrapping at 2π. Position is derived after player movement/Dash from current player position plus a 110-pixel cosine/sine offset; only the Drone center is clamped to arena bounds. It has no health, collision or contact damage. One global droneTimer (baseline 1200 ms) selects the nearest active enemy from the actual Drone position with stable collection-order ties; empty or near-zero aim creates no bolt. Violet straight bolts with launch-owned radius (baseline 5) snapshot current Drone-specific damage (baseline 1) multiplied by Combat Processor, current bolt speed (baseline 800 px/s) and lifetime 1800 ms, independently of every Laser upgrade, and do not home. Laser/Drone share a small straight-player-shot creation helper; player and hostile straight shots share required per-projectile radius, swept first-hit damage, non-piercing removal and lifetime/world-exit cleanup. Base/Prism/hostile shots retain local radius6; Lance development can raise its local body to8. All enemy deaths still use killEnemy/one XP pickup with the killed enemy's value. Pause/death freeze orbit and bolts and guard firing; native restart destroys old Drone/bolts/timers and create restores exactly one Drone at angle 0 with empty projectiles and five gameplay timers. Drone attack progression is described below; no weapon acquisition is implemented. Twin Drone behavior is described below.
 
@@ -313,7 +367,7 @@ Every killed enemy creates exactly one lime-green world-space XP pickup at its d
 
 Laser → Prism Laser and the GAME-030 open-slot integration are validated in the real Phaser runtime. Power, Fire Rate and Projectile Speed ranks reset to 0 and cap at 2 independently, preserving +1 damage, -50 ms (minimum 100) and +200 px/s per accepted selection. Full mastery retains damage 3, interval 500 ms and speed 1600 px/s before global damage multiplication. Prism requires all three ranks >=2, Combat Processor level >=1 and unevolved state. Eligibility is checked only on entering a new presentation: sole eligible Prism owns Slot 3 exactly once; if multiple evolutions qualify, the cursor arbitrates; Slots 1 and 2 follow the focused/passive policy above. Completing the final prerequisite affects the next earned presentation; simulation resumes only after pending levels and other pause reasons clear; ignoring sole eligible Prism offers it again next level, while multiple-eligible offers scan cyclically. Selecting it once retains Combat Processor and mastered Laser values, then removes the evolution offer for that run.
 
-Prism changes the existing Laser callback into three straight projectiles aimed center/-12/+12 degrees from current target aim, all from the current player position with full launch-snapshotted Laser damage × globalDamageMultiplier. The pure prismSpread helper normalizes aim and suppresses the whole volley below distance 0.001. It shares the existing radius 6, lifetime 2000 ms, speed, swept first-hit collision and cleanup. No piercing, homing, new weapon runtime or timer is added. Existing in-flight attacks retain their launch values. create/restart resets Laser ranks and prismEvolved along with existing state; Missile has its own upgrade ranks; Drone has its own upgrade ranks and explicit Twin evolution state; Missile has explicit Cluster evolution state.
+Prism changes the existing Laser callback into three straight projectiles aimed center/-12/+12 degrees from current target aim, all from the current player position with full launch-snapshotted Laser damage × globalDamageMultiplier. The pure prismSpread helper normalizes aim and suppresses the whole volley below distance 0.001. It shares the existing radius 6, lifetime 2000 ms, speed, swept first-hit collision and cleanup. No piercing, homing, new weapon runtime or timer is added. Existing in-flight attacks retain their launch values. create/restart resets Laser ranks and prismEvolved along with existing state; Missile has its own upgrade ranks; Drone has its own upgrade ranks and explicit Twin evolution state; Missile form, including Cluster, is Build-owned.
 
 Exactly six run-local Passive Modules have explicit levels starting at 0, with no caps or slots. Hull Plating adds 1 max HP and heals 1 immediately, clamped to the new maximum, refreshing the HP HUD. Thruster Module adds 30 px/s normal speed without changing Dash. Collector Field adds 40 world pixels to magnet activation radius without changing collection radius 20, acceleration 900 or maximum attraction speed 600. Combat Processor adds 0.25 to the global player-weapon damage multiplier, starting at 1.0; Laser, Drone and Missile multiply their current weapon-specific damage at launch without rounding. Laser Power remains Laser-specific; hostile/contact damage is unchanged. Each repeat selection increments only that module's level and reapplies its effect. Labels identify Passive Modules, their next level and effect. Native create/restart restores module levels 0, current/max HP 5/5, movement 300, magnet 180 and multiplier 1.0, alongside existing Laser/XP/Dash/UI/weapon resets and five timers. No inventory UI, generic stats/modifier system or extra timer is introduced.
 
@@ -479,7 +533,7 @@ compatibility source/damage/radius/speed/blast/evolution getters retain no numer
 Old launches keep damage/speed/radius/lifetime/blast/variant across shared/local progression.
 Prism shares one LASER/PRISM Attack across three independent full-damage nonpiercing beams;
 Twin creates one COMBAT_DRONE/TWIN Attack per valid actual firing origin and nearest target.
-Missile cap1, homing/reacquisition and swept interpolated detonation are unchanged. Primary
+Missile parent cap1 and swept interpolated detonation remain; BASE is straight, while CLUSTER retains homing/reacquisition. Primary
 hits current affected centers once, then Cluster hits the surviving six-circle union once
 at half damage; primary survivors can receive both. Geometry, strict ties and cleanup order
 remain unchanged, without hit-history restrictions or explosion radius/body expansion.
@@ -708,13 +762,13 @@ selection guard. Detached serializable snapshots contain no selection authority.
 foreign/equal-ordinal, stale and duplicate tokens reject; all operations except idempotent
 dispose throw on a disposed owner. Openability/ordinal is checked before Reward sampling.
 
-rewardChoices preserves the original18 prototype identities/labels/values and appends18 Laser identities. rewardEligibility
-checks detached Build slots/stats/Laser configuration, derived Laser projections and Scene-owned other-weapon ranks/modules/flags/local values
+rewardChoices preserves the original36 prototype/Laser identities and appends18 canonical Missile identities in approved order. rewardEligibility
+checks detached Build slots/stats/Laser and Missile configurations, validated derived projections and Scene-owned Drone/modules
 and numeric feasibility before generation and immediately before application. Missing owning
 weapons/caps/recipes/overflow reject; developing an installed system needs no free slot.
 Repeatable passives remain prototype modifiers, with no artificial inventory cap or Core slot.
 PlayerBuild's two narrow Hull/Thruster previews share the actual candidate preparation/resolver
-without source/cache/Tag/Defense mutation; disposed errors propagate. Laser ranks/form/development now have one authoritative BuildSnapshot.laser; other-weapon ranks/module levels stay Scene-owned. Tags/Analyzer do not hard-gate rewards except safe numeric feasibility of authored Tag additions.
+without source/cache/Tag/Defense mutation; disposed errors propagate. Laser and Missile ranks/forms/developments have authoritative BuildSnapshot.laser/missile; Drone ranks and module levels stay Scene-owned. Tags/Analyzer do not hard-gate rewards except safe numeric feasibility of authored Tag additions.
 The focused helper's optional eligible-track mask retains the same least-rank/cyclic behavior.
 
 One Scene applyRewardChoice callback preflights numeric/Attack/cadence/Build/Defense/pending/
@@ -742,7 +796,7 @@ actual next pending offers draw3 from updated Build and presented policy history
 Exactly four RNG streams/five TimerEvents/five DEV commands remain; DEV progression still has
 only level/xp/threshold and production exposes no API. GAME-053 XP arithmetic/physical values/
 consolidation/continuous pending chain and existing atomic terminal attack cleanup are unchanged.
-The LevelUpGenerator policy is described below; no rarity, new Combat System acquisition or GAME-057+ runtime exists.
+The LevelUpGenerator policy is described below; no rarity, new Combat System acquisition or GAME-058/059 runtime exists. GAME-057 Missile progression is active as described above.
 
 1294 tracked cases/32 files retain1158 baseline cases. Actual installed Chrome mouse checks
 cover all18 effects/future launches and in-flight immutability, same event callbacks/scope/args,
@@ -762,12 +816,12 @@ Each actual create constructs one Phaser-free LevelUpGenerator, captured by the 
 shutdown/destroy cleanup as RewardTransaction. It owns only bounded policy: misses0..4, last2
 presented three-ID offers, primary signature, cyclic Prism-first evolution cursor, last ordinal
 and one provisional tuple/update. It retains no Build, progression, Run, Phaser or RNG handle.
-Canonical immutable affinity metadata covers36 choices and itself contributes no Tags; accepted Laser branch acquisition has a separate authored atomic Build Tag effect.
+Canonical immutable affinity metadata covers54 choices and itself contributes no Tags; accepted Laser/Missile branch acquisition has a separate authored atomic Build Tag effect.
 
 Base100 combines context primary2/secondary1.5, Slot1 primary2/secondary1.25 and weaponFocus1.5,
 Slot2 Hull/Thrust1.5, primary Analyzer1+2/(1+4/A) (A0 factor1), primary pity1+0.25*baseMisses,
 and recent1/0.5/0.25. Analyzer accepts nonnegative safe integers without a cap4. Weights remain
-25..3600/total<=129600 for36 entries. Eligibility, identity/stat validation and every possible slot path preflight
+25..3600/total<=194400 for54 entries. Eligibility, identity/stat validation and every possible slot path preflight
 before any RNG/pause/UI writes. Insufficient ordinary choices fail loudly; other evolutions never
 fill shortages. Sampling uses canonical cumulative strictly-greater boundaries and exactly3 draws.
 
@@ -826,8 +880,7 @@ intersections on the same clipped segment, never re-hits a survivor, and complet
 before Boss Victory. All forms retain cached nearest targeting; priority ranking and cross-system
 duplicate avoidance remain distinct future GAME-059 work.
 
-The36-entry catalog retains original18 then acquisition Scatter/Repeater/Lance and each branch's
-four developments+Capstone. An available specialization uses exactly one weighted Slot1 draw;
+The54-entry catalog retains original36, then Guidance/Heavy/Fragmentation acquisitions and each branch's four developments+Capstone. An available specialization uses exactly one weighted Slot1 draw;
 other acquisitions cannot enter Slots2/3. Zero acquisitions solely due to numeric feasibility uses
 ordinary GAME-055 policy with three distinct eligible rewards, retained readiness, no generation-time
 Build/pending/policy write and exactly3 Reward draws. Complete paths preflight before RNG/REWARD/UI;
@@ -864,7 +917,7 @@ positive-score tie. Arrays follow TAG_IDS order, independent of arrival order. W
 positive points both arrays are empty; with only one positive tier secondary is empty.
 
 PlayerBuild.snapshot() now returns canonical BuildSnapshot with slots, baseStats,
-runModifiers, effectiveStats, tags, identity:{dominantTags,secondaryTags} and detached laser configuration.
+runModifiers, effectiveStats, tags, identity:{dominantTags,secondaryTags} and detached laser/missile configurations.
 PlayerBuildReadModel is replaced. Existing narrow stat/slot getters remain. Every snapshot
 is deeply detached plain JSON data, including both identity arrays; old detached data
 remains usable after disposal. DevSnapshot exposes this only through existing nested build;
@@ -1004,7 +1057,7 @@ side0/1/2/3 = left/right/top/bottom, then that edge's varying coordinate. Camera
 48px origin offset, margins25/40, distance600 and deterministic opposite-corner fallback
 are preserved. Blocked spawns and DEV spawnWarden consume none; schedules/counts are unchanged.
 Level-Up passes Reward explicitly into LevelUpGenerator.generate. Every valid offer consumes
-exactly3 ordered draws, including singleton evolution; canonical weighted GAME-056-v1 offers
+exactly3 ordered draws, including singleton evolution; canonical weighted GAME-057-v1 offers
 intentionally supersede old2/3/1/2 budgets. Stable UI, preflight, presentation acknowledgment,
 snapshots and selection/rejected/stale callbacks draw0; each next pending offer draws3.
 World and Boss remain dormant: stars, Warden phases/bursts and DEV placement are deterministic.
