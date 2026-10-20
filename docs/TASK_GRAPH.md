@@ -4287,7 +4287,7 @@ GATE A/B PASSED. No other gate closed. GAME-052 implementation is architect-appr
 | GAME-055 | Level-Up Generator | GAME-043, GAME-047, GAME-054 | Weighted Level-Up roles, Analyzer, pity and recent-offer handling. | DONE |
 | GAME-056 | Laser Progression Vertical | GAME-049, GAME-055 | Laser tuning/readiness and Scatter Array / Repeater Array / Precision Lance development. | DONE |
 | GAME-057 | Missile Progression | GAME-056 | Straight BASE, legacy homing CLUSTER and Guidance / Heavy Warhead / Fragmentation; implementation and acceptance complete, including user-reported manual focus PASS (2026-10-20). | DONE |
-| GAME-058 | Combat Drone Progression | GAME-056 | Combat Drone Scatter / Repeater / Precision progression. | BACKLOG |
+| GAME-058 | Combat Drone Progression | GAME-056 | Definition below: proposed Scatter / Repeater / Precision; architecture and candidate balance awaiting approval. | READY |
 | GAME-059 | Multi-System Combat Runtime | GAME-057, GAME-058 | Multiple installed Combat Systems with independent concrete runtime ownership. | BACKLOG |
 
 #### GAME-053 — Physical XP & Level Progression
@@ -6296,6 +6296,302 @@ Chrome proof are invented for them. They close D's sole remaining tooling-relate
 No substantive acceptance item remains pending. Final review: .codex-review/GAME-057-FINAL-review.txt.
 GATE C remains UNAPPROVED; GATE A/B remain PASSED. GAME-058/059 remain BACKLOG. No next-task
 implementation, commit, merge, push or branch switch is authorized by this closure.
+
+#### GAME-058 — Combat Drone Progression: architecture and implementation definition
+
+STATUS: READY — READY FOR ARCHITECT REVIEW; definition only, not implementation approval.
+All NEW numbers, names, reward effects and runtime limits below are CANDIDATES requiring
+architect approval. GAME-056/057 remain DONE; GAME-059+ BACKLOG; GATE C UNAPPROVED.
+No runtime/test/CURRENT_STATE/asset/dependency/deployment changes belong to this definition.
+
+**Authority and actual baseline audit**
+
+Audited HEAD a4892c0 (GAME-057 final closure), clean definition branch; actual check1891
+passing tests/40 files. PROJECT_GRAPH is an older navigation map (36 choices); actual source
+has54 choices and Build-owned Laser/Missile. Source, not that historical map, controls this audit.
+CONTENT_MANIFEST fixes three Drone branches/four developments/one Capstone each;18 rewards
+is aligned, not an invented expansion. GAME_DESIGN close spread/control, sustained fire and
+precision identities plus Engineering/actual-origin targeting guide candidates below.
+BALANCE's future ~4-drone Doctrine is not authorization to add fleet replication here.
+
+| Actual source location | Current fact; preserve unless explicitly proposed below |
+| --- | --- |
+| player/PlayerBuild.ts:7..10,32..34,69..75 | COMBAT_DRONE already installed in fixed Combat slot3 with Laser/Missile; no Drone acquisition/equipment task. Build owns common stats/tags/slots, Laser/Missile config, but NO Drone configuration |
+| scenes/GameplayScene.ts:154..164,287..290 | Scene owns droneRanks, droneAttackValues, twinDroneEvolved; fresh ranks0/0/0, damage1, interval1200ms, speed800px/s, no Twin. Scene owns orbit/visual runtime |
+| GameplayScene.ts:158..161,408..411,1186..1200 | Teal0x2dd4bf body radius10, orbit110px, clockwise2rad/s, initial angle0/right of player; Twin angle+pi. Position uses actual current player center; only Drone center clamped to4800x2700. No HP/body blocking/contact damage |
+| GameplayScene.ts:959..969; progression/focusedUpgrade.ts | Bolt Power +1 (1/2/3); Firing System -150ms (1200/1050/900); Bolt Propulsion +200px/s (800/1000/1200); each rank0..2. Same Drone event reset on accepted cadence tuning |
+| progression/twinDrone.ts:3..8; GameplayScene.ts:930..957 | Twin recipe2/2/2 + Replication>=1, not evolved, installed slot and feasible consumers. Unpublished second visual prepared before authenticated commit; failure destroys it. Ranks/passive retained; no extra Combat slot |
+| GameplayScene.ts:1202..1221,1355..1371 | Same callback fires once per actual Drone origin, first original then Twin; each selects its own nearest living enemy with stable collection ties. No target or nearest distance<0.001 suppresses that origin. No global allocation or persistent target claims |
+| GameplayScene.ts:1224..1253,1290..1350 | Fixed launch heading, five-field immutable DroneAttack, straight first inclusive swept hit including interception, no homing/penetration; one DIRECT hit then remove. Stable enemy-order ties. Clip movement by life; expiry/whole-circle exit silent |
+| combat/combat.ts:12,100..115 | COMBAT_DRONE BASE/TWIN, damage=((localDamage*Combat)*Reactor)*Engineering, Impact160*ShipImpact, no damage falloff. Sources COMBAT_DRONE.BASE.DIRECT / TWIN.DIRECT in existing seven buckets |
+| GameplayScene.ts:1215..1220; progression/replicationMatrix.ts:1..3 | Bolt life1800ms; physical radius=(5+ReplicationLevel)*ProjectileScale; speed=localSpeed*Velocity. Replication adds body radius, NOT Drone count. Spatial has no Drone effect |
+| GameplayScene.ts:433..437,637..680 | Exactly one existing Drone TimerEvent, default1200/FireControl; total5 events. Drone resets currently zero elapsed (Missile alone preserves fractional progress). FireControl0.01..100; no per-Drone timer |
+| GameplayScene.ts:1044..1102,1290..1350,1631..1655 | Attack->Hit->Damage->EnemyDeath->physical XP; remove lethal bolt before Victory, freeze unrelated flights, no direct XP. Knockback uses actual velocity direction/enemy response, cap600/decay1200 via existing helper |
+| GameplayScene.ts:282..290,330..350,686..718,1762..1827 | Native fresh owners/zero ranks/one Drone; captured flight cleanup, input/reward/random/Build disposal. Terminal freezes remaining world; restart destroys it. DEV snapshot includes Build but Drone local configuration is currently absent from it; exactly5 commands |
+| rewards/rewardEligibility.ts:104..155; rewardChoices.ts:39..50 | Detached Scene Drone projections, incremental local previews, Twin eligibility. Current canonical54 and shared Laser/Missile acquisitions; Drone tuning and Twin still original IDs |
+
+Current mastered Twin: D3, interval900, speed1200, radius6 at Replication1, life1800,
+Impact160 per independently aimed bolt, two bolts/event if both origins valid. Full damage
+per bolt even when both hit same enemy; no Laser Scatter diminishing-Impact registry.
+Engineering multiplies Drone damage once, not cadence/speed/body/Impact/orbit/count/lifetime.
+Combat Processor +0.25 damage multiplier, Replication body+1/level remain Scene-owned passives.
+Thrust/Dash move the orbit center; Reactor/Velocity/Scale/Impact/Analyzer are Build-owned.
+Old bolts retain all launch numbers, variant and direction through upgrades/pause.
+
+Relevant retained regression evidence: twinDrone.test.ts (8 cases), replicationMatrix.test.ts
+(5), Scene tests around1191,1663..1672,1887..1977, EnemyDeath/combat and source/terminal
+matrices, RewardTransaction/eligibility/generator/Russian UI suites. Existing tests that write
+Scene Drone values must migrate to legal Build prerequisites, not weaken Twin damage/recipe.
+
+**Recommended implementation boundary: OPTION A — ONE comprehensive task**
+
+One atomic authority cutover is practical: one pure droneProgression module with tests, Build
+config/preview/apply, catalog/eligibility/generator/UI/diagnostic identities, and concrete Scene
+firing integration in the SAME task. Continuous Repeater avoids a pending burst scheduler;
+all shots reuse current five-field DroneAttack and first-hit bolt runtime. No combat framework,
+new Attack kind, controller class, per-Drone loop or global targeting abstraction is needed.
+Expected scope: about10 production files plus focused tests; planning estimate~100–180 new
+meaningful cases, not a quota. Full browser acceptance is substantial and part of that task.
+Concrete risks: Scene fixture authority migration, Twin provisional visual atomicity, numeric
+Engineering/Replication products, shared acquisition goldens, volley cap/publication cleanup.
+They fit existing seams and demand an atomic cutover rather than a split with temporary dual
+truth/dormant rewards. OPTION B only if implementation uncovers a specific new blocker: first
+pure config+Build with no new visible catalog/runtime authority switch, second atomic complete
+live cutover+catalog+acceptance; never expose selectable dormant rewards. No such blocker is
+currently demonstrated; OPTION C is unjustified. This recommendation authorizes no code yet.
+
+**Single authoritative DroneConfiguration**
+
+Proposed closed exact shape: ranks:{boltPower,firingSystem,boltPropulsion},
+form:BASE|TWIN|SCATTER|REPEATER|PRECISION, upgrades:canonical development IDs[], capstone:boolean.
+Fresh0/0/0,BASE,[],false. PlayerBuild alone owns it; detached deep-copied BuildSnapshot gains
+exactly drone. Scene retains positions/angle/visuals/flights/current counters, not progression.
+Remove mutable droneRanks/droneAttackValues/twinDroneEvolved; derived read-only compatibility
+getters are permitted only when validated equal to Build, as Laser/Missile. Preview/apply
+share prepared detached config/tags/identity/composed attack/cadence; no Run/RNG/Phaser refs.
+Ranks integer0..2, matching form/unique canonical upgrade order, Capstone requires all four;
+reject arrays/accessors/hidden/symbol/extra fields and malformed choices, no coercion.
+
+Readiness: installed COMBAT_DRONE, BASE, sum ranks>=3. Global stats/Tags/Replication/level/time
+do not count. Three acquisitions mutually exclusive with Twin and each other, retain tuning,
+add1 to each authored branch Tag once. Remaining tuning stays available until its own cap.
+Four matching developments each once in any order; Capstone only after all four, once.
+No new slot/Drone Doctrine/fleet/Medical/Salvage system. Only Twin creates a second Drone.
+
+TWIN is explicit legacy compatibility: unchanged2/2/2+Replication1, independent nearest aim
+per origin, full D per bolt, same interval/speed/life/body/Impact/source. No branch multipliers,
+new burst, penetration, range gate or new-form admission limit applies to BASE/TWIN. Both
+origins can target/hit one enemy; independent damage remains. Keep provisional companion
+allocation/recheck/cleanup BEFORE Build commit; never commit TWIN then try allocating its body.
+Old BASE shots remain BASE after Twin acquisition. Restart fresh Build restores BASE, no Twin.
+
+**Candidate profiles and exact composition**
+
+Let D=1+boltPower, T=1200-150*firingSystem, V=800+200*boltPropulsion, Q=Replication level.
+For ALL forms, preserve damage left-to-right ((localDamage*Combat)*Reactor)*Engineering;
+speed=localSpeed*Velocity; body=(localBody+Q)*Scale; delay=localInterval/FireControl;
+Impact=localImpact*ShipImpact*enemyResponse at actual Hit, with existing velocity cap/decay.
+Do not apply Engineering/Combat/Reactor twice to a volley. Range/lifetime/count/angles are
+weapon-local, unaffected by Engineering/Scale/Spatial. Replication remains additive before
+Scale for every form. No explosion, pierce, ricochet, status or child projectile.
+
+| Form | Local damage / interval / speed | Body / life / Impact | Pattern, bounds and visual candidate |
+| --- | --- | --- | --- |
+| BASE/TWIN | D / T / V | 5 /1800ms /160 | Existing1 bolt per origin; original teal bodies/violet bolts0xc084fc unchanged |
+| SCATTER | .65D /1.2T /.9V | 5 /1200ms /180 | One Drone, up to3 distinct nearby targets within350px of actual origin; teal-green0x34d399 bolts/body outline2 |
+| REPEATER | .45D /.5T /V | 5 /1200ms /80 | One Drone,1 nearest-target bolt/event, sustained cyan0x22d3ee bolts/body outline2 |
+| PRECISION | 3D /1.8T /1.6V | 5 /1800ms /320 | One Drone,1 nearest-target bolt/event; gold0xfbbf24 bolt/outline3, no homing or threat ranking |
+
+At ranks1/1/1, Q0/all shared1, BASE D2/T1050/V1000/body5/life1800/I160:
+Scatter1.3/1260/900/body5/life1200/I180/up to3;
+Repeater.9/525/1000/body5/life1200/I80;
+Precision6/1890/1600/body5/life1800/I320.
+Example Combat1.25/Reactor2/Engineering3 multiplies those damages by7.5: BASE15, Scatter9.75
+per bolt, Repeater6.75, Precision45; Velocity2 doubles each speed, Scale2/Q2 makes body14
+except Precision Capstone body(7+2)*2=18. No influence on target range or blast (none).
+
+Scatter selection is NOT Laser Scatter spread: ephemeral stable sort by squared distance
+then enemy collection index from actual Drone center, living current-run active enemies
+within inclusive local350/450px and distance>=.001; take first min(targetLimit,eligible).
+Aim exactly once at each distinct selected reference; angles are atan2(dy,dx), no fixed fan,
+rotation/jitter/RNG/extra fallback pellets. With1 target fire1 bolt; with0 fire0. Close range
+supports the roadmap's close coverage/control identity without a global target allocator.
+All bolt sweeps still hit intervening enemies. Different bolts may independently hit the same
+interceptor for full damage/Impact: no shared hit-history or Laser Scatter diminishing force.
+Each bolt has one inclusive earliest DIRECT hit, stable ties, then is consumed. Target list
+exists only during launch, not a retained reservation or a new targeting service.
+
+Repeater chooses sustained fire, NOT delayed bursts: burstSize=1, inter-burst delay=local T
+coefficient/FireControl; no intra-burst spacing/pending shots/index/catch-up queue. Each event
+samples actual origin/nearest living target again, freezes a fresh Attack and heading. A held
+old bolt never rereads Build. A proposed3-shot delayed burst was rejected as unnecessary
+pending-state/terminal/cancellation complexity for the approved rapid sustained-fire identity.
+Precision likewise uses nearest actual Drone origin with current stable ties, frozen straight
+heading, no reacquisition/penetration/guaranteed Boss hit. Its high damage/Impact/speed and
+slower cadence differentiate durable-enemy pressure; GAME-059 alone may later supply priority
+selection. Near-zero nearest aim suppresses Repeater/Precision as current BASE does.
+
+**Canonical18 candidate rewards — exact order, Russian copy and effects**
+
+Append after unchanged54: acquisitions Scatter/Repeater/Precision at55..57; Scatter four
+rows+Capstone58..62, Repeater63..67, Precision68..72, exactly table order. Count72.
+Each coefficient replaces, never stacks repeatedly. Unspecified profile values stay exact.
+All below require matching branch except acquisitions; Capstones require its four rows.
+
+| ID | Russian name | Russian effect description / exact candidate effect |
+| --- | --- | --- |
+| drone.specialize.scatter | Многоканальный дрон | До 3 разных целей в радиусе 350 пикс.; урон ×0,65, интервал ×1,2, скорость ×0,9, полёт 1,2 с, импульс 180 |
+| drone.specialize.repeater | Скорострельный дрон | Непрерывный одиночный огонь; урон ×0,45, интервал ×0,5, полёт 1,2 с, импульс 80 |
+| drone.specialize.precision | Прицельный дрон | Один мощный снаряд; урон ×3, интервал ×1,8, скорость ×1,6, полёт 1,8 с, импульс 320 |
+| drone.scatter.payload | Распределённый заряд | Множитель урона каждого снаряда: 0,65 → 0,8 |
+| drone.scatter.channels | Дополнительный канал | Максимум разных целей за залп: 3 → 4 |
+| drone.scatter.range | Ближний обзор | Радиус выбора целей: 350 → 450 пикс. |
+| drone.scatter.endurance | Устойчивые снаряды | Время полёта: 1,2 → 1,5 с |
+| drone.scatter.capstone | ВЕРШИНА: Круговой дозор | Максимум разных целей за залп: 4 → 5; каждый снаряд попадает независимо |
+| drone.repeater.payload | Плотный поток | Множитель урона: 0,45 → 0,55 |
+| drone.repeater.cadence | Ускоренная подача | Множитель интервала: 0,5 → 0,4 |
+| drone.repeater.propulsion | Быстрые трассеры | Множитель скорости: 1 → 1,3 |
+| drone.repeater.impact | Подавляющий огонь | Местный импульс: 80 → 120 |
+| drone.repeater.capstone | ВЕРШИНА: Непрерывный поток | Множитель интервала: 0,4 → 0,3; одиночный огонь без очереди отложенных выстрелов |
+| drone.precision.payload | Концентрированный заряд | Множитель урона: 3 → 3,75 |
+| drone.precision.propulsion | Разгонный ствол | Множитель скорости: 1,6 → 2 |
+| drone.precision.endurance | Дальний выстрел | Время полёта: 1,8 → 2,4 с |
+| drone.precision.impact | Стабилизированный удар | Местный импульс: 320 → 480 |
+| drone.precision.capstone | ВЕРШИНА: Точный разряд | Множитель урона 4,5; местный корпус 7 пикс., импульс 640; без пробития |
+
+Acquisition tags/affinities for all six choices in each branch, in canonical TAG_IDS order:
+Scatter CLOSE_COMBAT/DRONES/TECHNOLOGY/CONTROL; Repeater RAPID_FIRE/DRONES/TECHNOLOGY;
+Precision PRECISION/DRONES/TECHNOLOGY. Only acquisition contributes+1 each; metadata itself,
+tuning/developments/Capstones/Twin add0. No tag gate. Names/numbers above need approval.
+
+**Atomic reward, generator and launch integration**
+
+One narrow pure player/droneProgression.ts (closed choice/config/initial/validate/prepare/
+profile/composed Attack) plus PlayerBuild previewDroneChoice/applyDroneChoice. All original
+Drone tuning/Twin and new18 choices use that single preparation boundary. Numerical preflight
+must include all five-field attacks, cadence, candidate tags/identity, current enemy Impact
+responses, passive Combat/Replication and shared stats; reject nonfinite/unsafe/underflow,
+unrepresentable increments, bad context, cadence<1ms, impossible config without any mutation.
+Retain accepted BASE/Twin composition ranges/order; no arena-derived body/stat clamp.
+Exact copied compatibility projections must equal Build, not an alternative Scene config.
+
+Scene retains original current Text/handler/token guard and RewardTransaction. Preflight
+Build/Defense/progression/diagnostics/next ordinal before commit; Twin prepares unpublished
+visual last, rechecks exact run/Text, destroys on rejection. Numeric rejection preserves SAME
+Text/offer/token for retry and0 draws/partial tags/HUD/timer writes. Success commits once,
+resolves one pending level, records selection; RewardTransaction invalidates the token and
+exits its selection guard BEFORE returning true. Only then Scene cleans old UI and presents
+the updated next offer under continuous REWARD or releases final REWARD; do not move authority. Stale/foreign/duplicate callbacks stop before disposed owner reads.
+
+Reset SAME existing Drone TimerEvent only when effective interval changes, preserve callback/
+scope/args, loop and original zero-elapsed semantics (including BASE/Twin/FireControl paths).
+Do not copy Missile fractional reset into Drone. Paused Clock remains paused; no immediate
+shot/new event/reset for unchanged cadence. New forms only replace fire callback behavior.
+
+All three ready systems share ONE acquisition pool: canonical Laser then Missile then Drone,
+nine possible acquisitions. Slot1 uses one existing weighted draw; acquisitions never Slots2/3.
+Preserve complete-path feasibility BEFORE all draws, ordinary fallback if no feasible full
+acquisition path, readiness retention, distinct3 IDs, legacy Prism/Cluster/Twin Slot3 cursor.
+Twin acquisition and Drone specialization can be alternatives in ONE offer; accepting either
+excludes the other in later offers, never applies both. No new evolution cursor or private RNG.
+Policy candidate GAME-058-v1:72 entries, weights25..3600, total<=259200=72*3600. Existing
+base100/relevance/Analyzer diminishing returns/pity0..4/history last2/signature/focus factors
+unchanged; extend drone focus to Drone branch kinds only. No reweighting hidden in the count.
+Exactly3 ordered Reward draws including singleton slots; previews/selection/retry/stale0.
+Independently calculated literal seeded goldens for nine-way boundaries and ordinary fallback;
+retain Laser/Missile literals unless their actual input state now makes Drone ready/feasible.
+Prove and explain changed fixtures; never compute expected goldens using production sampler.
+
+Reuse current shared projectile records and collision loop: all new Drone forms are existing
+COMBAT_DRONE BASE/DIRECT Attacks, legacy Twin TWIN/DIRECT. No mechanics property on Attack,
+new source bucket, visited-enemy set, splash or Laser-specific volley contacts. Prepare full
+new-form volley targets/directions/Attack and hidden visuals before publication; on allocation failure
+destroy every unpublished visual and surface invariant failure, no partial shot/HP mutation.
+Recheck exact run/RUNNING before publication; no target RNG. Shots are future ordinary flights,
+no synchronous direct Hit at launch; deterministic existing reverse projectile iteration stays.
+Each hit/removal/EnemyDeath/physical XP completes before accepted Victory; then unrelated
+shots/contact/XP stop as existing lifecycle does. A Scatter volley is not one atomic multi-hit
+explosion: a lethal bolt completes itself, other bolts freeze, just like Twin today.
+
+**Bounds, performance and presentation candidates**
+
+Propose new-form admission budget768 live Drone bolts (including surviving old BASE bolts
+when checking space). One small Scene-owned live-count, maintained on actual publish/remove/
+shutdown, is sufficient; no new collection manager. Reserve/preflight the entire actual volley
+size<=5, publish all or skip all if insufficient, no eviction/partial burst/queue/timer reset/
+RNG. Rollback hidden objects; no reservation persists across frames. Count/cleanup captures
+run ownership so old shutdown cannot decrement fresh counts. BASE/TWIN emission remains
+unchanged and is NOT retroactively capped; a large-delta legacy backlog may exceed768, in
+which case new-form firing waits naturally for cleanup. No new limit on Laser/Missile/hostiles.
+768 is a candidate new-form technical guard, not a balance nerf or global projectile cap.
+
+Nominal no-hit envelopes at maximum tuning/FireControl100, one burst slack included:
+Scatter ceil(1500/10.8)*5+5=700; Repeater ceil(1200/2.7)+1=446;
+Precision ceil(2400/16.2)+1=150. BASE/Twin unchanged steady Twin envelope
+ceil(1800/9)*2+2=402. These are nominal regular-frame envelopes, NOT a proof against arbitrary
+Phaser Clock catch-up/large delta; new-form hard admission guard handles those callbacks.
+At FireControl1 fully developed Scatter has at most two unexpired5-shot volleys normally;
+no new fleet multiplier. Future Doctrine~4 drones is explicitly outside this count contract.
+
+Concurrent worst nominal existing Laser Repeater: ceil(2000/1.25)+1=1601; Missile envelope
+320 children+1 parent; Drone Scatter700 ->2622 player flight objects before hostiles/XP/VFX.
+This combined estimate must be MEASURED, not presented as established performance. Huge
+Replication/Scale enlarge bodies, never allocate by radius; huge Engineering changes damage
+only. Sweeps remain O(projectiles*N), current N<=10; Scatter selects at most10 candidates,
+no all-pairs bolt collision, per-target registry or global targeting index.
+
+Candidate browser budget, aligned with GAME-057:1280x720, same machine/browser,2s warm-up,
+10s measured, mean>=45FPS/P95<=33.3ms; record median/raw frame distribution/FPS, counts,
+created/destroyed throughput, environment and errors0. Test strongest each Drone form, all
+systems operating concurrently (not only isolated Drone), nominal700 and synthetic768 boundary,
+default/large legal Scale+Replication, max FC100 and10 enemies. Observe>=20s after cleanup:
+no retained monotonic flight/counter/owner growth. Compare same unmodified built baseline;
+label technical fixtures separately from achievable production load. If budget fails, profile
+and propose smallest correction for review; do not secretly lower counts/damage/hit frequency.
+No measured GAME-058 performance or assets/browser acceptance claimed during this definition.
+
+Retain body orbit110/2rad/s and render with existing Phaser circles/outlines; color choices
+above change only selected single Drone/bolts, preserve BASE/Twin styles. No external assets.
+Reuse Russian measured wrap1720/32px controls, <=3 lines/height142, existing y layout or
+approved top-down460+height/2 with16px gaps/end<=918. Actual three clickable Text controls
+at1920x1080/1280x720/960x540, font>=12CSSpx; measure longest acquisition and Capstone labels,
+HUD/phase separation/hit areas. If wording fails, return a meaning-preserving copy adjustment
+for review rather than silently shrinking controls or reworking reward UI.
+
+**Future tracked and actual-browser acceptance contract**
+
+| Layer | Mandatory checks |
+| --- | --- |
+| Pure config/profile | Fresh/detached/exact keys/no alias/disposal; all rank combinations; readiness2/3, installed slot; all forms/four developments/Capstones/Twin exclusion; profile numbers/composition order; min/max/NaN/infinity/underflow/zero-force and enemy response; tags exactly once; body Replication-before-Scale; Engineering damage only |
+| Build atomicity | Identical preview/apply candidates; reject without config/tags/identity/cache/HP/timer/diagnostic writes; disposed owner errors; live passive/shared-stat previews validate every new consumer; valid old launches keep readable immutable data |
+| Catalog/generator | Literal72 IDs/order/Russian copy/affinities; every readiness subset of three systems, nine-way boundaries, focus/Analyzer/pity/history/signature, partial/no acquisition feasibility and full distinct fallback; legacy reserved alternatives;3 draws always/selection0; independent seeded goldens plus unaffected Laser/Missile fixtures |
+| Real Scene selection | All18 through authentic Text callbacks and Build apply; original3 tuning and Twin migration; rejected SAME Text/token corrected retry; duplicate/forged/stale callbacks; physical32XP/three updated offers/9 draws with continuous REWARD; old/new snapshot isolation |
+| BASE/Twin regression | Original damage/cadence/speed/life/Impact/radius, origin-specific nearest ties/near-zero rejection, full independent Twin hits, opposite orbit/clamping, Firing System same event/zero phase reset; no new-form cap on legacy behavior |
+| Runtime branches | Scatter actual3/4/5 different launch targets/range boundary/zero targets/angles/interception/same-enemy independent HP; Repeater continuous cadence and retargeting without pending burst; Precision slower actual high damage/speed/Impact and durable/Boss outcomes; every development/Capstone future flight effect |
+| Flight/capacity | Frozen attack/direction/count, earliest inclusive swept hit including large delta/life clipping/exit; full actual-volley admission767/768 and rejection without partial visuals; engine failure/stale publication cleanup, count consistency/nonnegative; no recursion/pierce/hit history |
+| Death/lifecycle | Source buckets BASE/TWIN DIRECT, physical1/5/10, authoritative EnemyDeath once; parent-independent bolt Boss lethal cleanup before Victory, remaining shots frozen; DEATH/VICTORY ordering; manual/reward/focus compositions freeze orbit/flights/life/clock phases/RNG with no catch-up |
+| Native freshness | Incoming Death/real RETRY; >=2 real Victory/NEW RUN; dirty PAUSED restart with live new-form and old-form bolts; new BASE0/no Twin/zero counter/fresh5 events/4 streams/5 commands; saved owners/callbacks/cleanup cannot mutate fresh run |
+| Browser/production | All18 real mouse choices at all3 resolutions, all branch visuals/actual HP/Impact/XP, no errors/layout regressions; genuine focus-away/return/explicit Escape plus reward focus case (report exact tooling blocker as pending, never fake BLUR); unchanged built root boot/controls/Dash/natural combat/XP/choice/Death-Retry and actual DEV absence |
+| Performance | Real Clock profiles and combined load measured to budget above, raw frames/count/throughput20s cleanup; artificial admission tests distinct from natural production; no extrapolated pass |
+
+Implementation expected paths: new player/droneProgression.ts and pure tests; PlayerBuild.ts/
+tests; GameplayScene.ts/devTools tests; rewardChoices.ts/rewardEligibility.ts/LevelUpGenerator.ts
+and focused tests; ui/russianText.ts/tests; RunDiagnostics.ts only if its identity type needs
+explicit union extension. devTools.ts only if typing naturally follows nested BuildSnapshot;
+no sixth command. combat.ts/EnemyDeath.ts need no new kind/phase/source. Existing helpers/tests
+may stay as compatibility pure tests; do not delete them to hide a regression. Update actual
+CURRENT_STATE only during implemented task, not this definition. Run npm run check (floor1891/
+40), both diff checks and inspect complete staged implementation diff before acceptance.
+
+**Architect decisions required before implementation**
+
+Approve or amend: close-range multi-target Scatter instead of fixed Laser fan; continuous
+burstSize1 Repeater; nearest-only nonpiercing Precision; all18 IDs/Russian copy/numeric
+coefficients/lifetimes/Impact/ranges; canonical append order72/policy capacity259200;
+new-form768 admission limit and combined-load budget; retained zero-phase Drone timer reset;
+OPTION A one comprehensive task with full atomic authority/reward/runtime cutover+acceptance.
+GAME-058 remains READY for architect review, not DONE or approved to implement. GAME-059 and
+later tasks stay BACKLOG; GATE A/B PASSED; GATE C UNAPPROVED. No commit/merge/push/branch switch.
 
 **GATE C — First Real Build Loop** — review the preceding phase capabilities before its cutover/next proof.
 
