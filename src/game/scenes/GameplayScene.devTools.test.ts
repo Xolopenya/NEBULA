@@ -10,9 +10,8 @@ import { RunDiagnostics } from '../run/RunDiagnostics';
 import { PlayerBuild, TAG_IDS, type BuildSnapshot } from '../player/PlayerBuild';
 import { PlayerProgression } from '../progression/PlayerProgression';
 import { PlayerDefense } from '../player/PlayerDefense';
-import { LevelUpGenerator, REWARD_AFFINITIES } from '../rewards/LevelUpGenerator';
+import { LevelUpGenerator } from '../rewards/LevelUpGenerator';
 import { rewardChoices, choiceIdentity, type RewardCandidateId } from '../rewards/rewardChoices';
-import { isRewardEligible } from '../rewards/rewardEligibility';
 import { RewardTransaction } from '../rewards/RewardTransaction';
 
 class EventEmitter {
@@ -51,7 +50,7 @@ function graphics() {
     clear() { this.commands = []; return this; },
     lineStyle(...args: number[]) { this.commands.push(['style', ...args]); return this; },
     lineBetween(...args: number[]) { this.commands.push(['line', ...args]); return this; },
-    fillStyle() {}, fillCircle() {}, strokeRect() {},
+    fillStyle() {}, fillCircle() {}, strokeRect() {}, strokeCircle() { return this; },
   });
 }
 vi.mock('phaser', () => ({
@@ -76,6 +75,16 @@ function setLaser(s: GameplayScene, ranks = { power: 2, fireRate: 2, speed: 2 },
     while (s['laserRanks'][upgrade] < ranks[upgrade]) s['playerBuild']!.applyLaserChoice({ kind: 'laser', upgrade }, s['moduleLevels'].combat);
   }
   if (prism) s['playerBuild']!.applyLaserChoice({ kind: 'prism' }, Math.max(1, s['moduleLevels'].combat));
+}
+function setMissile(s: GameplayScene, ranks = { warheadPower: 2, propulsion: 2, blastExpansion: 2 }, cluster = false) {
+  for (const upgrade of ['warheadPower', 'propulsion', 'blastExpansion'] as const) {
+    while (s['missileRanks'][upgrade] < ranks[upgrade]) s['playerBuild']!.applyMissileChoice({ kind: 'missile', upgrade },
+      { combatMultiplier: s['globalDamageMultiplier'], spatialLevel: s['moduleLevels'].spatial });
+  }
+  if (cluster && !s['clusterEvolved']) {
+    s['moduleLevels'].spatial = Math.max(1, s['moduleLevels'].spatial);
+    s['playerBuild']!.applyMissileChoice({ kind: 'cluster' }, { combatMultiplier: s['globalDamageMultiplier'], spatialLevel: s['moduleLevels'].spatial });
+  }
 }
 function playerHit(scene: GameplayScene, amount: number, run = scene['run']!, defense = scene['playerDefense']!) {
   return scene['damagePlayer']({ kind: 'PLAYER_CONTACT', run, target: defense,
@@ -284,42 +293,231 @@ function fixture() {
 }
 // Choose a midpoint input for an existing candidate in a controlled slot. Actual policy,
 // transaction, handlers and effect application still run; no alternate generator is installed.
-function targetRoll(s: GameplayScene, id: RewardCandidateId, slot: 0 | 1) {
-  const context = s['rewardContext'](s['playerBuild']!), snapshot = s['levelUpGenerator']!.snapshot();
-  const primary = context.build.identity.dominantTags, secondary = context.build.identity.secondaryTags;
-  const base = JSON.stringify(primary) === JSON.stringify(snapshot.primarySignature) ? snapshot.misses : 0;
-  const eligible = rewardChoices.filter(c => isRewardEligible(c, context));
-  const acquisitions = eligible.filter(c => c.kind === 'laserSpecialization');
-  const pool = slot === 0 && acquisitions.length ? acquisitions
-    : eligible.filter(c => slot === 0 ? !['passive', 'prism', 'cluster', 'twin', 'laserSpecialization'].includes(c.kind) : c.kind === 'passive');
-  const weights = pool.map(choice => {
-    const cid = choiceIdentity(choice), affinity = REWARD_AFFINITIES[cid];
-    const relevance = affinity.some(t => primary.includes(t)) ? 2 : affinity.some(t => secondary.includes(t)) ? 1 : 0;
-    const a = context.build.effectiveStats.combatAnalyzer;
-    return 100 * (1 + 0.5 * relevance)
-      * (slot === 0 ? (relevance === 2 ? 2 : relevance === 1 ? 1.25 : 1) * (choice.kind === s['weaponFocus'] || s['weaponFocus'] === 'laser' && 'branch' in choice ? 1.5 : 1)
-        : cid === 'passive.hull' || cid === 'passive.thruster' ? 1.5 : 1)
-      * (relevance === 2 ? (1 + 2 * (a === 0 ? 0 : 1 / (1 + 4 / a))) * (1 + 0.25 * base) : 1)
-      * 2 ** -snapshot.history.filter(h => h.includes(cid)).length;
-  });
-  const index = pool.findIndex(c => choiceIdentity(c) === id);
+function targetRoll(s: GameplayScene, id: RewardCandidateId, slot: 0 | 1 | 2) {
+  const plan = s['levelUpGenerator']!['prepare']({ ...s['rewardContext'](s['playerBuild']!), weaponFocus: s['weaponFocus'] });
+  const first = plan.pool(0, [])[0], second = plan.pool(1, [first])[0];
+  const pool = plan.pool(slot, slot === 0 ? [] : slot === 1 ? [first] : [first, second]);
+  const index = pool.findIndex(c => c.id === id);
   if (index < 0) throw Error('Unavailable fixture choice ' + id);
-  return (weights.slice(0, index).reduce((a, b) => a + b, 0) + weights[index] / 2) / weights.reduce((a, b) => a + b, 0);
+  const weights = pool.map(c => plan.weights[slot].get(c.id)!);
+  return (weights.slice(0, index).reduce((a,b) => a+b,0) + weights[index]/2) / weights.reduce((a,b) => a+b,0);
 }
-function aimChoice(s: GameplayScene, id: RewardCandidateId, slot: 0 | 1) {
+function aimChoice(s: GameplayScene, id: RewardCandidateId, slot: 0 | 1 | 2) {
   const roll = targetRoll(s, id, slot), spy = vi.spyOn(s['runRandom']!.reward, 'next');
-  spy.mockReturnValueOnce(slot === 0 ? roll : 0).mockReturnValueOnce(slot === 1 ? roll : 0).mockReturnValueOnce(0);
+  spy.mockReturnValueOnce(slot === 0 ? roll : 0).mockReturnValueOnce(slot === 1 ? roll : 0).mockReturnValueOnce(slot === 2 ? roll : 0);
   return spy;
 }
-describe('GAME-057-B transitional Missile reward boundary', () => {
-  it('authentic legacy tuning and Cluster selections remain functional without activating dormant Build rewards', () => {
+describe('GAME-057-C real Missile combat vertical', () => {
+  function setup(branch: 'guidance' | 'heavy' | 'fragmentation') {
+    const f = fixture(), s = f.scene;
+    setMissile(s, { warheadPower: 1, propulsion: 1, blastExpansion: 1 });
+    s['playerBuild']!.applyMissileChoice({ kind: 'missileSpecialization', branch }, { combatMultiplier: 1, spatialLevel: 0 });
+    const enemy = s['createEnemy'](2800,1350,'tank',s['run']!)!; enemy.health = 100;
+    return { ...f, enemy };
+  }
+  function burst(f = setup('fragmentation'), offset = 0) {
+    const s = f.scene; s['fireMissile'](); const parent = s['missiles'][0];
+    parent.visual.x = f.enemy.visual.x + offset; parent.visual.y = f.enemy.visual.y;
+    s['updateMissiles'](0); return { ...f, parent };
+  }
+  it.each(['guidance','heavy','fragmentation'] as const)('%s authentic acquisition, all developments and Capstone affect future combat exactly once', branch => {
+    const f = fixture(), s = f.scene;
+    setMissile(s, { warheadPower: 1, propulsion: 1, blastExpansion: 1 });
+    s['createEnemy'](3000,1350,'tank',s['run']!); s['fireMissile'](); const old = s['missiles'][0], original = old.plan;
+    const ids = rewardChoices.filter(c => 'branch' in c && c.branch === branch).map(choiceIdentity);
+    const timers = [...s['gameplayTimers']], streams = spyStreams(s);
+    for (const id of ids) {
+      const roll = aimChoice(s, id, 0); expect(f.api.forceLevelUp()).toBe(true); expect(roll).toHaveBeenCalledTimes(3); roll.mockRestore();
+      const text = [...s['levelUpChoices']].find(([, value]) => value === id)![0], handler = text.listeners('pointerdown')[0];
+      text.emit('pointerdown'); const after = f.api.snapshot(); handler(); expect(f.api.snapshot()).toEqual(after);
+      expect(s['run']!.state).toBe('RUNNING'); expect(old.plan).toBe(original);
+    }
+    expect(s['playerBuild']!.getMissileConfiguration()).toMatchObject({ form: branch.toUpperCase(), capstone: true });
+    s['removeMissile'](old,s['missiles']); s['fireMissile'](); const next = s['missiles'][0];
+    expect(next.plan.form).toBe(branch.toUpperCase()); expect(Object.isFrozen(next.plan)).toBe(true);
+    expect(next.damage).toBe(branch === 'guidance' ? 3 * 1.1 : branch === 'heavy' ? 12 : 3);
+    if (next.plan.behavior === 'STRAIGHT_FRAGMENTING') expect(next.plan.childCount).toBe(8);
+    expect(s['gameplayTimers']).toEqual(timers); expect(timers).toHaveLength(5);
+    for (const i of [0,2,3]) expect(streams[i]).not.toHaveBeenCalled();
+  });
+  it('same Missile event preserves exact fractional cadence and callback/scope/args; unchanged cadence never resets it', async () => {
+    const { default: Clock } = await vi.importActual<{ default: typeof import('phaser').Time.Clock }>('../../../node_modules/phaser/src/time/Clock.js');
+    const f = fixture(), s = f.scene; allowCreate(s); Object.assign(s,{ sys:{events:{once(){},on(){}}} });
+    const clock = new Clock(s); Object.assign(s,{time:clock}); s.create(); clock.preUpdate(); clock.update(450,450);
+    setMissile(s,{warheadPower:1,propulsion:1,blastExpansion:1});
+    const event=s['missileTimer']!, callback=event.callback, scope=event.callbackScope, args=event.args, reset=vi.spyOn(event,'reset');
+    const roll=aimChoice(s,'missile.specialize.heavy',0); window.__NEBULA_DEV__!.forceLevelUp(); roll.mockRestore();
+    [...s['levelUpChoices']].find(([,id])=>id==='missile.specialize.heavy')![0].emit('pointerdown');
+    expect(event.delay).toBe(2700); expect(event.elapsed).toBe(675); expect(event.callback).toBe(callback); expect(event.callbackScope).toBe(scope); expect(event.args).toBe(args);
+    expect(reset).toHaveBeenCalledTimes(1);
+    const payload=aimChoice(s,'missile.heavy.payload',0); window.__NEBULA_DEV__!.forceLevelUp(); payload.mockRestore();
+    [...s['levelUpChoices']].find(([,id])=>id==='missile.heavy.payload')![0].emit('pointerdown'); expect(reset).toHaveBeenCalledTimes(1);
+    expect(s['gameplayTimers'][2]).toBe(event); expect(s['gameplayTimers']).toHaveLength(5);
+  });
+  it('same Text/token rejects numeric overflow then genuinely accepts a corrected selection with zero extra draws', () => {
+    const f=fixture(),s=f.scene; setMissile(s,{warheadPower:1,propulsion:1,blastExpansion:1});
+    const roll=aimChoice(s,'missile.specialize.heavy',0); f.api.forceLevelUp(); roll.mockRestore();
+    const text=[...s['levelUpChoices']].find(([,id])=>id==='missile.specialize.heavy')![0], handler=text.listeners('pointerdown')[0], token=s['rewardPresentation']!.token;
+    s['playerBuild']!.applyStatPercent('projectileScale',Number.MAX_SAFE_INTEGER/9-1);
+    const before=f.api.snapshot(),draws=spyStreams(s); text.emit('pointerdown');
+    expect(f.api.snapshot()).toEqual(before); expect(text.active).toBe(true); expect(s['rewardPresentation']!.token).toBe(token); expect(text.listeners('pointerdown')[0]).toBe(handler);
+    s['playerBuild']!.applyStatPercent('projectileScale',-(Number.MAX_SAFE_INTEGER/9-1)); text.emit('pointerdown');
+    expect(s['playerBuild']!.getMissileConfiguration().form).toBe('HEAVY'); expect(s['run']!.state).toBe('RUNNING');
+    for(const draw of draws) expect(draw).not.toHaveBeenCalled();
+  });
+  it.each(['BASE','HEAVY','FRAGMENTATION'] as const)('%s keeps its launch heading after target movement/removal', form => {
+    const f=form==='BASE'?fixture():setup(form==='HEAVY'?'heavy':'fragmentation'),s=f.scene;
+    if(form==='BASE')s['createEnemy'](3000,1350,'tank',s['run']!);
+    s['fireMissile']();const m=s['missiles'][0],heading=[m.headingX,m.headingY];
+    m.target!.visual.y+=300;s['updateMissiles'](10);expect([m.headingX,m.headingY]).toEqual(heading);
+    s['enemies']=[];s['createEnemy'](2400,1800,'tank',s['run']!);s['updateMissiles'](10);expect([m.headingX,m.headingY]).toEqual(heading);
+  });
+  it.each(['CLUSTER','GUIDANCE'] as const)('%s retains a living target, reacquires nearest to itself, then retains heading without targets', form => {
+    const f=form==='GUIDANCE'?setup('guidance'):fixture(),s=f.scene;
+    if(form==='CLUSTER'){setMissile(s,undefined,true);s['createEnemy'](3000,1350,'tank',s['run']!);}
+    s['fireMissile']();const m=s['missiles'][0],target=m.target!;target.visual.y=1800;
+    s['createEnemy'](2400,1600,'tank',s['run']!);s['updateMissiles'](1);expect(m.target).toBe(target);expect(m.headingY).toBeGreaterThan(0);
+    s['enemies'].splice(s['enemies'].indexOf(target),1);s['updateMissiles'](1);expect(m.target).toBe(s['enemies'][0]);
+    const heading=[m.headingX,m.headingY];s['enemies']=[];s['updateMissiles'](1);expect(m.target).toBeUndefined();expect([m.headingX,m.headingY]).toEqual(heading);
+  });
+  it('Guidance selects the earlier frozen fuse intersection and composes Engineering only at launch', () => {
+    const f=setup('guidance'),s=f.scene;f.enemy.visual.x=3000;s['fireMissile']();const m=s['missiles'][0];
+    const explode=vi.spyOn(s as unknown as {explodeMissile:typeof s['explodeMissile']},'explodeMissile');
+    s['applyBuildChange']({kind:'percent',stat:'engineering',delta:3});s['updateMissiles'](1000);
+    expect(explode.mock.calls[0].slice(0,2)).toEqual([2936,1350]);expect(f.enemy.health).toBe(97.3);expect(m.plan).toMatchObject({fuseDistance:64});expect(s['missiles']).toHaveLength(0);
+  });
+  it('Guidance body collision remains earlier than fuse for a large captured body; center-only AoE does not guarantee target damage', () => {
+    const f=setup('guidance'),s=f.scene;f.enemy.visual.x=3400;s['applyBuildChange']({kind:'percent',stat:'projectileScale',delta:99});s['fireMissile']();s['updateMissiles'](1000);
+    expect(s['missiles']).toHaveLength(0);expect(f.enemy.health).toBe(100);
+  });
+  it.each([false,true])('Guidance Capstone expiry=%s detonates once; arena exit remains silent', capstone => {
+    const f=setup('guidance'),s=f.scene;
+    if(capstone){for(const upgrade of ['payload','propulsion','fuse','endurance'] as const)s['playerBuild']!.applyMissileChoice({kind:'missileDevelopment',branch:'guidance',upgrade},{combatMultiplier:1,spatialLevel:0});s['playerBuild']!.applyMissileChoice({kind:'missileCapstone',branch:'guidance'},{combatMultiplier:1,spatialLevel:0});}
+    s['fireMissile']();const m=s['missiles'][0];m.remainingLifetime=1;s['enemies']=[];m.headingX=0;m.headingY=0;
+    const explode=vi.spyOn(s as unknown as {explodeMissile:typeof s['explodeMissile']},'explodeMissile');s['updateMissiles'](20);s['updateMissiles'](20);expect(explode).toHaveBeenCalledTimes(capstone?1:0);
+    s['enemies']=[f.enemy];s['fireMissile']();const exit=s['missiles'][0];exit.visual.x=-exit.radius-1;s['enemies']=[];exit.headingX=0;exit.headingY=0;s['updateMissiles'](20);expect(explode).toHaveBeenCalledTimes(capstone?1:0);
+  });
+  it('Heavy applies one full center-only blast and captured Impact, with a single-frame ring', () => {
+    const f=setup('heavy'),s=f.scene;s['fireMissile']();const m=s['missiles'][0];m.visual.x=2800;s['updateMissiles'](0);
+    expect(f.enemy.health).toBe(91);expect(f.enemy.knockbackVelocity).toEqual({x:200,y:0});expect(s['missileEffects']).toHaveLength(1);
+    const ring=s['missileEffects'][0];s.update(0,0);expect(ring.active).toBe(false);expect(s['missileEffects']).toHaveLength(0);
+  });
+  it.each([0,-27])('children born at center/tangency offset%s do not move or instantly collide with the surviving origin', offset => {
+    const f=burst(undefined,offset),s=f.scene,children=[...s['missileChildren']];
+    expect(children).toHaveLength(4);expect(s['reservedMissileChildren']).toBe(0);expect(s['missiles']).toHaveLength(0);
+    for(const c of children){expect(c.remainingLifetime).toBe(500);expect(c.excludedEnemy).toBe(f.enemy);expect(c.visual.x).toBe(2800+offset);expect(c.visual.y).toBe(1350);}
+    s['updateMissiles'](10);expect(s['missileChildren']).toHaveLength(4);expect(f.enemy.health).toBe(97.75);
+    expect(children.map(c=>[c.headingX,c.headingY])).toEqual(Array.from({length:4},(_,i)=>[Math.cos(2*Math.PI*i/4),Math.sin(2*Math.PI*i/4)]));
+    expect(children[0].visual.x).toBe(2809+offset);expect(children.every(c=>c.plan.behavior==='STRAIGHT')).toBe(true);
+  });
+  it('strict separation retains equality, clears irreversibly after exit and permits a later independent direct hit', () => {
+    const prepared=setup('fragmentation');prepared.scene['moduleLevels'].spatial=1;
+    const f=burst(prepared),s=f.scene,c=s['missileChildren'][0];s['updateMissiles'](30);expect(c.visual.x).toBe(2827);expect(c.excludedEnemy).toBe(f.enemy);
+    s['updateMissiles'](.001);expect(c.excludedEnemy).toBeNull();
+    f.enemy.visual.x=c.visual.x+40;s['updateMissiles'](100);expect(s['missileChildren']).not.toContain(c);expect(c.excludedEnemy).toBeNull();
+    expect(f.enemy.health).toBe(97.1875); // One legitimate later independent explosion.
+  });
+  it('moving originals clear at their current pose; death synchronously clears every child reference', () => {
+    const f=burst(),s=f.scene,children=[...s['missileChildren']];f.enemy.visual.x+=100;s['updateMissiles'](1);expect(children.every(c=>c.excludedEnemy===null)).toBe(true);
+    const next=burst();const kids=[...next.scene['missileChildren']];
+    const shot=playerShot(next.scene,2800,1000);next.scene['applyEnemyHit']({kind:'ENEMY_DIRECT',run:next.scene['run']!,target:next.enemy,attack:shot.attack as LaserAttack,direction:{x:1,y:0}});
+    expect(kids.every(c=>c.excludedEnemy===null)).toBe(true);expect(next.scene['xpPickups']).toHaveLength(1);
+  });
+  it('other enemies remain collidable from birth and every fragment independently splashes the original', () => {
+    const f=burst(),s=f.scene,other=s['createEnemy'](2810,1350,'tank',s['run']!)!;other.health=100;s['updateMissiles'](1);
+    expect(s['missileChildren']).toHaveLength(0);expect(f.enemy.health).toBe(95.5);expect(other.health).toBe(97.75);expect(s['reservedMissileChildren']).toBe(0);
+  });
+  it('origin death in the parent blast gives no stale exclusion, while independent child kills create physical XP with the same source bucket', () => {
+    const f=setup('fragmentation');f.enemy.health=1;const b=burst(f);const s=b.scene;
+    expect(s['missileChildren'].every(c=>c.excludedEnemy===null)).toBe(true);expect(s['xpPickups'][0].value).toBe(1);
+    const e=s['createEnemy'](2800,1350,'chaser',s['run']!)!;e.health=.1;s['updateMissiles'](1);
+    expect(s['xpPickups']).toHaveLength(2);expect(s['runDiagnostics']!.snapshot().aggregates.killsBySource['MISSILE.BASE.PRIMARY']).toBe(2);
+    expect(s['playerProgression']!.snapshot().xp).toBe(0);
+  });
+  it('512 live/reserved capacity reserves whole bursts, rejects without visuals and releases on parent expiry', () => {
+    const f=setup('fragmentation'),s=f.scene;f.enemy.health=10000;
+    for(let i=0;i<128;i++)burst(f);expect(s['missileChildren']).toHaveLength(512);expect(s['reservedMissileChildren']).toBe(0);
+    const circle=vi.spyOn(s.add,'circle'),draws=spyStreams(s);s['fireMissile']();expect(circle).not.toHaveBeenCalled();expect(s['missiles']).toHaveLength(0);
+    s['removeMissile'](s['missileChildren'][0],s['missileChildren']);
+    s['fireMissile']();expect(s['missileChildren']).toHaveLength(511);expect(s['missiles']).toHaveLength(0);expect(circle).not.toHaveBeenCalled();
+    for(let i=0;i<3;i++)s['removeMissile'](s['missileChildren'][0],s['missileChildren']);
+    s['fireMissile']();expect(s['reservedMissileChildren']).toBe(4);const parent=s['missiles'][0];parent.visual.x=100;parent.visual.y=100;parent.remainingLifetime=1;parent.target=undefined;parent.headingX=0;parent.headingY=0;
+    s['updateMissiles'](1);expect(s['reservedMissileChildren']).toBe(0);expect(s['missileChildren'].length).toBeLessThanOrEqual(512);
+    for(const d of draws)expect(d).not.toHaveBeenCalled();
+  });
+  it('failed burst preparation destroys unpublished visuals and releases the full reservation before any damage', () => {
+    const f=setup('fragmentation'),s=f.scene;s['fireMissile']();s['missiles'][0].visual.x=2800;
+    const actual=s.add.circle.bind(s.add),made:Array<ReturnType<typeof visual>>=[];let n=0;
+    vi.spyOn(s.add,'circle').mockImplementation((...args)=>{if(++n===3)throw Error('engine failure');const v=actual(...args);made.push(v as unknown as ReturnType<typeof visual>);return v;});
+    expect(()=>s['updateMissiles'](0)).toThrow('preparation failed');expect(made.every(v=>!v.active)).toBe(true);expect(s['missileChildren']).toHaveLength(0);expect(s['missiles']).toHaveLength(0);expect(s['reservedMissileChildren']).toBe(0);expect(f.enemy.health).toBe(100);
+  });
+  it.each(['MANUAL','REWARD','FOCUS_LOSS'] as const)('%s freezes child geometry, lifetime and grace; terminal clears references without late hits', reason => {
+    const f=burst(),s=f.scene,c=s['missileChildren'][0],before=[c.visual.x,c.visual.y,c.remainingLifetime,c.excludedEnemy];
+    s['run']!.requestPause(reason);s['updateMissiles'](10000);expect([c.visual.x,c.visual.y,c.remainingLifetime,c.excludedEnemy]).toEqual(before);
+    s['run']!.releasePause(reason);s['updateMissiles'](10);expect(c.remainingLifetime).toBe(490);s['enterPlayerDeath']();const pos=[c.visual.x,c.visual.y,c.remainingLifetime];
+    expect(s['missileChildren'].every(c=>c.excludedEnemy===null)).toBe(true);s['updateMissiles'](10000);expect([c.visual.x,c.visual.y,c.remainingLifetime]).toEqual(pos);
+  });
+  it.each(['parent','child'] as const)('Fragmentation %s Boss kill publishes/removes its complete detonation before Victory and freezes unrelated flights', mode => {
+    const f=setup('fragmentation'),s=f.scene;s['moduleLevels'].spatial=20;
+    let boss:typeof f.enemy;
+    if(mode==='parent'){s['enemies']=[];boss=s['createEnemy'](2800,1350,'boss',s['run']!)!;boss.health=1;s['fireMissile']();s['missiles'][0].visual.x=2800;s['updateMissiles'](0);}
+    else{burst(f);boss=s['createEnemy'](2800,1300,'boss',s['run']!)!;boss.health=.1;s['updateMissiles'](100);}
+    expect(s['run']!.outcome).toBe('VICTORY');expect(s['missiles']).toHaveLength(0);expect(s['missileChildren']).toHaveLength(mode==='parent'?4:3);
+    expect(s['reservedMissileChildren']).toBe(0);expect(s['missileChildren'].every(c=>c.excludedEnemy===null)).toBe(true);expect(s['enemies']).not.toContain(boss);
+    expect(s['xpPickups'].filter(p=>p.value===10)).toHaveLength(1);const state=s['missileChildren'].map(c=>[c.visual.x,c.visual.y,c.remainingLifetime]);s['updateMissiles'](10000);expect(s['missileChildren'].map(c=>[c.visual.x,c.visual.y,c.remainingLifetime])).toEqual(state);
+  });
+  it('dirty PAUSED native restart destroys old parents/children, releases reservations and rejects old callbacks', () => {
+    const f=fixture(),s=f.scene;allowCreate(s);s.create();s['enemies']=[];setMissile(s,{warheadPower:1,propulsion:1,blastExpansion:1});s['playerBuild']!.applyMissileChoice({kind:'missileSpecialization',branch:'fragmentation'},{combatMultiplier:1,spatialLevel:0});
+    const enemy=s['createEnemy'](2800,1350,'tank',s['run']!)!;enemy.health=100;burst({...f,enemy});s['fireMissile']();const flights=[...s['missiles'],...s['missileChildren']],oldBuild=s['playerBuild']!,oldRun=s['run']!;
+    oldRun.requestPause('MANUAL');f.shutdown();expect(flights.every(c=>!c.visual.active&&c.excludedEnemy===null&&c.reservedChildren===0)).toBe(true);
+    s.create();expect(s['playerBuild']).not.toBe(oldBuild);expect(s['playerBuild']!.getMissileConfiguration().form).toBe('BASE');expect(s['missileChildren']).toHaveLength(0);expect(s['reservedMissileChildren']).toBe(0);expect(s['gameplayTimers']).toHaveLength(5);
+    const before=window.__NEBULA_DEV__!.snapshot();s['explodeMissile'](2800,1350,flights[0]);s['stepMissile'](flights[0],1000,s['missiles'],false);expect(window.__NEBULA_DEV__!.snapshot()).toEqual(before);
+  });
+  it('old parent/child plans survive later payload, Spatial and shared-stat changes without double composition', () => {
+    const f=setup('fragmentation'),s=f.scene;s['fireMissile']();const parent=s['missiles'][0],old=parent.plan;
+    s['playerBuild']!.applyMissileChoice({kind:'missileDevelopment',branch:'fragmentation',upgrade:'payload'},{combatMultiplier:1,spatialLevel:0});
+    s['applyBuildChange']({kind:'percent',stat:'reactorPower',delta:1});s['applyBuildChange']({kind:'percent',stat:'projectileVelocity',delta:1});s['moduleLevels'].spatial=10;
+    parent.visual.x=2800;s['updateMissiles'](0);const child=s['missileChildren'][0];
+    expect(parent.plan).toBe(old);expect(child.attack.snapshot).toEqual({damage:.5625,speed:900,radius:3,lifetime:500,impact:75,explosionRadius:25.5});
+    s['fireMissile']();const next=s['missiles'][0];expect(next.damage).toBe(6);expect(next.plan).toMatchObject({childAttack:{snapshot:{damage:1.5,speed:1800,explosionRadius:55.5}}});
+  });
+  it('a large inward tangential segment exits once without an inclusive exit-boundary self-collision; zero delta leaves grace untouched', () => {
+    const f=burst(undefined,-27),s=f.scene,c=s['missileChildren'][0];s['updateMissiles'](0);expect(c.excludedEnemy).toBe(f.enemy);
+    s['updateMissiles'](100);expect(c.visual.x).toBe(2863);expect(c.excludedEnemy).toBeNull();expect(s['missileChildren']).toHaveLength(4);expect(f.enemy.health).toBe(97.75);
+  });
+  it('child lifetime clipping and arena exit release exact references without a late explosion', () => {
+    const f=burst(),s=f.scene,children=[...s['missileChildren']];children[0].visual.x=-4;children[0].headingX=-1;s['updateMissiles'](1);
+    expect(s['missileChildren']).not.toContain(children[0]);expect(children[0].excludedEnemy).toBeNull();
+    s['updateMissiles'](10000);expect(s['missileChildren']).toHaveLength(0);expect(children.every(c=>!c.visual.active&&c.excludedEnemy===null)).toBe(true);expect(f.enemy.health).toBe(97.75);
+  });
+  it('terminal during unpublished child publication leaves no partial burst, stale reference or reserved capacity', () => {
+    const f=setup('fragmentation'),s=f.scene;s['fireMissile']();s['missiles'][0].visual.x=2800;
+    const actual=s.add.circle.bind(s.add),made:Array<ReturnType<typeof visual>>=[];let interrupted=false;
+    vi.spyOn(s.add,'circle').mockImplementation((...args)=>{
+      const child=actual(...args),show=child.setVisible.bind(child);made.push(child as unknown as ReturnType<typeof visual>);
+      child.setVisible=(visible:boolean)=>{if(visible&&!interrupted){interrupted=true;s['enterPlayerDeath']();}return show(visible);};return child;
+    });
+    expect(()=>s['updateMissiles'](0)).toThrow('detonation failed');expect(made.every(c=>!c.active)).toBe(true);expect(s['missileChildren']).toHaveLength(0);expect(s['missiles']).toHaveLength(0);expect(s['reservedMissileChildren']).toBe(0);
+  });
+  it('shared stat preflight rejects the maximum authored enemy response before Build/cache/timer changes', () => {
+    const f=setup('heavy'),s=f.scene,before=f.api.snapshot(),timers=s['gameplayTimers'].map(t=>t.elapsed);
+    expect(()=>s['applyBuildChange']({kind:'percent',stat:'impact',delta:Number.MAX_SAFE_INTEGER/1000-1})).toThrow(RangeError);
+    expect(f.api.snapshot()).toEqual(before);expect(s['gameplayTimers'].map(t=>t.elapsed)).toEqual(timers);
+    expect(Reflect.set(s,'missileRanks',{warheadPower:2,propulsion:2,blastExpansion:2})).toBe(false);
+    const copy=s['missileRanks'];copy.warheadPower=2;expect(s['missileRanks'].warheadPower).toBe(1);
+  });
+});
+
+describe('GAME-057-C authoritative Missile reward boundary', () => {
+  it('authentic tuning and Cluster selections update the single Build authority and real launch', () => {
     const { scene: s, api } = fixture(), timers = [...s['gameplayTimers']], rng = spyStreams(s);
     for (const id of ['missile.warheadPower', 'missile.propulsion', 'missile.blastExpansion',
       'missile.warheadPower', 'missile.propulsion', 'missile.blastExpansion', 'passive.spatial'] as const) {
-      const roll = aimChoice(s, id, id === 'passive.spatial' ? 1 : 0);
+      const ready = Object.values(s['missileRanks']).reduce((a,b) => a+b,0) >= 3;
+      const roll = aimChoice(s, id, id === 'passive.spatial' ? 1 : ready ? 2 : 0);
       expect(api.forceLevelUp()).toBe(true); expect(roll).toHaveBeenCalledTimes(3); roll.mockRestore();
       const offer = s['rewardTransaction']!.snapshot()!;
-      expect(offer.candidates.every(c => !c.choice.kind.startsWith('missile') || c.choice.kind === 'missile')).toBe(true);
+      expect(offer.candidates.filter(c => c.choice.kind === 'missileSpecialization')).toHaveLength(s['missileRanks'].warheadPower + s['missileRanks'].propulsion + s['missileRanks'].blastExpansion >= 3 ? 1 : 0);
       const text = [...s['levelUpChoices']].find(([, value]) => value === id)![0]; text.emit('pointerdown');
       expect(s['run']!.state).toBe('RUNNING');
     }
@@ -328,7 +526,7 @@ describe('GAME-057-B transitional Missile reward boundary', () => {
     expect(api.forceLevelUp()).toBe(true);
     const text = [...s['levelUpChoices']].find(([, value]) => value === 'cluster')![0]; text.emit('pointerdown');
     expect(s['clusterEvolved']).toBe(true); expect(s['run']!.state).toBe('RUNNING');
-    expect(s['playerBuild']!.getMissileConfiguration()).toEqual({ ranks: { warheadPower: 0, propulsion: 0, blastExpansion: 0 }, form: 'BASE', upgrades: [], capstone: false });
+    expect(s['playerBuild']!.getMissileConfiguration()).toEqual({ ranks: { warheadPower: 2, propulsion: 2, blastExpansion: 2 }, form: 'CLUSTER', upgrades: [], capstone: false });
     s['createEnemy'](2800, 1350, 'tank', s['run']!); s['fireMissile']();
     expect(s['missiles'][0].attack.variant).toBe('CLUSTER');
     expect(s['missiles'][0].attack.snapshot).toEqual({ damage: 4, speed: 600, radius: 8, lifetime: 4000, explosionRadius: 195, impact: 400 });
@@ -336,7 +534,7 @@ describe('GAME-057-B transitional Missile reward boundary', () => {
     for (const index of [0, 2, 3]) expect(rng[index]).not.toHaveBeenCalled();
     expect(s['runDiagnostics']!.snapshot().aggregates.choicesAccepted).toBe(8);
   });
-  it('rejects an injected new Missile reward before mutation and keeps its authentic transaction retryable', () => {
+  it('rejects a premature injected Missile reward before mutation and keeps its authentic transaction retryable', () => {
     const { scene: s, api } = fixture();
     expect(api.forceLevelUp()).toBe(true);
     const p = s['rewardPresentation']!, text = [...p.choices.keys()][0], original = p.choices.get(text)!;
@@ -431,8 +629,8 @@ describe('GAME-051 authoritative death', () => {
         for (const p of s['projectiles']) { p.visual.x = 2800; p.visual.y = 1350; }
         s['updateProjectiles'](0); expect(attacks.every(a => Object.isFrozen(a) && Object.isFrozen(a.snapshot))).toBe(true);
       } else {
-        s['clusterEvolved'] = mode !== 'MISSILE'; s['fireMissile'](); const m = s['missiles'][0];
-        if (mode === 'CLUSTER_SATELLITE') { s['explodeMissile'](2620, 1350, m); s['explodeClusterSatellites'](2620, 1350, m); }
+        if (mode !== 'MISSILE') setMissile(s, undefined, true); s['fireMissile'](); const m = s['missiles'][0];
+        if (mode === 'CLUSTER_SATELLITE') { const x = 2800 - m.explosionRadius * 1.5; s['explodeMissile'](x, 1350, m); s['explodeClusterSatellites'](x, 1350, m); }
         else { m.visual.x = 2800; m.visual.y = 1350; s['updateMissiles'](0); }
       }
       const source = { kind: mode === 'LASER' || mode === 'PRISM' ? 'LASER' : mode === 'DRONE' || mode === 'TWIN' ? 'COMBAT_DRONE' : 'MISSILE',
@@ -445,15 +643,16 @@ describe('GAME-051 authoritative death', () => {
     } finally { completed.mockRestore(); }
   });
   it('Cluster primary survivor dies to satellite and multiple overlapping deaths each keep their position/XP', () => {
-    const { scene: s } = fixture(); s['clusterEvolved'] = true;
-    for (const x of [2460, 2461, 2580]) s['createEnemy'](x, 1350, 'chaser', s['run']!);
+    const { scene: s } = fixture(); setMissile(s, undefined, true);
+    for (const x of [2497.5, 2498.5, 2692.5]) s['createEnemy'](x, 1350, 'chaser', s['run']!);
+    s['enemies'][0].health = 5; s['enemies'][1].health = 5;
     s['enemies'][2].health = 1; s['fireMissile'](); const m = s['missiles'][0], completed = watch(s);
     try {
       s['explodeMissile'](2400, 1350, m); expect(s['enemies'].map(e => e.health)).toEqual([1, 1, 1]);
       expect(s['enemies'][0].lastDamagingSource?.phase).toBe('PRIMARY');
       s['explodeClusterSatellites'](2400, 1350, m); expect(completed).toHaveBeenCalledTimes(3);
       expect(completed.mock.results.every(r => r.value?.killSource.phase === 'SATELLITE')).toBe(true);
-      expect(s['xpPickups'].map(p => [p.visual.x, p.value])).toEqual([[2460, 1], [2461, 1], [2580, 1]]);
+      expect(s['xpPickups'].map(p => [p.visual.x, p.value])).toEqual([[2497.5, 1], [2498.5, 1], [2692.5, 1]]);
       s['explodeClusterSatellites'](2400, 1350, m); expect(completed).toHaveBeenCalledTimes(3);
       expect(s['runDiagnostics']!.snapshot().aggregates).toMatchObject({ killed: { total: 3 }, xpDropped: 3, killsBySource: { 'MISSILE.CLUSTER.SATELLITE': 3 } });
     } finally { completed.mockRestore(); }
@@ -473,9 +672,9 @@ describe('GAME-051 authoritative death', () => {
     } finally { observe.mockRestore(); }
   });
   it.each(['BASE', 'CLUSTER_PRIMARY', 'CLUSTER_SATELLITE'] as const)('%s completes all death records and Missile cleanup before a single Victory', mode => {
-    const { scene: s, api } = fixture(), boss = s['createEnemy'](mode === 'CLUSTER_SATELLITE' ? 2980 : 2800, 1350, 'boss', s['run']!)!;
-    boss.health = 1; const primary = s['createEnemy'](2800, 1350, 'chaser', s['run']!)!, outer = s['createEnemy'](2980, 1350, 'chaser', s['run']!)!;
-    primary.health = 1; outer.health = 1; s['clusterEvolved'] = mode !== 'BASE'; s['fireMissile']();
+    const { scene: s, api } = fixture(), boss = s['createEnemy'](mode === 'CLUSTER_SATELLITE' ? 3092.5 : 2800, 1350, 'boss', s['run']!)!;
+    boss.health = 1; const primary = s['createEnemy'](2800, 1350, 'chaser', s['run']!)!, outer = s['createEnemy'](3092.5, 1350, 'chaser', s['run']!)!;
+    primary.health = 1; outer.health = 1; if (mode !== 'BASE') setMissile(s, undefined, true); s['fireMissile']();
     const missile = s['missiles'][0]; missile.visual.x = 2800; missile.visual.y = 1350;
     const completed = watch(s), enter = s['enterRunVictory'].bind(s);
     const terminal = vi.spyOn(s as unknown as { enterRunVictory: typeof enter }, 'enterRunVictory');
@@ -896,12 +1095,13 @@ describe('GAME-042 real Scene terminal integration', () => {
   });
   it.each(['missile', 'cluster-primary', 'cluster-satellite'] as const)('%s completes whole detonation before Victory', mode => {
     const { scene } = fixture();
-    const enemy = boss(scene, mode === 'cluster-satellite' ? 2980 : 2800);
+    const enemy = boss(scene, mode === 'cluster-satellite' ? 3092.5 : 2800);
     scene['createEnemy'](2800, 1350, 'chaser', scene['run']!);
     const primary = scene['enemies'].at(-1)!;
-    scene['createEnemy'](2980, 1350, 'chaser', scene['run']!);
+    scene['createEnemy'](3092.5, 1350, 'chaser', scene['run']!);
     const satelliteSurvivor = scene['enemies'].at(-1)!;
-    scene['clusterEvolved'] = mode !== 'missile';
+    if (mode !== 'missile') setMissile(scene, undefined, true);
+    if (mode !== 'missile') { primary.health = 5; satelliteSurvivor.health = 4; }
     scene['fireMissile']();
     const missile = scene['missiles'][0];
     missile.visual.x = 2800;
@@ -1150,7 +1350,7 @@ describe('Scene run-scoped randomness production boundaries', () => {
   it.each([false, true])('fully mastered fallback and eligible evolution=%s both consume3 draws', evolution => {
     const { scene, api } = fixture();
     setLaser(scene, { power: 2, fireRate: 2, speed: 2 });
-    scene['missileRanks'] = { warheadPower: 2, propulsion: 2, blastExpansion: 2 };
+    setMissile(scene);
     scene['droneRanks'] = { boltPower: 2, firingSystem: 2, boltPropulsion: 2 };
     if (evolution) scene['moduleLevels'].combat = 1;
     const draw = vi.spyOn(scene['runRandom']!.reward, 'next'); api.forceLevelUp();
@@ -1732,9 +1932,9 @@ describe('GAME-046 PlayerBuild production consumers', () => {
     setLaser(s, { power: 2, fireRate: 2, speed: 2 }); s['moduleLevels'].combat = 1;
     f.api.forceLevelUp(); expect(offer(s)[2]).toContain('ЭВОЛЮЦИЯ: Призменный лазер'); s['levelUpPresentation'][3].emit('pointerdown'); s['fireLaser']();
     expect(s['projectiles']).toHaveLength(3); expect(s['projectiles'].every(p => p.damage === 3)).toBe(true);
-    s['projectiles'] = []; s['missileRanks'] = { warheadPower: 2, propulsion: 2, blastExpansion: 2 }; passive(f, 'spatial');
+    s['projectiles'] = []; setMissile(s); passive(f, 'spatial');
     f.api.forceLevelUp(); expect(offer(s)[2]).toContain('ЭВОЛЮЦИЯ: Кассетная ракета'); s['levelUpPresentation'][3].emit('pointerdown'); s['fireMissile']();
-    expect(s['missiles'][0]).toMatchObject({ clusterEnabled: true, explosionRadius: 135 });
+    expect(s['missiles'][0]).toMatchObject({ clusterEnabled: true, explosionRadius: 195 });
     s['droneRanks'] = { boltPower: 2, firingSystem: 2, boltPropulsion: 2 }; passive(f, 'replication');
     f.api.forceLevelUp(); expect(offer(s)[2]).toContain('ЭВОЛЮЦИЯ: Парные дроны'); s['levelUpPresentation'][3].emit('pointerdown'); s['fireDrone']();
     expect(s['projectiles']).toHaveLength(2); expect(s['twinDroneEvolved']).toBe(true);
@@ -1769,7 +1969,7 @@ describe('GAME-046 PlayerBuild production consumers', () => {
     expect(events.map(e => e.delay)).toEqual([2000, 600, 1800, 1200, 1500]);
     s['applyBuildChange']({ kind: 'percent', stat: 'fireControl', delta: 1 });
     expect(events.map(e => e.delay)).toEqual([2000, 300, 900, 600, 1500]);
-    expect(events.map(e => e.elapsed)).toEqual([100, 0, 0, 0, 100]); expect(events.map(e => e.callback)).toEqual(callbacks);
+    expect(events.map(e => e.elapsed)).toEqual([100, 0, 50, 0, 100]); expect(events.map(e => e.callback)).toEqual(callbacks);
     expect(s['projectiles']).toHaveLength(0); expect(s['missiles']).toHaveLength(0);
     s['applyBuildChange']({ kind: 'percent', stat: 'fireControl', delta: 0 }); s['applyBuildChange']({ kind: 'percent', stat: 'thrust', delta: 0.1 });
     expect(resets.map(e => e.mock.calls.length)).toEqual([0, 1, 1, 1, 0]);
@@ -1842,7 +2042,7 @@ describe('GAME-047 canonical BuildSnapshot and production neutrality', () => {
       else {
         index = 3;
         if (option.kind === 'prism') { setLaser(s, { power: 2, fireRate: 2, speed: 2 }); s['moduleLevels'].combat = 1; }
-        if (option.kind === 'cluster') { s['missileRanks'] = { warheadPower: 2, propulsion: 2, blastExpansion: 2 }; s['moduleLevels'].spatial = 1; }
+        if (option.kind === 'cluster') { setMissile(s); s['moduleLevels'].spatial = 1; }
         if (option.kind === 'twin') { s['droneRanks'] = { boltPower: 2, firingSystem: 2, boltPropulsion: 2 }; s['moduleLevels'].replication = 1; }
       }
       const before = tagsAndIdentity(build.snapshot()), draws = spyStreams(s);
@@ -2062,15 +2262,15 @@ describe('GAME-049 concrete Attack/Hit integration', () => {
       s['applyBuildChange']({ kind: 'percent', stat, delta });
     }
     s['globalDamageMultiplier'] = 1.25; s['playerBuild']!.applyLaserChoice({ kind: 'laser', upgrade: 'power' }, 0); s['droneAttackValues'].damage = 2;
-    s['missileValues'] = { damage: 3, speed: 525, explosionRadius: 150 };
-    s['moduleLevels'].spatial = 2; s['moduleLevels'].replication = 2; s['clusterEvolved'] = true; setLaser(s, undefined, true);
+    setMissile(s, { warheadPower: 1, propulsion: 1, blastExpansion: 1 });
+    s['moduleLevels'].spatial = 2; s['moduleLevels'].replication = 2; setMissile(s, undefined, true); setLaser(s, undefined, true);
     expect([p, d, m].map(f => JSON.stringify(f.attack))).toEqual(before);
     expect(() => { (p as unknown as { damage: number }).damage = 999; }).toThrow(TypeError);
     expect(() => { (m as unknown as { radius: number }).radius = 999; }).toThrow(TypeError);
     s['fireLaser'](); s['fireDrone'](); s['missiles'] = []; s['fireMissile']();
     expect(s['projectiles'][2].attack).toMatchObject({ kind: 'LASER', variant: 'PRISM', snapshot: { damage: 7.5, speed: 3200, radius: 12 } });
     expect(s['projectiles'].at(-1)!.attack).toMatchObject({ kind: 'COMBAT_DRONE', snapshot: { damage: 15, speed: 1600, radius: 14 } });
-    expect(s['missiles'][0].attack).toMatchObject({ kind: 'MISSILE', variant: 'CLUSTER', snapshot: { damage: 7.5, speed: 1050, radius: 16, explosionRadius: 180 } });
+    expect(s['missiles'][0].attack).toMatchObject({ kind: 'MISSILE', variant: 'CLUSTER', snapshot: { damage: 10, speed: 1200, radius: 16, explosionRadius: 210 } });
     expect(m.attack).toMatchObject({ variant: 'BASE', snapshot: { damage: 2, speed: 450, radius: 8, explosionRadius: 120 } });
   });
   it('returns calculated versus actual loss, negative overkill HP and exactly one kill/XP', () => {
@@ -2100,14 +2300,14 @@ describe('GAME-049 concrete Attack/Hit integration', () => {
     expect(s['enemies'].map(e => e.health)).toEqual(tie ? [5, 6] : [6, 5]); expect(s['projectiles']).toHaveLength(0);
   });
   it('Cluster snapshots primary then the survivor union, allowing one of each without overlap duplicates', () => {
-    const { scene: s } = armed(); s['enemies'][0].visual.x = 2460; s['clusterEvolved'] = true; s['fireMissile']();
+    const { scene: s } = armed(); s['enemies'][0].visual.x = 2497.5; s['enemies'][0].health = 12; setMissile(s, undefined, true); s['fireMissile']();
     const m = s['missiles'][0]; s['explodeMissile'](2400, 1350, m); s['explodeClusterSatellites'](2400, 1350, m);
-    expect(s['enemies'][0].health).toBe(3); // 6 - primary2 - satellite1 at inclusive tangent.
-    s['createEnemy'](2580, 1350, 'tank', s['run']!); const outer = s['enemies'].at(-1)!;
-    s['explodeClusterSatellites'](2400, 1350, m); expect(outer.health).toBe(5);
+    expect(s['enemies'][0].health).toBe(6); // 12 - primary4 - satellite2 at inclusive tangent.
+    s['createEnemy'](2692.5, 1350, 'tank', s['run']!); const outer = s['enemies'].at(-1)!;
+    s['explodeClusterSatellites'](2400, 1350, m); expect(outer.health).toBe(4);
   });
   it('validates tiny Cluster half-damage before visual, array, HP or timer mutation', () => {
-    const { scene: s } = armed(); s['clusterEvolved'] = true; s['missileValues'].damage = Number.MIN_VALUE;
+    const { scene: s } = armed(); setMissile(s, undefined, true); s['globalDamageMultiplier'] = Number.MIN_VALUE; s['playerBuild']!.applyStatPercent('reactorPower', -.99);
     const circle = vi.spyOn(s.add, 'circle'), before = s['gameplayTimers'].map(t => t.elapsed);
     expect(() => s['fireMissile']()).toThrow(RangeError); expect(circle).not.toHaveBeenCalled(); expect(s['missiles']).toHaveLength(0);
     expect(s['enemies'][0].health).toBe(6); expect(s['gameplayTimers'].map(t => t.elapsed)).toEqual(before);
@@ -2126,13 +2326,15 @@ describe('GAME-049 concrete Attack/Hit integration', () => {
     s['enemies'] = []; const expired = playerShot(s); s['updateProjectiles'](3000);
     expect(s['projectiles']).toHaveLength(0); expect(expired.visual.active).toBe(false);
   });
-  it('Missile hits an intervening non-target at interpolated center and reacquires only after target loss', () => {
+  it('BASE hits an intervening non-target at interpolated center and keeps its launch heading after target loss', () => {
     const { scene: s } = fixture(); s['createEnemy'](3000, 1350, 'tank', s['run']!); s['fireMissile'](); const m = s['missiles'][0];
     const target = m.target; s['createEnemy'](2600, 1350, 'tank', s['run']!); const interceptor = s['enemies'][1];
     const explosion = vi.spyOn(s as unknown as { explodeMissile(x: number, y: number, missile: unknown): void }, 'explodeMissile');
     s['updateMissiles'](1000); expect(m.target).toBe(target); expect(explosion.mock.calls[0].slice(0, 2)).toEqual([2568, 1350]);
     expect(interceptor.health).toBe(4); expect(target!.health).toBe(6);
-    s['fireMissile'](); const next = s['missiles'][0]; s['enemies'] = [target!]; s['updateMissiles'](0); expect(next.target).toBe(target);
+    s['fireMissile'](); const next = s['missiles'][0], heading = [next.headingX, next.headingY];
+    s['enemies'] = [target!]; target!.visual.y += 300; s['updateMissiles'](10);
+    expect([next.headingX, next.headingY]).toEqual(heading); expect(next.target).not.toBe(target);
   });
   it('stale Missile explosion cannot access fresh enemies and invalid BASE satellite fails before HP', () => {
     const { scene: s } = armed(); s['fireMissile'](); const m = s['missiles'][0], enemy = s['enemies'][0];
@@ -2319,8 +2521,8 @@ describe('GAME-052 physical interaction and Charger integration', () => {
       if (mode === 'twin') s['twinDrone'] = visual(2450, 1350) as unknown as NonNullable<typeof s['twinDrone']>;
       s['fireDrone'](); s['updateProjectiles'](500);
     } else {
-      s['clusterEvolved'] = mode !== 'missile'; s['fireMissile'](); const m = s['missiles'][0];
-      if (mode === 'cluster-satellite') s['explodeClusterSatellites'](2620, 1350, m);
+      if (mode !== 'missile') setMissile(s, undefined, true); s['fireMissile'](); const m = s['missiles'][0];
+      if (mode === 'cluster-satellite') s['explodeClusterSatellites'](2800 - m.explosionRadius, 1350, m);
       else s['explodeMissile'](2800, 1350, m);
     }
     const expected = mode === 'twin' ? 320 : mode.includes('satellite') ? 200 : mode.includes('primary') || mode === 'missile' ? 400 : mode === 'drone' ? 160 : 200;
@@ -2329,14 +2531,15 @@ describe('GAME-052 physical interaction and Charger integration', () => {
   });
   it('Cluster uses FIRST covering satellite origin once and preserves primary survivor positions/membership', () => {
     const { scene: s } = inputFixture(), e = s['createEnemy'](2680, 1350, 'chaser', s['run']!)!; e.health = 100;
-    s['clusterEvolved'] = true; s['fireMissile'](); const m = s['missiles'][0];
-    // Target at offset120 is primary-inclusive and satellite-center coincident: both directions +X.
+    setMissile(s, undefined, true); s['fireMissile'](); const m = s['missiles'][0];
+    // Target at offsetR is primary-inclusive and satellite-center coincident: both directions +X.
+    e.visual.x = 2560 + m.explosionRadius;
     s['explodeMissile'](2560, 1350, m); s['explodeClusterSatellites'](2560, 1350, m);
-    expect(e.health).toBe(97); expect(e.knockbackVelocity).toEqual({ x: 600, y: 0 }); expect(e.visual.x).toBe(2680);
-    e.visual.x = 2650; e.visual.y = 1350 + Math.sqrt(3) * 30; e.knockbackVelocity = { x: 0, y: 0 };
+    expect(e.health).toBe(94); expect(e.knockbackVelocity).toEqual({ x: 600, y: 0 }); expect(e.visual.x).toBe(2755);
+    e.visual.x = 2560 + .75 * m.explosionRadius; e.visual.y = 1350 + Math.sqrt(3) * .25 * m.explosionRadius; e.knockbackVelocity = { x: 0, y: 0 };
     const hit = vi.spyOn(s as unknown as { applyEnemyHit: typeof s['applyEnemyHit'] }, 'applyEnemyHit');
     s['explodeClusterSatellites'](2560, 1350, m); expect(hit).toHaveBeenCalledTimes(1);
-    expect(hit.mock.calls[0][0]).toMatchObject({ origin: { x: 2680, y: 1350 } }); expect(e.knockbackVelocity.x).toBeLessThan(0);
+    expect(hit.mock.calls[0][0]).toMatchObject({ origin: { x: 2755, y: 1350 } }); expect(e.knockbackVelocity.x).toBeLessThan(0);
   });
 });
 
@@ -2632,7 +2835,7 @@ describe('GAME-055 real generator integration', () => {
   });
   it('rejects insufficient policy pool before RNG, pause, UI and transaction writes',()=>{
     const {scene:s}=fixture();s['playerProgression']!.creditXp(5);
-    setLaser(s, {power:2,fireRate:2,speed:2});s['missileRanks']={warheadPower:2,propulsion:2,blastExpansion:2};s['droneRanks']={boltPower:2,firingSystem:2,boltPropulsion:2};
+    setLaser(s, {power:2,fireRate:2,speed:2});setMissile(s);s['droneRanks']={boltPower:2,firingSystem:2,boltPropulsion:2};
     for(const key of Object.keys(s['moduleLevels']))Reflect.set(s['moduleLevels'],key,Number.MAX_SAFE_INTEGER);
     const draws=spyStreams(s),before=s['levelUpGenerator']!.snapshot();
     expect(()=>s['enterLevelUpPause']()).toThrow('Insufficient');expect(s['run']!.state).toBe('RUNNING');expect(s['rewardTransaction']!.snapshot()).toBeNull();
@@ -2716,7 +2919,7 @@ describe('UI-001 Russian production presentation', () => {
     } else if (candidate.kind === 'laserSpecialization') setLaser(s, { power: 2, fireRate: 1, speed: 0 });
     else if (id === 'prism') { setLaser(s); s['moduleLevels'].combat = 1; }
     else if (id === 'cluster') {
-      s['missileRanks'] = { warheadPower: 2, propulsion: 2, blastExpansion: 2 }; s['moduleLevels'].spatial = 1;
+      setMissile(s); s['moduleLevels'].spatial = 1;
     } else if (id === 'twin') {
       s['droneRanks'] = { boltPower: 2, firingSystem: 2, boltPropulsion: 2 }; s['moduleLevels'].replication = 1;
     }

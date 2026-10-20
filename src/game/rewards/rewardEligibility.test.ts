@@ -1,3 +1,4 @@
+import { missileProfile } from '../player/missileProgression';
 import { laserProfile } from '../player/laserProgression';
 import { describe, expect, it } from 'vitest';
 import { PlayerBuild } from '../player/PlayerBuild';
@@ -7,10 +8,10 @@ import { rewardChoices, choiceIdentity } from './rewardChoices';
 function context(): RewardEligibilityContext {
   const build = new PlayerBuild(), buildSnapshot = build.snapshot();
   return { build: buildSnapshot, get laserRanks() { return this.build.laser.ranks; },
-    missileRanks: { warheadPower: 0, propulsion: 0, blastExpansion: 0 }, droneRanks: { boltPower: 0, firingSystem: 0, boltPropulsion: 0 },
+    get missileRanks() { return this.build.missile.ranks; }, droneRanks: { boltPower: 0, firingSystem: 0, boltPropulsion: 0 },
     moduleLevels: { hull: 0, thruster: 0, collector: 0, combat: 0, spatial: 0, replication: 0 },
-    get prismEvolved() { return this.build.laser.form === 'PRISM'; }, set prismEvolved(v: boolean) { this.build.laser.form = v ? 'PRISM' : 'BASE'; }, clusterEvolved: false, twinDroneEvolved: false, get laser() { const p = laserProfile(this.build.laser); return { damage: p.damage, fireInterval: p.fireInterval, projectileSpeed: p.projectileSpeed }; },
-    missile: { damage: 2, speed: 450, explosionRadius: 120 }, drone: { damage: 1, fireInterval: 1200, projectileSpeed: 800 },
+    get prismEvolved() { return this.build.laser.form === 'PRISM'; }, set prismEvolved(v: boolean) { this.build.laser.form = v ? 'PRISM' : 'BASE'; }, get clusterEvolved() { return this.build.missile.form === 'CLUSTER'; }, set clusterEvolved(v: boolean) { this.build.missile.form = v ? 'CLUSTER' : 'BASE'; }, twinDroneEvolved: false, get laser() { const p = laserProfile(this.build.laser); return { damage: p.damage, fireInterval: p.fireInterval, projectileSpeed: p.projectileSpeed }; },
+    get missile() { const p = missileProfile(this.build.missile); return { damage: p.damage, speed: p.projectileSpeed, explosionRadius: p.explosionRadius }; }, drone: { damage: 1, fireInterval: 1200, projectileSpeed: 800 },
     magnetRadius: 180, combatMultiplier: 1, hullPreview: build.previewPrototypeHullPlating(), thrusterPreview: build.previewPrototypeThruster() };
 }
 describe('detached hard reward eligibility', () => {

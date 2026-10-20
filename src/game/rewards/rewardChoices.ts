@@ -15,6 +15,9 @@ export const MISSILE_NEW_CHOICES: readonly NewMissileChoice[] = Object.freeze([
 export function isNewMissileChoice(choice: LevelUpChoice): choice is NewMissileChoice {
   return choice.kind === 'missileSpecialization' || choice.kind === 'missileDevelopment' || choice.kind === 'missileCapstone';
 }
+export function isMissileRewardChoice(choice: LevelUpChoice): choice is MissileChoice {
+  return isNewMissileChoice(choice) || choice.kind === 'missile' || choice.kind === 'cluster';
+}
 
 export type PassiveModule = 'hull' | 'thruster' | 'collector' | 'combat' | 'spatial' | 'replication';
 export type OrdinaryChoice = { readonly kind: 'laser'; readonly upgrade: keyof LaserRanks }

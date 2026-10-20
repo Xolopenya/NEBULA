@@ -1,3 +1,4 @@
+import { missileProfile } from '../player/missileProgression';
 import { describe, expect, it, vi } from 'vitest';
 import { PlayerBuild } from '../player/PlayerBuild';
 import { laserProfile } from '../player/laserProgression';
@@ -20,9 +21,9 @@ function context(b = ready()): LevelUpContext {
   return { build: b.snapshot(), weaponFocus: 'missile',
     get laserRanks() { return this.build.laser.ranks; }, get prismEvolved() { return this.build.laser.form === 'PRISM'; },
     get laser() { const p = laserProfile(this.build.laser); return { damage: p.damage, fireInterval: p.fireInterval, projectileSpeed: p.projectileSpeed }; },
-    // These remain actual legacy projections in stage B, independent of the dormant Build configuration.
-    missileRanks: { warheadPower: 0, propulsion: 0, blastExpansion: 0 }, clusterEvolved: false,
-    missile: { damage: 2, speed: 450, explosionRadius: 120 },
+    // Compatibility projections derive exclusively from the authoritative detached Build.
+    get missileRanks() { return this.build.missile.ranks; }, get clusterEvolved() { return this.build.missile.form === 'CLUSTER'; }, set clusterEvolved(v: boolean) { this.build.missile.form = v ? 'CLUSTER' : 'BASE'; },
+    get missile() { const p = missileProfile(this.build.missile); return { damage: p.damage, speed: p.projectileSpeed, explosionRadius: p.explosionRadius }; },
     droneRanks: { boltPower: 0, firingSystem: 0, boltPropulsion: 0 }, twinDroneEvolved: false,
     drone: { damage: 1, fireInterval: 1200, projectileSpeed: 800 },
     moduleLevels: { hull: 0, thruster: 0, collector: 0, combat: 0, spatial: 0, replication: 0 },
@@ -30,6 +31,15 @@ function context(b = ready()): LevelUpContext {
 }
 
 describe('GAME-057-B closed Missile eligibility', () => {
+  it.each(['ranks','values','cluster','extra'] as const)('rejects contradictory %s projections before drawing or mutation', kind => {
+    const c=context(),g=new LevelUpGenerator(),rng=vi.fn(()=>0);
+    if(kind==='ranks')Object.defineProperty(c,'missileRanks',{value:{warheadPower:0,propulsion:0,blastExpansion:0},enumerable:true});
+    if(kind==='values')Object.defineProperty(c,'missile',{value:{...c.missile,damage:999},enumerable:true});
+    if(kind==='cluster')Object.defineProperty(c,'clusterEvolved',{value:true,enumerable:true});
+    if(kind==='extra')Object.defineProperty(c,'missile',{value:{...c.missile,extra:1},enumerable:true});
+    const before=structuredClone(c),policy=g.snapshot();expect(()=>g.generate(c,rng)).toThrow(RangeError);
+    expect(rng).not.toHaveBeenCalled();expect(g.snapshot()).toEqual(policy);expect(c).toEqual(before);
+  });
   it.each(MISSILE_BRANCHES)('%s uses installed Build readiness, preserves ranks and excludes Cluster/other forms', branch => {
     const b = ready(), c = context(b), choice = { kind: 'missileSpecialization' as const, branch }, before = structuredClone(c);
     expect(isRewardEligible(choice, c)).toBe(true); expect(c).toEqual(before);
@@ -81,14 +91,14 @@ describe('GAME-057-B closed Missile eligibility', () => {
     if (mode === 'rank') c.build.missile.ranks.propulsion = NaN;
     if (mode === 'spatial') Reflect.set(c.moduleLevels, 'spatial', .5);
     if (mode === 'combat') Reflect.set(c, 'combatMultiplier', Infinity);
-    const before = structuredClone(c), policy = g.snapshot();
+    const before = structuredClone(c.build), policy = g.snapshot();
     if (mode === 'unknown') {
       expect(() => assertRewardFeasible({ kind: 'missileDevelopment', branch: 'guidance', upgrade: 'reload' } as never, c)).toThrow(RangeError);
     } else {
       expect(() => assertRewardContext(c)).toThrow(RangeError);
       expect(() => g.generate(c, rng)).toThrow(RangeError);
     }
-    expect(rng).not.toHaveBeenCalled(); expect(g.snapshot()).toEqual(policy); expect(c).toEqual(before);
+    expect(rng).not.toHaveBeenCalled(); expect(g.snapshot()).toEqual(policy); expect(c.build).toEqual(before);
   });
   it('preflights passive Combat/Spatial against the acquired profile and frozen children', () => {
     const b = ready(); b.applyMissileChoice({ kind: 'missileSpecialization', branch: 'fragmentation' }, composition);

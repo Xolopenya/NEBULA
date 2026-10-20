@@ -22,9 +22,10 @@ import { shouldSpawnWarden, wardenPhase, wardenBurstDirections } from '../enemie
 import { stepDash } from '../player/dash';
 import { PlayerBuild, type PercentStatKey } from '../player/PlayerBuild';
 import { PlayerDefense } from '../player/PlayerDefense';
-import { effectiveMissileExplosionRadius } from '../progression/spatialAmplifier';
 import { effectiveDroneBoltRadius } from '../progression/replicationMatrix';
-import { type MissileRanks, type DroneRanks, type WeaponFocus } from '../progression/focusedUpgrade';
+import { type DroneRanks, type WeaponFocus } from '../progression/focusedUpgrade';
+import { missileProfile } from '../player/missileProgression';
+import { missileLaunchPlan, missileGeometry, missileSeparated, type MissileLaunchPlan } from '../combat/missileFlight';
 import { laserProfile, laserAttack, isLaserChoice, prepareLaserChoice } from '../player/laserProgression';
 import { laserDirections } from '../combat/laserPatterns';
 import { addExperience } from '../progression/experience';
@@ -34,7 +35,7 @@ import { planXpConsolidation, XP_CONSOLIDATION_THRESHOLD, XP_CONSOLIDATION_CELL_
 import { RUSSIAN_FONT, UI_TEXT, hudLines, rewardLabel, victoryLevel } from '../ui/russianText';
 import { LevelUpGenerator } from '../rewards/LevelUpGenerator';
 import { RewardTransaction, type RewardToken } from '../rewards/RewardTransaction';
-import { choiceIdentity, type LevelUpChoice, type PassiveModule, type RewardCandidate } from '../rewards/rewardChoices';
+import { choiceIdentity, isMissileRewardChoice, type LevelUpChoice, type PassiveModule, type RewardCandidate } from '../rewards/rewardChoices';
 import { isRewardEligible, assertRewardFeasible, assertCombatConsumers, type RewardEligibilityContext } from '../rewards/rewardEligibility';
 
 type BuildChange = { kind: 'percent'; stat: PercentStatKey; delta: number } | { kind: 'hullPlating' } | { kind: 'thruster' };
@@ -128,6 +129,7 @@ type ProjectileRuntime = {
 };
 
 type MissileRuntime = {
+  readonly plan: MissileLaunchPlan;
   readonly attack: MissileAttack;
   readonly run: RunLifecycle;
   readonly radius: number;
@@ -140,6 +142,9 @@ type MissileRuntime = {
   headingX: number;
   headingY: number;
   remainingLifetime: number;
+  reservedChildren: number;
+  excludedEnemy: EnemyRuntime | null;
+  directionTick?: Phaser.GameObjects.Graphics;
 };
 
 export class GameplayScene extends Phaser.Scene {
@@ -194,12 +199,13 @@ export class GameplayScene extends Phaser.Scene {
   private currentTarget?: EnemyRuntime;
   private projectiles: ProjectileRuntime[] = [];
   private missiles: MissileRuntime[] = [];
-  private readonly missile = {
-    maxActiveMissiles: 1,
-    fireInterval: 1800, lifetime: 4000, radius: 8,
-  } as const;
-  private missileValues = { damage: 2, speed: 450, explosionRadius: 120 };
-  private missileRanks: MissileRanks = { warheadPower: 0, propulsion: 0, blastExpansion: 0 };
+  private missileChildren: MissileRuntime[] = [];
+  private reservedMissileChildren = 0;
+  private missileEffects: Phaser.GameObjects.Graphics[] = [];
+  private get missile() { return { ...missileProfile(this.playerBuild!.getMissileConfiguration()), maxActiveMissiles: 1 }; }
+  private get missileValues() { const p = this.missile; return { damage: p.damage, speed: p.projectileSpeed, explosionRadius: p.explosionRadius }; }
+  private get missileRanks() { return this.playerBuild!.getMissileConfiguration().ranks; }
+  private get clusterEvolved(): boolean { return this.playerBuild!.getMissileConfiguration().form === 'CLUSTER'; }
   private missileTimer?: Phaser.Time.TimerEvent;
   private weaponFocus: WeaponFocus = 'laser';
   private inputAdapter?: KeyboardInput;
@@ -224,7 +230,6 @@ export class GameplayScene extends Phaser.Scene {
   private get laser() { return laserProfile(this.playerBuild!.snapshot().laser); }
   private get laserRanks() { return this.playerBuild!.snapshot().laser.ranks; }
   private get prismEvolved() { return this.playerBuild!.snapshot().laser.form === 'PRISM'; }
-  private clusterEvolved = false;
   private laserTimer?: Phaser.Time.TimerEvent;
   private readonly projectileRadius = 6;
   private readonly spawnInterval = GAMEPLAY_SETTINGS.phases.phaseOneSpawnIntervalMs;
@@ -286,10 +291,7 @@ export class GameplayScene extends Phaser.Scene {
     this.dashRemaining = 0;
     this.dashCooldownRemaining = 0;
     this.dashDirection.set(0, 0);
-    this.missileRanks = { warheadPower: 0, propulsion: 0, blastExpansion: 0 };
-    this.missileValues = { damage: 2, speed: 450, explosionRadius: 120 };
     this.weaponFocus = 'laser';
-    this.clusterEvolved = false;
     const progression = new PlayerProgression();
     this.playerProgression = progression;
     const disposeProgression = () => {
@@ -349,6 +351,23 @@ export class GameplayScene extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, disposeFlights);
     this.events.once(Phaser.Scenes.Events.DESTROY, disposeFlights);
     this.missiles = [];
+    this.missileChildren = [];
+    this.reservedMissileChildren = 0;
+    this.missileEffects = [];
+    const parents = this.missiles, children = this.missileChildren, effects = this.missileEffects;
+    const disposeMissiles = () => {
+      for (const flight of [...parents, ...children]) {
+        flight.excludedEnemy = null; flight.reservedChildren = 0;
+        flight.directionTick?.destroy(); flight.visual.destroy();
+      }
+      for (const effect of effects) effect.destroy();
+      parents.length = 0; children.length = 0; effects.length = 0;
+      if (this.run === run) this.reservedMissileChildren = 0;
+      this.events.off(Phaser.Scenes.Events.SHUTDOWN, disposeMissiles);
+      this.events.off(Phaser.Scenes.Events.DESTROY, disposeMissiles);
+    };
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, disposeMissiles);
+    this.events.once(Phaser.Scenes.Events.DESTROY, disposeMissiles);
     const { width, height } = this.scale;
     this.cameras.main.setBackgroundColor('#050816');
 
@@ -473,6 +492,8 @@ export class GameplayScene extends Phaser.Scene {
   }
 
   update(_time: number, delta: number): void {
+    for (const effect of this.missileEffects) effect.destroy();
+    this.missileEffects.length = 0;
     const intent = this.inputAdapter?.sample();
     if (intent?.pausePressed) { this.handlePauseRequest(); return; }
     if (this.isSimulationPaused()) return;
@@ -615,6 +636,7 @@ export class GameplayScene extends Phaser.Scene {
 
   private resetWeaponTimer(timer: Phaser.Time.TimerEvent | undefined, delay: number): void {
     timer?.reset({ delay, loop: true, callback: timer.callback,
+      ...(timer === this.missileTimer ? { startAt: timer.elapsed / timer.delay * delay } : {}),
       callbackScope: timer.callbackScope, args: timer.args });
   }
 
@@ -834,6 +856,7 @@ export class GameplayScene extends Phaser.Scene {
           color: '#e0f2fe',
           backgroundColor: '#1e3a5f',
           padding: { x: 24, y: 12 },
+          wordWrap: { width: 1720, useAdvancedWrap: true },
         }).setOrigin(0.5).setScrollFactor(0).setDepth(1)
         .setInteractive({ useHandCursor: true });
       presentation.texts.push(choice);
@@ -842,6 +865,12 @@ export class GameplayScene extends Phaser.Scene {
       presentation.handlers.set(choice, handler);
       choice.on('pointerdown', handler);
     });
+    const controls = presentation.texts.slice(1);
+    if (controls.some(text => text.height > 142)) throw new RangeError('Reward text exceeds approved layout');
+    if (controls.some(text => text.height > 94)) {
+      let top = 460;
+      for (const text of controls) { text.y = top + text.height / 2; top += text.height + 16; }
+    }
     if (!rewardOwner.present(token)) throw new Error('Reward presentation lost its transaction');
     const actual = rewardOwner.snapshot();
     if (this.run !== run || this.playerBuild !== build || this.playerProgression !== progression
@@ -878,14 +907,15 @@ export class GameplayScene extends Phaser.Scene {
 
   private applyRewardChoice(candidate: RewardCandidate, p: RewardPresentation, choice: Phaser.GameObjects.Text): boolean {
     if (!this.currentReward(p, choice, candidate.id)) return false;
-    // Stage B catalog entries have no live applier until the complete Missile authority migration in C.
-    if (candidate.choice.kind === 'missileSpecialization' || candidate.choice.kind === 'missileDevelopment'
-      || candidate.choice.kind === 'missileCapstone') return false;
     const option = candidate.choice, context = this.rewardContext(p.build);
     if (option.kind === 'passive' && (option.module === 'hull' && !context.hullPreview
       || option.module === 'thruster' && !context.thrusterPreview)) return false;
     if (isLaserChoice(option)) {
       try { prepareLaserChoice(context.build.laser, option, context.moduleLevels.combat); }
+      catch (error) { if (error instanceof RangeError) return false; throw error; }
+    }
+    if (isMissileRewardChoice(option)) {
+      try { p.build.previewMissileChoice(option, { combatMultiplier: context.combatMultiplier, spatialLevel: context.moduleLevels.spatial }); }
       catch (error) { if (error instanceof RangeError) return false; throw error; }
     }
     assertRewardFeasible(option, context);
@@ -913,8 +943,11 @@ export class GameplayScene extends Phaser.Scene {
       const afterDelay = this.weaponInterval(this.laser.fireInterval);
       if (beforeDelay !== afterDelay) this.resetWeaponTimer(this.laserTimer, afterDelay);
     }
-    if (option.kind === 'cluster') {
-      this.clusterEvolved = true;
+    if (isMissileRewardChoice(option)) {
+      const beforeDelay = this.weaponInterval(this.missile.fireInterval);
+      if (!p.build.applyMissileChoice(option, { combatMultiplier: context.combatMultiplier, spatialLevel: context.moduleLevels.spatial })) return false;
+      const afterDelay = this.weaponInterval(this.missile.fireInterval);
+      if (beforeDelay !== afterDelay) this.resetWeaponTimer(this.missileTimer, afterDelay);
       this.weaponFocus = 'missile';
     }
     if (option.kind === 'twin') {
@@ -933,15 +966,6 @@ export class GameplayScene extends Phaser.Scene {
           this.droneAttackValues.fireInterval -= 150;
           this.resetWeaponTimer(this.droneTimer, this.weaponInterval(this.droneAttackValues.fireInterval));
           break;
-      }
-    }
-    if (option.kind === 'missile') {
-      this.weaponFocus = 'missile';
-      this.missileRanks[option.upgrade] += 1;
-      switch (option.upgrade) {
-        case 'warheadPower': this.missileValues.damage += 1; break;
-        case 'propulsion': this.missileValues.speed += 75; break;
-        case 'blastExpansion': this.missileValues.explosionRadius += 30; break;
       }
     }
     if (option.kind === 'passive') {
@@ -1082,6 +1106,7 @@ export class GameplayScene extends Phaser.Scene {
   private enterPlayerDeath(): void {
     const run = this.run;
     if (!run?.tryEnterTerminal('DEATH')) return;
+    this.releaseTerminalMissileReferences();
     this.runDiagnostics!.recordTerminal('DEATH');
     this.clearTerminalInput();
     this.player?.setAlpha(0.25);
@@ -1111,6 +1136,7 @@ export class GameplayScene extends Phaser.Scene {
   private enterRunVictory(): void {
     const run = this.run;
     if (!this.bossDefeated || !run?.tryEnterTerminal('VICTORY')) return;
+    this.releaseTerminalMissileReferences();
     this.runDiagnostics!.recordTerminal('VICTORY');
     this.clearTerminalInput();
     const centerX = this.scale.width / 2;
@@ -1332,9 +1358,11 @@ export class GameplayScene extends Phaser.Scene {
     let nearestDistanceSquared = Infinity;
     for (const enemy of this.enemies) {
       if (archetype && enemy.archetype !== archetype) continue;
+      if (!this.livingMissileEnemy(enemy, this.run!)) continue;
       const dx = enemy.visual.x - origin.x;
       const dy = enemy.visual.y - origin.y;
       const distanceSquared = dx * dx + dy * dy;
+      missileGeometry(dx, dy, distanceSquared);
       if (distanceSquared < nearestDistanceSquared) {
         nearest = enemy;
         nearestDistanceSquared = distanceSquared;
@@ -1349,35 +1377,62 @@ export class GameplayScene extends Phaser.Scene {
     if (this.missiles.length >= this.missile.maxActiveMissiles) return;
     const target = this.selectNearestEnemy();
     if (!target) return;
-    const stats = this.playerBuild!.getEffectiveStats();
-    const attack = createAttack({ kind: 'MISSILE', variant: this.clusterEvolved ? 'CLUSTER' : 'BASE', snapshot: {
-      damage: composePlayerDamage('MISSILE', this.missileValues.damage, this.globalDamageMultiplier, stats.reactorPower, stats.engineering),
-      speed: this.missileValues.speed * stats.projectileVelocity,
-      radius: this.missile.radius * stats.projectileScale,
-      explosionRadius: effectiveMissileExplosionRadius(this.missileValues.explosionRadius, this.moduleLevels.spatial),
-      lifetime: this.missile.lifetime, impact: composePlayerImpact(400, stats.impact),
-    } }) as MissileAttack;
+    const { reactorPower, fireControl, projectileVelocity, projectileScale, engineering, impact } = this.playerBuild!.getEffectiveStats();
+    const plan = missileLaunchPlan(this.playerBuild!.getMissileConfiguration(),
+      { reactorPower, fireControl, projectileVelocity, projectileScale, engineering, impact },
+      { combatMultiplier: this.globalDamageMultiplier, spatialLevel: this.moduleLevels.spatial });
+    const reserved = plan.behavior === 'STRAIGHT_FRAGMENTING' ? plan.childCount : 0;
+    if (this.missileChildren.length + this.reservedMissileChildren + reserved > 512) return;
+    const run = this.run!;
+    this.reservedMissileChildren += reserved;
+    let missile: MissileRuntime | undefined;
+    try {
+      missile = this.createMissileFlight(plan, run, this.player.x, this.player.y, false);
+      missile.target = target;
+      this.aimMissile(missile);
+      if (run !== this.run || run.state !== 'RUNNING') throw new Error('Stale Missile launch');
+      missile.reservedChildren = reserved;
+      this.drawMissileDirection(missile);
+      this.missiles.push(missile);
+    } catch (error) {
+      missile?.directionTick?.destroy(); missile?.visual.destroy();
+      if (this.run === run && (run.state === 'RUNNING' || run.state === 'PAUSED')) this.reservedMissileChildren -= reserved;
+      throw error;
+    }
+  }
+
+  private createMissileFlight(plan: MissileLaunchPlan, run: RunLifecycle, x: number, y: number, child: boolean): MissileRuntime {
+    missileGeometry(x, y);
+    const { attack } = plan;
+    const color = child ? 0xa3e635 : plan.form === 'GUIDANCE' ? 0x38bdf8
+      : plan.form === 'HEAVY' ? 0xfb923c : plan.form === 'FRAGMENTATION' ? 0xe879f9 : 0xfacc15;
+    const visual = this.add.circle(x, y, attack.snapshot.radius, color);
+    let directionTick: Phaser.GameObjects.Graphics | undefined;
+    try {
+      if (plan.form === 'GUIDANCE' || plan.form === 'HEAVY') visual.setStrokeStyle(plan.form === 'HEAVY' ? 3 : 2, color);
+      if (plan.form === 'GUIDANCE') directionTick = this.add.graphics();
+    } catch (error) { directionTick?.destroy(); visual.destroy(); throw error; }
     const missile: MissileRuntime = {
-      attack, run: this.run!,
+      plan, attack, run,
       get clusterEnabled() { return attack.variant === 'CLUSTER'; },
       get damage() { return attack.snapshot.damage; },
       get speed() { return attack.snapshot.speed; },
       get radius() { return attack.snapshot.radius; },
       get explosionRadius() { return attack.snapshot.explosionRadius; },
-      visual: this.add.circle(this.player.x, this.player.y, attack.snapshot.radius, 0xfacc15),
-      target,
+      visual, directionTick,
       headingX: 0,
       headingY: 0,
       remainingLifetime: attack.snapshot.lifetime,
+      reservedChildren: 0, excludedEnemy: null,
     };
-    this.aimMissile(missile);
-    this.missiles.push(missile);
+    return missile;
   }
 
   private aimMissile(missile: MissileRuntime): void {
     if (!missile.target) return;
     const dx = missile.target.visual.x - missile.visual.x;
     const dy = missile.target.visual.y - missile.visual.y;
+    missileGeometry(dx, dy);
     const distance = Math.hypot(dx, dy);
     if (distance < 0.001) return;
     missile.headingX = dx / distance;
@@ -1385,53 +1440,161 @@ export class GameplayScene extends Phaser.Scene {
   }
 
   private updateMissiles(delta: number): void {
-    for (let i = this.missiles.length - 1; i >= 0; i -= 1) {
-      if (this.isSimulationPaused()) return;
-      const missile = this.missiles[i];
-      if (missile.run !== this.run || missile.run.state !== 'RUNNING') continue;
-      if (!missile.target || !this.enemies.includes(missile.target)) {
+    if (this.isSimulationPaused()) return;
+    missileGeometry(delta);
+    if (delta < 0) throw new RangeError('Invalid Missile delta');
+    // Capture BOTH collections before any detonation can publish children.
+    const parents = [...this.missiles].reverse(), children = [...this.missileChildren].reverse();
+    for (const parent of parents) { this.stepMissile(parent, delta, this.missiles, false); if (this.isSimulationPaused()) return; }
+    if (delta > 0) for (const child of children) { this.stepMissile(child, delta, this.missileChildren, true); if (this.isSimulationPaused()) return; }
+  }
+
+  private stepMissile(missile: MissileRuntime, delta: number, collection: MissileRuntime[], child: boolean): void {
+    if (this.isSimulationPaused() || missile.run !== this.run || !collection.includes(missile)) return;
+    const plan = missile.plan;
+    if (plan.behavior === 'HOMING' || plan.behavior === 'HOMING_FUSE') {
+      if (!missile.target || !this.livingMissileEnemy(missile.target, missile.run)) {
         missile.target = this.selectNearestEnemy(undefined, missile.visual);
       }
       this.aimMissile(missile);
-      const seconds = Math.min(delta, missile.remainingLifetime) / 1000;
-      const startX = missile.visual.x;
-      const startY = missile.visual.y;
-      const stepX = missile.headingX * missile.speed * seconds;
-      const stepY = missile.headingY * missile.speed * seconds;
-      let firstHit = Infinity;
-      let defeatedBoss = false;
-      for (const enemy of this.enemies) {
-        const hit = segmentCircleHitTime(startX, startY, stepX, stepY,
-          enemy.visual.x, enemy.visual.y, enemy.collisionRadius + missile.radius);
-        if (hit < firstHit) firstHit = hit;
-      }
-      if (firstHit !== Infinity) {
-        const impactX = startX + stepX * firstHit;
-        const impactY = startY + stepY * firstHit;
-        const bossWasDefeated = this.bossDefeated;
+    }
+    if (child) this.clearSeparatedMissileEnemy(missile);
+    const seconds = Math.min(delta, missile.remainingLifetime) / 1000;
+    const startX = missile.visual.x;
+    const startY = missile.visual.y;
+    const stepX = missile.headingX * missile.speed * seconds;
+    const stepY = missile.headingY * missile.speed * seconds;
+    missileGeometry(startX, startY, stepX, stepY, startX + stepX, startY + stepY);
+    let firstHit = Infinity;
+    let defeatedBoss = false;
+    let collisionEnemy: EnemyRuntime | null = null;
+    for (const enemy of this.enemies) {
+      if (enemy === missile.excludedEnemy || enemy.run !== missile.run || enemy.health <= 0 || !enemy.visual.active) continue;
+      missileGeometry(enemy.visual.x, enemy.visual.y, enemy.collisionRadius + missile.radius);
+      const hit = segmentCircleHitTime(startX, startY, stepX, stepY,
+        enemy.visual.x, enemy.visual.y, enemy.collisionRadius + missile.radius);
+      if (hit < firstHit) { firstHit = hit; collisionEnemy = enemy; }
+    }
+    if (plan.behavior === 'HOMING_FUSE' && missile.target && this.livingMissileEnemy(missile.target, missile.run)) {
+      const hit = segmentCircleHitTime(startX, startY, stepX, stepY, missile.target.visual.x, missile.target.visual.y, plan.fuseDistance);
+      if (hit < firstHit) { firstHit = hit; collisionEnemy = null; }
+    }
+    if (firstHit !== Infinity) {
+      const impactX = startX + stepX * firstHit;
+      const impactY = startY + stepY * firstHit;
+      const children = this.prepareMissileChildren(missile, impactX, impactY);
+      const bossWasDefeated = this.bossDefeated;
+      try {
         this.explodeMissile(impactX, impactY, missile);
         if (missile.clusterEnabled) this.explodeClusterSatellites(impactX, impactY, missile);
-        defeatedBoss = !bossWasDefeated && this.bossDefeated;
-      } else {
-        missile.visual.x += stepX;
-        missile.visual.y += stepY;
-        missile.remainingLifetime -= delta;
-        const { x, y } = missile.visual;
-        const outside = x < -missile.radius || x > this.arenaWidth + missile.radius
-          || y < -missile.radius || y > this.arenaHeight + missile.radius;
-        if (missile.remainingLifetime > 0 && !outside) continue;
+        this.publishMissileChildren(missile, children, collisionEnemy);
+      } catch (error) {
+        for (const child of children) if (!this.missileChildren.includes(child)) {
+          child.excludedEnemy = null; if (child.visual.active) child.visual.destroy();
+        }
+        this.removeMissile(missile, collection);
+        throw new Error('Missile detonation failed', { cause: error });
       }
-      missile.visual.destroy();
-      this.missiles.splice(i, 1);
-      // Primary, the full satellite union and Missile cleanup are one atomic detonation.
-      if (defeatedBoss) this.enterRunVictory();
-      if (this.isRunVictorious) return;
+      defeatedBoss = !bossWasDefeated && this.bossDefeated;
+    } else {
+      missile.visual.x += stepX;
+      missile.visual.y += stepY;
+      missile.remainingLifetime -= delta;
+      const { x, y } = missile.visual;
+      const outside = x < -missile.radius || x > this.arenaWidth + missile.radius
+        || y < -missile.radius || y > this.arenaHeight + missile.radius;
+      if (child) this.clearSeparatedMissileEnemy(missile);
+      this.drawMissileDirection(missile);
+      if (missile.remainingLifetime > 0 && !outside) return;
+      if (!outside && plan.behavior === 'HOMING_FUSE' && plan.detonateOnExpiry) {
+        const bossWasDefeated = this.bossDefeated;
+        this.explodeMissile(x, y, missile);
+        defeatedBoss = !bossWasDefeated && this.bossDefeated;
+      }
     }
+    this.removeMissile(missile, collection);
+    // Complete blast/satellite union/child publication/removal precede terminal acceptance.
+    if (defeatedBoss) this.enterRunVictory();
+  }
+
+  private drawMissileDirection(m: MissileRuntime): void {
+    if (!m.directionTick) return;
+    m.directionTick.clear().lineStyle(2, 0x38bdf8).lineBetween(m.visual.x, m.visual.y,
+      m.visual.x + m.headingX * (m.radius + 14), m.visual.y + m.headingY * (m.radius + 14));
+  }
+
+  private livingMissileEnemy(enemy: EnemyRuntime, run: RunLifecycle): boolean {
+    return enemy.run === run && this.run === run && enemy.health > 0 && enemy.visual.active && this.enemies.includes(enemy);
+  }
+
+  private clearSeparatedMissileEnemy(m: MissileRuntime): void {
+    const e = m.excludedEnemy;
+    if (e && (!this.livingMissileEnemy(e, m.run)
+      || missileSeparated(m.visual.x, m.visual.y, m.radius, e.visual.x, e.visual.y, e.collisionRadius))) m.excludedEnemy = null;
+  }
+
+  private prepareMissileChildren(parent: MissileRuntime, x: number, y: number): MissileRuntime[] {
+    if (parent.plan.behavior !== 'STRAIGHT_FRAGMENTING') return [];
+    const { childCount, childAttack } = parent.plan;
+    if (parent.reservedChildren !== childCount) throw new Error('Missing Missile child reservation');
+    const children: MissileRuntime[] = [];
+    try {
+      const plan = Object.freeze({ form: 'BASE' as const, behavior: 'STRAIGHT' as const, attack: childAttack });
+      for (let i = 0; i < childCount; i++) {
+        const child = this.createMissileFlight(plan, parent.run, x, y, true);
+        children.push(child); child.visual.setVisible(false);
+        const angle = 2 * Math.PI * i / childCount;
+        child.headingX = Math.cos(angle); child.headingY = Math.sin(angle);
+      }
+      return children;
+    } catch (error) {
+      for (const child of children) { child.excludedEnemy = null; child.visual.destroy(); }
+      this.removeMissile(parent, this.missiles);
+      throw new Error('Missile child preparation failed', { cause: error });
+    }
+  }
+
+  private publishMissileChildren(parent: MissileRuntime, children: MissileRuntime[], original: EnemyRuntime | null): void {
+    if (!children.length) return;
+    try {
+      if (this.run !== parent.run || parent.run.state !== 'RUNNING') throw new Error('Stale child publication');
+      for (const child of children) {
+        child.excludedEnemy = original;
+        this.clearSeparatedMissileEnemy(child);
+        child.visual.setVisible(true);
+      }
+      if (this.run !== parent.run || parent.run.state !== 'RUNNING') throw new Error('Stale child publication');
+      this.missileChildren.push(...children);
+      this.reservedMissileChildren -= parent.reservedChildren;
+      parent.reservedChildren = 0;
+    } catch (error) {
+      for (const child of children) { child.excludedEnemy = null; child.visual.destroy(); }
+      this.removeMissile(parent, this.missiles);
+      throw new Error('Missile child publication failed', { cause: error });
+    }
+  }
+
+  private removeMissile(m: MissileRuntime, collection: MissileRuntime[]): void {
+    const index = collection.indexOf(m);
+    if (index === -1) return;
+    if (m.run === this.run) this.reservedMissileChildren -= m.reservedChildren;
+    m.reservedChildren = 0; m.excludedEnemy = null;
+    m.directionTick?.destroy(); m.visual.destroy(); collection.splice(index, 1);
+  }
+
+  private releaseTerminalMissileReferences(): void {
+    for (const m of [...this.missiles, ...this.missileChildren]) { m.excludedEnemy = null; m.reservedChildren = 0; }
+    this.reservedMissileChildren = 0;
   }
 
   private explodeMissile(x: number, y: number, missile: MissileRuntime): void {
     if (missile.run !== this.run || missile.run.state !== 'RUNNING') return;
     const { explosionRadius } = missile.attack.snapshot;
+    if (missile.plan.form === 'HEAVY') {
+      const ring = this.add.graphics();
+      ring.lineStyle(3, 0xfb923c).strokeCircle(x, y, explosionRadius);
+      this.missileEffects.push(ring);
+    }
     // Snapshot before lethal removals mutate the shared enemy collection.
     const affected = this.enemies.filter(enemy => {
       const dx = enemy.visual.x - x;
@@ -1486,6 +1649,7 @@ export class GameplayScene extends Phaser.Scene {
     enemy.charger?.telegraph.destroy();
     enemy.visual.destroy();
     this.enemies.splice(index, 1);
+    for (const child of this.missileChildren) if (child.excludedEnemy === enemy) child.excludedEnemy = null;
     this.runDiagnostics!.recordEnemyKilled(record.archetype, record.isElite, record.xpValue, record.killSource);
     return record;
   }
