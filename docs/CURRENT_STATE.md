@@ -102,9 +102,9 @@ Tracked coverage is1891 tests/40 files. Actual in-app browser (Chrome155 engine)
 a real Guidance mouse selection, Phase2, clock-driven flights/damage/physical XP, keyboard
 pause/freeze/resume, and unmodified production artifact boot with DEV API absent and no errors.
 The standalone installed Chrome provider was unavailable. These are stage-C smoke results;
-the more extensive stage-D results and remaining acceptance blocker are recorded below.
+the more extensive stage-D results and final manual acceptance are recorded below.
 
-## GAME-057-D acceptance — incomplete
+## GAME-057 acceptance — complete
 
 No runtime defect was reproduced and no source, test, dependency or balance change was needed.
 npm run check passes1891 tests/40 files, retaining the full stage-C suite. Source audit confirms
@@ -135,13 +135,24 @@ Its reward/pause/terminal layouts are inspected at all three display sizes. Same
 boots without DEV API; no production errors.
 Controlled fixtures/passive observation are explicitly separate from the unmodified root.
 
-PENDING: genuine foreground-other-tab focus loss and its MANUAL/REWARD combinations on this
-revision. The available IAB reports hasFocus=true/hidden=false after opening another tab or
-hiding the browser; available controls cannot disable focus emulation. No synthetic BLUR is
-counted as actual browser acceptance. Tracked focus/lifecycle regressions pass, but do not
-replace this missing real-browser scenario. GAME-057 is NOT READY for final acceptance;
-TASK_GRAPH completion is not advanced, GAME-058/059 remain BACKLOG and GATE C stays unapproved.
-Ignored evidence and complete staged diff: .codex-review/GAME-057-D-review.txt.
+**USER-REPORTED MANUAL ACCEPTANCE, 2026-10-20 — PASS.** The user tested the current feature
+branch in a normal desktop browser and confirmed all three previously pending scenarios:
+
+- FOCUS_LOSS: switching away paused simulation; no catch-up movement or firing occurred;
+  returning restored the expected state.
+- MANUAL + FOCUS_LOSS: Escape pause survived focus loss and return without automatic resume;
+  explicit Escape resumed the run.
+- REWARD + FOCUS_LOSS: the active presentation remained valid and simulation frozen;
+  returning preserved selection, and a genuine mouse choice completed the transaction.
+
+These observations are user-reported, not independently executed by Codex. No automated
+Chrome evidence, screenshots, logs or timing measurements are claimed for these manual cases.
+The earlier IAB focus-emulation limitation remains historical tooling context, not an open
+acceptance blocker. Previously recorded Codex Chromium/production/performance evidence is
+preserved in .codex-review/GAME-057-D-review.txt and its artifacts.
+GAME-057 is DONE; final baseline1891 tests/40 files,320 children/~59.81FPS/p9520.6ms against
+>=45FPS/<=33.3ms. GAME-058/059 remain BACKLOG; GATE C remains unapproved.
+Final documentation review and complete staged diff: .codex-review/GAME-057-FINAL-review.txt.
 
 ## Russian player-facing UI
 

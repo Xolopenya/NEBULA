@@ -4286,7 +4286,7 @@ GATE A/B PASSED. No other gate closed. GAME-052 implementation is architect-appr
 | GAME-054 | Reward Transaction & Eligibility | GAME-046, GAME-047, GAME-053 | One reward transaction, hard eligibility and explicit Build application. | DONE |
 | GAME-055 | Level-Up Generator | GAME-043, GAME-047, GAME-054 | Weighted Level-Up roles, Analyzer, pity and recent-offer handling. | DONE |
 | GAME-056 | Laser Progression Vertical | GAME-049, GAME-055 | Laser tuning/readiness and Scatter Array / Repeater Array / Precision Lance development. | DONE |
-| GAME-057 | Missile Progression | GAME-056 | Definition below: straight BASE, legacy homing CLUSTER and Guidance / Heavy Warhead / Fragmentation; final approval pending. | READY |
+| GAME-057 | Missile Progression | GAME-056 | Straight BASE, legacy homing CLUSTER and Guidance / Heavy Warhead / Fragmentation; implementation and acceptance complete, including user-reported manual focus PASS (2026-10-20). | DONE |
 | GAME-058 | Combat Drone Progression | GAME-056 | Combat Drone Scatter / Repeater / Precision progression. | BACKLOG |
 | GAME-059 | Multi-System Combat Runtime | GAME-057, GAME-058 | Multiple installed Combat Systems with independent concrete runtime ownership. | BACKLOG |
 
@@ -5805,8 +5805,9 @@ BACKLOG; GAME-040/041 SUPERSEDED; GATE A/B PASSED; GATE C unapproved. No depende
 
 #### GAME-057 — Missile Progression Vertical: implementation definition
 
-STATUS: READY — definition ready for architect review, **not approved for implementation**.
-Only this document changes. Runtime, tests, public prototype and CR-002..005 remain intact.
+STATUS: DONE — implementation A/B/C and final acceptance complete (2026-10-20).
+The approved definition and its pre-implementation audit below are preserved as historical
+contract context. Final acceptance evidence and provenance are recorded at this node's end.
 GAME-058/059 and later tasks remain BACKLOG; GATE A/B PASSED; GATE C remains UNAPPROVED.
 Historical completion notes above retain their historical statuses, not current authorization.
 
@@ -6264,12 +6265,37 @@ Engineering, depth-one fragments/capacity512, seven source buckets, shared speci
 pool, exact3 Reward draws, five timers/four streams/five DEV commands, GAME-059 boundary and
 performance budgets are approved. Migration B is selected, A rejected. The definitive catalog
 order and bounded per-child original-collision grace above resolve the required amendments.
-GAME-057 remains READY pending final architectural approval of this corrected definition;
-this turn authorizes neither implementation nor any Git commit/merge/push/branch switch.
+Historical definition-stage restriction: GAME-057 remained READY pending final architectural
+approval of the corrected definition; that definition turn authorized neither implementation
+nor any Git commit/merge/push/branch switch.
 After final approval and an implementation request, implement only this contract, run full
 checks/real browser acceptance, update actual-state docs and return without commit. No
 GAME-058/059, new enemies/bosses/phases/scoring/save/deployment/global targeting/framework/
 dependencies/DEV commands are authorized. GAME-058+ BACKLOG; GATE A/B PASSED; C unapproved.
+
+**Final acceptance closure — 2026-10-20**
+
+GAME-057 DONE. Architect-approved A/B/C are committed on the feature branch. D evidence
+confirms all three branches/all18 rewards,54 genuine mouse selections at1920x1080,1280x720,
+960x540, BASE migration/legacy Cluster, frozen plans, fragment grace/depth1/capacity512,
+physical XP/terminal ordering, Victory/New Run, Death/Retry, dirty native restart, genuine
+reward selection/retry/pending levels,54 canonical IDs, five timers/four streams/five DEV
+commands and production boot without DEV API. Tracked baseline1891 tests/40 files passes.
+Measured1280x720 worst-case load reaches320 children, mean~59.81FPS/p9520.6ms, within approved
+>=45FPS/<=33.3ms;20s cleanup observation shows no retained flights/reservations.
+Codex-executed controlled real Phaser, unmodified production and measured stress evidence
+remain separately identified in .codex-review/GAME-057-D-review.txt and its artifacts.
+
+**USER-REPORTED MANUAL ACCEPTANCE, 2026-10-20 — PASS:** the user confirms current-branch
+normal-desktop-browser FOCUS_LOSS pauses without catch-up movement/firing and restores the
+expected state on return; MANUAL+FOCUS_LOSS preserves Escape pause without silent resume,
+then explicit Escape resumes; REWARD+FOCUS_LOSS preserves the frozen valid presentation
+and returning mouse selection completes its transaction. These three results are reported
+by the user, not independently executed by Codex; no screenshots/logs/timings or automated
+Chrome proof are invented for them. They close D's sole remaining tooling-related blocker.
+No substantive acceptance item remains pending. Final review: .codex-review/GAME-057-FINAL-review.txt.
+GATE C remains UNAPPROVED; GATE A/B remain PASSED. GAME-058/059 remain BACKLOG. No next-task
+implementation, commit, merge, push or branch switch is authorized by this closure.
 
 **GATE C — First Real Build Loop** — review the preceding phase capabilities before its cutover/next proof.
 
