@@ -3,10 +3,11 @@ import { selectEvolutionOffer, type Evolution } from '../progression/evolutionOf
 import type { WeaponFocus } from '../progression/focusedUpgrade';
 import { isRewardEligible, assertRewardContext, type RewardEligibilityContext } from './rewardEligibility';
 import { LASER_TAGS } from '../player/laserProgression';
-import { choiceIdentity, copyCandidate, rewardChoices, type RewardCandidate, type RewardCandidateId } from './rewardChoices';
+import { MISSILE_TAGS } from '../player/missileProgression';
+import { choiceIdentity, copyCandidate, isNewMissileChoice, rewardChoices, type RewardCandidate, type RewardCandidateId } from './rewardChoices';
 
 export type LevelUpContext = RewardEligibilityContext & Readonly<{ weaponFocus: WeaponFocus }>;
-export const LEVEL_UP_POLICY_VERSION = 'GAME-056-v1';
+export const LEVEL_UP_POLICY_VERSION = 'GAME-057-v1';
 /** Closed policy affinity only. These records never contribute Build Tag points. */
 export const REWARD_AFFINITIES: Readonly<Record<RewardCandidateId, readonly TagId[]>> = Object.freeze({
   'laser.power': ['PRECISION'], 'laser.fireRate': ['RAPID_FIRE'], 'laser.speed': ['PROJECTILES'],
@@ -35,6 +36,24 @@ export const REWARD_AFFINITIES: Readonly<Record<RewardCandidateId, readonly TagI
   'laser.lance.penetration': LASER_TAGS.lance,
   'laser.lance.radius': LASER_TAGS.lance,
   'laser.lance.capstone': LASER_TAGS.lance,
+  'missile.specialize.guidance': MISSILE_TAGS.guidance,
+  'missile.specialize.heavy': MISSILE_TAGS.heavy,
+  'missile.specialize.fragmentation': MISSILE_TAGS.fragmentation,
+  'missile.guidance.payload': MISSILE_TAGS.guidance,
+  'missile.guidance.propulsion': MISSILE_TAGS.guidance,
+  'missile.guidance.fuse': MISSILE_TAGS.guidance,
+  'missile.guidance.endurance': MISSILE_TAGS.guidance,
+  'missile.guidance.capstone': MISSILE_TAGS.guidance,
+  'missile.heavy.payload': MISSILE_TAGS.heavy,
+  'missile.heavy.propulsion': MISSILE_TAGS.heavy,
+  'missile.heavy.blast': MISSILE_TAGS.heavy,
+  'missile.heavy.reload': MISSILE_TAGS.heavy,
+  'missile.heavy.capstone': MISSILE_TAGS.heavy,
+  'missile.fragmentation.payload': MISSILE_TAGS.fragmentation,
+  'missile.fragmentation.reload': MISSILE_TAGS.fragmentation,
+  'missile.fragmentation.fragments': MISSILE_TAGS.fragmentation,
+  'missile.fragmentation.endurance': MISSILE_TAGS.fragmentation,
+  'missile.fragmentation.capstone': MISSILE_TAGS.fragmentation,
 } satisfies Record<RewardCandidateId, readonly TagId[]>);
 for (const tags of Object.values(REWARD_AFFINITIES)) Object.freeze(tags);
 const canonical = Object.freeze(rewardChoices.map(choice => copyCandidate({ id: choiceIdentity(choice), choice })));
@@ -135,7 +154,7 @@ export class LevelUpGenerator {
     assertRewardContext(input); // Malformed Build/projections must not masquerade as numeric fallback.
     const c = structuredClone(input); // Injected RNG cannot change this offer's preflighted context.
     const candidates = frozenCandidates(canonical);
-    if (candidates.length !== 36 || Object.keys(REWARD_AFFINITIES).length !== 36) throw new RangeError('Invalid canonical policy');
+    if (candidates.length !== 54 || Object.keys(REWARD_AFFINITIES).length !== 54) throw new RangeError('Invalid canonical policy');
     for (const candidate of candidates) {
       const tags = REWARD_AFFINITIES[candidate.id];
       if (!tags || tags.some((tag, i) => !TAG_IDS.includes(tag) || i > 0 && TAG_IDS.indexOf(tags[i - 1]) >= TAG_IDS.indexOf(tag))) {
@@ -144,14 +163,13 @@ export class LevelUpGenerator {
     }
     const eligible = candidates.filter(candidate => isRewardEligible(candidate.choice, c));
     const ordinary = eligible.filter(candidate => !['prism', 'cluster', 'twin'].includes(candidate.choice.kind));
-    const acquisitions = ordinary.filter(candidate => candidate.choice.kind === 'laserSpecialization');
-    const remainingOrdinary = ordinary.filter(candidate => candidate.choice.kind !== 'laserSpecialization');
+    const isAcquisition = (candidate: RewardCandidate) => candidate.choice.kind === 'laserSpecialization'
+      || candidate.choice.kind === 'missileSpecialization';
+    const acquisitions = ordinary.filter(isAcquisition);
+    const remainingOrdinary = ordinary.filter(candidate => !isAcquisition(candidate));
     const evolution = selectEvolutionOffer(eligible.some(c => c.id === 'prism'), eligible.some(c => c.id === 'cluster'),
       eligible.some(c => c.id === 'twin'), this.#policy.evolutionCursor);
     const reserved = eligible.find(c => c.id === evolution.offered);
-    if (remainingOrdinary.length < (reserved ? acquisitions.length ? 1 : 2 : acquisitions.length ? 2 : 3)) {
-      throw new RangeError('Insufficient feasible prototype reward choices');
-    }
     const primary = [...c.build.identity.dominantTags], secondary = c.build.identity.secondaryTags;
     const base = primary.length === this.#policy.primarySignature.length
       && primary.every((tag, i) => tag === this.#policy.primarySignature[i]) ? this.#policy.misses : 0;
@@ -162,7 +180,8 @@ export class LevelUpGenerator {
       let weight = 100 * (1 + 0.5 * relevance);
       if (slot === 0) {
         weight *= relevance === 2 ? 2 : relevance === 1 ? 1.25 : 1;
-        weight *= choice.kind === c.weaponFocus || c.weaponFocus === 'laser' && 'branch' in choice ? 1.5 : 1;
+        weight *= choice.kind === c.weaponFocus || c.weaponFocus === 'laser' && 'branch' in choice && !isNewMissileChoice(choice)
+          || c.weaponFocus === 'missile' && isNewMissileChoice(choice) ? 1.5 : 1;
       } else if (slot === 1 && (id === 'passive.hull' || id === 'passive.thruster')) weight *= 1.5;
       const a = c.build.effectiveStats.combatAnalyzer;
       weight *= relevance === 2 ? 1 + 2 * (a === 0 ? 0 : 1 / (1 + 4 / a)) : 1;
@@ -172,20 +191,29 @@ export class LevelUpGenerator {
       if (!Number.isFinite(weight) || weight < 25 || weight > 3600) throw new RangeError('Invalid Level-Up weight');
       return [id, weight] as const;
     })));
-    const pool = (slot: 0 | 1 | 2, selected: readonly RewardCandidate[]) => {
-      if (slot === 2 && reserved) return [reserved];
-      if (slot === 0 && acquisitions.length) return acquisitions;
+    const completions = new Map<string, readonly RewardCandidate[]>();
+    const key = (slot: number, selected: readonly RewardCandidate[]) => `${slot}:${selected.map(c => c.id).join(',')}`;
+    // Build every possible completion before drawing. Preferred paths that cannot finish fall back here.
+    const preparePool = (slot: 0 | 1 | 2, selected: readonly RewardCandidate[]): readonly RewardCandidate[] => {
       const remaining = remainingOrdinary.filter(c => !selected.some(s => s.id === c.id));
       const preferred = remaining.filter(candidate => slot === 0 ? candidate.choice.kind !== 'passive'
         : slot === 1 ? candidate.choice.kind === 'passive' : !matches(candidate.id, primary));
-      return preferred.length ? preferred : remaining;
-    };
-    const validatePool = (slot: 0 | 1 | 2, selected: readonly RewardCandidate[]) => {
-      const options = pool(slot, selected), total = options.reduce((n, c) => n + weights[slot].get(c.id)!, 0);
-      if (!options.length || !Number.isFinite(total) || total <= 0 || total > 129600) throw new RangeError('Invalid Level-Up pool');
+      const complete = (options: readonly RewardCandidate[]) => options.filter(candidate => slot === 2
+        || preparePool((slot + 1) as 1 | 2, [...selected, candidate]).length > 0);
+      let options: readonly RewardCandidate[];
+      if (slot === 2 && reserved) options = [reserved];
+      else {
+        options = complete(slot === 0 && acquisitions.length ? acquisitions : preferred);
+        if (!options.length) options = complete(preferred);
+        if (!options.length) options = complete(remaining);
+      }
+      const total = options.reduce((n, c) => n + weights[slot].get(c.id)!, 0);
+      if (!Number.isFinite(total) || total > 194400) throw new RangeError('Invalid Level-Up pool');
+      completions.set(key(slot, selected), options);
       return options;
     };
-    for (const first of validatePool(0, [])) for (const second of validatePool(1, [first])) validatePool(2, [first, second]);
+    if (!preparePool(0, []).length) throw new RangeError('Insufficient feasible prototype reward choices');
+    const pool = (slot: 0 | 1 | 2, selected: readonly RewardCandidate[]) => completions.get(key(slot, selected))!;
     return { pool, weights, primary, base, hasRelevant: usable.some(c => matches(c.id, primary)), nextCursor: evolution.nextCursor };
   }
 }

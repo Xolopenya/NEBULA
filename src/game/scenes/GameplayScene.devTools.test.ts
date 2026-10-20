@@ -311,6 +311,45 @@ function aimChoice(s: GameplayScene, id: RewardCandidateId, slot: 0 | 1) {
   spy.mockReturnValueOnce(slot === 0 ? roll : 0).mockReturnValueOnce(slot === 1 ? roll : 0).mockReturnValueOnce(0);
   return spy;
 }
+describe('GAME-057-B transitional Missile reward boundary', () => {
+  it('authentic legacy tuning and Cluster selections remain functional without activating dormant Build rewards', () => {
+    const { scene: s, api } = fixture(), timers = [...s['gameplayTimers']], rng = spyStreams(s);
+    for (const id of ['missile.warheadPower', 'missile.propulsion', 'missile.blastExpansion',
+      'missile.warheadPower', 'missile.propulsion', 'missile.blastExpansion', 'passive.spatial'] as const) {
+      const roll = aimChoice(s, id, id === 'passive.spatial' ? 1 : 0);
+      expect(api.forceLevelUp()).toBe(true); expect(roll).toHaveBeenCalledTimes(3); roll.mockRestore();
+      const offer = s['rewardTransaction']!.snapshot()!;
+      expect(offer.candidates.every(c => !c.choice.kind.startsWith('missile') || c.choice.kind === 'missile')).toBe(true);
+      const text = [...s['levelUpChoices']].find(([, value]) => value === id)![0]; text.emit('pointerdown');
+      expect(s['run']!.state).toBe('RUNNING');
+    }
+    expect(s['missileRanks']).toEqual({ warheadPower: 2, propulsion: 2, blastExpansion: 2 });
+    expect(s['missileValues']).toEqual({ damage: 4, speed: 600, explosionRadius: 180 });
+    expect(api.forceLevelUp()).toBe(true);
+    const text = [...s['levelUpChoices']].find(([, value]) => value === 'cluster')![0]; text.emit('pointerdown');
+    expect(s['clusterEvolved']).toBe(true); expect(s['run']!.state).toBe('RUNNING');
+    expect(s['playerBuild']!.getMissileConfiguration()).toEqual({ ranks: { warheadPower: 0, propulsion: 0, blastExpansion: 0 }, form: 'BASE', upgrades: [], capstone: false });
+    s['createEnemy'](2800, 1350, 'tank', s['run']!); s['fireMissile']();
+    expect(s['missiles'][0].attack.variant).toBe('CLUSTER');
+    expect(s['missiles'][0].attack.snapshot).toEqual({ damage: 4, speed: 600, radius: 8, lifetime: 4000, explosionRadius: 195, impact: 400 });
+    expect(s['gameplayTimers']).toEqual(timers); expect(timers).toHaveLength(5);
+    for (const index of [0, 2, 3]) expect(rng[index]).not.toHaveBeenCalled();
+    expect(s['runDiagnostics']!.snapshot().aggregates.choicesAccepted).toBe(8);
+  });
+  it('rejects an injected new Missile reward before mutation and keeps its authentic transaction retryable', () => {
+    const { scene: s, api } = fixture();
+    expect(api.forceLevelUp()).toBe(true);
+    const p = s['rewardPresentation']!, text = [...p.choices.keys()][0], original = p.choices.get(text)!;
+    const candidate = { id: 'missile.specialize.guidance' as const, choice: { kind: 'missileSpecialization' as const, branch: 'guidance' as const } };
+    p.choices.set(text, candidate.id);
+    expect(s['currentReward'](p, text, candidate.id)).toBe(true);
+    const before = api.snapshot();
+    expect(s['applyRewardChoice'](candidate, p, text)).toBe(false); expect(api.snapshot()).toEqual(before);
+    expect(s['rewardTransaction']!.snapshot()!.phase).toBe('PRESENTED');
+    p.choices.set(text, original);
+    text.emit('pointerdown'); expect(s['run']!.state).toBe('RUNNING');
+  });
+});
 beforeEach(() => { vi.stubGlobal('window', {}); vi.stubGlobal('document', { hasFocus: () => true, hidden: false }); });
 describe('GAME-051 authoritative death', () => {
   function context(s: GameplayScene, damage = 1, variant: 'BASE' | 'PRISM' = 'BASE') {
@@ -2668,7 +2707,7 @@ describe('UI-001 Russian production presentation', () => {
   it.each(russianChoices)('presents and accepts canonical %s through the real transaction', (id, expected) => {
     const { scene: s, api } = fixture();
     const candidate = rewardChoices.find(c => choiceIdentity(c) === id)!;
-    if ('branch' in candidate && candidate.kind !== 'laserSpecialization') {
+    if (candidate.kind === 'laserDevelopment' || candidate.kind === 'laserCapstone') {
       setLaser(s, { power: 2, fireRate: 1, speed: 0 });
       s['playerBuild']!.applyLaserChoice({ kind: 'laserSpecialization', branch: candidate.branch }, 0);
       if (candidate.kind === 'laserCapstone') for (const c of rewardChoices) {

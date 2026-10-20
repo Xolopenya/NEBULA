@@ -878,6 +878,9 @@ export class GameplayScene extends Phaser.Scene {
 
   private applyRewardChoice(candidate: RewardCandidate, p: RewardPresentation, choice: Phaser.GameObjects.Text): boolean {
     if (!this.currentReward(p, choice, candidate.id)) return false;
+    // Stage B catalog entries have no live applier until the complete Missile authority migration in C.
+    if (candidate.choice.kind === 'missileSpecialization' || candidate.choice.kind === 'missileDevelopment'
+      || candidate.choice.kind === 'missileCapstone') return false;
     const option = candidate.choice, context = this.rewardContext(p.build);
     if (option.kind === 'passive' && (option.module === 'hull' && !context.hullPreview
       || option.module === 'thruster' && !context.thrusterPreview)) return false;

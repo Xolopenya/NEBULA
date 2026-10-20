@@ -1,13 +1,14 @@
 import type { BuildSnapshot, EffectiveStats } from '../player/PlayerBuild';
 import type { LaserRanks } from '../progression/prismLaser';
 import { validateLaser, laserProfile, prepareLaserChoice, isLaserChoice, laserAttack, laserTagCandidate } from '../player/laserProgression';
+import { validateMissile, prepareMissileChoice, composeMissileProfile, MISSILE_TAGS } from '../player/missileProgression';
 import { canEvolveClusterMissile } from '../progression/clusterMissile';
 import { canEvolveTwinDrone } from '../progression/twinDrone';
 import type { MissileRanks, DroneRanks } from '../progression/focusedUpgrade';
 import { effectiveMissileExplosionRadius } from '../progression/spatialAmplifier';
 import { effectiveDroneBoltRadius } from '../progression/replicationMatrix';
 import { composePlayerDamage, composePlayerImpact, createAttack } from '../combat/combat';
-import { isRewardChoice, type LevelUpChoice, type PassiveModule } from './rewardChoices';
+import { isRewardChoice, isNewMissileChoice, type LevelUpChoice, type PassiveModule } from './rewardChoices';
 
 export type RewardEligibilityContext = Readonly<{
   build: Readonly<BuildSnapshot>;
@@ -59,6 +60,7 @@ export function assertRewardContext(c: RewardEligibilityContext): void {
     throw new RangeError('Invalid reward eligibility context');
   }
   assertLaserContext(c);
+  validateMissile(c.build.missile);
   const records = [[c.laserRanks, ['power', 'fireRate', 'speed']],
     [c.missileRanks, ['warheadPower', 'propulsion', 'blastExpansion']],
     [c.droneRanks, ['boltPower', 'firingSystem', 'boltPropulsion']],
@@ -101,6 +103,21 @@ function assertFeasible(choice: LevelUpChoice | null, c: RewardEligibilityContex
   const droneInterval = choice?.kind === 'drone' && choice.upgrade === 'firingSystem' ? c.drone.fireInterval - 150 : c.drone.fireInterval;
   const combat = choice?.kind === 'passive' && choice.module === 'combat' ? increase(c.combatMultiplier, 0.25) : c.combatMultiplier;
   const spatial = c.moduleLevels.spatial + Number(choice?.kind === 'passive' && choice.module === 'spatial');
+  // Stage B: only new choices use Build authority. Live legacy ranks/Cluster remain Scene-owned until C.
+  let missileConfiguration = c.build.missile;
+  if (choice && isNewMissileChoice(choice)) {
+    if (!c.build.slots.combat.includes('MISSILE') || c.clusterEvolved) throw new RangeError('Missile branch unavailable');
+    missileConfiguration = prepareMissileChoice(c.build.missile, choice, spatial);
+    if (choice.kind === 'missileSpecialization') for (const tag of MISSILE_TAGS[choice.branch]) {
+      const points = c.build.tags?.[tag];
+      integer(points); integer(increase(points, 1));
+    }
+  }
+  if (missileConfiguration.form !== 'BASE') {
+    const { reactorPower, fireControl, projectileVelocity, projectileScale, engineering, impact } = stats;
+    composeMissileProfile(missileConfiguration, { reactorPower, fireControl, projectileVelocity, projectileScale, engineering, impact },
+      { combatMultiplier: combat, spatialLevel: spatial });
+  }
   const replication = c.moduleLevels.replication + Number(choice?.kind === 'passive' && choice.module === 'replication');
   if (choice?.kind === 'passive' && choice.module === 'collector') increase(c.magnetRadius, 40);
   if (choice?.kind === 'passive' && (choice.module === 'hull' || choice.module === 'thruster')) {
@@ -128,10 +145,12 @@ export function isRewardEligible(choice: unknown, c: RewardEligibilityContext): 
     throw error;
   }
   const slots = c.build.slots.combat;
+  if (isNewMissileChoice(choice)) return slots.includes('MISSILE');
   if (isLaserChoice(choice)) return slots.includes('LASER');
   if (choice.kind === 'missile') return slots.includes('MISSILE') && c.missileRanks[choice.upgrade] < 2;
   if (choice.kind === 'drone') return slots.includes('COMBAT_DRONE') && c.droneRanks[choice.upgrade] < 2;
-  if (choice.kind === 'cluster') return slots.includes('MISSILE') && canEvolveClusterMissile(c.missileRanks, c.moduleLevels.spatial, c.clusterEvolved);
+  if (choice.kind === 'cluster') return slots.includes('MISSILE') && c.build.missile.form === 'BASE'
+    && canEvolveClusterMissile(c.missileRanks, c.moduleLevels.spatial, c.clusterEvolved);
   if (choice.kind === 'twin') return slots.includes('COMBAT_DRONE') && canEvolveTwinDrone(c.droneRanks, c.moduleLevels.replication, c.twinDroneEvolved);
   return true;
 }

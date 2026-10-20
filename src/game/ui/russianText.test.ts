@@ -3,7 +3,7 @@ import html from '../../../index.html?raw';
 import { REWARD_NAMES, UI_TEXT, rewardLabel, hudLines, dashLabel, victoryLevel } from './russianText';
 import { rewardChoices, choiceIdentity, type RewardCandidateId } from '../rewards/rewardChoices';
 import { PlayerBuild } from '../player/PlayerBuild';
-import { laserProfile, type LaserChoice } from '../player/laserProgression';
+import { laserProfile, isLaserChoice, type LaserChoice } from '../player/laserProgression';
 import { LevelUpGenerator } from '../rewards/LevelUpGenerator';
 import { RunRandom } from '../run/RunRandom';
 
@@ -44,6 +44,24 @@ const expected: [RewardCandidateId, string][] = [
   ["laser.lance.penetration", "Сквозное пробитие"],
   ["laser.lance.radius", "Широкое копьё"],
   ["laser.lance.capstone", "ВЕРШИНА: Глубокое пробитие"],
+  ["missile.specialize.guidance", "Система наведения"],
+  ["missile.specialize.heavy", "Тяжёлая боеголовка"],
+  ["missile.specialize.fragmentation", "Осколочная боеголовка"],
+  ["missile.guidance.payload", "Точная боеголовка"],
+  ["missile.guidance.propulsion", "Маневровый двигатель"],
+  ["missile.guidance.fuse", "Датчик сближения"],
+  ["missile.guidance.endurance", "Запас топлива"],
+  ["missile.guidance.capstone", "ВЕРШИНА: Последний сигнал"],
+  ["missile.heavy.payload", "Усиленный заряд"],
+  ["missile.heavy.propulsion", "Тяжёлый двигатель"],
+  ["missile.heavy.blast", "Объёмный взрыв"],
+  ["missile.heavy.reload", "Зарядный механизм"],
+  ["missile.heavy.capstone", "ВЕРШИНА: Разрушитель"],
+  ["missile.fragmentation.payload", "Усиление боеголовки"],
+  ["missile.fragmentation.reload", "Подача боеприпасов"],
+  ["missile.fragmentation.fragments", "Сегментированный корпус"],
+  ["missile.fragmentation.endurance", "Дальние осколки"],
+  ["missile.fragmentation.capstone", "ВЕРШИНА: Осколочное кольцо"],
 ];
 const descriptions: [RewardCandidateId, string][] = [
   ["laser.power", "Мощность лазера — +1 к урону"],
@@ -84,6 +102,24 @@ const laserEffects: [RewardCandidateId, string][] = [
   ["laser.lance.penetration", "Целей насквозь: 3 → 4."],
   ["laser.lance.radius", "Радиус снаряда: 6 → 8 пикс."],
   ["laser.lance.capstone", "Целей насквозь: 4 → 5."],
+  ["missile.specialize.guidance", "Самонаведение и подрыв рядом с целью; урон ×0,9, интервал ×0,85, скорость ×1,2, полёт 5 с, импульс 300"],
+  ["missile.specialize.heavy", "Прямой полёт; урон ×3, интервал ×1,5, скорость ×0,75, корпус 12 пикс., радиус взрыва ×1,5, импульс 800"],
+  ["missile.specialize.fragmentation", "Прямой полёт; урон ×0,75, интервал ×1,2, радиус взрыва ×0,85, импульс 300; после взрыва 4 летящих осколка"],
+  ["missile.guidance.payload", "Множитель урона: 0,9 → 1,1"],
+  ["missile.guidance.propulsion", "Множитель скорости: 1,2 → 1,5"],
+  ["missile.guidance.fuse", "База дистанции подрыва: 64 → 80 пикс.; масштаб Инженерии и предел 75% радиуса взрыва сохраняются"],
+  ["missile.guidance.endurance", "Время полёта: 5 → 6 с"],
+  ["missile.guidance.capstone", "При окончании времени полёта ракета взрывается один раз; выход за границу по-прежнему удаляет её"],
+  ["missile.heavy.payload", "Множитель урона: 3 → 3,5"],
+  ["missile.heavy.propulsion", "Множитель скорости: 0,75 → 0,9"],
+  ["missile.heavy.blast", "Множитель местного радиуса взрыва: 1,5 → 1,8; Пространственный усилитель добавляется после него"],
+  ["missile.heavy.reload", "Множитель интервала: 1,5 → 1,25"],
+  ["missile.heavy.capstone", "Множитель урона 4, корпус 16 пикс., импульс 1200; радиус и интервал сохраняются"],
+  ["missile.fragmentation.payload", "Множитель урона основной боеголовки: 0,75 → 1; каждый осколок сохраняет 25% её урона"],
+  ["missile.fragmentation.reload", "Множитель интервала: 1,2 → 1"],
+  ["missile.fragmentation.fragments", "Число осколков: 4 → 6"],
+  ["missile.fragmentation.endurance", "Время полёта осколков: 0,5 → 0,7 с"],
+  ["missile.fragmentation.capstone", "Число осколков: 6 → 8; каждый взрывается один раз, без новых осколков"],
 ];
 const missile = { warheadPower: 0, propulsion: 0, blastExpansion: 0 };
 const drone = { boltPower: 0, firingSystem: 0, boltPropulsion: 0 };
@@ -95,7 +131,7 @@ describe('Russian display boundary', () => {
     expect(label).toBe(name); expect(label).toMatch(/[А-Яа-яЁё]/);
     expect(label).not.toMatch(/undefined|�|\{.*\}/);
   });
-  it('retains all36 canonical IDs and their order without mutable names', () => {
+  it('retains all54 canonical IDs and their order without mutable names', () => {
     expect(rewardChoices.map(choiceIdentity)).toEqual(expected.map(([id]) => id));
     expect(Object.keys(REWARD_NAMES)).toEqual(expected.map(([id]) => id));
     expect(Object.isFrozen(REWARD_NAMES)).toBe(true);
@@ -175,7 +211,7 @@ describe('HOMEWORK-001 authored descriptions and read-only presentation', () => 
     const draws = (['encounter', 'reward', 'world', 'boss'] as const).map(k => vi.spyOn(random[k], 'next'));
     for (const upgrade of ['power', 'power', 'fireRate'] as const) build.applyLaserChoice({ kind: 'laser', upgrade }, 0);
     const choice = rewardChoices.find(c => choiceIdentity(c) === id)!;
-    if (!('branch' in choice)) throw Error('Expected Laser branch fixture');
+    if (!isLaserChoice(choice) || !('branch' in choice)) throw Error('Expected Laser branch fixture');
     if (choice.kind !== 'laserSpecialization') {
       build.applyLaserChoice({ kind: 'laserSpecialization', branch: choice.branch }, 0);
       if (choice.kind === 'laserCapstone') for (const development of rewardChoices) {

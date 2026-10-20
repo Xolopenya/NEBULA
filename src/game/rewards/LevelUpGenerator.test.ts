@@ -28,8 +28,9 @@ function missFour(g: LevelUpGenerator) {
 }
 
 describe('GAME-055-v1 policy', () => {
-  it('has exactly36 deeply frozen canonical affinities in TAG_IDS order', () => {
-    expect(LEVEL_UP_POLICY_VERSION).toBe('GAME-056-v1');
+  it('has exactly54 deeply frozen canonical affinities in TAG_IDS order', () => {
+    expect(LEVEL_UP_POLICY_VERSION).toBe('GAME-057-v1');
+    expect(Object.keys(REWARD_AFFINITIES)).toHaveLength(54);
     expect(Object.keys(REWARD_AFFINITIES)).toEqual(rewardChoices.map(choiceIdentity));
     expect(Object.isFrozen(REWARD_AFFINITIES)).toBe(true);
     for (const tags of Object.values(REWARD_AFFINITIES)) {

@@ -90,7 +90,7 @@ describe('GAME-056 closed Laser configuration and Build authority', () => {
     const c = ready().snapshot().laser;
     expect(() => prepareLaserChoice(c, { kind: 'laserDevelopment', branch: 'scatter', upgrade: 'velocity' } as unknown as LaserChoice, 0)).toThrow();
     expect(() => validateLaser({ ...c, upgrades: ['laser.scatter.damage'] })).toThrow();
-    expect(LASER_NEW_CHOICES).toHaveLength(18); expect(rewardChoices).toHaveLength(36);
+    expect(LASER_NEW_CHOICES).toHaveLength(18); expect(rewardChoices).toHaveLength(54);
   });
   it.each(LASER_BRANCHES)('freezes %s launch mechanics/values, composes modifiers once, excludes Engineering', branch => {
     const b = ready(); b.applyLaserChoice({ kind: 'laserSpecialization', branch }, 0); const c = b.snapshot().laser;

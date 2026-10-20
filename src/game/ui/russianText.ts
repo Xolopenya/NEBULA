@@ -56,6 +56,24 @@ export const REWARD_NAMES: Readonly<Record<RewardCandidateId, string>> = Object.
   'laser.lance.penetration': 'Сквозное пробитие',
   'laser.lance.radius': 'Широкое копьё',
   'laser.lance.capstone': 'ВЕРШИНА: Глубокое пробитие',
+  'missile.specialize.guidance': "Система наведения",
+  'missile.specialize.heavy': "Тяжёлая боеголовка",
+  'missile.specialize.fragmentation': "Осколочная боеголовка",
+  'missile.guidance.payload': "Точная боеголовка",
+  'missile.guidance.propulsion': "Маневровый двигатель",
+  'missile.guidance.fuse': "Датчик сближения",
+  'missile.guidance.endurance': "Запас топлива",
+  'missile.guidance.capstone': "ВЕРШИНА: Последний сигнал",
+  'missile.heavy.payload': "Усиленный заряд",
+  'missile.heavy.propulsion': "Тяжёлый двигатель",
+  'missile.heavy.blast': "Объёмный взрыв",
+  'missile.heavy.reload': "Зарядный механизм",
+  'missile.heavy.capstone': "ВЕРШИНА: Разрушитель",
+  'missile.fragmentation.payload': "Усиление боеголовки",
+  'missile.fragmentation.reload': "Подача боеприпасов",
+  'missile.fragmentation.fragments': "Сегментированный корпус",
+  'missile.fragmentation.endurance': "Дальние осколки",
+  'missile.fragmentation.capstone': "ВЕРШИНА: Осколочное кольцо",
 });
 
 type LaserRewardId = Extract<RewardCandidateId,
@@ -83,6 +101,29 @@ const LASER_EFFECTS: Readonly<Record<LaserRewardId, string>> = Object.freeze({
   'laser.lance.capstone': 'Целей насквозь: 4 → 5.',
 });
 
+type MissileRewardId = Extract<RewardCandidateId,
+  `missile.${'specialize' | 'guidance' | 'heavy' | 'fragmentation'}.${string}`>;
+const MISSILE_EFFECTS: Readonly<Record<MissileRewardId, string>> = Object.freeze({
+  'missile.specialize.guidance': "Самонаведение и подрыв рядом с целью; урон ×0,9, интервал ×0,85, скорость ×1,2, полёт 5 с, импульс 300",
+  'missile.specialize.heavy': "Прямой полёт; урон ×3, интервал ×1,5, скорость ×0,75, корпус 12 пикс., радиус взрыва ×1,5, импульс 800",
+  'missile.specialize.fragmentation': "Прямой полёт; урон ×0,75, интервал ×1,2, радиус взрыва ×0,85, импульс 300; после взрыва 4 летящих осколка",
+  'missile.guidance.payload': "Множитель урона: 0,9 → 1,1",
+  'missile.guidance.propulsion': "Множитель скорости: 1,2 → 1,5",
+  'missile.guidance.fuse': "База дистанции подрыва: 64 → 80 пикс.; масштаб Инженерии и предел 75% радиуса взрыва сохраняются",
+  'missile.guidance.endurance': "Время полёта: 5 → 6 с",
+  'missile.guidance.capstone': "При окончании времени полёта ракета взрывается один раз; выход за границу по-прежнему удаляет её",
+  'missile.heavy.payload': "Множитель урона: 3 → 3,5",
+  'missile.heavy.propulsion': "Множитель скорости: 0,75 → 0,9",
+  'missile.heavy.blast': "Множитель местного радиуса взрыва: 1,5 → 1,8; Пространственный усилитель добавляется после него",
+  'missile.heavy.reload': "Множитель интервала: 1,5 → 1,25",
+  'missile.heavy.capstone': "Множитель урона 4, корпус 16 пикс., импульс 1200; радиус и интервал сохраняются",
+  'missile.fragmentation.payload': "Множитель урона основной боеголовки: 0,75 → 1; каждый осколок сохраняет 25% её урона",
+  'missile.fragmentation.reload': "Множитель интервала: 1,2 → 1",
+  'missile.fragmentation.fragments': "Число осколков: 4 → 6",
+  'missile.fragmentation.endurance': "Время полёта осколков: 0,5 → 0,7 с",
+  'missile.fragmentation.capstone': "Число осколков: 6 → 8; каждый взрывается один раз, без новых осколков",
+});
+
 // No rounding, grouping or parse-back into gameplay arithmetic.
 function decimal(value: number): string { return String(value).replace('.', ','); }
 
@@ -101,6 +142,9 @@ export function victoryLevel(level: number): string { return `ДОСТИГНУТ
 export function rewardLabel(choice: LevelUpChoice, missileRanks: Readonly<MissileRanks>,
   droneRanks: Readonly<DroneRanks>, moduleLevels: Readonly<Record<PassiveModule, number>>): string {
   const name = REWARD_NAMES[choiceIdentity(choice)];
+  if (choice.kind === 'missileSpecialization' || choice.kind === 'missileDevelopment' || choice.kind === 'missileCapstone') {
+    return `${name}\n${MISSILE_EFFECTS[choiceIdentity(choice) as MissileRewardId]}`;
+  }
   if ('branch' in choice) return `${name}\n${LASER_EFFECTS[choiceIdentity(choice) as LaserRewardId]}`;
   if (choice.kind === 'prism') return `${name}\nТри луча — полный урон лазера у каждого`;
   if (choice.kind === 'cluster') return `${name}\nОсновной взрыв + 6 дополнительных взрывов`;
