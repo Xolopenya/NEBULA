@@ -1,4 +1,6 @@
 import { GAMEPLAY_SETTINGS } from '../settings/gameplaySettings';
+import { initialMissile, prepareMissileChoice, missileProfile, composeMissileProfile, MISSILE_TAGS,
+  type MissileConfiguration, type MissileChoice, type MissileCompositionContext } from './missileProgression';
 import { initialLaser, prepareLaserChoice, laserProfile, laserAttack, laserTagCandidate,
   type LaserConfiguration, type LaserChoice, type LaserProfile } from './laserProgression';
 export type CombatSystemId = 'LASER' | 'MISSILE' | 'COMBAT_DRONE';
@@ -28,7 +30,7 @@ export type TagPoints = Record<TagId, number>;
 export type BuildIdentity = { dominantTags: TagId[]; secondaryTags: TagId[] };
 export type BuildSnapshot = {
   slots: BuildSlots; baseStats: BaseStats; runModifiers: RunModifiers; effectiveStats: EffectiveStats;
-  tags: TagPoints; identity: BuildIdentity; laser: LaserConfiguration;
+  tags: TagPoints; identity: BuildIdentity; laser: LaserConfiguration; missile: MissileConfiguration;
 };
 export const DEFAULT_BASE_STATS: Readonly<BaseStats> = Object.freeze({
   hull: 5, thrust: GAMEPLAY_SETTINGS.player.moveSpeedPxPerSecond, reactorPower: 1, fireControl: 1, projectileVelocity: 1,
@@ -70,6 +72,7 @@ export class PlayerBuild {
     EXPLOSIONS: 0, DRONES: 0, TECHNOLOGY: 0, SHIELDS: 0, CONTROL: 0, MOBILITY: 0, SUPPORT: 0, SURVIVAL: 0 };
   #identity: BuildIdentity = { dominantTags: [], secondaryTags: [] };
   #laser = initialLaser();
+  #missile = initialMissile();
   #disposed = false;
 
   constructor(baseStats: Readonly<BaseStats> = DEFAULT_BASE_STATS) {
@@ -91,7 +94,30 @@ export class PlayerBuild {
     this.assertLive();
     return { slots: this.getSlots(), baseStats: this.getBaseStats(),
       runModifiers: this.getRunModifiers(), effectiveStats: this.getEffectiveStats(),
-      tags: { ...this.#tags }, identity: structuredClone(this.#identity), laser: structuredClone(this.#laser) };
+      tags: { ...this.#tags }, identity: structuredClone(this.#identity), laser: structuredClone(this.#laser),
+      missile: this.getMissileConfiguration() };
+  }
+
+  getMissileConfiguration(): MissileConfiguration { this.assertLive(); return structuredClone(this.#missile); }
+  previewMissileChoice(choice: MissileChoice, context: MissileCompositionContext) {
+    this.assertLive();
+    if (!this.#slots.combat.includes('MISSILE')) throw new RangeError('Missile not installed');
+    const missile = prepareMissileChoice(this.#missile, choice, context?.spatialLevel);
+    const { reactorPower, fireControl, projectileVelocity, projectileScale, engineering, impact } = this.#effective;
+    const composed = composeMissileProfile(missile, { reactorPower, fireControl, projectileVelocity,
+      projectileScale, engineering, impact }, context);
+    const tags = { ...this.#tags };
+    if (choice.kind === 'missileSpecialization') for (const tag of MISSILE_TAGS[choice.branch]) {
+      const total = tags[tag] + 1;
+      if (!Number.isSafeInteger(total) || total <= tags[tag]) throw new RangeError('Missile Tag overflow');
+      tags[tag] = total;
+    }
+    return { missile, tags, identity: this.deriveIdentity(tags), profile: missileProfile(missile), composed };
+  }
+  applyMissileChoice(choice: MissileChoice, context: MissileCompositionContext): boolean {
+    const next = this.previewMissileChoice(choice, context);
+    this.#missile = next.missile; this.#tags = next.tags; this.#identity = next.identity;
+    return true;
   }
 
   previewLaserChoice(choice: LaserChoice, combatLevel: number): Readonly<{ laser: LaserConfiguration;
